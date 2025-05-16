@@ -1,0 +1,54 @@
+# Task ID: 3
+# Title: Implement 2D Side-Scrolling Map and Player Movement
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Build the single, detailed 2D side-scrolling map of Yaowarat at Night using the Flame engine, with player avatar movement and basic collision detection.
+# Details:
+1. Create a Tiled map of Yaowarat at Night using the finalized art style
+2. Implement map layers for background, midground, foreground, and collision
+3. Add atmospheric elements like lights, signs, and crowd animations
+4. Implement player avatar with left/right movement controls
+5. Add collision detection with map boundaries and objects
+6. Implement camera following and map scrolling mechanics
+7. Add interactive objects and NPCs as collision entities
+8. Implement simple NPC identification system for interactions
+9. Add visual indicators for interactive elements
+10. Optimize map rendering for mobile performance
+11. Implement parallax scrolling for depth effect
+12. Add ambient animations (e.g., street lights flickering, steam from food stalls)
+
+# Test Strategy:
+Test player movement and collision detection on various device sizes. Verify map scrolling works smoothly without performance issues. Ensure all interactive elements are properly highlighted and accessible. Conduct performance testing to ensure consistent frame rates on target devices. Test edge cases like rapid movement and boundary conditions.
+
+# Subtasks:
+## 1. Create Tiled Map with Layered Structure [pending]
+### Dependencies: None
+### Description: Design and implement the Yaowarat Night scene using Tiled Map Editor with proper layering for background, midground, foreground, and collision layers.
+### Details:
+Use Tiled Map Editor to create a .tmx file with the following layers: 1) Background layer with static night sky and distant buildings, 2) Midground layer with main street elements, 3) Foreground layer with decorative elements, 4) Collision layer with invisible rectangles marking boundaries and obstacles. Export the map in a format compatible with Flame engine. Implement the TiledComponent in Flame to load and render the map.
+
+## 2. Implement Player Avatar and Basic Movement Controls [pending]
+### Dependencies: None
+### Description: Create the player character with sprite animations and implement left/right movement controls with appropriate physics.
+### Details:
+Create a Player class that extends the Flame SpriteAnimationComponent. Implement sprite sheets for idle, walking left, and walking right animations. Add input handling for touch/keyboard controls to move the player horizontally. Set appropriate movement speed and acceleration/deceleration values. Implement a simple state machine to manage player animation states based on movement direction.
+
+## 3. Implement Collision Detection System [pending]
+### Dependencies: 3.1, 3.2
+### Description: Add collision detection between the player and map elements using the collision layer from the Tiled map.
+### Details:
+Create a collision system using Flame's HasHitboxes and Collidable mixins. Extract collision objects from the Tiled collision layer and convert them to Flame hitboxes. Implement collision resolution that prevents the player from moving through solid objects. Add a simple physics system for player movement that respects collisions. Ensure the player cannot move beyond map boundaries.
+
+## 4. Add Camera System and Parallax Scrolling [pending]
+### Dependencies: 3.2, 3.3
+### Description: Implement a camera that follows the player and add parallax scrolling effects to create depth in the background layers.
+### Details:
+Create a camera system using Flame's CameraComponent that follows the player with smooth movement. Implement parallax scrolling by moving different layers at different speeds relative to the camera movement. Configure at least 3 parallax layers with decreasing movement speeds from foreground to background. Add camera boundaries to prevent showing empty areas beyond the map edges. Implement smooth camera transitions when changing direction.
+
+## 5. Add Atmospheric Elements and Optimizations [pending]
+### Dependencies: 3.1, 3.4
+### Description: Enhance the map with atmospheric elements like animated lights, signs, and crowd animations, then optimize for mobile performance.
+### Details:
+Add animated components for atmospheric effects: flickering neon signs, street lights, steam from food stalls, and ambient crowd movements. Implement these using Flame's SpriteAnimationComponent or ParticleSystemComponent. Add a simple day/night cycle controller that adjusts lighting effects. Optimize rendering by implementing culling for off-screen objects, using sprite batching where possible, and ensuring texture atlases are properly configured. Add visual indicators (like subtle highlighting) for interactive objects that will be implemented later.
+

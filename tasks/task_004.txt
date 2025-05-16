@@ -1,0 +1,54 @@
+# Task ID: 4
+# Title: Integrate FlutterFlow with Flame and Implement Core UI
+# Status: pending
+# Dependencies: 1, 3
+# Priority: high
+# Description: Embed the Flame GameWidget into FlutterFlow and develop the core UI screens including onboarding, authentication, settings, and the basic game interface.
+# Details:
+1. Create a bridge between FlutterFlow and Flame engine
+2. Embed Flame's GameWidget into FlutterFlow screens
+3. Implement user authentication flow using Supabase Auth
+4. Design and implement onboarding screens with tutorial
+5. Create settings screens for audio, language preferences, and accessibility options
+6. Implement UI for displaying Thai text with optional transliteration and English subtitles
+7. Design and implement the in-game HUD (heads-up display)
+8. Create microphone button UI for voice input
+9. Implement speech bubble UI for dialogue display
+10. Add charm/friendship score indicator with appropriate visual feedback
+11. Design inventory UI for collected quest items
+12. Ensure responsive design across different device sizes
+
+# Test Strategy:
+Test the integration between FlutterFlow and Flame to ensure seamless transitions. Verify authentication flow works correctly with Supabase. Test UI responsiveness across different device sizes and orientations. Ensure accessibility features work as expected. Verify that game state is properly maintained when switching between FlutterFlow and Flame components.
+
+# Subtasks:
+## 1. Create FlutterFlow-Flame Integration Bridge [pending]
+### Dependencies: None
+### Description: Develop a bridge module that allows FlutterFlow to communicate with the Flame game engine and embed the GameWidget into FlutterFlow screens.
+### Details:
+Create a FlameGameService class that initializes the Flame engine and provides methods for FlutterFlow to interact with it. Implement a custom widget that wraps the Flame GameWidget and exposes necessary configuration options. Set up communication channels between FlutterFlow UI elements and the Flame game instance.
+
+## 2. Implement Authentication and User Management UI [pending]
+### Dependencies: None
+### Description: Create the authentication flow screens including login, registration, and password recovery using Supabase Auth integration.
+### Details:
+Design and implement login, registration, and password recovery screens in FlutterFlow. Integrate Supabase Auth for authentication. Create user profile management UI. Implement secure storage of authentication tokens. Add validation for form inputs and appropriate error handling.
+
+## 3. Develop Onboarding and Tutorial Screens [pending]
+### Dependencies: None
+### Description: Create the onboarding experience that introduces users to the app and provides a tutorial on game mechanics and language learning features.
+### Details:
+Design a sequence of onboarding screens that explain the app's purpose and features. Implement interactive tutorial elements that demonstrate game mechanics. Create skip and navigation controls. Add progress indicators. Ensure onboarding can be revisited from settings. Implement storage of onboarding completion status.
+
+## 4. Create Settings and Preferences UI [pending]
+### Dependencies: None
+### Description: Implement settings screens for audio, language preferences, accessibility options, and other user configurations.
+### Details:
+Design and implement settings screens with toggles for audio, music, and sound effects. Add language selection options for UI language and learning preferences. Implement accessibility settings including text size, contrast options, and reading speed. Create UI for managing notification preferences. Implement persistent storage of settings using shared preferences or similar mechanism.
+
+## 5. Implement Core Game UI Components [pending]
+### Dependencies: None
+### Description: Develop the essential in-game UI elements including HUD, speech bubbles, microphone input button, friendship indicator, and inventory display.
+### Details:
+Design and implement the in-game HUD that displays relevant game information. Create speech bubble UI components with support for Thai text, transliteration, and English subtitles. Implement a microphone button for voice input with appropriate visual feedback. Design and implement the charm/friendship score indicator with animations for changes. Create an inventory UI for collected quest items with scrolling and selection capabilities. Ensure all UI elements are responsive across different device sizes.
+

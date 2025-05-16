@@ -1,0 +1,56 @@
+# Task ID: 11
+# Title: Implement NPC Facial Expression System
+# Status: pending
+# Dependencies: 2, 6, 7
+# Priority: medium
+# Description: Develop the system for dynamically changing NPC facial expressions based on the player's charm score, with four distinct expression states.
+# Details:
+1. Create sprite sheets for each NPC with four facial expression states:
+   - Angry face (0-25% charm)
+   - Skeptical/annoyed face (25-50% charm)
+   - Neutral pleasant face (50-75% charm)
+   - Beaming smiling face (75-100% charm)
+2. Implement charm score calculation system
+3. Create facial expression state machine based on charm percentage
+4. Implement smooth transitions between expression states
+5. Add visual feedback when charm score changes
+6. Ensure expressions are clearly distinguishable
+7. Implement expression update triggers in dialogue system
+8. Create test dialogue sequences that affect charm score
+9. Add subtle animations for each expression state
+10. Ensure consistency across all vendor NPCs
+
+# Test Strategy:
+Test facial expression changes across all charm score thresholds. Verify transitions between expressions are smooth and natural. Test with various dialogue sequences that affect charm score. Ensure expressions are clearly visible and distinguishable on different device screens. Conduct user testing to evaluate whether expressions effectively communicate NPC sentiment.
+
+# Subtasks:
+## 1. Create NPC Facial Expression Sprite Sheets [pending]
+### Dependencies: None
+### Description: Design and create sprite sheets for each NPC with four distinct facial expression states based on charm levels: angry (0-25%), skeptical (25-50%), pleasant (50-75%), and beaming (75-100%).
+### Details:
+For each NPC in the vendor category, create a sprite sheet with four rows, each containing the animation frames for a specific expression state. Ensure expressions are clearly distinguishable while maintaining character consistency. Include at least 3-4 subtle animation frames per expression to allow for natural movement.
+
+## 2. Implement Charm Score Calculation System [pending]
+### Dependencies: None
+### Description: Develop the system that calculates and tracks the player's charm score in relation to each NPC, converting raw values to percentages that determine facial expressions.
+### Details:
+Create a CharmManager class that maintains charm scores for each NPC the player interacts with. Implement methods to modify charm (increaseCharm, decreaseCharm) based on dialogue choices and actions. Include a method to calculate charm percentage (0-100%) and determine which of the four expression states should be displayed.
+
+## 3. Develop Facial Expression State Machine [pending]
+### Dependencies: 11.1, 11.2
+### Description: Create a state machine that manages transitions between the four facial expression states based on the player's charm percentage with each NPC.
+### Details:
+Implement an NPCExpressionController component that attaches to NPC game objects. Create a state machine with four states corresponding to the expression levels. Implement smooth transitions between states using coroutines or animation blending. Ensure the controller references the correct sprite sheet rows based on the current expression state.
+
+## 4. Integrate Expression System with Dialogue [pending]
+### Dependencies: 11.3
+### Description: Connect the facial expression system to the dialogue system so NPCs react appropriately during conversations based on charm levels and dialogue choices.
+### Details:
+Modify the DialogueManager to update charm scores based on player choices. Implement expression update triggers at key points in dialogue (start, after player choice, end). Add methods to force expression changes during critical dialogue moments regardless of charm score. Create test dialogue sequences that affect charm score to demonstrate the system.
+
+## 5. Add Visual Feedback for Charm Changes [pending]
+### Dependencies: 11.3, 11.4
+### Description: Implement visual indicators that show when the player's charm score with an NPC changes, making the system more transparent and responsive.
+### Details:
+Create subtle particle effects or small floating icons that appear when charm increases or decreases. Implement a brief flash or highlight on the NPC's expression when crossing a threshold between expression states. Add optional UI elements (togglable in settings) that show numerical charm values for debugging and player feedback. Ensure all feedback elements follow the game's art style.
+

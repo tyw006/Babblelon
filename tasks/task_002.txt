@@ -1,0 +1,77 @@
+# Task ID: 2
+# Title: Art Style Exploration and Finalization
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Create prototypes for both retro pixel art and vibrant hand-drawn 2D art styles for the Yaowarat at Night map, and finalize the art direction after review.
+# Details:
+1. Research reference images of Yaowarat (Bangkok's Chinatown) at night for authentic representation
+2. Create concept art for both styles:
+   - 16-bit pixel art version of Yaowarat night scene
+   - Vibrant hand-drawn 2D art version of the same scene
+3. Design sample character sprites for both styles (player avatar and 2-3 vendor NPCs)
+4. Implement basic animations for both styles (idle, walk, talk)
+5. Create tileset prototypes for map building
+6. Import assets into Flame engine to test performance and visual appeal
+7. Conduct review session with stakeholders to evaluate both styles
+8. Document final art style decision and guidelines
+9. Consider using Midjourney for initial concept generation if appropriate
+10. Finalize color palette and visual identity for the game
+
+# Test Strategy:
+Import art assets into the Flame engine and test rendering performance on target devices. Evaluate visual clarity on different screen sizes. Gather feedback from potential users on both art styles. Ensure the chosen style effectively conveys the atmosphere of Yaowarat at night with its lights and vibrant environment.
+
+# Subtasks:
+## 1. Research and Reference Collection for Yaowarat Night Scene [pending]
+### Dependencies: None
+### Description: Gather and organize reference materials for Yaowarat at night to ensure authentic representation in both art styles.
+### Details:
+1. Collect 20-30 high-quality photographs of Yaowarat at night showing different angles, lighting conditions, and distinctive elements (neon signs, food stalls, architecture)
+2. Identify key visual elements that define Yaowarat's identity (specific colors, iconic buildings, street layouts)
+3. Create a mood board organizing references by categories (lighting, architecture, people, activities)
+4. Document color palette options extracted from references
+5. Prepare a summary document highlighting essential elements that must be represented in both art styles
+
+## 2. Create Concept Art Prototypes for Both Art Styles [pending]
+### Dependencies: 2.1
+### Description: Develop initial concept art pieces for both the retro pixel art and vibrant hand-drawn 2D styles based on the reference materials.
+### Details:
+1. Create 3 concept pieces for 16-bit pixel art style (main street view, close-up of food stall, wide shot showing neon signs)
+2. Create 3 matching concept pieces in vibrant hand-drawn 2D style of the same scenes
+3. Apply color palettes from research phase
+4. Experiment with different lighting techniques in both styles to capture Yaowarat's night atmosphere
+5. Consider using Midjourney for initial concept generation and refinement
+6. Document technical specifications for each style (resolution, color depth, etc.)
+
+## 3. Design Character Sprites and Basic Animations [pending]
+### Dependencies: 2.2
+### Description: Create character sprite designs and basic animations for both art styles to evaluate how characters will look and move in the game.
+### Details:
+1. Design player avatar character in both art styles with front, back, and side views
+2. Create 3 vendor NPC designs in both styles (food vendor, shopkeeper, pedestrian)
+3. Implement basic animation sets for each character: idle (2 frames), walk cycle (4-6 frames), talk animation (2 frames)
+4. Ensure consistent scale and proportion between characters and environment concepts
+5. Document animation frame rates and technical specifications for both styles
+
+## 4. Develop Tileset Prototypes and Engine Implementation [pending]
+### Dependencies: 2.2, 2.3
+### Description: Create tileset prototypes for both art styles and implement them in the Flame engine to test technical feasibility and visual appeal.
+### Details:
+1. Design basic tilesets for both art styles including: ground tiles (sidewalk, road), building facades, decorative elements (signs, lights, food stalls)
+2. Create at least 20 unique tiles per style that can be combined to build a small section of Yaowarat
+3. Import all assets (concept art, character sprites, animations, tilesets) into Flame engine
+4. Build a small test scene in each art style using the tilesets
+5. Implement basic character movement in the test scenes
+6. Measure and document performance metrics for both styles (frame rate, memory usage, load times)
+
+## 5. Conduct Review and Finalize Art Direction [pending]
+### Dependencies: 2.4
+### Description: Present both art style implementations to stakeholders, gather feedback, make a final decision, and document the chosen art direction.
+### Details:
+1. Prepare a comprehensive presentation comparing both art styles with examples of all created assets
+2. Create a side-by-side comparison video showing both styles in motion within the Flame engine
+3. Conduct a formal review session with stakeholders to evaluate both styles
+4. Create a decision matrix with criteria such as: visual appeal, performance, production efficiency, market fit, and distinctiveness
+5. Document the final art style decision with detailed justification
+6. Create comprehensive art style guidelines document including: color palette, proportions, animation principles, technical specifications, and asset creation workflow
+
