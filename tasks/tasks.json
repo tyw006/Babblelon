@@ -1,0 +1,815 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Setup Project Infrastructure",
+      "description": "Initialize the project repository, configure CI/CD, and set up the core development environment with Flutter, Flame, FlutterFlow, and Supabase.",
+      "details": "1. Create a new Git repository for the project\n2. Set up basic CI/CD pipeline for automated testing and deployment\n3. Initialize Flutter project with Flame engine integration\n4. Create FlutterFlow project for no-code UI screens\n5. Set up Supabase project for authentication, database, and storage\n6. Configure FastAPI backend project on Fly.io\n7. Link all components together with proper environment variables\n8. Document the setup process for future reference\n9. Create development, staging, and production environments\n10. Set up project board for task tracking",
+      "testStrategy": "Verify all components can communicate with each other by creating simple test endpoints and UI elements. Ensure CI/CD pipeline successfully builds and deploys the application. Test authentication flow with Supabase. Confirm Flutter-Flame and FlutterFlow projects can be built and run locally.",
+      "priority": "high",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize Git Repository and Project Structure",
+          "description": "Create the Git repository, establish the folder structure, and set up the initial Flutter project with Flame engine integration.",
+          "dependencies": [],
+          "details": "1. Create a new Git repository on GitHub/GitLab\n2. Initialize the Flutter project with `flutter create --org com.yourcompany projectname`\n3. Add Flame engine dependency in pubspec.yaml\n4. Create README.md with project overview\n5. Set up .gitignore for Flutter/Dart projects\n6. Create folder structure for assets, lib/screens, lib/models, lib/services\n7. Make initial commit",
+          "status": "pending",
+          "testStrategy": "Verify Flutter project builds successfully and Flame engine imports work correctly"
+        },
+        {
+          "id": 2,
+          "title": "Configure Supabase Backend",
+          "description": "Set up Supabase project for authentication, database, and storage requirements of the application.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create new Supabase project\n2. Configure authentication providers (email, social logins)\n3. Set up database tables and relationships\n4. Create storage buckets for assets\n5. Set up row-level security policies\n6. Generate and secure API keys\n7. Document database schema\n8. Create initial database migrations",
+          "status": "pending",
+          "testStrategy": "Test authentication flow and basic CRUD operations against Supabase instance"
+        },
+        {
+          "id": 3,
+          "title": "Set Up FlutterFlow Project",
+          "description": "Create and configure the FlutterFlow project for no-code UI development and integrate it with the main Flutter project.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Initialize FlutterFlow project\n2. Set up project theme and design system\n3. Configure FlutterFlow to export code to the main repository\n4. Create shared widget library\n5. Set up navigation structure\n6. Configure FlutterFlow to use the same assets as the main project\n7. Document the FlutterFlow integration process",
+          "status": "pending",
+          "testStrategy": "Verify code export from FlutterFlow integrates cleanly with the main Flutter project"
+        },
+        {
+          "id": 4,
+          "title": "Configure FastAPI Backend on Fly.io",
+          "description": "Set up the FastAPI backend service, deploy it to Fly.io, and establish connectivity with the Flutter frontend and Supabase.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Create FastAPI project structure\n2. Implement basic API endpoints\n3. Set up Supabase client in FastAPI\n4. Configure CORS for Flutter client\n5. Set up Fly.io account and CLI tools\n6. Create fly.toml configuration\n7. Deploy initial version to Fly.io\n8. Set up environment variables for different environments\n9. Document API endpoints",
+          "status": "pending",
+          "testStrategy": "Test API endpoints with Postman/Insomnia and verify connectivity from Flutter client"
+        },
+        {
+          "id": 5,
+          "title": "Implement CI/CD Pipeline and Environment Configuration",
+          "description": "Set up continuous integration and deployment pipeline, configure development/staging/production environments, and establish project management tools.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Configure GitHub Actions or GitLab CI for automated testing\n2. Set up deployment workflows for Flutter app and FastAPI backend\n3. Create environment configuration for dev/staging/production\n4. Set up secrets management for API keys\n5. Configure linting and code quality checks\n6. Set up project board (GitHub Projects, Trello, or Jira)\n7. Create issue templates\n8. Document the CI/CD process\n9. Set up automated testing for both frontend and backend",
+          "status": "pending",
+          "testStrategy": "Verify CI pipeline successfully builds and tests the application, and deployment works for all environments"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Art Style Exploration and Finalization",
+      "description": "Create prototypes for both retro pixel art and vibrant hand-drawn 2D art styles for the Yaowarat at Night map, and finalize the art direction after review.",
+      "details": "1. Research reference images of Yaowarat (Bangkok's Chinatown) at night for authentic representation\n2. Create concept art for both styles:\n   - 16-bit pixel art version of Yaowarat night scene\n   - Vibrant hand-drawn 2D art version of the same scene\n3. Design sample character sprites for both styles (player avatar and 2-3 vendor NPCs)\n4. Implement basic animations for both styles (idle, walk, talk)\n5. Create tileset prototypes for map building\n6. Import assets into Flame engine to test performance and visual appeal\n7. Conduct review session with stakeholders to evaluate both styles\n8. Document final art style decision and guidelines\n9. Consider using Midjourney for initial concept generation if appropriate\n10. Finalize color palette and visual identity for the game",
+      "testStrategy": "Import art assets into the Flame engine and test rendering performance on target devices. Evaluate visual clarity on different screen sizes. Gather feedback from potential users on both art styles. Ensure the chosen style effectively conveys the atmosphere of Yaowarat at night with its lights and vibrant environment.",
+      "priority": "high",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Research and Reference Collection for Yaowarat Night Scene",
+          "description": "Gather and organize reference materials for Yaowarat at night to ensure authentic representation in both art styles.",
+          "dependencies": [],
+          "details": "1. Collect 20-30 high-quality photographs of Yaowarat at night showing different angles, lighting conditions, and distinctive elements (neon signs, food stalls, architecture)\n2. Identify key visual elements that define Yaowarat's identity (specific colors, iconic buildings, street layouts)\n3. Create a mood board organizing references by categories (lighting, architecture, people, activities)\n4. Document color palette options extracted from references\n5. Prepare a summary document highlighting essential elements that must be represented in both art styles",
+          "status": "pending",
+          "testStrategy": "Review collected materials with team members familiar with Bangkok to verify authenticity and completeness"
+        },
+        {
+          "id": 2,
+          "title": "Create Concept Art Prototypes for Both Art Styles",
+          "description": "Develop initial concept art pieces for both the retro pixel art and vibrant hand-drawn 2D styles based on the reference materials.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create 3 concept pieces for 16-bit pixel art style (main street view, close-up of food stall, wide shot showing neon signs)\n2. Create 3 matching concept pieces in vibrant hand-drawn 2D style of the same scenes\n3. Apply color palettes from research phase\n4. Experiment with different lighting techniques in both styles to capture Yaowarat's night atmosphere\n5. Consider using Midjourney for initial concept generation and refinement\n6. Document technical specifications for each style (resolution, color depth, etc.)",
+          "status": "pending",
+          "testStrategy": "Conduct informal feedback session with art team to gather initial impressions on both styles"
+        },
+        {
+          "id": 3,
+          "title": "Design Character Sprites and Basic Animations",
+          "description": "Create character sprite designs and basic animations for both art styles to evaluate how characters will look and move in the game.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Design player avatar character in both art styles with front, back, and side views\n2. Create 3 vendor NPC designs in both styles (food vendor, shopkeeper, pedestrian)\n3. Implement basic animation sets for each character: idle (2 frames), walk cycle (4-6 frames), talk animation (2 frames)\n4. Ensure consistent scale and proportion between characters and environment concepts\n5. Document animation frame rates and technical specifications for both styles",
+          "status": "pending",
+          "testStrategy": "Create simple animation previews as GIFs to evaluate fluidity and expressiveness of both styles"
+        },
+        {
+          "id": 4,
+          "title": "Develop Tileset Prototypes and Engine Implementation",
+          "description": "Create tileset prototypes for both art styles and implement them in the Flame engine to test technical feasibility and visual appeal.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Design basic tilesets for both art styles including: ground tiles (sidewalk, road), building facades, decorative elements (signs, lights, food stalls)\n2. Create at least 20 unique tiles per style that can be combined to build a small section of Yaowarat\n3. Import all assets (concept art, character sprites, animations, tilesets) into Flame engine\n4. Build a small test scene in each art style using the tilesets\n5. Implement basic character movement in the test scenes\n6. Measure and document performance metrics for both styles (frame rate, memory usage, load times)",
+          "status": "pending",
+          "testStrategy": "Run test scenes on target devices to evaluate performance and visual quality; document any technical limitations or concerns for each style"
+        },
+        {
+          "id": 5,
+          "title": "Conduct Review and Finalize Art Direction",
+          "description": "Present both art style implementations to stakeholders, gather feedback, make a final decision, and document the chosen art direction.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. Prepare a comprehensive presentation comparing both art styles with examples of all created assets\n2. Create a side-by-side comparison video showing both styles in motion within the Flame engine\n3. Conduct a formal review session with stakeholders to evaluate both styles\n4. Create a decision matrix with criteria such as: visual appeal, performance, production efficiency, market fit, and distinctiveness\n5. Document the final art style decision with detailed justification\n6. Create comprehensive art style guidelines document including: color palette, proportions, animation principles, technical specifications, and asset creation workflow",
+          "status": "pending",
+          "testStrategy": "Validate final art direction document with art team to ensure clarity and completeness for future asset production"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Implement 2D Side-Scrolling Map and Player Movement",
+      "description": "Build the single, detailed 2D side-scrolling map of Yaowarat at Night using the Flame engine, with player avatar movement and basic collision detection.",
+      "details": "1. Create a Tiled map of Yaowarat at Night using the finalized art style\n2. Implement map layers for background, midground, foreground, and collision\n3. Add atmospheric elements like lights, signs, and crowd animations\n4. Implement player avatar with left/right movement controls\n5. Add collision detection with map boundaries and objects\n6. Implement camera following and map scrolling mechanics\n7. Add interactive objects and NPCs as collision entities\n8. Implement simple NPC identification system for interactions\n9. Add visual indicators for interactive elements\n10. Optimize map rendering for mobile performance\n11. Implement parallax scrolling for depth effect\n12. Add ambient animations (e.g., street lights flickering, steam from food stalls)",
+      "testStrategy": "Test player movement and collision detection on various device sizes. Verify map scrolling works smoothly without performance issues. Ensure all interactive elements are properly highlighted and accessible. Conduct performance testing to ensure consistent frame rates on target devices. Test edge cases like rapid movement and boundary conditions.",
+      "priority": "high",
+      "dependencies": [
+        2
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Tiled Map with Layered Structure",
+          "description": "Design and implement the Yaowarat Night scene using Tiled Map Editor with proper layering for background, midground, foreground, and collision layers.",
+          "dependencies": [],
+          "details": "Use Tiled Map Editor to create a .tmx file with the following layers: 1) Background layer with static night sky and distant buildings, 2) Midground layer with main street elements, 3) Foreground layer with decorative elements, 4) Collision layer with invisible rectangles marking boundaries and obstacles. Export the map in a format compatible with Flame engine. Implement the TiledComponent in Flame to load and render the map.",
+          "status": "pending",
+          "testStrategy": "Verify all layers render correctly, check that the map dimensions are appropriate for the game's scale, and ensure the map file loads without errors in the Flame engine."
+        },
+        {
+          "id": 2,
+          "title": "Implement Player Avatar and Basic Movement Controls",
+          "description": "Create the player character with sprite animations and implement left/right movement controls with appropriate physics.",
+          "dependencies": [],
+          "details": "Create a Player class that extends the Flame SpriteAnimationComponent. Implement sprite sheets for idle, walking left, and walking right animations. Add input handling for touch/keyboard controls to move the player horizontally. Set appropriate movement speed and acceleration/deceleration values. Implement a simple state machine to manage player animation states based on movement direction.",
+          "status": "pending",
+          "testStrategy": "Test player movement on different devices, ensure animations transition smoothly between states, and verify input responsiveness meets expectations."
+        },
+        {
+          "id": 3,
+          "title": "Implement Collision Detection System",
+          "description": "Add collision detection between the player and map elements using the collision layer from the Tiled map.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Create a collision system using Flame's HasHitboxes and Collidable mixins. Extract collision objects from the Tiled collision layer and convert them to Flame hitboxes. Implement collision resolution that prevents the player from moving through solid objects. Add a simple physics system for player movement that respects collisions. Ensure the player cannot move beyond map boundaries.",
+          "status": "pending",
+          "testStrategy": "Test collision by attempting to walk through walls and boundaries, verify the player stops appropriately at obstacles, and check that collision detection performs well with multiple objects."
+        },
+        {
+          "id": 4,
+          "title": "Add Camera System and Parallax Scrolling",
+          "description": "Implement a camera that follows the player and add parallax scrolling effects to create depth in the background layers.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "Create a camera system using Flame's CameraComponent that follows the player with smooth movement. Implement parallax scrolling by moving different layers at different speeds relative to the camera movement. Configure at least 3 parallax layers with decreasing movement speeds from foreground to background. Add camera boundaries to prevent showing empty areas beyond the map edges. Implement smooth camera transitions when changing direction.",
+          "status": "pending",
+          "testStrategy": "Test the parallax effect at different movement speeds, verify the camera follows the player smoothly, and ensure the camera boundaries work correctly at map edges."
+        },
+        {
+          "id": 5,
+          "title": "Add Atmospheric Elements and Optimizations",
+          "description": "Enhance the map with atmospheric elements like animated lights, signs, and crowd animations, then optimize for mobile performance.",
+          "dependencies": [
+            1,
+            4
+          ],
+          "details": "Add animated components for atmospheric effects: flickering neon signs, street lights, steam from food stalls, and ambient crowd movements. Implement these using Flame's SpriteAnimationComponent or ParticleSystemComponent. Add a simple day/night cycle controller that adjusts lighting effects. Optimize rendering by implementing culling for off-screen objects, using sprite batching where possible, and ensuring texture atlases are properly configured. Add visual indicators (like subtle highlighting) for interactive objects that will be implemented later.",
+          "status": "pending",
+          "testStrategy": "Measure FPS on target devices before and after optimization, verify all animations play smoothly without frame drops, and test performance with many atmospheric elements visible simultaneously."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Integrate FlutterFlow with Flame and Implement Core UI",
+      "description": "Embed the Flame GameWidget into FlutterFlow and develop the core UI screens including onboarding, authentication, settings, and the basic game interface.",
+      "details": "1. Create a bridge between FlutterFlow and Flame engine\n2. Embed Flame's GameWidget into FlutterFlow screens\n3. Implement user authentication flow using Supabase Auth\n4. Design and implement onboarding screens with tutorial\n5. Create settings screens for audio, language preferences, and accessibility options\n6. Implement UI for displaying Thai text with optional transliteration and English subtitles\n7. Design and implement the in-game HUD (heads-up display)\n8. Create microphone button UI for voice input\n9. Implement speech bubble UI for dialogue display\n10. Add charm/friendship score indicator with appropriate visual feedback\n11. Design inventory UI for collected quest items\n12. Ensure responsive design across different device sizes",
+      "testStrategy": "Test the integration between FlutterFlow and Flame to ensure seamless transitions. Verify authentication flow works correctly with Supabase. Test UI responsiveness across different device sizes and orientations. Ensure accessibility features work as expected. Verify that game state is properly maintained when switching between FlutterFlow and Flame components.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        3
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create FlutterFlow-Flame Integration Bridge",
+          "description": "Develop a bridge module that allows FlutterFlow to communicate with the Flame game engine and embed the GameWidget into FlutterFlow screens.",
+          "dependencies": [],
+          "details": "Create a FlameGameService class that initializes the Flame engine and provides methods for FlutterFlow to interact with it. Implement a custom widget that wraps the Flame GameWidget and exposes necessary configuration options. Set up communication channels between FlutterFlow UI elements and the Flame game instance.",
+          "status": "pending",
+          "testStrategy": "Test the bridge with a simple Flame game component to verify proper rendering and interaction. Ensure the game state can be controlled from FlutterFlow UI elements."
+        },
+        {
+          "id": 2,
+          "title": "Implement Authentication and User Management UI",
+          "description": "Create the authentication flow screens including login, registration, and password recovery using Supabase Auth integration.",
+          "dependencies": [],
+          "details": "Design and implement login, registration, and password recovery screens in FlutterFlow. Integrate Supabase Auth for authentication. Create user profile management UI. Implement secure storage of authentication tokens. Add validation for form inputs and appropriate error handling.",
+          "status": "pending",
+          "testStrategy": "Test the authentication flow with various scenarios including successful login/registration, invalid credentials, and password recovery. Verify proper token storage and session management."
+        },
+        {
+          "id": 3,
+          "title": "Develop Onboarding and Tutorial Screens",
+          "description": "Create the onboarding experience that introduces users to the app and provides a tutorial on game mechanics and language learning features.",
+          "dependencies": [],
+          "details": "Design a sequence of onboarding screens that explain the app's purpose and features. Implement interactive tutorial elements that demonstrate game mechanics. Create skip and navigation controls. Add progress indicators. Ensure onboarding can be revisited from settings. Implement storage of onboarding completion status.",
+          "status": "pending",
+          "testStrategy": "Test the onboarding flow on different device sizes. Verify that tutorial interactions correctly demonstrate game mechanics. Test skip functionality and ability to revisit tutorials."
+        },
+        {
+          "id": 4,
+          "title": "Create Settings and Preferences UI",
+          "description": "Implement settings screens for audio, language preferences, accessibility options, and other user configurations.",
+          "dependencies": [],
+          "details": "Design and implement settings screens with toggles for audio, music, and sound effects. Add language selection options for UI language and learning preferences. Implement accessibility settings including text size, contrast options, and reading speed. Create UI for managing notification preferences. Implement persistent storage of settings using shared preferences or similar mechanism.",
+          "status": "pending",
+          "testStrategy": "Test that all settings are properly saved and loaded between app sessions. Verify that changing settings immediately affects the app behavior. Test accessibility features with screen readers and different text sizes."
+        },
+        {
+          "id": 5,
+          "title": "Implement Core Game UI Components",
+          "description": "Develop the essential in-game UI elements including HUD, speech bubbles, microphone input button, friendship indicator, and inventory display.",
+          "dependencies": [],
+          "details": "Design and implement the in-game HUD that displays relevant game information. Create speech bubble UI components with support for Thai text, transliteration, and English subtitles. Implement a microphone button for voice input with appropriate visual feedback. Design and implement the charm/friendship score indicator with animations for changes. Create an inventory UI for collected quest items with scrolling and selection capabilities. Ensure all UI elements are responsive across different device sizes.",
+          "status": "pending",
+          "testStrategy": "Test UI components on various screen sizes to ensure responsiveness. Verify that Thai text displays correctly with proper transliteration. Test microphone button visual feedback. Ensure inventory scrolling and selection works properly."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Implement Speech-to-Text and Text-to-Speech Pipeline",
+      "description": "Develop the core voice interaction pipeline using STT (Whisper/iApp SpeechFlow) and TTS (PlayHT/Google Cloud TTS) services to enable voice-driven gameplay.",
+      "details": "1. Integrate Whisper API for Speech-to-Text functionality\n2. Set up alternative iApp SpeechFlow integration for comparison\n3. Implement microphone recording and audio processing in Flutter\n4. Create audio transmission to backend services\n5. Integrate PlayHT API for Text-to-Speech\n6. Set up Google Cloud TTS as an alternative\n7. Implement audio playback for TTS responses\n8. Create a service to handle the full audio pipeline:\n   - Record player's voice\n   - Convert to text using STT\n   - Process text (prepare for LLM)\n   - Convert response to speech using TTS\n   - Play audio response\n9. Implement error handling and fallbacks\n10. Add visual feedback during voice recording and processing\n11. Optimize for low latency and good user experience",
+      "testStrategy": "Test STT accuracy with various Thai phrases and accents. Measure end-to-end latency of the voice interaction pipeline. Test TTS quality and naturalness for Thai language. Verify error handling when speech recognition fails. Test microphone permissions and recording functionality across different devices. Conduct A/B testing between different STT/TTS providers to determine the best option.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        4
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Microphone Recording and Audio Processing",
+          "description": "Create a Flutter module to handle microphone access, audio recording, and basic audio processing for speech recognition.",
+          "dependencies": [],
+          "details": "1. Add required permissions for microphone access in Android/iOS manifests\n2. Implement a recording service using Flutter sound or audio_recorder packages\n3. Create functions to start/stop recording and save audio in appropriate format (WAV/MP3)\n4. Implement audio level visualization for UI feedback\n5. Add basic audio preprocessing (noise reduction, normalization) if needed\n6. Create a clean interface that returns the processed audio file ready for STT processing",
+          "status": "pending",
+          "testStrategy": "Test microphone permissions on both platforms. Verify recording quality with sample recordings. Test visualization feedback with simulated audio levels."
+        },
+        {
+          "id": 2,
+          "title": "Integrate Speech-to-Text Services",
+          "description": "Implement API integrations for Whisper and iApp SpeechFlow, with a unified interface to convert audio to text.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create API clients for both Whisper and iApp SpeechFlow\n2. Implement audio file transmission to both services\n3. Handle API responses and error cases\n4. Create a service factory that can switch between providers\n5. Implement caching for common phrases to improve performance\n6. Add logging for performance comparison between services",
+          "status": "pending",
+          "testStrategy": "Create mock API responses for testing. Measure transcription accuracy with test audio samples. Test fallback mechanisms when primary service fails."
+        },
+        {
+          "id": 3,
+          "title": "Integrate Text-to-Speech Services",
+          "description": "Implement API integrations for PlayHT and Google Cloud TTS with a unified interface to convert text responses to speech audio.",
+          "dependencies": [],
+          "details": "1. Create API clients for both PlayHT and Google Cloud TTS\n2. Implement text submission and audio file retrieval\n3. Handle different voice options and parameters (pitch, speed, etc.)\n4. Create a service factory that can switch between providers\n5. Implement caching for common phrases\n6. Add configuration options for voice selection based on character/context",
+          "status": "pending",
+          "testStrategy": "Test with various text inputs including special characters and game-specific terms. Verify audio quality and pronunciation. Measure latency for different text lengths."
+        },
+        {
+          "id": 4,
+          "title": "Implement Audio Playback System",
+          "description": "Create a robust audio playback system for TTS responses with proper queuing, controls, and error handling.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Implement audio playback using Flutter audio players\n2. Create a queue system for multiple audio responses\n3. Add playback controls (pause, resume, skip, repeat)\n4. Implement event listeners for playback state changes\n5. Handle audio focus and interruptions (calls, notifications)\n6. Add visual feedback during audio playback\n7. Implement fallback to text display when audio fails",
+          "status": "pending",
+          "testStrategy": "Test playback with various audio formats and lengths. Verify queue behavior with multiple consecutive responses. Test interruption handling with simulated phone calls/notifications."
+        },
+        {
+          "id": 5,
+          "title": "Create End-to-End Voice Interaction Pipeline",
+          "description": "Integrate all components into a complete voice interaction pipeline with proper state management, error handling, and user feedback.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Create a VoiceInteractionService that orchestrates the full pipeline\n2. Implement state management for the voice interaction flow\n3. Add visual feedback for each stage (listening, processing, speaking)\n4. Implement comprehensive error handling and fallbacks\n5. Add configurable timeouts for each stage\n6. Create analytics to measure end-to-end latency\n7. Optimize the pipeline for minimal latency\n8. Implement a text fallback mode when voice services are unavailable",
+          "status": "pending",
+          "testStrategy": "Perform end-to-end testing with various scenarios. Measure total latency from voice input to audio output. Test error recovery in different failure scenarios. Verify graceful degradation when services are unavailable."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Develop AI Dialogue System with LLM Integration",
+      "description": "Create the backend dialogue system using GPT-4o/Claude 3 to generate dynamic NPC responses, manage conversation context, and calculate charm scores.",
+      "details": "1. Set up FastAPI backend with endpoints for dialogue processing\n2. Integrate with OpenAI API (GPT-4o) and/or Anthropic API (Claude 3)\n3. Design prompt engineering system for NPC personas\n4. Create YAML format for defining NPC personalities and dialogue styles\n5. Implement conversation history management\n6. Develop charm score calculation based on player interactions\n7. Create system for NPC facial expression changes based on charm score\n8. Implement context management for quest-specific dialogue\n9. Add translation layer if needed (Thai-English-Thai)\n10. Optimize prompts for response quality and consistency\n11. Implement fallback mechanisms for API failures\n12. Add logging and monitoring for dialogue quality",
+      "testStrategy": "Test dialogue generation with various player inputs. Verify persona consistency across multiple interactions. Test charm score calculation with positive and negative interactions. Measure response time and optimize if needed. Verify that NPC facial expressions change appropriately based on charm score. Test error handling and fallback mechanisms. Conduct user testing to evaluate dialogue naturalness and appropriateness.",
+      "priority": "high",
+      "dependencies": [
+        5
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Set up FastAPI Backend with LLM Integration",
+          "description": "Create the FastAPI backend structure with endpoints for dialogue processing and integrate with OpenAI (GPT-4o) and/or Anthropic (Claude 3) APIs.",
+          "dependencies": [],
+          "details": "1. Initialize FastAPI project with proper directory structure\n2. Create dialogue endpoint (/api/dialogue) that accepts player input and NPC context\n3. Set up environment variables for API keys\n4. Implement API client classes for both OpenAI and Anthropic\n5. Create a service layer that abstracts the LLM provider\n6. Implement basic error handling and retries for API failures\n7. Add request/response logging",
+          "status": "pending",
+          "testStrategy": "Write unit tests for API clients with mocked responses. Create integration tests that verify endpoint functionality with test API keys."
+        },
+        {
+          "id": 2,
+          "title": "Design NPC Persona System with YAML Configuration",
+          "description": "Create a YAML-based configuration system for defining NPC personalities, dialogue styles, and response patterns.",
+          "dependencies": [],
+          "details": "1. Design YAML schema for NPC definitions including personality traits, speech patterns, knowledge base, and dialogue options\n2. Implement YAML parser to load NPC configurations\n3. Create a PersonaManager class to handle loading and accessing NPC data\n4. Design prompt templates that incorporate persona data\n5. Implement system for dynamically inserting persona details into prompts\n6. Add validation for YAML files to ensure required fields are present",
+          "status": "pending",
+          "testStrategy": "Create sample YAML files for different NPC types. Test parsing and validation. Verify prompt generation with different persona configurations."
+        },
+        {
+          "id": 3,
+          "title": "Implement Conversation History Management",
+          "description": "Develop a system to maintain conversation context across multiple exchanges, allowing NPCs to reference previous interactions.",
+          "dependencies": [],
+          "details": "1. Design a ConversationContext class to store dialogue history\n2. Implement methods to add new exchanges and retrieve formatted history\n3. Create a windowing mechanism to limit context length for LLM input\n4. Add importance weighting to keep critical exchanges in context\n5. Implement session management to persist conversations\n6. Create methods to summarize longer conversations for context efficiency\n7. Add functionality to extract and track key information mentioned in conversations",
+          "status": "pending",
+          "testStrategy": "Test with simulated conversations to verify context retention. Measure token usage with different history lengths. Verify that important information is preserved when windowing is applied."
+        },
+        {
+          "id": 4,
+          "title": "Develop Charm Score Calculation System",
+          "description": "Create a system that evaluates player dialogue choices and calculates charm scores based on NPC preferences and conversation quality.",
+          "dependencies": [],
+          "details": "1. Design a scoring model based on NPC personality traits and preferences\n2. Implement prompt engineering to have the LLM evaluate player responses\n3. Create a CharmScoreManager class to track and update scores\n4. Define score thresholds for different NPC reactions\n5. Implement methods to trigger facial expression changes based on score\n6. Add persistence layer to store charm scores across sessions\n7. Create analytics to track score changes over time",
+          "status": "pending",
+          "testStrategy": "Test with sample dialogues representing positive and negative interactions. Verify score calculations match expected outcomes. Test persistence across multiple conversation sessions."
+        },
+        {
+          "id": 5,
+          "title": "Implement Context-Aware Dialogue for Quests and Translation",
+          "description": "Enhance the dialogue system with quest-specific context awareness and add translation capabilities if needed.",
+          "dependencies": [],
+          "details": "1. Design a system to inject quest-specific context into conversations\n2. Create a QuestContextProvider interface to supply relevant quest information\n3. Implement prompt engineering techniques to maintain quest awareness\n4. Add a translation layer for Thai-English-Thai conversion if required\n5. Optimize prompts for response quality and consistency\n6. Implement comprehensive logging for dialogue quality monitoring\n7. Create fallback mechanisms for API failures or inappropriate responses",
+          "status": "pending",
+          "testStrategy": "Test with various quest scenarios to verify appropriate contextual responses. If translation is implemented, test accuracy with bilingual testers. Verify fallback mechanisms by simulating API failures."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Implement Quest System and Yaowarat Starter Quest",
+      "description": "Develop the quest system and implement the \"Top 3 Yaowarat Bites\" starter quest with the three food vendor interactions and quest progression logic.",
+      "details": "1. Design quest data structure and progression system\n2. Implement quest state management in Supabase\n3. Create the \"Top 3 Yaowarat Bites\" quest flow:\n   - Guay Jub Ouan Pochana vendor interaction\n   - Khao Phad Pu Chang Phueak vendor interaction\n   - Pa Tong Go Savoey vendor interaction\n4. Develop quest objective tracking system\n5. Implement inventory system for collected dishes\n6. Create dialogue triggers for quest progression\n7. Add visual feedback for quest completion\n8. Implement charm threshold system (≥2 correct phrases used)\n9. Design and implement quest UI elements (objective display, progress tracking)\n10. Create quest completion rewards\n11. Add tutorial elements for the first vendor interaction",
+      "testStrategy": "Test complete quest flow from start to finish. Verify quest state is properly saved and loaded. Test quest progression with various player interactions. Ensure charm thresholds work correctly for quest advancement. Verify inventory system correctly tracks collected dishes. Test edge cases like abandoning and resuming quests. Conduct user testing to ensure quest objectives are clear and engaging.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design Quest Data Structure and Database Schema",
+          "description": "Create the core data structures for the quest system and set up the necessary database tables in Supabase to store quest state and progress.",
+          "dependencies": [],
+          "details": "Design a flexible quest data structure that includes: quest ID, title, description, status (available, active, completed), objectives array (with completion criteria), rewards, and prerequisites. Create Supabase tables for 'quests', 'quest_objectives', 'player_quests', and 'player_objectives'. Implement database functions for tracking quest state changes. Document the schema with entity relationship diagrams.",
+          "status": "pending",
+          "testStrategy": "Create test fixtures with sample quest data. Verify database operations for creating quests, updating objectives, and tracking completion states."
+        },
+        {
+          "id": 2,
+          "title": "Implement Quest State Management System",
+          "description": "Develop the core quest management system that handles quest activation, objective tracking, and completion logic.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create a QuestManager class that interfaces with Supabase to load, save, and update quest data. Implement methods for startQuest(), updateObjective(), completeObjective(), and completeQuest(). Add event listeners for relevant game actions that might trigger quest updates. Implement the charm threshold system that tracks when ≥2 correct phrases are used in dialogue. Create helper functions to query active quests and objectives.",
+          "status": "pending",
+          "testStrategy": "Write unit tests for the QuestManager class. Test quest activation, objective updates, and completion logic with mock data."
+        },
+        {
+          "id": 3,
+          "title": "Create Food Vendor Interactions for Yaowarat Quest",
+          "description": "Implement the three food vendor interactions required for the 'Top 3 Yaowarat Bites' starter quest, including dialogue and interaction logic.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create interactive NPCs for the three food vendors: Guay Jub Ouan Pochana, Khao Phad Pu Chang Phueak, and Pa Tong Go Savoey. Design dialogue trees for each vendor with multiple conversation paths. Implement the interaction logic that triggers quest updates when the player engages with vendors. Add tutorial elements for the first vendor to guide new players. Create visual indicators to show which vendors are part of the quest.",
+          "status": "pending",
+          "testStrategy": "Playtest each vendor interaction to ensure dialogue flows correctly and quest objectives update properly. Test edge cases like interrupting dialogue and returning to vendors after quest completion."
+        },
+        {
+          "id": 4,
+          "title": "Develop Inventory System for Collected Dishes",
+          "description": "Create an inventory system to track and display the dishes collected during the quest, with appropriate visual feedback.",
+          "dependencies": [
+            2
+          ],
+          "details": "Design an inventory data structure to store collected dishes with properties like name, description, image, and acquisition date. Implement inventory management functions (addItem, removeItem, getItems). Create visual representations of each dish for the inventory UI. Add animations and sound effects for when a new dish is added to the inventory. Implement persistence of inventory data in Supabase. Connect inventory updates to quest objective completion.",
+          "status": "pending",
+          "testStrategy": "Test adding and removing items from inventory. Verify persistence across game sessions. Ensure proper visual feedback when items are acquired."
+        },
+        {
+          "id": 5,
+          "title": "Design and Implement Quest UI Elements",
+          "description": "Create the user interface components for displaying quest information, objectives, progress tracking, and completion rewards.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "Design and implement a quest log UI that shows active and completed quests. Create an objective tracker that displays current progress for active quests. Implement visual feedback for quest completion (animations, sounds, notifications). Design and implement the reward screen for when quests are completed. Add a mini-tutorial overlay for the starter quest. Ensure UI elements are responsive and accessible. Implement toggling of quest UI visibility.",
+          "status": "pending",
+          "testStrategy": "Conduct usability testing to ensure quest information is clearly presented. Test UI on different screen sizes. Verify that all quest states (available, active, completed) display correctly."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Develop Spaced Repetition System for Learning Reinforcement",
+      "description": "Create the Spaced Repetition System (SRS) using FlutterFlow to reinforce vocabulary learning through flashcard reviews after key interactions.",
+      "details": "1. Design SRS algorithm based on proven spaced repetition methods\n2. Create vocabulary database structure in Supabase\n3. Implement flashcard UI in FlutterFlow\n4. Develop review scheduling system\n5. Create difficulty rating mechanism (easy, medium, hard)\n6. Implement progress tracking and statistics\n7. Design triggers for SRS sessions after quest completions\n8. Add audio playback for vocabulary items\n9. Implement Thai script with optional transliteration and English translation\n10. Create gamification elements for SRS (streaks, achievements)\n11. Add visual feedback for correct/incorrect answers\n12. Implement session summary and progress visualization",
+      "testStrategy": "Test SRS algorithm with various user response patterns. Verify flashcards display correctly with Thai script, transliteration, and English. Test audio playback for vocabulary items. Ensure review scheduling works according to spaced repetition principles. Test progress tracking and statistics. Verify integration with quest completion triggers. Conduct user testing to evaluate learning effectiveness.",
+      "priority": "medium",
+      "dependencies": [
+        4,
+        7
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement SRS Algorithm and Database Structure",
+          "description": "Design and implement the core spaced repetition algorithm and set up the vocabulary database structure in Supabase to store flashcards, review schedules, and user progress.",
+          "dependencies": [],
+          "details": "Create a Supabase table for vocabulary items with fields for Thai text, transliteration, English translation, audio URL, difficulty level, and review metadata. Implement the SuperMemo-2 algorithm or a similar proven SRS algorithm that calculates optimal review intervals based on user performance. Define functions to schedule reviews and update card intervals based on difficulty ratings.",
+          "status": "pending",
+          "testStrategy": "Test the algorithm with sample data to verify correct interval calculations. Validate database schema with sample vocabulary entries and verify proper storage and retrieval of flashcard data."
+        },
+        {
+          "id": 2,
+          "title": "Develop Flashcard UI and Review Interface",
+          "description": "Create the user interface for flashcards and the review session flow in FlutterFlow, including card presentation, flip animation, and difficulty rating buttons.",
+          "dependencies": [
+            1
+          ],
+          "details": "Design a clean, intuitive flashcard UI with Thai script on front and English translation on back. Implement smooth flip animation. Create three difficulty rating buttons (Easy, Medium, Hard) that appear after card review. Add audio playback functionality with a speaker icon. Ensure proper handling of Thai script and transliteration display options. Implement visual feedback for correct/incorrect answers.",
+          "status": "pending",
+          "testStrategy": "Test the UI on different screen sizes. Verify flip animations work smoothly. Ensure audio playback functions correctly. Test Thai script rendering and transliteration toggle."
+        },
+        {
+          "id": 3,
+          "title": "Implement Review Scheduling and Session Management",
+          "description": "Build the system to schedule reviews based on the SRS algorithm, manage review sessions, and trigger reviews after quest completions.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Create functions to determine which cards are due for review based on their last review date and interval. Implement a daily review queue that prioritizes overdue cards. Develop triggers to prompt SRS sessions after quest completions or at optimal times. Create session management logic to handle card presentation order, session length, and completion criteria. Implement a mechanism to limit the number of new cards introduced per day.",
+          "status": "pending",
+          "testStrategy": "Test scheduling logic with cards at various intervals. Verify that quest completion correctly triggers review sessions. Test session flow with mixed new and review cards."
+        },
+        {
+          "id": 4,
+          "title": "Create Progress Tracking and Statistics System",
+          "description": "Implement a system to track user progress, calculate statistics, and visualize learning performance over time.",
+          "dependencies": [
+            3
+          ],
+          "details": "Create a dashboard to display key metrics: cards learned, review accuracy, current streak, and mastery level. Implement streak tracking for consecutive days of review. Design and implement progress visualization charts showing retention rate over time. Create a session summary screen displaying performance metrics after each review session. Store all review history in Supabase for long-term analysis.",
+          "status": "pending",
+          "testStrategy": "Verify statistics calculations with sample review data. Test streak counting logic with various usage patterns. Ensure visualizations render correctly with different data sets."
+        },
+        {
+          "id": 5,
+          "title": "Implement Gamification Elements and Integration",
+          "description": "Add gamification features to the SRS system and integrate it with the main app experience to increase engagement and motivation.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Design and implement achievements for review milestones (e.g., 7-day streak, 100 cards mastered). Create a level-up system based on vocabulary mastery. Add visual and audio rewards for completing review sessions. Implement a notification system to remind users of pending reviews. Integrate the SRS system with the main app navigation and quest system. Create smooth transitions between regular app usage and review sessions.",
+          "status": "pending",
+          "testStrategy": "Test achievement triggers with various user scenarios. Verify notification system works correctly. Test the integration points between the SRS system and main app features."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Implement Premium Features and In-App Purchases",
+      "description": "Develop the \"Practice-Anytime\" chat feature for premium users and integrate with App Store/Google Play in-app purchase systems and Stripe for backend validation.",
+      "details": "1. Design and implement the \"Practice-Anytime\" chat UI\n2. Create NPC selection interface for open-ended conversations\n3. Implement long-term memory system using pgvector in Supabase\n4. Develop memory retrieval and relevance scoring\n5. Integrate with App Store Connect API for iOS in-app purchases\n6. Integrate with Google Play Developer API for Android in-app purchases\n7. Implement Stripe for backend receipt validation\n8. Create subscription management system\n9. Design and implement paywall UI in FlutterFlow\n10. Add feature gating based on subscription status\n11. Implement free tier limitations (e.g., 2 practice messages per NPC per day)\n12. Create analytics for conversion tracking",
+      "testStrategy": "Test in-app purchase flow on both iOS and Android. Verify receipt validation with Stripe backend. Test subscription status updates and feature gating. Verify long-term memory retrieval works correctly for premium users. Test free tier limitations. Ensure paywall UI clearly communicates premium benefits. Test sandbox/test purchases to verify the complete flow without real transactions.",
+      "priority": "medium",
+      "dependencies": [
+        6,
+        7
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design and Implement Premium Chat UI and NPC Selection Interface",
+          "description": "Create the user interface for the 'Practice-Anytime' chat feature and the NPC selection screen that allows premium users to choose characters for open-ended conversations.",
+          "dependencies": [],
+          "details": "Use FlutterFlow to design responsive UI components for both the chat interface and NPC selection screen. Implement UI elements including chat bubbles, message input field, send button, NPC profile cards with images and descriptions, and category filters for NPCs. Ensure the design follows the app's style guide and includes visual indicators for premium features.",
+          "status": "pending",
+          "testStrategy": "Conduct UI testing across different device sizes. Verify that all interactive elements work correctly and that the UI adapts properly to different screen sizes."
+        },
+        {
+          "id": 2,
+          "title": "Implement Long-Term Memory System with pgvector in Supabase",
+          "description": "Develop the backend memory system that allows NPCs to remember past conversations with users, creating a more personalized experience.",
+          "dependencies": [
+            1
+          ],
+          "details": "Set up pgvector extension in Supabase. Create tables for storing conversation embeddings and metadata. Implement functions to generate and store embeddings from conversation history. Design a schema that links conversations to specific users and NPCs. Implement memory decay mechanisms to prioritize recent or significant interactions.",
+          "status": "pending",
+          "testStrategy": "Test with sample conversations to ensure proper embedding storage and retrieval. Verify memory persistence across multiple chat sessions with the same NPC."
+        },
+        {
+          "id": 3,
+          "title": "Develop Memory Retrieval and Relevance Scoring System",
+          "description": "Create the system that retrieves relevant memories during conversations and scores them based on relevance to the current context.",
+          "dependencies": [
+            2
+          ],
+          "details": "Implement vector similarity search using pgvector to find relevant past conversations. Create a scoring algorithm that considers recency, emotional significance, and contextual relevance. Develop a system to inject relevant memories into the NPC's context window before generating responses. Implement caching mechanisms to improve performance for frequently accessed memories.",
+          "status": "pending",
+          "testStrategy": "Test with various conversation scenarios to ensure appropriate memories are retrieved. Measure response time to ensure the retrieval process doesn't introduce significant latency."
+        },
+        {
+          "id": 4,
+          "title": "Integrate In-App Purchase Systems (App Store and Google Play)",
+          "description": "Implement the integration with Apple App Store and Google Play billing systems to enable premium subscription purchases.",
+          "dependencies": [],
+          "details": "Implement the in_app_purchase Flutter package. Configure product IDs for both platforms. Set up listeners for purchase updates and verification. Implement platform-specific purchase flows. Create a unified purchase API that works across both platforms. Handle edge cases like interrupted purchases, refunds, and subscription renewals.",
+          "status": "pending",
+          "testStrategy": "Test purchases in sandbox/test environments for both platforms. Verify that purchase events are correctly tracked and that subscriptions are properly activated."
+        },
+        {
+          "id": 5,
+          "title": "Implement Subscription Management and Feature Gating",
+          "description": "Create the backend system for subscription management, receipt validation with Stripe, and feature access control based on subscription status.",
+          "dependencies": [
+            4
+          ],
+          "details": "Implement Stripe API integration for server-side receipt validation. Create database tables for storing subscription status and history. Develop an API endpoint for validating and updating subscription status. Implement feature gating logic that checks subscription status before allowing access to premium features. Create the paywall UI in FlutterFlow with subscription options and benefits. Implement free tier limitations (2 practice messages per NPC per day) and tracking. Add analytics events for conversion tracking and subscription status changes.",
+          "status": "pending",
+          "testStrategy": "Test the complete subscription flow from purchase to feature access. Verify that free tier limitations work correctly and that premium features are only accessible to subscribed users. Test subscription expiration and renewal scenarios."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Implement Thai Transliteration and Grammar Highlighting",
+      "description": "Develop the system for displaying Thai text with optional Romanized transliteration and color-coded grammar highlighting to aid language learning.",
+      "details": "1. Research and implement Thai transliteration system (RTGS or phonetic)\n2. Create toggle functionality for transliteration display\n3. Implement part-of-speech tagging for Thai text\n4. Design color coding system for different parts of speech\n5. Create grammar highlighting renderer for dialogue text\n6. Implement user preferences for display options (always on, on tap, off)\n7. Add tooltip functionality for grammar explanations\n8. Ensure proper rendering of Thai script, transliteration, and English subtitles\n9. Optimize text layout for different screen sizes\n10. Implement accessibility considerations for color-blind users\n11. Create settings UI for customizing the display options",
+      "testStrategy": "Test transliteration accuracy with various Thai phrases. Verify part-of-speech tagging and color coding works correctly. Test toggle functionality for different display options. Ensure text is readable on different screen sizes. Test accessibility features for color-blind users. Verify performance with long dialogue texts. Conduct user testing to evaluate learning effectiveness of the grammar highlighting system.",
+      "priority": "medium",
+      "dependencies": [
+        4,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Thai Transliteration System",
+          "description": "Research and implement a Thai transliteration system that converts Thai script to Roman characters following either the Royal Thai General System (RTGS) or a phonetic approach.",
+          "dependencies": [],
+          "details": "Create a transliteration service that takes Thai text as input and returns Romanized text. Implement mapping functions for Thai characters to their Roman equivalents, handling tone marks, vowels, and consonants correctly. Consider using existing libraries like 'thai-transliteration' as a starting point, but ensure accuracy for language learning purposes.",
+          "status": "pending",
+          "testStrategy": "Test with a comprehensive set of Thai words and phrases, comparing output against standard RTGS reference materials. Include edge cases like tone marks, silent characters, and special rules."
+        },
+        {
+          "id": 2,
+          "title": "Develop Part-of-Speech Tagging for Thai Text",
+          "description": "Create a system to analyze Thai text and tag each word with its grammatical part of speech (noun, verb, adjective, etc.) to enable grammar highlighting.",
+          "dependencies": [],
+          "details": "Research and integrate a Thai NLP library or API that provides part-of-speech tagging. If using an external service, implement caching to improve performance. Create a data structure that preserves the original text while attaching POS metadata to each word or phrase. Consider edge cases in Thai grammar where words can serve multiple functions.",
+          "status": "pending",
+          "testStrategy": "Test with various Thai sentences of different complexity, verifying correct part-of-speech identification. Include test cases for ambiguous words and complex grammatical structures."
+        },
+        {
+          "id": 3,
+          "title": "Design Grammar Highlighting Renderer",
+          "description": "Create a rendering system that displays Thai text with color-coded highlighting based on parts of speech and grammatical elements.",
+          "dependencies": [
+            2
+          ],
+          "details": "Design a color scheme for different parts of speech that is visually distinct but harmonious. Implement a renderer that can take tagged Thai text and apply appropriate styling. Ensure the system handles inline styling without breaking Thai character rendering. Include tooltip functionality that shows grammatical explanations when users tap on highlighted words.",
+          "status": "pending",
+          "testStrategy": "Test rendering across different screen sizes and devices. Verify that highlighting doesn't break Thai character display. Test tooltip functionality for accuracy and usability."
+        },
+        {
+          "id": 4,
+          "title": "Implement Display Toggle and User Preferences",
+          "description": "Create functionality that allows users to toggle between different display modes (Thai only, Thai with transliteration, with/without highlighting) and save these preferences.",
+          "dependencies": [
+            1,
+            3
+          ],
+          "details": "Implement a settings interface for display options including: transliteration visibility (always on, on tap, off), grammar highlighting (on/off), and color scheme selection. Create a preferences service to store and retrieve user settings. Implement toggle controls that can be accessed from the main reading interface. Include accessibility options for color-blind users with alternative highlighting methods.",
+          "status": "pending",
+          "testStrategy": "Test preference saving and loading across app restarts. Verify that all toggle combinations work correctly. Conduct usability testing with users who have different visual abilities."
+        },
+        {
+          "id": 5,
+          "title": "Optimize Text Layout and Rendering",
+          "description": "Ensure proper rendering and layout of Thai text, transliteration, and grammar highlighting across different screen sizes and devices.",
+          "dependencies": [
+            1,
+            3,
+            4
+          ],
+          "details": "Implement responsive layout that properly displays Thai text with optional transliteration above or below. Optimize text rendering to handle the combined display of Thai script, Roman transliteration, and English translations when needed. Ensure proper line breaks and text flow for Thai language. Test and optimize performance, especially when displaying long passages with full highlighting and transliteration.",
+          "status": "pending",
+          "testStrategy": "Test on multiple device sizes and orientations. Measure and optimize rendering performance. Verify correct display of complex Thai characters with all features enabled."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Implement NPC Facial Expression System",
+      "description": "Develop the system for dynamically changing NPC facial expressions based on the player's charm score, with four distinct expression states.",
+      "details": "1. Create sprite sheets for each NPC with four facial expression states:\n   - Angry face (0-25% charm)\n   - Skeptical/annoyed face (25-50% charm)\n   - Neutral pleasant face (50-75% charm)\n   - Beaming smiling face (75-100% charm)\n2. Implement charm score calculation system\n3. Create facial expression state machine based on charm percentage\n4. Implement smooth transitions between expression states\n5. Add visual feedback when charm score changes\n6. Ensure expressions are clearly distinguishable\n7. Implement expression update triggers in dialogue system\n8. Create test dialogue sequences that affect charm score\n9. Add subtle animations for each expression state\n10. Ensure consistency across all vendor NPCs",
+      "testStrategy": "Test facial expression changes across all charm score thresholds. Verify transitions between expressions are smooth and natural. Test with various dialogue sequences that affect charm score. Ensure expressions are clearly visible and distinguishable on different device screens. Conduct user testing to evaluate whether expressions effectively communicate NPC sentiment.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        6,
+        7
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create NPC Facial Expression Sprite Sheets",
+          "description": "Design and create sprite sheets for each NPC with four distinct facial expression states based on charm levels: angry (0-25%), skeptical (25-50%), pleasant (50-75%), and beaming (75-100%).",
+          "dependencies": [],
+          "details": "For each NPC in the vendor category, create a sprite sheet with four rows, each containing the animation frames for a specific expression state. Ensure expressions are clearly distinguishable while maintaining character consistency. Include at least 3-4 subtle animation frames per expression to allow for natural movement.",
+          "status": "pending",
+          "testStrategy": "Review sprite sheets with the art team to verify expression clarity and consistency across NPCs. Test in-game to ensure expressions render correctly at different resolutions."
+        },
+        {
+          "id": 2,
+          "title": "Implement Charm Score Calculation System",
+          "description": "Develop the system that calculates and tracks the player's charm score in relation to each NPC, converting raw values to percentages that determine facial expressions.",
+          "dependencies": [],
+          "details": "Create a CharmManager class that maintains charm scores for each NPC the player interacts with. Implement methods to modify charm (increaseCharm, decreaseCharm) based on dialogue choices and actions. Include a method to calculate charm percentage (0-100%) and determine which of the four expression states should be displayed.",
+          "status": "pending",
+          "testStrategy": "Create unit tests for charm calculation edge cases, especially around the threshold boundaries (25%, 50%, 75%). Verify charm persistence when saving/loading the game."
+        },
+        {
+          "id": 3,
+          "title": "Develop Facial Expression State Machine",
+          "description": "Create a state machine that manages transitions between the four facial expression states based on the player's charm percentage with each NPC.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Implement an NPCExpressionController component that attaches to NPC game objects. Create a state machine with four states corresponding to the expression levels. Implement smooth transitions between states using coroutines or animation blending. Ensure the controller references the correct sprite sheet rows based on the current expression state.",
+          "status": "pending",
+          "testStrategy": "Test transitions between all possible state combinations to ensure smooth blending. Verify correct sprite selection for each state."
+        },
+        {
+          "id": 4,
+          "title": "Integrate Expression System with Dialogue",
+          "description": "Connect the facial expression system to the dialogue system so NPCs react appropriately during conversations based on charm levels and dialogue choices.",
+          "dependencies": [
+            3
+          ],
+          "details": "Modify the DialogueManager to update charm scores based on player choices. Implement expression update triggers at key points in dialogue (start, after player choice, end). Add methods to force expression changes during critical dialogue moments regardless of charm score. Create test dialogue sequences that affect charm score to demonstrate the system.",
+          "status": "pending",
+          "testStrategy": "Run through sample dialogues with various charm levels to verify appropriate expression changes. Test dialogue choices that significantly impact charm to ensure immediate visual feedback."
+        },
+        {
+          "id": 5,
+          "title": "Add Visual Feedback for Charm Changes",
+          "description": "Implement visual indicators that show when the player's charm score with an NPC changes, making the system more transparent and responsive.",
+          "dependencies": [
+            3,
+            4
+          ],
+          "details": "Create subtle particle effects or small floating icons that appear when charm increases or decreases. Implement a brief flash or highlight on the NPC's expression when crossing a threshold between expression states. Add optional UI elements (togglable in settings) that show numerical charm values for debugging and player feedback. Ensure all feedback elements follow the game's art style.",
+          "status": "pending",
+          "testStrategy": "Conduct user testing to ensure feedback is noticeable but not distracting. Verify that visual indicators accurately reflect the magnitude and direction of charm changes."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Quality Assurance, Optimization, and App Store Preparation",
+      "description": "Conduct thorough testing, optimize performance, and prepare the app for TestFlight and App Store submission.",
+      "details": "1. Implement comprehensive unit and widget tests (target ≥80% coverage)\n2. Conduct performance optimization for game rendering\n3. Optimize asset loading and memory usage\n4. Implement analytics tracking for key metrics\n5. Create App Store screenshots and preview video\n6. Write App Store description and keywords\n7. Prepare privacy policy document\n8. Implement App Store required privacy labels\n9. Create TestFlight build and distribution\n10. Prepare marketing materials (5 initial TikTok/Instagram reels)\n11. Create simple landing page for the app\n12. Document known issues and future roadmap\n13. Implement crash reporting and monitoring\n14. Conduct final QA pass on target iOS devices",
+      "testStrategy": "Run automated tests to verify ≥80% code coverage. Conduct performance testing on target devices to ensure smooth gameplay. Test memory usage during extended play sessions. Verify analytics events are properly tracked. Test TestFlight build distribution. Conduct user acceptance testing with a small group of testers. Verify App Store assets meet requirements. Test crash reporting system.",
+      "priority": "high",
+      "dependencies": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Testing Framework and Unit Tests",
+          "description": "Set up a comprehensive testing framework and implement unit tests for core game logic and widget functionality to achieve at least 80% code coverage.",
+          "dependencies": [],
+          "details": "Use XCTest framework to create unit tests for game logic, scoring system, and widget functionality. Create mock objects for dependencies. Focus on critical paths first, then expand to edge cases. Set up CI integration for automated test runs.",
+          "status": "pending",
+          "testStrategy": "Use code coverage tools to track progress toward 80% target. Implement both positive and negative test cases. Create test fixtures for common test scenarios."
+        },
+        {
+          "id": 2,
+          "title": "Performance Optimization and Analytics Implementation",
+          "description": "Optimize game rendering, asset loading, and memory usage. Implement analytics tracking for key user metrics and crash reporting.",
+          "dependencies": [
+            1
+          ],
+          "details": "Profile the app using Instruments to identify performance bottlenecks. Implement asset caching, texture compression, and memory management improvements. Integrate Firebase Analytics or similar to track user engagement metrics (session length, feature usage, retention). Set up crash reporting with Crashlytics or similar service.",
+          "status": "pending",
+          "testStrategy": "Benchmark performance before and after optimizations. Test on oldest supported devices to ensure acceptable performance. Verify analytics events are firing correctly using debug mode."
+        },
+        {
+          "id": 3,
+          "title": "App Store Assets and Metadata Preparation",
+          "description": "Create all required App Store assets including screenshots, preview video, app description, keywords, and privacy policy.",
+          "dependencies": [
+            2
+          ],
+          "details": "Design and capture App Store screenshots for different device sizes (minimum 3 screenshots per device). Create a 30-second preview video showcasing key features. Write compelling app description with feature highlights. Research and select optimal keywords for discoverability. Draft privacy policy document covering data collection practices.",
+          "status": "pending",
+          "testStrategy": "Review screenshots and video on different device sizes to ensure quality. Have multiple team members review app description and keywords for clarity and effectiveness."
+        },
+        {
+          "id": 4,
+          "title": "TestFlight Build and Distribution Setup",
+          "description": "Create and distribute a TestFlight build for beta testing. Implement privacy labels and finalize App Store compliance requirements.",
+          "dependencies": [
+            3
+          ],
+          "details": "Configure App Store Connect for the application. Create a production-ready build with appropriate versioning. Set up TestFlight distribution groups for internal and external testers. Complete App Privacy questionnaire and implement required privacy labels. Ensure all App Store guidelines are met including accessibility requirements.",
+          "status": "pending",
+          "testStrategy": "Verify TestFlight installation and functionality on multiple devices. Confirm all privacy labels accurately reflect app behavior. Test user onboarding flow with external testers unfamiliar with the app."
+        },
+        {
+          "id": 5,
+          "title": "Final QA and Marketing Preparation",
+          "description": "Conduct final quality assurance testing across target devices. Create marketing materials and landing page. Document known issues and future roadmap.",
+          "dependencies": [
+            4
+          ],
+          "details": "Perform systematic testing on all supported iOS devices and versions. Create 5 short promotional videos for TikTok/Instagram. Develop a simple landing page with app information and download link. Document any known issues with workarounds and prioritize for future updates. Create a roadmap for future feature development and improvements.",
+          "status": "pending",
+          "testStrategy": "Use a test matrix to ensure all features are tested across device/OS combinations. Have team members and beta testers perform exploratory testing to identify edge cases. Collect and categorize feedback from TestFlight users."
+        }
+      ]
+    }
+  ]
+}

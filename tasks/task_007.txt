@@ -1,0 +1,56 @@
+# Task ID: 7
+# Title: Implement Quest System and Yaowarat Starter Quest
+# Status: pending
+# Dependencies: 3, 6
+# Priority: medium
+# Description: Develop the quest system and implement the "Top 3 Yaowarat Bites" starter quest with the three food vendor interactions and quest progression logic.
+# Details:
+1. Design quest data structure and progression system
+2. Implement quest state management in Supabase
+3. Create the "Top 3 Yaowarat Bites" quest flow:
+   - Guay Jub Ouan Pochana vendor interaction
+   - Khao Phad Pu Chang Phueak vendor interaction
+   - Pa Tong Go Savoey vendor interaction
+4. Develop quest objective tracking system
+5. Implement inventory system for collected dishes
+6. Create dialogue triggers for quest progression
+7. Add visual feedback for quest completion
+8. Implement charm threshold system (≥2 correct phrases used)
+9. Design and implement quest UI elements (objective display, progress tracking)
+10. Create quest completion rewards
+11. Add tutorial elements for the first vendor interaction
+
+# Test Strategy:
+Test complete quest flow from start to finish. Verify quest state is properly saved and loaded. Test quest progression with various player interactions. Ensure charm thresholds work correctly for quest advancement. Verify inventory system correctly tracks collected dishes. Test edge cases like abandoning and resuming quests. Conduct user testing to ensure quest objectives are clear and engaging.
+
+# Subtasks:
+## 1. Design Quest Data Structure and Database Schema [pending]
+### Dependencies: None
+### Description: Create the core data structures for the quest system and set up the necessary database tables in Supabase to store quest state and progress.
+### Details:
+Design a flexible quest data structure that includes: quest ID, title, description, status (available, active, completed), objectives array (with completion criteria), rewards, and prerequisites. Create Supabase tables for 'quests', 'quest_objectives', 'player_quests', and 'player_objectives'. Implement database functions for tracking quest state changes. Document the schema with entity relationship diagrams.
+
+## 2. Implement Quest State Management System [pending]
+### Dependencies: 7.1
+### Description: Develop the core quest management system that handles quest activation, objective tracking, and completion logic.
+### Details:
+Create a QuestManager class that interfaces with Supabase to load, save, and update quest data. Implement methods for startQuest(), updateObjective(), completeObjective(), and completeQuest(). Add event listeners for relevant game actions that might trigger quest updates. Implement the charm threshold system that tracks when ≥2 correct phrases are used in dialogue. Create helper functions to query active quests and objectives.
+
+## 3. Create Food Vendor Interactions for Yaowarat Quest [pending]
+### Dependencies: 7.2
+### Description: Implement the three food vendor interactions required for the 'Top 3 Yaowarat Bites' starter quest, including dialogue and interaction logic.
+### Details:
+Create interactive NPCs for the three food vendors: Guay Jub Ouan Pochana, Khao Phad Pu Chang Phueak, and Pa Tong Go Savoey. Design dialogue trees for each vendor with multiple conversation paths. Implement the interaction logic that triggers quest updates when the player engages with vendors. Add tutorial elements for the first vendor to guide new players. Create visual indicators to show which vendors are part of the quest.
+
+## 4. Develop Inventory System for Collected Dishes [pending]
+### Dependencies: 7.2
+### Description: Create an inventory system to track and display the dishes collected during the quest, with appropriate visual feedback.
+### Details:
+Design an inventory data structure to store collected dishes with properties like name, description, image, and acquisition date. Implement inventory management functions (addItem, removeItem, getItems). Create visual representations of each dish for the inventory UI. Add animations and sound effects for when a new dish is added to the inventory. Implement persistence of inventory data in Supabase. Connect inventory updates to quest objective completion.
+
+## 5. Design and Implement Quest UI Elements [pending]
+### Dependencies: 7.2, 7.4
+### Description: Create the user interface components for displaying quest information, objectives, progress tracking, and completion rewards.
+### Details:
+Design and implement a quest log UI that shows active and completed quests. Create an objective tracker that displays current progress for active quests. Implement visual feedback for quest completion (animations, sounds, notifications). Design and implement the reward screen for when quests are completed. Add a mini-tutorial overlay for the starter quest. Ensure UI elements are responsive and accessible. Implement toggling of quest UI visibility.
+

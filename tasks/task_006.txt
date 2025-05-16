@@ -1,0 +1,83 @@
+# Task ID: 6
+# Title: Develop AI Dialogue System with LLM Integration
+# Status: pending
+# Dependencies: 5
+# Priority: high
+# Description: Create the backend dialogue system using GPT-4o/Claude 3 to generate dynamic NPC responses, manage conversation context, and calculate charm scores.
+# Details:
+1. Set up FastAPI backend with endpoints for dialogue processing
+2. Integrate with OpenAI API (GPT-4o) and/or Anthropic API (Claude 3)
+3. Design prompt engineering system for NPC personas
+4. Create YAML format for defining NPC personalities and dialogue styles
+5. Implement conversation history management
+6. Develop charm score calculation based on player interactions
+7. Create system for NPC facial expression changes based on charm score
+8. Implement context management for quest-specific dialogue
+9. Add translation layer if needed (Thai-English-Thai)
+10. Optimize prompts for response quality and consistency
+11. Implement fallback mechanisms for API failures
+12. Add logging and monitoring for dialogue quality
+
+# Test Strategy:
+Test dialogue generation with various player inputs. Verify persona consistency across multiple interactions. Test charm score calculation with positive and negative interactions. Measure response time and optimize if needed. Verify that NPC facial expressions change appropriately based on charm score. Test error handling and fallback mechanisms. Conduct user testing to evaluate dialogue naturalness and appropriateness.
+
+# Subtasks:
+## 1. Set up FastAPI Backend with LLM Integration [pending]
+### Dependencies: None
+### Description: Create the FastAPI backend structure with endpoints for dialogue processing and integrate with OpenAI (GPT-4o) and/or Anthropic (Claude 3) APIs.
+### Details:
+1. Initialize FastAPI project with proper directory structure
+2. Create dialogue endpoint (/api/dialogue) that accepts player input and NPC context
+3. Set up environment variables for API keys
+4. Implement API client classes for both OpenAI and Anthropic
+5. Create a service layer that abstracts the LLM provider
+6. Implement basic error handling and retries for API failures
+7. Add request/response logging
+
+## 2. Design NPC Persona System with YAML Configuration [pending]
+### Dependencies: None
+### Description: Create a YAML-based configuration system for defining NPC personalities, dialogue styles, and response patterns.
+### Details:
+1. Design YAML schema for NPC definitions including personality traits, speech patterns, knowledge base, and dialogue options
+2. Implement YAML parser to load NPC configurations
+3. Create a PersonaManager class to handle loading and accessing NPC data
+4. Design prompt templates that incorporate persona data
+5. Implement system for dynamically inserting persona details into prompts
+6. Add validation for YAML files to ensure required fields are present
+
+## 3. Implement Conversation History Management [pending]
+### Dependencies: None
+### Description: Develop a system to maintain conversation context across multiple exchanges, allowing NPCs to reference previous interactions.
+### Details:
+1. Design a ConversationContext class to store dialogue history
+2. Implement methods to add new exchanges and retrieve formatted history
+3. Create a windowing mechanism to limit context length for LLM input
+4. Add importance weighting to keep critical exchanges in context
+5. Implement session management to persist conversations
+6. Create methods to summarize longer conversations for context efficiency
+7. Add functionality to extract and track key information mentioned in conversations
+
+## 4. Develop Charm Score Calculation System [pending]
+### Dependencies: None
+### Description: Create a system that evaluates player dialogue choices and calculates charm scores based on NPC preferences and conversation quality.
+### Details:
+1. Design a scoring model based on NPC personality traits and preferences
+2. Implement prompt engineering to have the LLM evaluate player responses
+3. Create a CharmScoreManager class to track and update scores
+4. Define score thresholds for different NPC reactions
+5. Implement methods to trigger facial expression changes based on score
+6. Add persistence layer to store charm scores across sessions
+7. Create analytics to track score changes over time
+
+## 5. Implement Context-Aware Dialogue for Quests and Translation [pending]
+### Dependencies: None
+### Description: Enhance the dialogue system with quest-specific context awareness and add translation capabilities if needed.
+### Details:
+1. Design a system to inject quest-specific context into conversations
+2. Create a QuestContextProvider interface to supply relevant quest information
+3. Implement prompt engineering techniques to maintain quest awareness
+4. Add a translation layer for Thai-English-Thai conversion if required
+5. Optimize prompts for response quality and consistency
+6. Implement comprehensive logging for dialogue quality monitoring
+7. Create fallback mechanisms for API failures or inappropriate responses
+
