@@ -1,0 +1,54 @@
+# Task ID: 8
+# Title: Develop Spaced Repetition System for Learning Reinforcement
+# Status: pending
+# Dependencies: 4, 7
+# Priority: medium
+# Description: Create the Spaced Repetition System (SRS) using FlutterFlow to reinforce vocabulary learning through flashcard reviews after key interactions.
+# Details:
+1. Design SRS algorithm based on proven spaced repetition methods
+2. Create vocabulary database structure in Supabase
+3. Implement flashcard UI in FlutterFlow
+4. Develop review scheduling system
+5. Create difficulty rating mechanism (easy, medium, hard)
+6. Implement progress tracking and statistics
+7. Design triggers for SRS sessions after quest completions
+8. Add audio playback for vocabulary items
+9. Implement Thai script with optional transliteration and English translation
+10. Create gamification elements for SRS (streaks, achievements)
+11. Add visual feedback for correct/incorrect answers
+12. Implement session summary and progress visualization
+
+# Test Strategy:
+Test SRS algorithm with various user response patterns. Verify flashcards display correctly with Thai script, transliteration, and English. Test audio playback for vocabulary items. Ensure review scheduling works according to spaced repetition principles. Test progress tracking and statistics. Verify integration with quest completion triggers. Conduct user testing to evaluate learning effectiveness.
+
+# Subtasks:
+## 1. Implement SRS Algorithm and Database Structure [pending]
+### Dependencies: None
+### Description: Design and implement the core spaced repetition algorithm and set up the vocabulary database structure in Supabase to store flashcards, review schedules, and user progress.
+### Details:
+Create a Supabase table for vocabulary items with fields for Thai text, transliteration, English translation, audio URL, difficulty level, and review metadata. Implement the SuperMemo-2 algorithm or a similar proven SRS algorithm that calculates optimal review intervals based on user performance. Define functions to schedule reviews and update card intervals based on difficulty ratings.
+
+## 2. Develop Flashcard UI and Review Interface [pending]
+### Dependencies: 8.1
+### Description: Create the user interface for flashcards and the review session flow in FlutterFlow, including card presentation, flip animation, and difficulty rating buttons.
+### Details:
+Design a clean, intuitive flashcard UI with Thai script on front and English translation on back. Implement smooth flip animation. Create three difficulty rating buttons (Easy, Medium, Hard) that appear after card review. Add audio playback functionality with a speaker icon. Ensure proper handling of Thai script and transliteration display options. Implement visual feedback for correct/incorrect answers.
+
+## 3. Implement Review Scheduling and Session Management [pending]
+### Dependencies: 8.1, 8.2
+### Description: Build the system to schedule reviews based on the SRS algorithm, manage review sessions, and trigger reviews after quest completions.
+### Details:
+Create functions to determine which cards are due for review based on their last review date and interval. Implement a daily review queue that prioritizes overdue cards. Develop triggers to prompt SRS sessions after quest completions or at optimal times. Create session management logic to handle card presentation order, session length, and completion criteria. Implement a mechanism to limit the number of new cards introduced per day.
+
+## 4. Create Progress Tracking and Statistics System [pending]
+### Dependencies: 8.3
+### Description: Implement a system to track user progress, calculate statistics, and visualize learning performance over time.
+### Details:
+Create a dashboard to display key metrics: cards learned, review accuracy, current streak, and mastery level. Implement streak tracking for consecutive days of review. Design and implement progress visualization charts showing retention rate over time. Create a session summary screen displaying performance metrics after each review session. Store all review history in Supabase for long-term analysis.
+
+## 5. Implement Gamification Elements and Integration [pending]
+### Dependencies: 8.2, 8.3, 8.4
+### Description: Add gamification features to the SRS system and integrate it with the main app experience to increase engagement and motivation.
+### Details:
+Design and implement achievements for review milestones (e.g., 7-day streak, 100 cards mastered). Create a level-up system based on vocabulary mastery. Add visual and audio rewards for completing review sessions. Implement a notification system to remind users of pending reviews. Integrate the SRS system with the main app navigation and quest system. Create smooth transitions between regular app usage and review sessions.
+

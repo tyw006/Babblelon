@@ -1,0 +1,36 @@
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Analyze project source
+        run: flutter analyze
+        
+      - name: Run tests
+        run: flutter test
+        
+      # Uncomment when ready to build for Android
+      # - name: Build Android APK
+      #   run: flutter build apk --release
+      
+      # Uncomment when ready to build for iOS (requires macOS runner)
+      # - name: Build iOS
+      #   run: flutter build ios --release --no-codesign 

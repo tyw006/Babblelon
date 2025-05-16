@@ -1,0 +1,86 @@
+# Task ID: 5
+# Title: Implement Speech-to-Text and Text-to-Speech Pipeline
+# Status: pending
+# Dependencies: 1, 4
+# Priority: high
+# Description: Develop the core voice interaction pipeline using STT (Whisper/iApp SpeechFlow) and TTS (PlayHT/Google Cloud TTS) services to enable voice-driven gameplay.
+# Details:
+1. Integrate Whisper API for Speech-to-Text functionality
+2. Set up alternative iApp SpeechFlow integration for comparison
+3. Implement microphone recording and audio processing in Flutter
+4. Create audio transmission to backend services
+5. Integrate PlayHT API for Text-to-Speech
+6. Set up Google Cloud TTS as an alternative
+7. Implement audio playback for TTS responses
+8. Create a service to handle the full audio pipeline:
+   - Record player's voice
+   - Convert to text using STT
+   - Process text (prepare for LLM)
+   - Convert response to speech using TTS
+   - Play audio response
+9. Implement error handling and fallbacks
+10. Add visual feedback during voice recording and processing
+11. Optimize for low latency and good user experience
+
+# Test Strategy:
+Test STT accuracy with various Thai phrases and accents. Measure end-to-end latency of the voice interaction pipeline. Test TTS quality and naturalness for Thai language. Verify error handling when speech recognition fails. Test microphone permissions and recording functionality across different devices. Conduct A/B testing between different STT/TTS providers to determine the best option.
+
+# Subtasks:
+## 1. Implement Microphone Recording and Audio Processing [pending]
+### Dependencies: None
+### Description: Create a Flutter module to handle microphone access, audio recording, and basic audio processing for speech recognition.
+### Details:
+1. Add required permissions for microphone access in Android/iOS manifests
+2. Implement a recording service using Flutter sound or audio_recorder packages
+3. Create functions to start/stop recording and save audio in appropriate format (WAV/MP3)
+4. Implement audio level visualization for UI feedback
+5. Add basic audio preprocessing (noise reduction, normalization) if needed
+6. Create a clean interface that returns the processed audio file ready for STT processing
+
+## 2. Integrate Speech-to-Text Services [pending]
+### Dependencies: 5.1
+### Description: Implement API integrations for Whisper and iApp SpeechFlow, with a unified interface to convert audio to text.
+### Details:
+1. Create API clients for both Whisper and iApp SpeechFlow
+2. Implement audio file transmission to both services
+3. Handle API responses and error cases
+4. Create a service factory that can switch between providers
+5. Implement caching for common phrases to improve performance
+6. Add logging for performance comparison between services
+
+## 3. Integrate Text-to-Speech Services [pending]
+### Dependencies: None
+### Description: Implement API integrations for PlayHT and Google Cloud TTS with a unified interface to convert text responses to speech audio.
+### Details:
+1. Create API clients for both PlayHT and Google Cloud TTS
+2. Implement text submission and audio file retrieval
+3. Handle different voice options and parameters (pitch, speed, etc.)
+4. Create a service factory that can switch between providers
+5. Implement caching for common phrases
+6. Add configuration options for voice selection based on character/context
+
+## 4. Implement Audio Playback System [pending]
+### Dependencies: 5.3
+### Description: Create a robust audio playback system for TTS responses with proper queuing, controls, and error handling.
+### Details:
+1. Implement audio playback using Flutter audio players
+2. Create a queue system for multiple audio responses
+3. Add playback controls (pause, resume, skip, repeat)
+4. Implement event listeners for playback state changes
+5. Handle audio focus and interruptions (calls, notifications)
+6. Add visual feedback during audio playback
+7. Implement fallback to text display when audio fails
+
+## 5. Create End-to-End Voice Interaction Pipeline [pending]
+### Dependencies: 5.1, 5.2, 5.3, 5.4
+### Description: Integrate all components into a complete voice interaction pipeline with proper state management, error handling, and user feedback.
+### Details:
+1. Create a VoiceInteractionService that orchestrates the full pipeline
+2. Implement state management for the voice interaction flow
+3. Add visual feedback for each stage (listening, processing, speaking)
+4. Implement comprehensive error handling and fallbacks
+5. Add configurable timeouts for each stage
+6. Create analytics to measure end-to-end latency
+7. Optimize the pipeline for minimal latency
+8. Implement a text fallback mode when voice services are unavailable
+

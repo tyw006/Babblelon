@@ -1,0 +1,54 @@
+# Task ID: 9
+# Title: Implement Premium Features and In-App Purchases
+# Status: pending
+# Dependencies: 6, 7
+# Priority: medium
+# Description: Develop the "Practice-Anytime" chat feature for premium users and integrate with App Store/Google Play in-app purchase systems and Stripe for backend validation.
+# Details:
+1. Design and implement the "Practice-Anytime" chat UI
+2. Create NPC selection interface for open-ended conversations
+3. Implement long-term memory system using pgvector in Supabase
+4. Develop memory retrieval and relevance scoring
+5. Integrate with App Store Connect API for iOS in-app purchases
+6. Integrate with Google Play Developer API for Android in-app purchases
+7. Implement Stripe for backend receipt validation
+8. Create subscription management system
+9. Design and implement paywall UI in FlutterFlow
+10. Add feature gating based on subscription status
+11. Implement free tier limitations (e.g., 2 practice messages per NPC per day)
+12. Create analytics for conversion tracking
+
+# Test Strategy:
+Test in-app purchase flow on both iOS and Android. Verify receipt validation with Stripe backend. Test subscription status updates and feature gating. Verify long-term memory retrieval works correctly for premium users. Test free tier limitations. Ensure paywall UI clearly communicates premium benefits. Test sandbox/test purchases to verify the complete flow without real transactions.
+
+# Subtasks:
+## 1. Design and Implement Premium Chat UI and NPC Selection Interface [pending]
+### Dependencies: None
+### Description: Create the user interface for the 'Practice-Anytime' chat feature and the NPC selection screen that allows premium users to choose characters for open-ended conversations.
+### Details:
+Use FlutterFlow to design responsive UI components for both the chat interface and NPC selection screen. Implement UI elements including chat bubbles, message input field, send button, NPC profile cards with images and descriptions, and category filters for NPCs. Ensure the design follows the app's style guide and includes visual indicators for premium features.
+
+## 2. Implement Long-Term Memory System with pgvector in Supabase [pending]
+### Dependencies: 9.1
+### Description: Develop the backend memory system that allows NPCs to remember past conversations with users, creating a more personalized experience.
+### Details:
+Set up pgvector extension in Supabase. Create tables for storing conversation embeddings and metadata. Implement functions to generate and store embeddings from conversation history. Design a schema that links conversations to specific users and NPCs. Implement memory decay mechanisms to prioritize recent or significant interactions.
+
+## 3. Develop Memory Retrieval and Relevance Scoring System [pending]
+### Dependencies: 9.2
+### Description: Create the system that retrieves relevant memories during conversations and scores them based on relevance to the current context.
+### Details:
+Implement vector similarity search using pgvector to find relevant past conversations. Create a scoring algorithm that considers recency, emotional significance, and contextual relevance. Develop a system to inject relevant memories into the NPC's context window before generating responses. Implement caching mechanisms to improve performance for frequently accessed memories.
+
+## 4. Integrate In-App Purchase Systems (App Store and Google Play) [pending]
+### Dependencies: None
+### Description: Implement the integration with Apple App Store and Google Play billing systems to enable premium subscription purchases.
+### Details:
+Implement the in_app_purchase Flutter package. Configure product IDs for both platforms. Set up listeners for purchase updates and verification. Implement platform-specific purchase flows. Create a unified purchase API that works across both platforms. Handle edge cases like interrupted purchases, refunds, and subscription renewals.
+
+## 5. Implement Subscription Management and Feature Gating [pending]
+### Dependencies: 9.4
+### Description: Create the backend system for subscription management, receipt validation with Stripe, and feature access control based on subscription status.
+### Details:
+Implement Stripe API integration for server-side receipt validation. Create database tables for storing subscription status and history. Develop an API endpoint for validating and updating subscription status. Implement feature gating logic that checks subscription status before allowing access to premium features. Create the paywall UI in FlutterFlow with subscription options and benefits. Implement free tier limitations (2 practice messages per NPC per day) and tracking. Add analytics events for conversion tracking and subscription status changes.
+
