@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/game_screen.dart';
+import 'utils/env_loader.dart';
+import 'services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +18,21 @@ void main() async {
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.immersiveSticky,
   );
+  
+  // Load environment variables
+  await EnvLoader.initialize();
+  
+  // Initialize Supabase
+  final supabaseUrl = EnvLoader.getString('SUPABASE_URL');
+  final supabaseAnonKey = EnvLoader.getString('SUPABASE_ANON_KEY');
+  
+  // Only initialize Supabase if credentials are provided
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    await SupabaseService.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
+  }
 
   runApp(const MyApp());
 }
