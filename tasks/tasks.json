@@ -8,7 +8,7 @@
       "testStrategy": "Verify all components can communicate with each other by creating simple test endpoints and UI elements. Ensure CI/CD pipeline successfully builds and deploys the application. Test authentication flow with Supabase. Confirm Flutter-Flame and FlutterFlow projects can be built and run locally.",
       "priority": "high",
       "dependencies": [],
-      "status": "pending",
+      "status": "in-progress",
       "subtasks": [
         {
           "id": 1,
@@ -16,7 +16,7 @@
           "description": "Create the Git repository, establish the folder structure, and set up the initial Flutter project with Flame engine integration.",
           "dependencies": [],
           "details": "1. Create a new Git repository on GitHub/GitLab\n2. Initialize the Flutter project with `flutter create --org com.yourcompany projectname`\n3. Add Flame engine dependency in pubspec.yaml\n4. Create README.md with project overview\n5. Set up .gitignore for Flutter/Dart projects\n6. Create folder structure for assets, lib/screens, lib/models, lib/services\n7. Make initial commit",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify Flutter project builds successfully and Flame engine imports work correctly"
         },
         {
@@ -27,7 +27,7 @@
             1
           ],
           "details": "1. Create new Supabase project\n2. Configure authentication providers (email, social logins)\n3. Set up database tables and relationships\n4. Create storage buckets for assets\n5. Set up row-level security policies\n6. Generate and secure API keys\n7. Document database schema\n8. Create initial database migrations",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test authentication flow and basic CRUD operations against Supabase instance"
         },
         {
@@ -63,7 +63,7 @@
             4
           ],
           "details": "1. Configure GitHub Actions or GitLab CI for automated testing\n2. Set up deployment workflows for Flutter app and FastAPI backend\n3. Create environment configuration for dev/staging/production\n4. Set up secrets management for API keys\n5. Configure linting and code quality checks\n6. Set up project board (GitHub Projects, Trello, or Jira)\n7. Create issue templates\n8. Document the CI/CD process\n9. Set up automated testing for both frontend and backend",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify CI pipeline successfully builds and tests the application, and deployment works for all environments"
         }
       ]
