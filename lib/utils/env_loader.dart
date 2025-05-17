@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// A utility class for loading environment variables
 class EnvLoader {
@@ -9,14 +10,9 @@ class EnvLoader {
   /// Initialize the environment loader
   static Future<void> initialize() async {
     try {
-      // In a real implementation, we would load from a real .env file
-      // For now, we'll use hardcoded values that match our actual Supabase project
-      _env = {
-        'SUPABASE_URL': 'https://odhtvjzaopqurehepkry.supabase.co',
-        'SUPABASE_ANON_KEY': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kaHR2anphb3BxdXJlaGVwa3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MDgzNjIsImV4cCI6MjA2Mjk4NDM2Mn0._TWZ45XOMgsXQPEbezJBpnujAGjZX2_-0xbwX5IjDZE',
-        'ENABLE_ANALYTICS': 'true',
-        'DEBUG_MODE': 'false',
-      };
+      // Load environment variables from .env file
+      await dotenv.load(fileName: ".env");
+      _env = dotenv.env;
       
       // Note: In a production app, you would load values from a real .env file
       // or use a secure method like loading from assets or platform-specific methods
@@ -25,7 +21,14 @@ class EnvLoader {
       debugPrint('Environment variables loaded successfully');
     } catch (e) {
       debugPrint('Error loading environment variables: $e');
-      // Fallback to defaults
+      // Fallback to defaults or handle error as appropriate
+      // For example, you might want to ensure essential variables have defaults:
+      _env = {
+        'SUPABASE_URL': _env['SUPABASE_URL'] ?? '',
+        'SUPABASE_ANON_KEY': _env['SUPABASE_ANON_KEY'] ?? '',
+        'ENABLE_ANALYTICS': _env['ENABLE_ANALYTICS'] ?? 'false',
+        'DEBUG_MODE': _env['DEBUG_MODE'] ?? 'false',
+      };
     }
   }
   
