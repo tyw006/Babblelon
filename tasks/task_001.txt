@@ -1,6 +1,6 @@
 # Task ID: 1
 # Title: Setup Project Infrastructure
-# Status: pending
+# Status: in-progress
 # Dependencies: None
 # Priority: high
 # Description: Initialize the project repository, configure CI/CD, and set up the core development environment with Flutter, Flame, FlutterFlow, and Supabase.
@@ -20,7 +20,7 @@
 Verify all components can communicate with each other by creating simple test endpoints and UI elements. Ensure CI/CD pipeline successfully builds and deploys the application. Test authentication flow with Supabase. Confirm Flutter-Flame and FlutterFlow projects can be built and run locally.
 
 # Subtasks:
-## 1. Initialize Git Repository and Project Structure [pending]
+## 1. Initialize Git Repository and Project Structure [done]
 ### Dependencies: None
 ### Description: Create the Git repository, establish the folder structure, and set up the initial Flutter project with Flame engine integration.
 ### Details:
@@ -32,7 +32,7 @@ Verify all components can communicate with each other by creating simple test en
 6. Create folder structure for assets, lib/screens, lib/models, lib/services
 7. Make initial commit
 
-## 2. Configure Supabase Backend [pending]
+## 2. Configure Supabase Backend [done]
 ### Dependencies: 1.1
 ### Description: Set up Supabase project for authentication, database, and storage requirements of the application.
 ### Details:
@@ -71,7 +71,7 @@ Verify all components can communicate with each other by creating simple test en
 8. Set up environment variables for different environments
 9. Document API endpoints
 
-## 5. Implement CI/CD Pipeline and Environment Configuration [pending]
+## 5. Implement CI/CD Pipeline and Environment Configuration [done]
 ### Dependencies: 1.1, 1.2, 1.3, 1.4
 ### Description: Set up continuous integration and deployment pipeline, configure development/staging/production environments, and establish project management tools.
 ### Details:
