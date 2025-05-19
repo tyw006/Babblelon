@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/game_screen.dart';
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
