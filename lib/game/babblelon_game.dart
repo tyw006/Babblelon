@@ -7,6 +7,8 @@ import 'package:flame/experimental.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'components/player_component.dart';
+import 'components/speech_bubble_component.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class BabblelonGame extends FlameGame with 
     TapDetector, 
@@ -32,6 +34,12 @@ class BabblelonGame extends FlameGame with
   double backgroundHeight = 0.0;
   Vector2 gameResolution = Vector2.zero();
   
+  // Remove the TextComponent speech bubble
+  SpeechBubbleComponent? _npcSpeechBubbleSprite;
+  late SpriteComponent npc;
+  bool _npcSpeechBubbleShown = false;
+  bool _canInteractWithNpc = false;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad(); // Call super.onLoad first
@@ -62,11 +70,45 @@ class BabblelonGame extends FlameGame with
       anchor: Anchor.bottomLeft, 
       position: Vector2(0, gameResolution.y), 
     );
-    gameWorld.add(background..priority = -1); // Add background to the world
+    gameWorld.add(background..priority = -2); // Add background to the world
     
     player = PlayerComponent();
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
+
+    // --- Add stationary NPC (noodle vendor) ---
+    final npcImage = await images.load('npcs/sprite_noodle_vendor_female.png');
+    final npcSprite = Sprite(npcImage);
+    // Use same scale factor as PlayerComponent
+    const double npcScaleFactor = 0.3;
+    final npcSize = npcSprite.originalSize * npcScaleFactor;
+    // Place NPC at a visible position (adjust as needed)
+    final npcPosition = Vector2(900, backgroundHeight * 0.94);
+    npc = SpriteComponent(
+      sprite: npcSprite,
+      size: npcSize,
+      position: npcPosition,
+      anchor: Anchor.bottomCenter,
+      priority: -1, // Above background, same as player
+    );
+    // This is the stationary noodle vendor NPC
+    gameWorld.add(npc);
+    // --- End NPC addition ---
+
+    // --- Add speech bubble sprite (hidden by default) ---
+    final bubbleImage = await images.load('ui/speech_bubble_interact.png');
+    final bubbleSprite = Sprite(bubbleImage);
+    final bubbleWidth = npcSize.x;
+    final bubbleHeight = bubbleSprite.srcSize.y * (bubbleWidth / bubbleSprite.srcSize.x);
+    _npcSpeechBubbleSprite = SpeechBubbleComponent(
+      sprite: bubbleSprite,
+      size: Vector2(bubbleWidth, bubbleHeight),
+      anchor: Anchor.bottomLeft, // Position so bottom left is at top center of NPC
+      position: npcPosition - Vector2(0, npcSize.y),
+      priority: 1,
+    );
+    // Do not add to world yet
+    // --- End speech bubble sprite addition ---
 
     final worldBounds = Rectangle.fromLTWH(
       0, 
@@ -78,6 +120,10 @@ class BabblelonGame extends FlameGame with
 
     // Start camera at the left edge
     cameraComponent.viewfinder.position = Vector2(0, 0);
+
+    // Initialize and play background music
+    await FlameAudio.bgm.initialize();
+    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
   }
   
   @override
@@ -107,6 +153,27 @@ class BabblelonGame extends FlameGame with
       }
       // Otherwise, camera stays put (player is inside deadzone)
     }
+
+    // --- NPC speech bubble sprite logic ---
+    if (_npcSpeechBubbleSprite != null && npc.isMounted && player.isMounted) {
+      final double distance = (player.position - npc.position).length;
+      if (distance < 150) {
+        if (!_npcSpeechBubbleShown) {
+          gameWorld.add(_npcSpeechBubbleSprite!);
+          _npcSpeechBubbleShown = true;
+        }
+        // Keep bubble above NPC, bottom left at top center of NPC
+        _npcSpeechBubbleSprite!.position = npc.position - Vector2(110, npc.size.y - 40);
+        _canInteractWithNpc = true;
+      } else {
+        if (_npcSpeechBubbleShown) {
+          _npcSpeechBubbleSprite!.removeFromParent();
+          _npcSpeechBubbleShown = false;
+        }
+        _canInteractWithNpc = false;
+      }
+    }
+    // --- End NPC speech bubble sprite logic ---
   }
   
   @override
@@ -118,8 +185,33 @@ class BabblelonGame extends FlameGame with
     } else if (_isGameOver) {
       // Potentially restart game or navigate to main menu
     } else {
-      // Regular game tap logic
+      // Touch controls for player movement
+      final tapX = info.eventPosition.global.x;
+      final screenMid = gameResolution.x / 2;
+      if (tapX > screenMid) {
+        player.isMovingRight = true;
+        player.isMovingLeft = false;
+      } else {
+        player.isMovingLeft = true;
+        player.isMovingRight = false;
+      }
     }
+  }
+  
+  @override
+  void onTapUp(TapUpInfo info) {
+    super.onTapUp(info);
+    // Stop movement when touch is released
+    player.isMovingLeft = false;
+    player.isMovingRight = false;
+  }
+
+  @override
+  void onTapCancel() {
+    super.onTapCancel();
+    // Stop movement if touch is cancelled
+    player.isMovingLeft = false;
+    player.isMovingRight = false;
   }
   
   @override
@@ -136,6 +228,12 @@ class BabblelonGame extends FlameGame with
       } else {
         pauseGame();
       }
+      return KeyEventResult.handled;
+    }
+
+    // --- NPC interaction with 'E' key ---
+    if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
+      print('Interacted with NPC!');
       return KeyEventResult.handled;
     }
 
@@ -173,6 +271,7 @@ class BabblelonGame extends FlameGame with
   void gameOver() {
     _isGameOver = true;
     overlays.add('game_over');
+    FlameAudio.bgm.stop();
   }
   
   void reset() {
@@ -192,11 +291,13 @@ class BabblelonGame extends FlameGame with
     pauseEngine();
     _isPaused = true;
     overlays.add('pause_menu');
+    FlameAudio.bgm.pause();
   }
 
   void resumeGame() {
     resumeEngine();
     _isPaused = false;
     overlays.remove('pause_menu');
+    FlameAudio.bgm.resume();
   }
 } 
