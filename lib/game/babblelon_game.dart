@@ -38,17 +38,13 @@ class BabblelonGame extends FlameGame with
     
     // Set gameResolution for iPhone Plus portrait
     gameResolution = Vector2(414, 896); 
-    // The FlameGame's camera is the one with the viewport
-    camera.viewport = FixedResolutionViewport(resolution: gameResolution); // Correct usage with named parameter
+    // camera.viewport = FixedResolutionViewport(resolution: gameResolution); // Remove this line
     
     // Initialize World and CameraComponent
     gameWorld = World();
     cameraComponent = CameraComponent(world: gameWorld);
-    // Ensure the camera component's viewfinder starts at the top-left of what it's viewing.
+    cameraComponent.viewport = FixedResolutionViewport(resolution: gameResolution); // Set viewport on custom camera
     cameraComponent.viewfinder.anchor = Anchor.topLeft;
-
-    // Add the CameraComponent and the World to the game
-    // The order can matter for some setups, often CameraComponent first.
     addAll([cameraComponent, gameWorld]);
 
     final backgroundImageAsset = await images.load('background/yaowarat_bg2.png');
@@ -68,28 +64,9 @@ class BabblelonGame extends FlameGame with
     );
     gameWorld.add(background..priority = -1); // Add background to the world
     
-    _scoreText = TextComponent(
-      text: 'Score: $_score',
-      position: Vector2(40, 40), 
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 48, 
-          fontFamily: 'Arial',
-        ),
-      ),
-    );
-    // UI elements like score are usually added to the camera's viewport directly
-    // or to the FlameGame if they should be fixed on screen, not in the world.
-    // For simplicity, let's add it to the FlameGame's fixed children for now.
-    add(_scoreText); 
-    
     player = PlayerComponent();
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
-
-    // Use built-in camera follow for smooth horizontal tracking
-    cameraComponent.follow(player, horizontalOnly: true);
 
     final worldBounds = Rectangle.fromLTWH(
       0, 
@@ -98,6 +75,9 @@ class BabblelonGame extends FlameGame with
       bgHeight,
     );
     cameraComponent.setBounds(worldBounds); // Set bounds on the CameraComponent
+
+    // Start camera at the left edge
+    cameraComponent.viewfinder.position = Vector2(0, 0);
   }
   
   @override
@@ -106,12 +86,26 @@ class BabblelonGame extends FlameGame with
     
     if (_isPaused || _isGameOver) return;
 
-    // Camera follow logic for Anchor.bottomLeft
+    // Camera deadzone logic (horizontal only)
     if (player.isMounted) {
-      // Center the camera on the player's center, but clamp to world bounds
-      double targetX = player.position.x + player.size.x / 2 - gameResolution.x / 2;
-      targetX = targetX.clamp(0.0, backgroundWidth - gameResolution.x);
-      cameraComponent.viewfinder.position.x = targetX;
+      const double deadzoneWidth = 20.0; // Deadzone width in pixels
+      double cameraLeft = cameraComponent.viewfinder.position.x;
+      double cameraRight = cameraLeft + gameResolution.x;
+      double playerCenter = player.position.x;
+
+      double deadzoneLeft = cameraLeft + (gameResolution.x - deadzoneWidth) / 2;
+      double deadzoneRight = cameraRight - (gameResolution.x - deadzoneWidth) / 2;
+
+      if (playerCenter < deadzoneLeft) {
+        double newCameraX = (playerCenter - (gameResolution.x - deadzoneWidth) / 2)
+          .clamp(0.0, backgroundWidth - gameResolution.x);
+        cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
+      } else if (playerCenter > deadzoneRight) {
+        double newCameraX = (playerCenter + (gameResolution.x - deadzoneWidth) / 2 - gameResolution.x)
+          .clamp(0.0, backgroundWidth - gameResolution.x);
+        cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
+      }
+      // Otherwise, camera stays put (player is inside deadzone)
     }
   }
   
