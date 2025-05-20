@@ -6,9 +6,9 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
   final double speed = 250.0; // Slightly increased speed
   bool isMovingRight = false;
   bool isMovingLeft = false;  // Flag for moving left
-  bool _isFacingRight = false; // Sprite now defaults to facing LEFT
+  bool _isFacingRight = false; // Tracks if the player is CURRENTLY facing right. Assumes sprite asset faces left initially.
 
-  double backgroundWidth = 0.0; // <-- Add this field
+  double backgroundWidth = 0.0; // Will be set from game.backgroundWidth
 
   PlayerComponent(){
     // Size and anchor will be set in onLoad
@@ -17,6 +17,7 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    this.backgroundWidth = game.backgroundWidth; // Initialize backgroundWidth from the game
 
     final playerImage = await game.images.load('player/sprite_male_tourist.png');
     sprite = Sprite(playerImage);
@@ -30,13 +31,8 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
     double playerY = (game.backgroundHeight > 0) ? game.backgroundHeight : game.size.y;
     position = Vector2(playerX, playerY);
 
-    // Initially face left if that's the default sprite direction.
-    // If sprite faces right by default, set _isFacingRight = true and call _ensureCorrectFacing(false) if needed.
-    // Assuming sprite sheet is drawn facing left or we ensure it faces left initially.
-    if (_isFacingRight) { // If default assumption was sprite faces right, flip to left
-        flipHorizontally();
-        _isFacingRight = false;
-    }
+    // Set initial facing direction to Right
+    _ensureCorrectFacing(true);
   }
 
   @override
@@ -54,7 +50,7 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
 
     // Clamp: left bound size.x/2, right bound backgroundWidth - size.x/2
     final double minX = size.x / 2;
-    final double maxX = (backgroundWidth > 0.0 ? backgroundWidth : game.size.x) - size.x / 2;
+    final double maxX = backgroundWidth - size.x / 2;
     
     position.x = newX.clamp(minX, maxX);
   }
