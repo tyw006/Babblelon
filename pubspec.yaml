@@ -29,5 +29,6 @@ flutter:
     - assets/images/
     - assets/images/player/
     - assets/images/npcs/
+    - assets/images/ui/
     - assets/audio/
     - .env 
