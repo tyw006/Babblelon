@@ -20,6 +20,38 @@ class BabblelonGame extends FlameGame with
   bool _isPaused = false;
   int _score = 0;
   
+  // Track if background music is playing
+  bool _bgmIsPlaying = true;
+  bool get bgmIsPlaying => _bgmIsPlaying;
+
+  // Track if music is enabled by user
+  bool _musicEnabled = true;
+  bool get musicEnabled => _musicEnabled;
+  set musicEnabled(bool value) {
+    _musicEnabled = value;
+    if (_musicEnabled) {
+      resumeMusic();
+    } else {
+      pauseMusic();
+    }
+  }
+
+  // Public getter for pause state
+  bool get isPaused => _isPaused;
+
+  // Public methods to control music
+  void pauseMusic() {
+    FlameAudio.bgm.stop(); // Stop music completely
+    _bgmIsPlaying = false;
+  }
+
+  void resumeMusic() {
+    if (!_bgmIsPlaying) {
+      FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+      _bgmIsPlaying = true;
+    }
+  }
+  
   // UI Components
   late TextComponent _scoreText;
   
@@ -124,6 +156,7 @@ class BabblelonGame extends FlameGame with
     // Initialize and play background music
     await FlameAudio.bgm.initialize();
     FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    _bgmIsPlaying = true;
   }
   
   @override
@@ -222,15 +255,6 @@ class BabblelonGame extends FlameGame with
     final isKeyDown = event is KeyDownEvent;
     final isKeyUp = event is KeyUpEvent;
 
-    if (keysPressed.contains(LogicalKeyboardKey.keyP) && isKeyDown) {
-      if (_isPaused) {
-        resumeGame();
-      } else {
-        pauseGame();
-      }
-      return KeyEventResult.handled;
-    }
-
     // --- NPC interaction with 'E' key ---
     if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
       print('Interacted with NPC!');
@@ -259,19 +283,11 @@ class BabblelonGame extends FlameGame with
     return KeyEventResult.ignored;
   }
   
-  void togglePause() {
-    _isPaused = !_isPaused;
-    if (_isPaused) {
-      overlays.add('pause_menu');
-    } else {
-      overlays.remove('pause_menu');
-    }
-  }
-  
   void gameOver() {
     _isGameOver = true;
     overlays.add('game_over');
     FlameAudio.bgm.stop();
+    _bgmIsPlaying = false;
   }
   
   void reset() {
@@ -290,14 +306,15 @@ class BabblelonGame extends FlameGame with
   void pauseGame() {
     pauseEngine();
     _isPaused = true;
-    overlays.add('pause_menu');
     FlameAudio.bgm.pause();
   }
 
   void resumeGame() {
     resumeEngine();
     _isPaused = false;
-    overlays.remove('pause_menu');
-    FlameAudio.bgm.resume();
+    // overlays.remove('pause_menu'); // already removed elsewhere
+    if (_musicEnabled) {
+      resumeMusic();
+    }
   }
 } 
