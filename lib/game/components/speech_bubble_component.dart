@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-
+import 'package:flutter/material.dart';
 
 class SpeechBubbleComponent extends SpriteComponent with TapCallbacks {
   SpeechBubbleComponent({
@@ -9,6 +9,7 @@ class SpeechBubbleComponent extends SpriteComponent with TapCallbacks {
     required Vector2 position,
     Anchor anchor = Anchor.bottomCenter,
     int priority = 1,
+    this.onTap,
   }) : super(
     sprite: sprite,
     size: size,
@@ -17,8 +18,14 @@ class SpeechBubbleComponent extends SpriteComponent with TapCallbacks {
     priority: priority,
   );
 
+  final VoidCallback? onTap;
+
   @override
   void onTapDown(TapDownEvent event) {
-    print('Interacted with NPC!');
+    if (onTap != null) {
+      onTap!();
+    }
+    event.handled = true;
+    super.onTapDown(event);
   }
 } 
