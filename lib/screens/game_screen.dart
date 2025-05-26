@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../game/babblelon_game.dart';
+import '../overlays/dialogue_overlay.dart';
 
 class GameScreen extends StatefulWidget {
   GameScreen({super.key});
@@ -11,21 +12,6 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  void _openMenu() {
-    // Only add overlay if not already present
-    if (!widget._game.overlays.isActive('main_menu')) {
-      if (!widget._game.isPaused) {
-        widget._game.pauseGame();
-      }
-      widget._game.overlays.add('main_menu');
-    }
-  }
-
-  void _closeMenuAndResume() {
-    widget._game.overlays.remove('main_menu');
-    widget._game.resumeGame();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +34,7 @@ class _GameScreenState extends State<GameScreen> {
                 game: game as BabblelonGame,
                 onClose: _closeMenuAndResume,
               ),
+              'dialogue': (context, game) => DialogueOverlay(game: game as BabblelonGame),
             },
           ),
           // Hamburger menu icon (always visible)
@@ -69,6 +56,21 @@ class _GameScreenState extends State<GameScreen> {
         ],
       ),
     );
+  }
+
+  void _openMenu() {
+    // Only add overlay if not already present
+    if (!widget._game.overlays.isActive('main_menu')) {
+      if (!widget._game.isPaused) {
+        widget._game.pauseGame();
+      }
+      widget._game.overlays.add('main_menu');
+    }
+  }
+
+  void _closeMenuAndResume() {
+    widget._game.overlays.remove('main_menu');
+    widget._game.resumeGame();
   }
 }
 
