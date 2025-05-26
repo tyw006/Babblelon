@@ -109,13 +109,13 @@ class BabblelonGame extends FlameGame with
     gameWorld.add(player); // Add player to the world
 
     // --- Add stationary NPC (noodle vendor) ---
-    final npcImage = await images.load('npcs/sprite_noodle_vendor_female.png');
+    final npcImage = await images.load('npcs/sprite_dimsum_vendor_female.png');
     final npcSprite = Sprite(npcImage);
     // Use same scale factor as PlayerComponent
-    const double npcScaleFactor = 0.3;
+    const double npcScaleFactor = 0.25;
     final npcSize = npcSprite.originalSize * npcScaleFactor;
     // Place NPC at a visible position (adjust as needed)
-    final npcPosition = Vector2(900, backgroundHeight * 0.94);
+    final npcPosition = Vector2(900, backgroundHeight * 0.93);
     npc = SpriteComponent(
       sprite: npcSprite,
       size: npcSize,
@@ -135,9 +135,15 @@ class BabblelonGame extends FlameGame with
     _npcSpeechBubbleSprite = SpeechBubbleComponent(
       sprite: bubbleSprite,
       size: Vector2(bubbleWidth, bubbleHeight),
-      anchor: Anchor.bottomLeft, // Position so bottom left is at top center of NPC
+      anchor: Anchor.bottomLeft,
       position: npcPosition - Vector2(0, npcSize.y),
       priority: 1,
+      onTap: () { // Show dialogue overlay when tapped
+        if (_canInteractWithNpc) {
+          pauseGame();
+          overlays.add('dialogue');
+        }
+      },
     );
     // Do not add to world yet
     // --- End speech bubble sprite addition ---
@@ -211,7 +217,13 @@ class BabblelonGame extends FlameGame with
   
   @override
   void onTapDown(TapDownInfo info) {
+    if (isPaused) return; // If game engine is paused, ignore taps for movement etc.
     super.onTapDown(info);
+    
+    // Check if the tap is on the speech bubble first
+    // The SpeechBubbleComponent now handles its own onTapDown, so we don't need to check here explicitly
+    // as long as it's added to the gameWorld and receives events.
+    // If the tap was on the speech bubble, its onTapDown would have been called and handled it.
     
     if (_isPaused) {
       resumeGame();
@@ -252,12 +264,15 @@ class BabblelonGame extends FlameGame with
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
+    if (isPaused) return KeyEventResult.handled; // If game engine is paused, ignore key events
+
     final isKeyDown = event is KeyDownEvent;
     final isKeyUp = event is KeyUpEvent;
 
     // --- NPC interaction with 'E' key ---
     if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
-      print('Interacted with NPC!');
+      pauseGame();
+      overlays.add('dialogue');
       return KeyEventResult.handled;
     }
 
@@ -307,12 +322,12 @@ class BabblelonGame extends FlameGame with
     pauseEngine();
     _isPaused = true;
     FlameAudio.bgm.pause();
+    _bgmIsPlaying = false; // Ensure music state is updated for resume
   }
 
   void resumeGame() {
     resumeEngine();
     _isPaused = false;
-    // overlays.remove('pause_menu'); // already removed elsewhere
     if (_musicEnabled) {
       resumeMusic();
     }
