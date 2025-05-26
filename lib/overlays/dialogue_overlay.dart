@@ -18,7 +18,7 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
   // Dummy list of dialogue lines - replace with actual game state
   List<String> _dialogueLines = [
     'Player: Hi! What do you have today?',
-    'NPC: Hello there, welcome to my stall!',
+    'NPC: Hello there, welcome to my stall!', // NPC lines will be identified as Amara
     'Player: I am looking for some delicious dumplings.',
     'NPC: You have come to the right place! We have the best in town.',
     'Player: Great! I will take a dozen.',
@@ -26,6 +26,21 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
     'Player: Thanks!',
     'NPC: Enjoy!',
   ];
+
+  // Function to get the speaker from the line
+  String _getSpeaker(String line) {
+    if (line.startsWith('Player:')) return 'Player';
+    if (line.startsWith('NPC:')) return 'Amara'; // Identify NPC as Amara
+    return ''; // Default or unknown speaker
+  }
+
+  // Function to get the actual dialogue text without the speaker prefix
+  String _getDialogueText(String line) {
+    if (line.contains(': ')) {
+      return line.substring(line.indexOf(': ') + 2);
+    }
+    return line;
+  }
 
   @override
   void initState() {
@@ -47,19 +62,6 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
     //     _scrollToBottom();
     //   }
     // });
-  }
-
-  void _scrollToEnd() { // Renamed and updated for conditional reverse
-    if (_scrollController.hasClients) {
-      final position = !_isExpanded // When collapsed, reverse is true
-          ? _scrollController.position.minScrollExtent // Scroll to top of reversed list (visual bottom)
-          : _scrollController.position.maxScrollExtent; // Scroll to bottom of normal list
-      _scrollController.animateTo(
-        position,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
   }
 
   Future<void> _showTranslationDialog(BuildContext context) async {
@@ -102,216 +104,258 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final double outerHorizontalPadding = screenWidth * 0.01;
-    final String npcName = 'Ploy';
+    // final String npcName = 'Ploy'; // Removed as NPC name is no longer explicitly used in dialogue text styling
 
-    final double minTextboxHeight = 200.0;
+    final double minTextboxHeight = 150.0;
     final double minTextboxWidth = 368.0;
-    final double collapsedTextboxHeight = 200.0;
     final double expandedTextboxHeight = math.min(screenHeight * 0.9, 500.0);
 
     // Target height for the AnimatedContainer, respecting min/max logic
     final double targetAnimatedHeight = _isExpanded
         ? math.max(expandedTextboxHeight, minTextboxHeight)
-        : math.max(collapsedTextboxHeight, minTextboxHeight);
+        : minTextboxHeight;
 
     // Max height for ConstrainedBox should accommodate the fully expanded state
     final double maxConstrainedHeight = math.max(expandedTextboxHeight, minTextboxHeight);
 
     final EdgeInsets dialogueListPadding = _isExpanded
-      ? const EdgeInsets.only(left: 30.0, top: 10.0, right: 15.0, bottom: 25.0) // Expanded padding, increased bottom to 25.0
-      : const EdgeInsets.only(left: 30.0, top: 5.0, right: 15.0, bottom: 25.0); // Collapsed padding, increased bottom to 25.0
+      ? const EdgeInsets.only(left: 30.0, top: 10.0, right: 25.0, bottom: 25.0)
+      : const EdgeInsets.only(left: 30.0, top: 5.0, right: 25.0, bottom: 25.0);
 
     return Material(
       color: Colors.transparent, // Ensure transparency if debugging colors are removed
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/background/convo_yaowarat_bg.png',
-                fit: BoxFit.cover,
-              ),
+      child: Stack( // Move Stack to be the direct child of Material for full-screen background
+        children: <Widget>[
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/background/convo_yaowarat_bg.png',
+              fit: BoxFit.cover,
             ),
-            Align(
-              alignment: Alignment(0.0, -0.5),
-              child: Image.asset(
-                'assets/images/npcs/sprite_dimsum_vendor_female_portrait.png',
-                height: screenHeight * 0.80,
-                fit: BoxFit.contain,
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: outerHorizontalPadding,
-                  right: outerHorizontalPadding,
-                  bottom: MediaQuery.of(context).padding.bottom + 10.0,
+          ),
+          SafeArea( // Apply SafeArea only to content that needs to avoid notches/insets
+            bottom: false, // Already here, good
+            top: true, // Ensure top safe area is respected for UI elements placed near top if any
+            child: Stack( // This stack is for the foreground elements
+              children: <Widget>[
+                // NPC bar image - no changes here unless it needs to respect SafeArea differently
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: screenHeight * 0.002),
+                    child: Image.asset(
+                      'assets/images/npcs/sprite_dimsum_vendor_bar.png',
+                      width: screenWidth * 0.7, // User adjusted this
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
-                child: Container( // DEBUG: visualize horizontal padding area (can be removed)
-                  color: Colors.blue.withOpacity(0.0), // Set opacity to 0.0 to hide debug color
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: minTextboxWidth,
-                          minHeight: minTextboxHeight, // Enforce minimum height
-                          maxHeight: maxConstrainedHeight, // Allow space for full expansion
-                        ),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut, // Added for smoother animation
-                          width: math.max(screenWidth * 0.95, minTextboxWidth),
-                          height: targetAnimatedHeight, // This height drives the animation
-                          clipBehavior: Clip.hardEdge, // Added to ensure text clipping
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.0), // DEBUG: Set opacity to 0.0 to hide
-                            image: DecorationImage(
-                              image: AssetImage('assets/images/ui/textbox_hdpi.9.png'), // Changed to 9-patch
-                              fit: BoxFit.fill,
-                              centerSlice: Rect.fromLTWH(22, 22, 324, 229),
+                Align(
+                  alignment: Alignment(0.0, 0.0),
+                  child: Image.asset(
+                    'assets/images/npcs/sprite_dimsum_vendor_female_portrait.png',
+                    height: screenHeight * 0.70,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: outerHorizontalPadding,
+                      right: outerHorizontalPadding,
+                      bottom: MediaQuery.of(context).padding.bottom + 0.0, // Adjusted to move UI further down
+                    ),
+                    child: Container(
+                      color: Colors.transparent,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: minTextboxWidth,
+                              minHeight: minTextboxHeight, // Enforce minimum height
+                              maxHeight: maxConstrainedHeight, // Allow space for full expansion
                             ),
-                          ),
-                          child: Column(
-                            children: <Widget>[
-                              SizedBox(height: 30.0), // Spacer to move header row lower
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 0.0),
-                                child: Stack(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        npcName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                          color: Colors.black, // Ensure NPC name is clearly visible
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: IconButton(
-                                        icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
-                                        iconSize: 24.0, // Explicit icon size
-                                        padding: EdgeInsets.zero, // Remove default padding
-                                        constraints: const BoxConstraints(), // Allow button to shrink
-                                        color: Colors.black54,
-                                        onPressed: () {
-                                          setState(() {
-                                            _isExpanded = !_isExpanded;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ],
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut, // Added for smoother animation
+                              width: math.max(screenWidth * 0.95, minTextboxWidth),
+                              height: targetAnimatedHeight, // This height drives the animation
+                              clipBehavior: Clip.hardEdge, // Added to ensure text clipping
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage('assets/images/ui/textbox_hdpi.9.png'), // Changed to 9-patch
+                                  fit: BoxFit.fill,
+                                  centerSlice: Rect.fromLTWH(22, 22, 324, 229),
                                 ),
                               ),
-                              Expanded(
-                                child: Padding(
-                                  padding: dialogueListPadding,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 10.0), // Shift scrollbar left
-                                    child: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return Scrollbar(
-                                          thumbVisibility: true,
-                                          controller: _scrollController,
-                                          child: SingleChildScrollView(
-                                            controller: _scrollController,
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                minHeight: constraints.maxHeight,
-                                              ),
-                                              child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.end,
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: _dialogueLines.map((line) {
-                                                  return Padding(
-                                                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                                                    child: Text(
-                                                      line,
-                                                      textAlign: TextAlign.left,
-                                                      style: TextStyle(
-                                                        color: line.startsWith('$npcName:') ? Colors.black : Colors.black54,
-                                                        fontSize: 16,
-                                                      ),
+                              child: Stack( // Use Stack to position expand/contract buttons
+                                children: [
+                                  Column(
+                                    children: <Widget>[
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 30.0, left: 30.0, right: 30.0),
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: dialogueListPadding,
+                                          child: LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              return Scrollbar(
+                                                thumbVisibility: true,
+                                                controller: _scrollController,
+                                                child: SingleChildScrollView(
+                                                  controller: _scrollController,
+                                                  child: ConstrainedBox(
+                                                    constraints: BoxConstraints(
+                                                      minHeight: constraints.maxHeight,
                                                     ),
-                                                  );
-                                                }).toList(),
-                                              ),
-                                            ),
+                                                    child: Column(
+                                                      mainAxisAlignment: MainAxisAlignment.end,
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: _dialogueLines.map((line) {
+                                                        final speaker = _getSpeaker(line);
+                                                        final dialogueText = _getDialogueText(line);
+                                                        return Padding(
+                                                          padding: const EdgeInsets.symmetric(vertical: 4.0), // Increased vertical padding
+                                                          child: Column( // Use Column for speaker tag + text
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              if (speaker.isNotEmpty)
+                                                                Text(
+                                                                  speaker,
+                                                                  style: TextStyle(
+                                                                    fontWeight: FontWeight.bold,
+                                                                    color: speaker == 'Player' ? Colors.blueGrey : Colors.teal, // Example colors
+                                                                    fontSize: 14,
+                                                                  ),
+                                                                ),
+                                                              SizedBox(height: 2), // Space between name and text
+                                                              Text(
+                                                                dialogueText,
+                                                                textAlign: TextAlign.left,
+                                                                style: TextStyle(
+                                                                  color: Colors.black,
+                                                                  fontSize: 16,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
-                                        );
-                                      },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Positioned(
+                                    top: 0, // Adjust to be slightly above the textbox border
+                                    right: 30, // Adjust horizontal position as needed
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min, // To make buttons touch
+                                      children: [
+                                        SizedBox(
+                                          width: 25,
+                                          height: 25,
+                                          child: IconButton(
+                                            icon: Image.asset('assets/images/ui/button_arrow.png', width: 30, height: 30),
+                                            padding: EdgeInsets.zero,
+                                            constraints: BoxConstraints(),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isExpanded = true;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 25,
+                                          height: 25,
+                                          child: IconButton(
+                                            icon: Transform(
+                                              alignment: Alignment.center,
+                                              transform: Matrix4.rotationX(math.pi), // Flip vertically
+                                              child: Image.asset('assets/images/ui/button_arrow.png', width: 30, height: 30),
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: BoxConstraints(),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isExpanded = false;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: SizedBox(
+                                  width: 70,
+                                  height: 70,
+                                  child: Image.asset(
+                                    'assets/images/ui/button_back.png',
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
+                                onPressed: () {
+                                  widget.game.overlays.remove('dialogue');
+                                  widget.game.resumeGame();
+                                },
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: SizedBox(
+                                  width: 90,
+                                  height: 90,
+                                  child: Image.asset(
+                                    'assets/images/ui/button_mic.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                onPressed: () {},
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: Image.asset(
+                                    'assets/images/ui/button_translate.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                onPressed: () => _showTranslationDialog(context),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: SizedBox(
-                              width: 70,
-                              height: 70,
-                              child: Image.asset(
-                                'assets/images/ui/button_back.png',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            onPressed: () {
-                              widget.game.overlays.remove('dialogue');
-                              widget.game.resumeGame();
-                            },
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: SizedBox(
-                              width: 90,
-                              height: 90,
-                              child: Image.asset(
-                                'assets/images/ui/button_mic.png',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: Image.asset(
-                                'assets/images/ui/button_translate.png',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            onPressed: () => _showTranslationDialog(context),
-                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
