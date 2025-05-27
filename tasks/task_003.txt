@@ -28,7 +28,7 @@ Test player movement and collision detection on various device sizes. Verify map
 ### Details:
 Use Tiled Map Editor to create a .tmx file with the following layers: 1) Background layer with static night sky and distant buildings, 2) Midground layer with main street elements, 3) Foreground layer with decorative elements, 4) Collision layer with invisible rectangles marking boundaries and obstacles. Export the map in a format compatible with Flame engine. Implement the TiledComponent in Flame to load and render the map.
 
-## 2. Implement Player Avatar and Basic Movement Controls [pending]
+## 2. Implement Player Avatar and Basic Movement Controls [done]
 ### Dependencies: None
 ### Description: Create the player character with sprite animations and implement left/right movement controls with appropriate physics.
 ### Details:

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'screens/game_screen.dart';
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +33,7 @@ void main() async {
     );
   }
 
-  runApp(const MyApp());
+  runApp(ProviderScope(child: const MyApp()));
 }
 
 class MyApp extends StatelessWidget {
