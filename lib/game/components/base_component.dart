@@ -6,20 +6,13 @@ import '../babblelon_game.dart';
 // Base class for all game components
 abstract class BaseComponent extends PositionComponent with HasGameRef<BabblelonGame> {
   BaseComponent({
-    Vector2? position,
-    Vector2? size,
-    Vector2? scale,
-    double? angle,
-    Anchor? anchor,
-    int? priority,
-  }) : super(
-    position: position,
-    size: size,
-    scale: scale,
-    angle: angle,
-    anchor: anchor,
-    priority: priority,
-  );
+    super.position,
+    super.size,
+    super.scale,
+    super.angle,
+    super.anchor,
+    super.priority,
+  });
   
   // Add scale effect animation
   void addScaleEffect({

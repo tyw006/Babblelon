@@ -78,7 +78,7 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -86,7 +86,7 @@
           "description": "Gather and organize reference materials for Yaowarat at night to ensure authentic representation in both art styles.",
           "dependencies": [],
           "details": "1. Collect 20-30 high-quality photographs of Yaowarat at night showing different angles, lighting conditions, and distinctive elements (neon signs, food stalls, architecture)\n2. Identify key visual elements that define Yaowarat's identity (specific colors, iconic buildings, street layouts)\n3. Create a mood board organizing references by categories (lighting, architecture, people, activities)\n4. Document color palette options extracted from references\n5. Prepare a summary document highlighting essential elements that must be represented in both art styles",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Review collected materials with team members familiar with Bangkok to verify authenticity and completeness"
         },
         {
@@ -97,7 +97,7 @@
             1
           ],
           "details": "1. Create 3 concept pieces for 16-bit pixel art style (main street view, close-up of food stall, wide shot showing neon signs)\n2. Create 3 matching concept pieces in vibrant hand-drawn 2D style of the same scenes\n3. Apply color palettes from research phase\n4. Experiment with different lighting techniques in both styles to capture Yaowarat's night atmosphere\n5. Consider using Midjourney for initial concept generation and refinement\n6. Document technical specifications for each style (resolution, color depth, etc.)",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Conduct informal feedback session with art team to gather initial impressions on both styles"
         },
         {
@@ -108,7 +108,7 @@
             2
           ],
           "details": "1. Design player avatar character in both art styles with front, back, and side views\n2. Create 3 vendor NPC designs in both styles (food vendor, shopkeeper, pedestrian)\n3. Implement basic animation sets for each character: idle (2 frames), walk cycle (4-6 frames), talk animation (2 frames)\n4. Ensure consistent scale and proportion between characters and environment concepts\n5. Document animation frame rates and technical specifications for both styles",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Create simple animation previews as GIFs to evaluate fluidity and expressiveness of both styles"
         },
         {
@@ -120,7 +120,7 @@
             3
           ],
           "details": "1. Design basic tilesets for both art styles including: ground tiles (sidewalk, road), building facades, decorative elements (signs, lights, food stalls)\n2. Create at least 20 unique tiles per style that can be combined to build a small section of Yaowarat\n3. Import all assets (concept art, character sprites, animations, tilesets) into Flame engine\n4. Build a small test scene in each art style using the tilesets\n5. Implement basic character movement in the test scenes\n6. Measure and document performance metrics for both styles (frame rate, memory usage, load times)",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Run test scenes on target devices to evaluate performance and visual quality; document any technical limitations or concerns for each style"
         },
         {
@@ -131,7 +131,7 @@
             4
           ],
           "details": "1. Prepare a comprehensive presentation comparing both art styles with examples of all created assets\n2. Create a side-by-side comparison video showing both styles in motion within the Flame engine\n3. Conduct a formal review session with stakeholders to evaluate both styles\n4. Create a decision matrix with criteria such as: visual appeal, performance, production efficiency, market fit, and distinctiveness\n5. Document the final art style decision with detailed justification\n6. Create comprehensive art style guidelines document including: color palette, proportions, animation principles, technical specifications, and asset creation workflow",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Validate final art direction document with art team to ensure clarity and completeness for future asset production"
         }
       ]
@@ -146,7 +146,7 @@
       "dependencies": [
         2
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -154,7 +154,7 @@
           "description": "Design and implement the Yaowarat Night scene using Tiled Map Editor with proper layering for background, midground, foreground, and collision layers.",
           "dependencies": [],
           "details": "Use Tiled Map Editor to create a .tmx file with the following layers: 1) Background layer with static night sky and distant buildings, 2) Midground layer with main street elements, 3) Foreground layer with decorative elements, 4) Collision layer with invisible rectangles marking boundaries and obstacles. Export the map in a format compatible with Flame engine. Implement the TiledComponent in Flame to load and render the map.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify all layers render correctly, check that the map dimensions are appropriate for the game's scale, and ensure the map file loads without errors in the Flame engine."
         },
         {
@@ -163,31 +163,18 @@
           "description": "Create the player character with sprite animations and implement left/right movement controls with appropriate physics.",
           "dependencies": [],
           "details": "Create a Player class that extends the Flame SpriteAnimationComponent. Implement sprite sheets for idle, walking left, and walking right animations. Add input handling for touch/keyboard controls to move the player horizontally. Set appropriate movement speed and acceleration/deceleration values. Implement a simple state machine to manage player animation states based on movement direction.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test player movement on different devices, ensure animations transition smoothly between states, and verify input responsiveness meets expectations."
-        },
-        {
-          "id": 3,
-          "title": "Implement Collision Detection System",
-          "description": "Add collision detection between the player and map elements using the collision layer from the Tiled map.",
-          "dependencies": [
-            1,
-            2
-          ],
-          "details": "Create a collision system using Flame's HasHitboxes and Collidable mixins. Extract collision objects from the Tiled collision layer and convert them to Flame hitboxes. Implement collision resolution that prevents the player from moving through solid objects. Add a simple physics system for player movement that respects collisions. Ensure the player cannot move beyond map boundaries.",
-          "status": "pending",
-          "testStrategy": "Test collision by attempting to walk through walls and boundaries, verify the player stops appropriately at obstacles, and check that collision detection performs well with multiple objects."
         },
         {
           "id": 4,
           "title": "Add Camera System and Parallax Scrolling",
           "description": "Implement a camera that follows the player and add parallax scrolling effects to create depth in the background layers.",
           "dependencies": [
-            2,
-            3
+            2
           ],
           "details": "Create a camera system using Flame's CameraComponent that follows the player with smooth movement. Implement parallax scrolling by moving different layers at different speeds relative to the camera movement. Configure at least 3 parallax layers with decreasing movement speeds from foreground to background. Add camera boundaries to prevent showing empty areas beyond the map edges. Implement smooth camera transitions when changing direction.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test the parallax effect at different movement speeds, verify the camera follows the player smoothly, and ensure the camera boundaries work correctly at map edges."
         },
         {
@@ -199,7 +186,7 @@
             4
           ],
           "details": "Add animated components for atmospheric effects: flickering neon signs, street lights, steam from food stalls, and ambient crowd movements. Implement these using Flame's SpriteAnimationComponent or ParticleSystemComponent. Add a simple day/night cycle controller that adjusts lighting effects. Optimize rendering by implementing culling for off-screen objects, using sprite batching where possible, and ensuring texture atlases are properly configured. Add visual indicators (like subtle highlighting) for interactive objects that will be implemented later.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Measure FPS on target devices before and after optimization, verify all animations play smoothly without frame drops, and test performance with many atmospheric elements visible simultaneously."
         }
       ]
