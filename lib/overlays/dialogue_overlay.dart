@@ -1,17 +1,18 @@
 import 'dart:math' as math; // Added for math.min
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../game/babblelon_game.dart';
 
-// Convert to StatefulWidget to manage isExpanded state
-class DialogueOverlay extends StatefulWidget {
+// Convert to ConsumerStatefulWidget to access ref
+class DialogueOverlay extends ConsumerStatefulWidget {
   final BabblelonGame game;
   const DialogueOverlay({Key? key, required this.game}) : super(key: key);
 
   @override
-  _DialogueOverlayState createState() => _DialogueOverlayState();
+  ConsumerState<DialogueOverlay> createState() => _DialogueOverlayState();
 }
 
-class _DialogueOverlayState extends State<DialogueOverlay> {
+class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
   bool _isExpanded = false; // State for textbox expansion
   final ScrollController _scrollController = ScrollController(); // For auto-scrolling
 
@@ -45,23 +46,12 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
   @override
   void initState() {
     super.initState();
-    // After the first frame, position the scroll at the end so text starts bottom-aligned
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        // Always scroll to the bottom on first load to show the latest messages
         final double offset = _scrollController.position.maxScrollExtent;
         _scrollController.jumpTo(offset);
       }
     });
-    // Example: Add a new line and scroll to bottom after a delay
-    // Future.delayed(Duration(seconds: 2), () {
-    //   if (mounted) {
-    //     setState(() {
-    //       _dialogueLines.insert(0, "NPC: Here are some more thoughts..."); // Insert at start for reverse list
-    //     });
-    //     _scrollToBottom();
-    //   }
-    // });
   }
 
   Future<void> _showTranslationDialog(BuildContext context) async {
@@ -121,6 +111,10 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
     final EdgeInsets dialogueListPadding = _isExpanded
       ? const EdgeInsets.only(left: 30.0, top: 10.0, right: 25.0, bottom: 25.0)
       : const EdgeInsets.only(left: 30.0, top: 5.0, right: 25.0, bottom: 25.0);
+
+    // Example usage of ref in a callback:
+    // widget.game.pauseGame(ref);
+    // widget.game.resumeGame(ref);
 
     return Material(
       color: Colors.transparent, // Ensure transparency if debugging colors are removed
@@ -316,7 +310,7 @@ class _DialogueOverlayState extends State<DialogueOverlay> {
                                 ),
                                 onPressed: () {
                                   widget.game.overlays.remove('dialogue');
-                                  widget.game.resumeGame();
+                                  widget.game.resumeGame(ref);
                                 },
                               ),
                               IconButton(

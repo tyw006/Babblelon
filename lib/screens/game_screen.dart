@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../game/babblelon_game.dart';
 import '../overlays/dialogue_overlay.dart';
+import 'package:flame_riverpod/flame_riverpod.dart';
+import '../providers/game_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
 class GameScreen extends StatefulWidget {
   GameScreen({super.key});
@@ -12,57 +17,66 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  late WidgetRef _ref;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          GameWidget(
-            game: widget._game,
-            loadingBuilder: (context) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            errorBuilder: (context, error) => Center(
-              child: Text(
-                'Error loading game: $error',
-                style: const TextStyle(color: Colors.red, fontSize: 20),
+    return Consumer(
+      builder: (context, ref, _) {
+        _ref = ref;
+        return Scaffold(
+          body: Stack(
+            children: [
+              RiverpodAwareGameWidget(
+                key: gameWidgetKey,
+                game: widget._game,
+                loadingBuilder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                errorBuilder: (context, error) => Center(
+                  child: Text(
+                    'Error loading game: $error',
+                    style: const TextStyle(color: Colors.red, fontSize: 20),
+                  ),
+                ),
+                overlayBuilderMap: {
+                  'game_over': (context, game) => const GameOverMenu(),
+                  'main_menu': (context, game) => MainMenu(
+                    game: game as BabblelonGame,
+                    onClose: _closeMenuAndResume,
+                  ),
+                  'dialogue': (context, game) => DialogueOverlay(game: game as BabblelonGame),
+                },
               ),
-            ),
-            overlayBuilderMap: {
-              'game_over': (context, game) => const GameOverMenu(),
-              'main_menu': (context, game) => MainMenu(
-                game: game as BabblelonGame,
-                onClose: _closeMenuAndResume,
-              ),
-              'dialogue': (context, game) => DialogueOverlay(game: game as BabblelonGame),
-            },
-          ),
-          // Hamburger menu icon (always visible)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 32),
-                    onPressed: _openMenu,
+              // Hamburger menu icon (always visible)
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white, size: 32),
+                        onPressed: _openMenu,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   void _openMenu() {
+    final isPaused = _ref.read(gameStateProvider).isPaused;
     // Only add overlay if not already present
     if (!widget._game.overlays.isActive('main_menu')) {
-      if (!widget._game.isPaused) {
-        widget._game.pauseGame();
+      if (!isPaused) {
+        widget._game.pauseGame(_ref);
       }
       widget._game.overlays.add('main_menu');
     }
@@ -70,7 +84,7 @@ class _GameScreenState extends State<GameScreen> {
 
   void _closeMenuAndResume() {
     widget._game.overlays.remove('main_menu');
-    widget._game.resumeGame();
+    widget._game.resumeGame(_ref);
   }
 }
 
@@ -108,27 +122,17 @@ class GameOverMenu extends StatelessWidget {
   }
 }
 
-class MainMenu extends StatefulWidget {
+class MainMenu extends ConsumerWidget {
   final BabblelonGame game;
   final VoidCallback onClose;
   const MainMenu({super.key, required this.game, required this.onClose});
 
   @override
-  State<MainMenu> createState() => _MainMenuState();
-}
-
-class _MainMenuState extends State<MainMenu> {
-  void _toggleMusic(bool val) {
-    setState(() {
-      widget.game.musicEnabled = val;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gameState = ref.watch(gameStateProvider);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: widget.onClose, // Tap outside closes menu and resumes game
+      onTap: onClose, // Tap outside closes menu and resumes game
       child: Center(
         child: GestureDetector(
           onTap: () {}, // Prevent tap from propagating to background
@@ -150,24 +154,24 @@ class _MainMenuState extends State<MainMenu> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(widget.game.bgmIsPlaying ? Icons.music_note : Icons.music_off, color: Colors.white),
+                    Icon(gameState.bgmIsPlaying ? Icons.music_note : Icons.music_off, color: Colors.white),
                     const SizedBox(width: 8),
                     Switch(
-                      value: widget.game.musicEnabled,
-                      onChanged: _toggleMusic,
+                      value: gameState.musicEnabled,
+                      onChanged: (val) => ref.read(gameStateProvider.notifier).toggleMusic(),
                       activeColor: Colors.green,
                       inactiveThumbColor: Colors.red,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      widget.game.musicEnabled ? 'Music On' : 'Music Off',
+                      gameState.musicEnabled ? 'Music On' : 'Music Off',
                       style: const TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: widget.onClose,
+                  onPressed: onClose,
                   child: const Text('Close'),
                 ),
               ],
