@@ -9,51 +9,17 @@ import 'package:flutter/services.dart';
 import 'components/player_component.dart';
 import 'components/speech_bubble_component.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:flame_riverpod/flame_riverpod.dart';
+import '../providers/game_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BabblelonGame extends FlameGame with 
-    TapDetector, 
-    KeyboardEvents, 
+class BabblelonGame extends FlameGame with
+    RiverpodGameMixin,
+    TapDetector,
+    KeyboardEvents,
     HasCollisionDetection {
   
-  // Game state variables
-  bool _isGameOver = false;
-  bool _isPaused = false;
-  int _score = 0;
-  
-  // Track if background music is playing
-  bool _bgmIsPlaying = true;
-  bool get bgmIsPlaying => _bgmIsPlaying;
-
-  // Track if music is enabled by user
-  bool _musicEnabled = true;
-  bool get musicEnabled => _musicEnabled;
-  set musicEnabled(bool value) {
-    _musicEnabled = value;
-    if (_musicEnabled) {
-      resumeMusic();
-    } else {
-      pauseMusic();
-    }
-  }
-
-  // Public getter for pause state
-  bool get isPaused => _isPaused;
-
-  // Public methods to control music
-  void pauseMusic() {
-    FlameAudio.bgm.stop(); // Stop music completely
-    _bgmIsPlaying = false;
-  }
-
-  void resumeMusic() {
-    if (!_bgmIsPlaying) {
-      FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
-      _bgmIsPlaying = true;
-    }
-  }
-  
   // UI Components
-  late TextComponent _scoreText;
   
   // World and Camera
   late final World gameWorld;
@@ -140,7 +106,7 @@ class BabblelonGame extends FlameGame with
       priority: 1,
       onTap: () { // Show dialogue overlay when tapped
         if (_canInteractWithNpc) {
-          pauseGame();
+          pauseGame(ref);
           overlays.add('dialogue');
         }
       },
@@ -162,15 +128,12 @@ class BabblelonGame extends FlameGame with
     // Initialize and play background music
     await FlameAudio.bgm.initialize();
     FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
-    _bgmIsPlaying = true;
   }
   
   @override
   void update(double dt) {
     super.update(dt);
     
-    if (_isPaused || _isGameOver) return;
-
     // Camera deadzone logic (horizontal only)
     if (player.isMounted) {
       const double deadzoneWidth = 20.0; // Deadzone width in pixels
@@ -217,29 +180,18 @@ class BabblelonGame extends FlameGame with
   
   @override
   void onTapDown(TapDownInfo info) {
-    if (isPaused) return; // If game engine is paused, ignore taps for movement etc.
     super.onTapDown(info);
-    
-    // Check if the tap is on the speech bubble first
-    // The SpeechBubbleComponent now handles its own onTapDown, so we don't need to check here explicitly
-    // as long as it's added to the gameWorld and receives events.
-    // If the tap was on the speech bubble, its onTapDown would have been called and handled it.
-    
-    if (_isPaused) {
-      resumeGame();
-    } else if (_isGameOver) {
-      // Potentially restart game or navigate to main menu
+    // Only allow movement if not paused
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    if (isPaused) return;
+    final tapX = info.eventPosition.global.x;
+    final screenMid = gameResolution.x / 2;
+    if (tapX > screenMid) {
+      player.isMovingRight = true;
+      player.isMovingLeft = false;
     } else {
-      // Touch controls for player movement
-      final tapX = info.eventPosition.global.x;
-      final screenMid = gameResolution.x / 2;
-      if (tapX > screenMid) {
-        player.isMovingRight = true;
-        player.isMovingLeft = false;
-      } else {
-        player.isMovingLeft = true;
-        player.isMovingRight = false;
-      }
+      player.isMovingLeft = true;
+      player.isMovingRight = false;
     }
   }
   
@@ -264,14 +216,12 @@ class BabblelonGame extends FlameGame with
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
-    if (isPaused) return KeyEventResult.handled; // If game engine is paused, ignore key events
-
     final isKeyDown = event is KeyDownEvent;
     final isKeyUp = event is KeyUpEvent;
 
     // --- NPC interaction with 'E' key ---
     if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
-      pauseGame();
+      pauseGame(ref);
       overlays.add('dialogue');
       return KeyEventResult.handled;
     }
@@ -299,37 +249,35 @@ class BabblelonGame extends FlameGame with
   }
   
   void gameOver() {
-    _isGameOver = true;
     overlays.add('game_over');
     FlameAudio.bgm.stop();
-    _bgmIsPlaying = false;
   }
   
   void reset() {
-    _isGameOver = false;
-    _score = 0;
-    _scoreText.text = 'Score: $_score';
     overlays.remove('game_over');
-    
-  }
-  
-  void increaseScore(int points) {
-    _score += points;
-    _scoreText.text = 'Score: $_score';
   }
 
-  void pauseGame() {
+  void pauseGame(WidgetRef ref) {
     pauseEngine();
-    _isPaused = true;
+    ref.read(gameStateProvider.notifier).pause();
     FlameAudio.bgm.pause();
-    _bgmIsPlaying = false; // Ensure music state is updated for resume
   }
 
-  void resumeGame() {
+  void resumeGame(WidgetRef ref) {
     resumeEngine();
-    _isPaused = false;
-    if (_musicEnabled) {
-      resumeMusic();
+    ref.read(gameStateProvider.notifier).resume();
+    if (ref.read(gameStateProvider).musicEnabled) {
+      resumeMusic(ref);
     }
+  }
+
+  void pauseMusic(WidgetRef ref) {
+    FlameAudio.bgm.stop();
+    ref.read(gameStateProvider.notifier).setBgmPlaying(false);
+  }
+
+  void resumeMusic(WidgetRef ref) {
+    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    ref.read(gameStateProvider.notifier).setBgmPlaying(true);
   }
 } 

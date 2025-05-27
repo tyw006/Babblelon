@@ -16,11 +16,17 @@ dependencies:
   supabase_flutter: ^2.0.0
   cupertino_icons: ^1.0.6
   flutter_dotenv: ^5.1.0
+  flutter_riverpod: ^2.6.1
+  hooks_riverpod: ^2.6.1
+  flame_riverpod: ^5.4.15
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  build_runner:
+  riverpod_generator: ^2.3.3
+  analyzer: ^5.13.0
 
 flutter:
   uses-material-design: true
