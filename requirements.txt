@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+elevenlabs
+google-generativeai
+# Add other existing requirements below if any
