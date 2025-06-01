@@ -62,6 +62,9 @@ supabase/.temp
 *.tmp
 *.temp
 
+# Test files
+/backend/test_files
+
 # Generated files
 *.g.dart
 *.freezed.dart
