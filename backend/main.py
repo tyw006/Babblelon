@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 import os
 import io
@@ -7,6 +7,8 @@ import json
 import base64
 from dotenv import load_dotenv
 from pathlib import Path
+import datetime
+from pydantic import BaseModel # For request body model
 
 # Always load .env from the project root, regardless of where you run the script
 project_root = Path(__file__).parent.parent.resolve()
@@ -21,81 +23,135 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Assuming you use this name for Google GenAI
 
-if not all([ELEVENLABS_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY]):
-    # In a real app, you might want more specific error handling or logging
-    print("Warning: One or more API keys are not set in environment variables.")
+if not ELEVENLABS_API_KEY:
+    print(f"[{datetime.datetime.now()}] WARNING: ELEVENLABS_API_KEY not set.")
+if not OPENAI_API_KEY:
+    print(f"[{datetime.datetime.now()}] WARNING: OPENAI_API_KEY not set.")
+if not GEMINI_API_KEY:
+    print(f"[{datetime.datetime.now()}] WARNING: GEMINI_API_KEY not set.")
 
-async def stream_conversation_data(audio_content_stream: io.BytesIO):
-    try:
-        # 1. STT - Transcribe the uploaded audio
-        audio_content_stream.seek(0)
-        
-        transcribed_text = await stt_service.transcribe_audio(audio_content_stream)
-        if not transcribed_text:
-            # Yield an error message if STT fails
-            error_message = {"type": "error", "payload": "STT failed to transcribe audio."}
-            yield json.dumps(error_message) + "\n"
-            return
+# --- New Endpoint 1: Transcribe Only ---
+@app.post("/transcribe-audio/")
+async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /transcribe-audio/ endpoint hit. File: {audio_file.filename}")
+    audio_bytes = await audio_file.read()
+    await audio_file.close()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Audio file content is empty.")
 
-        # Yield transcribed text
-        transcription_event = {"type": "transcription", "payload": transcribed_text}
-        yield json.dumps(transcription_event) + "\n"
-
-        # 2. LLM - Get response based on transcribed text
-        # TODO: Get npc_id and current_charm from the request in a real scenario
-        current_npc_id = "amara" # Hardcoded for now
-        current_charm = 50 # Hardcoded for now, frontend should manage and send this
-        llm_input_text = f"Current Charm: {current_charm}\n{transcribed_text}"
-        
-        npc_response_data = await llm_service.get_llm_response(llm_input_text, npc_id=current_npc_id)
-        if not npc_response_data or not npc_response_data.response_thai:
-            error_message = {"type": "error", "payload": "LLM failed to generate a response."}
-            yield json.dumps(error_message) + "\n"
-            return
-
-        # Yield NPC response object (as a dict for JSON serialization)
-        # Pydantic models have a .model_dump() method (or .dict() in older Pydantic)
-        npc_response_event = {"type": "npc_response", "payload": npc_response_data.model_dump()}
-        yield json.dumps(npc_response_event) + "\n"
-
-        # 3. TTS - Convert LLM's Thai response to speech and stream audio chunks
-        text_to_speak = npc_response_data.response_thai
-        
-        async for audio_chunk in tts_service.text_to_speech_stream(text_to_speak):
-            # Base64 encode the audio chunk for JSON compatibility
-            encoded_chunk = base64.b64encode(audio_chunk).decode('utf-8')
-            audio_chunk_event = {"type": "audio_chunk", "payload": encoded_chunk}
-            yield json.dumps(audio_chunk_event) + "\n"
-        
-        # Signal end of audio stream
-        stream_end_event = {"type": "audio_stream_end", "payload": "Audio streaming finished."}
-        yield json.dumps(stream_end_event) + "\n"
-
-    except HTTPException as e: # Catch specific HTTPExceptions from services
-        error_message = {"type": "error", "payload": e.detail, "status_code": e.status_code}
-        yield json.dumps(error_message) + "\n"
-    except Exception as e:
-        print(f"An unexpected error occurred in stream_conversation_data: {e}")
-        error_message = {"type": "error", "payload": f"An unexpected server error occurred: {str(e)}"}
-        yield json.dumps(error_message) + "\n"
-
-@app.post("/process-audio/")
-async def process_audio_flow(audio_file: UploadFile = File(...)):
-    """
-    Receives an audio file, transcribes it, gets an LLM response,
-    converts LLM response to speech, and streams all data back as NDJSON.
-    """
-    # Read the file content immediately
-    try:
-        audio_bytes = await audio_file.read()
-    finally:
-        # It's good practice to explicitly close the UploadFile if you've read it,
-        # though Starlette usually handles this.
-        await audio_file.close()
-            
     audio_content_stream = io.BytesIO(audio_bytes)
+    try:
+        transcribed_text = await stt_service.transcribe_audio(audio_content_stream)
+        print(f"[{datetime.datetime.now()}] DEBUG: /transcribe-audio/ STT result: '{transcribed_text}'.")
+        return {"transcription": transcribed_text}
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /transcribe-audio/ HTTPException: {e.detail}")
+        raise e # Re-raise STT service errors
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /transcribe-audio/ Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected STT error: {str(e)}")
+    finally:
+        total_time = datetime.datetime.now() - request_time
+        print(f"[{datetime.datetime.now()}] INFO: /transcribe-audio/ finished. Total time: {total_time}")
+
+# --- New Endpoint 2: Generate NPC Response from Text ---
+class NPCRequestData(BaseModel):
+    player_transcription: str
+    conversation_history: str
+    current_charm: int
+    npc_id: str = "amara" # Default or could be passed by client
+
+@app.post("/generate-npc-response/")
+async def generate_npc_response_endpoint(data: NPCRequestData):
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /generate-npc-response/ endpoint hit.")
+    print(f"[{datetime.datetime.now()}] DEBUG: Received data for NPC response: {data.model_dump_json(indent=2)}")
+
+    try:
+        # 1. LLM - Get response based on transcribed text and history
+        llm_input_text_for_prompt = (
+            f"Previous Conversation:\n{data.conversation_history if data.conversation_history.strip() else '(No previous conversation)'}\n\n"
+            f"Player's Latest Utterance (to be responded to):\n{data.player_transcription}"
+        )
+        print(f"[{datetime.datetime.now()}] DEBUG: Calling LLM for NPC: {data.npc_id} with charm: {data.current_charm}.")
+        
+        npc_response_data = await llm_service.get_llm_response(
+            llm_input_text_for_prompt, 
+            npc_id=data.npc_id,
+            charm_level=data.current_charm
+        )
+        if not npc_response_data or not npc_response_data.response_thai:
+            print(f"[{datetime.datetime.now()}] ERROR: LLM failed in /generate-npc-response/")
+            raise HTTPException(status_code=500, detail="LLM failed to generate a response.")
+        print(f"[{datetime.datetime.now()}] DEBUG: LLM response received: {npc_response_data.model_dump_json(indent=2)}")
+        print(f"[{datetime.datetime.now()}] RAW LLM TEXTS - Thai: {repr(npc_response_data.response_thai)}, Eng: {repr(npc_response_data.response_eng)}, RTGS: {repr(npc_response_data.response_rtgs)}")
+
+        # 2. TTS - Convert LLM's Thai response to full speech audio bytes
+        text_to_speak = f"""In a {npc_response_data.response_tone} tone: {npc_response_data.response_thai}"""
+        print(f"[{datetime.datetime.now()}] DEBUG: Requesting full TTS for: '{text_to_speak}'")
+        
+        npc_audio_bytes = await tts_service.text_to_speech_full(text_to_speak)
+        if not npc_audio_bytes:
+            print(f"[{datetime.datetime.now()}] ERROR: TTS (full) failed in /generate-npc-response/")
+            raise HTTPException(status_code=500, detail="TTS failed to generate audio bytes.")
+        print(f"[{datetime.datetime.now()}] DEBUG: TTS (full) generated {len(npc_audio_bytes)} bytes.")
+
+        # 3. Prepare and return the combined JSON response
+        response_payload = {
+            "type": "full_npc_response", # New type for clarity
+            "npc_response_data": npc_response_data.model_dump(), # Contains npc_response_thai, charm_delta etc.
+            "npc_audio_base64": base64.b64encode(npc_audio_bytes).decode('utf-8')
+        }
+        print(f"[{datetime.datetime.now()}] INFO: Successfully generated NPC response. Returning.")
+        return JSONResponse(content=response_payload)
+
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /generate-npc-response/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /generate-npc-response/ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
+    finally:
+        total_time = datetime.datetime.now() - request_time
+        print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ finished. Total time: {total_time}")
+
+# --- Temporary Debug Endpoint for STT ---
+@app.post("/debug-stt/")
+async def debug_stt_endpoint(file_path: str = Form("assets/audio/test/test_input1.wav")):
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /debug-stt/ endpoint hit. Testing with file: {file_path}")
+    abs_file_path = project_root / file_path # Construct absolute path from project root
     
-    return StreamingResponse(stream_conversation_data(audio_content_stream), media_type="application/x-ndjson")
+    if not os.path.exists(abs_file_path):
+        print(f"[{datetime.datetime.now()}] ERROR: File not found for STT debug: {abs_file_path}")
+        raise HTTPException(status_code=404, detail=f"File not found: {abs_file_path}")
+    
+    try:
+        with open(abs_file_path, 'rb') as audio_file:
+            audio_bytes = audio_file.read()
+        audio_content_stream = io.BytesIO(audio_bytes)
+        print(f"[{datetime.datetime.now()}] DEBUG: Read {len(audio_bytes)} bytes from {abs_file_path} for STT debug.")
+
+        transcribed_text = await stt_service.transcribe_audio(audio_content_stream)
+        print(f"[{datetime.datetime.now()}] DEBUG: STT debug result: '{transcribed_text}'.")
+        
+        return {"file_path": str(abs_file_path), "transcription": transcribed_text}
+    except HTTPException as e:
+        # Re-raise HTTPExceptions from the service
+        print(f"[{datetime.datetime.now()}] ERROR: HTTPException in STT debug: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: Unexpected error in STT debug: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unexpected error during STT debug: {str(e)}")
+    finally:
+        total_time = datetime.datetime.now() - request_time
+        print(f"[{datetime.datetime.now()}] INFO: /debug-stt/ request finished. Total time: {total_time}")
+# --- End Temporary Debug Endpoint ---
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 
