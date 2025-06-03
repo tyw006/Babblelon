@@ -19,6 +19,13 @@ dependencies:
   flutter_riverpod: ^2.6.1
   hooks_riverpod: ^2.6.1
   flame_riverpod: ^5.4.15
+  google_fonts: ^6.1.0
+  just_audio: ^0.9.36
+  flutter_sound: ^9.2.13
+  path_provider: ^2.0.0
+  permission_handler: ^11.0.0
+  http: ^1.2.0
+  audioplayers: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -36,5 +43,7 @@ flutter:
     - assets/images/player/
     - assets/images/npcs/
     - assets/images/ui/
-    - assets/audio/
+    - assets/audio/npc/
+    - assets/audio/bg/
+    - assets/audio/test/
     - .env 

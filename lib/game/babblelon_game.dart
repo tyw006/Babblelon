@@ -126,8 +126,8 @@ class BabblelonGame extends FlameGame with
     cameraComponent.viewfinder.position = Vector2(0, 0);
 
     // Initialize and play background music
-    await FlameAudio.bgm.initialize();
-    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    FlameAudio.bgm.initialize();
+    FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
   }
   
   @override
@@ -277,7 +277,7 @@ class BabblelonGame extends FlameGame with
   }
 
   void resumeMusic(WidgetRef ref) {
-    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
     ref.read(gameStateProvider.notifier).setBgmPlaying(true);
   }
 } 
