@@ -51,12 +51,15 @@ class NPCResponse(BaseModel):
     response_eng: str
     response_rtgs: str
     charm_delta: int
+    # Potentially, the LLM could also be asked to return the new absolute charm level
+    # new_charm_level: int | None = None 
 
-async def get_llm_response(user_message: str, npc_id: str) -> NPCResponse | None:
+async def get_llm_response(user_message_with_history: str, npc_id: str, charm_level: int) -> NPCResponse | None:
     """
-    Gets a response from the OpenAI LLM based on the user message and system prompt for the given NPC.
-    user_message: The user\'s message string.
-    npc_id: The identifier for the NPC (e.g., "amara", "sombat").
+    Gets a response from the OpenAI LLM based on the user message, conversation history, charm level, and system prompt.
+    user_message_with_history: The user's latest utterance, potentially prefixed with conversation history.
+    npc_id: The identifier for the NPC.
+    charm_level: The current charm level of the player with this NPC.
     Returns an NPCResponse object or None if an error occurs.
     """
     if not openai_client:
@@ -70,12 +73,18 @@ async def get_llm_response(user_message: str, npc_id: str) -> NPCResponse | None
             raise HTTPException(status_code=404, detail=f"NPC with ID '{npc_id}' not found or prompt file missing/unreadable.")
         NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc # Cache it
 
+    # Incorporate charm level into the input for the LLM
+    # The system_prompt_for_npc should instruct the LLM how to interpret this.
+    llm_input_with_charm = f"""Observe the conversation history and respond to the latest message.
+    Current Charm with {npc_id.capitalize()}: {charm_level}
+    Conversation History:{user_message_with_history}"""
+
     try:
         response = openai_client.responses.parse(
-            model="gpt-4.1-nano-2025-04-14", # Or your preferred model
-            instructions=system_prompt_for_npc, # Use the selected NPC's prompt
-            input=user_message,
-            text_format=NPCResponse, # Specify the Pydantic model for parsing
+            model="gpt-4.1-nano-2025-04-14", 
+            instructions=system_prompt_for_npc, 
+            input=llm_input_with_charm, # Use the input with charm level
+            text_format=NPCResponse, 
         )
         
         if response and response.output_parsed:
