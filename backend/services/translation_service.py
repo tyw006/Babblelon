@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from google.cloud import translate_v3
 from google.cloud import texttospeech
 from pythainlp.transliterate import romanize
+from pythainlp.tokenize import word_tokenize
 
 def get_google_cloud_project_id():
     """Retrieves the Google Cloud Project ID from environment variables."""
@@ -39,14 +40,25 @@ async def translate_text(text: str, target_language: str = "th") -> dict:
         raise HTTPException(status_code=500, detail=f"Google Cloud Translation API error: {e}")
 
 async def romanize_thai_text(thai_text: str) -> dict:
-    """Romanizes Thai text using PyThaiNLP."""
+    """Romanizes Thai text using PyThaiNLP with tokenization for proper spacing."""
     if not thai_text or not thai_text.strip():
         return {"romanized_text": ""}
         
     try:
-        romanized_text = romanize(thai_text, engine='thai2rom_onnx')
-        print(f"Successfully romanized '{thai_text}' to '{romanized_text}' with PyThaiNLP")
-        return {"romanized_text": romanized_text}
+        # 1. Tokenize the Thai text into words
+        thai_words = word_tokenize(thai_text, engine="newmm")
+
+        # 2. Romanize each word and 3. Join with spaces
+        romanized_parts = []
+        for word in thai_words:
+            if word.strip(): # Ensure word is not just whitespace
+                romanized_word = romanize(word, engine="thai2rom")
+                romanized_parts.append(romanized_word)
+
+        spaced_romanization = " ".join(romanized_parts)
+        
+        print(f"Successfully romanized '{thai_text}' to '{spaced_romanization}' with PyThaiNLP")
+        return {"romanized_text": spaced_romanization}
         
     except Exception as e:
         print(f"Error during PyThaiNLP romanization: {e}")
@@ -68,7 +80,8 @@ async def synthesize_speech(text: str, language_code: str = "th-TH", voice_name:
         )
 
         audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=0.8
         )
 
         response = client.synthesize_speech(

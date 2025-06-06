@@ -42,6 +42,7 @@ It's important to sound as human like as possible, so include the human expressi
         4.  `English:` (The English translation of the content in the `Thai:` field.)
         5.  'Transliteration': The romanized version of the Thai response in the 'Thai': field.
         5.  'Response Mapping': The Part-of-Speech(POS) classification for each of words in the Thai, English, and Transliteration response.
+            Map only one word at a time. Do not map phrases.
             - Use the following guide to map POS to each word:
                 ADJ: adjective (e.g., big, old)
                 ADP: adposition (e.g., in, to, on - includes prepositions and postpositions)
