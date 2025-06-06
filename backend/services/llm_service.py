@@ -1,9 +1,10 @@
 import os
 from openai import OpenAI as OpenAIClient # Renamed to avoid conflict if OpenAI is used elsewhere
-from pydantic import BaseModel
-from typing import Literal, Dict
+from pydantic import BaseModel, Field # Added Field
+from typing import Literal, Dict, List, Optional # Added List, Optional
 from fastapi import HTTPException
 import pathlib # For path manipulation
+import json # Added for JSON parsing
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -42,59 +43,93 @@ def load_prompt_from_file(npc_id: str) -> str | None:
 
 NPC_PROMPTS_CACHE: Dict[str, str] = {} # Optional: For caching loaded prompts
 
-# --- End Prompt Definitions ---
+
+
+class POSMapping(BaseModel):
+    word_target: str = Field(description = "A single word in the target language (e.g., Thai)")
+    word_translit: str = Field(description = "The romanized/transliterated version of the target word")
+    word_eng: str = Field(description="The English translation of the target word") # Corrected typo 'desecription' to 'description'
+    pos: Literal['ADJ', 'ADP', 'ADV', 'AUX', 'CCONJ', 'DET','INTJ', 'NOUN',
+                 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'VERB', 'OTHER'] = Field(description="Part of speech tag for the target word")
 
 class NPCResponse(BaseModel):
     expression: Literal["angry", "annoyed", "content", "happy", "sad", "surprised", "laughing"]
     response_tone: str
-    response_thai: str
-    response_eng: str
-    response_rtgs: str
+    response_target: str # This is the primary TargetLanguage response
+    response_eng: str    # English translation provided by LLM
+    response_translit: str # RTGS (or general transliteration) provided by LLM
+    response_mapping: List[POSMapping] # POS tagging and word-level translations/transliterations by LLM
     charm_delta: int
-    # Potentially, the LLM could also be asked to return the new absolute charm level
-    # new_charm_level: int | None = None 
+    # Removed: response_rtgs (now response_translit)
+    # Removed: tagged_thai_words (now response_mapping)
 
-async def get_llm_response(user_message_with_history: str, npc_id: str, charm_level: int) -> NPCResponse | None:
+async def get_llm_response(npc_id: str, npc_name: str, conversation_history_full: str, current_charm_level: int) -> NPCResponse:
     """
-    Gets a response from the OpenAI LLM based on the user message, conversation history, charm level, and system prompt.
-    user_message_with_history: The user's latest utterance, potentially prefixed with conversation history.
+    Gets a response from the OpenAI LLM based on the conversation history, charm level, and system prompt for the NPC.
+    conversation_history_full: The entire conversation history including NPC and player messages, ending with the latest player message.
     npc_id: The identifier for the NPC.
-    charm_level: The current charm level of the player with this NPC.
-    Returns an NPCResponse object or None if an error occurs.
+    npc_name: The name of the NPC.
+    current_charm_level: The current charm level of the player with this NPC.
+    Returns an NPCResponse object.
     """
     if not openai_client:
         raise HTTPException(status_code=500, detail="OpenAI client not initialized. Check API key.")
 
-    # Load prompt (with optional caching)
     system_prompt_for_npc = NPC_PROMPTS_CACHE.get(npc_id.lower())
     if not system_prompt_for_npc:
         system_prompt_for_npc = load_prompt_from_file(npc_id)
         if not system_prompt_for_npc:
             raise HTTPException(status_code=404, detail=f"NPC with ID '{npc_id}' not found or prompt file missing/unreadable.")
-        NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc # Cache it
+        NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc
 
-    # Incorporate charm level into the input for the LLM
-    # The system_prompt_for_npc should instruct the LLM how to interpret this.
-    llm_input_with_charm = f"""Observe the conversation history and respond to the latest message.
-    Current Charm with {npc_id.capitalize()}: {charm_level}
-    Conversation History:{user_message_with_history}"""
+    # conversation_history_full is expected to contain the complete dialogue, ending with the player's last message.
+    llm_input = f"""Current Charm with {npc_name.capitalize()}: {current_charm_level}
+
+Respond to the latest message in the conversation history:
+{conversation_history_full}
+"""
+
+    # print(f"""DEBUG: llm_input for {npc_id} (first 500 chars):
+    # {llm_input[:500]}...""") # Commented out verbose log
 
     try:
+        # Using client.responses.parse based on user's example
         response = openai_client.responses.parse(
-            model="gpt-4.1-nano-2025-04-14", 
-            instructions=system_prompt_for_npc, 
-            input=llm_input_with_charm, # Use the input with charm level
-            text_format=NPCResponse, 
+            model="gpt-4.1-nano-2025-04-14", # Ensure this model is appropriate for .responses.parse
+            instructions=system_prompt_for_npc,
+            input=llm_input,
+            text_format=NPCResponse, # This tells the client how to parse the text output from LLM into a Pydantic model
         )
         
-        if response and response.output_parsed:
-            return response.output_parsed
-        else:
-            print("OpenAI LLM did not return a valid parsed response.")
-            # Consider if more specific error handling is needed here
-            raise HTTPException(status_code=500, detail="LLM did not return a valid parsed response.")
+        # The actual parsed Pydantic model is in response.output_parsed
+        npc_response_data = response.output_parsed
+
+        if not isinstance(npc_response_data, NPCResponse):
+            # This case should ideally be caught by the text_format and parsing logic of the client
+            print(f"LLM API call for {npc_id} did not return a parsed NPCResponse object as expected. Type: {type(npc_response_data)}")
+            # Log the raw response if possible for debugging
+            # raw_response_text = getattr(response, 'text', 'N/A') 
+            # print(f"Raw response text: {raw_response_text[:500]}")
+            raise HTTPException(status_code=500, detail="LLM service failed to parse response into the expected NPCResponse format.")
+
+        if not npc_response_data.response_target:
+             print(f"Warning: LLM for {npc_id} returned empty response_target.")
+        
+        if not npc_response_data.response_mapping:
+            print(f"Warning: LLM for {npc_id} returned empty response_mapping. POS coloring will not work.")
+            npc_response_data.response_mapping = []
+
+        # print(f"DEBUG: NPC Response Data from LLM for {npc_id}: {npc_response_data.model_dump_json(indent=2)}") # Commented out very verbose log
+        return npc_response_data
             
+    except HTTPException: 
+        raise
     except Exception as e:
-        print(f"Error during OpenAI LLM call: {e}")
-        # Consider if you want to expose parts of the error to the client
-        raise HTTPException(status_code=500, detail=f"Error processing message with LLM: {str(e)}") 
+        print(f"An unexpected error occurred in get_llm_response for {npc_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Attempt to get more info from the original response if it exists and might not be an HTTPException
+        # error_details = str(e)
+        # if hasattr(e, 'response') and hasattr(e.response, 'text'):
+        #    error_details += f" - Response: {e.response.text[:200]}"
+        raise HTTPException(status_code=500, detail=f"LLM service error: {str(e)}") 

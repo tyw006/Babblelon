@@ -50,4 +50,6 @@ alwaysApply: true
   - Keep descriptions concise
   - Include both DO and DON'T examples
   - Reference actual code over theoretical examples
+  - Use uv to manage environment packages
   - Use consistent formatting across rules 
+  - Before generating any new files, first scan the codebase to make sure that no existing file for this logic exists. If the existing file has room for this new logic, then add it to the existing file. If the logic belongs in its own file, then move over all of the logic from the existing file to the new file. 

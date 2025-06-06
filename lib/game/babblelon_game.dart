@@ -32,11 +32,30 @@ class BabblelonGame extends FlameGame with
   double backgroundHeight = 0.0;
   Vector2 gameResolution = Vector2.zero();
   
+  // NPC interaction state
+  String? currentInteractingNpcId;
+  String? currentInteractingNpcName;
+  
   // Remove the TextComponent speech bubble
   SpeechBubbleComponent? _npcSpeechBubbleSprite;
   late SpriteComponent npc;
   bool _npcSpeechBubbleShown = false;
   bool _canInteractWithNpc = false;
+
+  void toggleMenu(BuildContext context, WidgetRef ref) {
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    if (overlays.isActive('main_menu')) {
+      overlays.remove('main_menu');
+      if (!overlays.isActive('dialogue') && isPaused) {
+        resumeGame(ref);
+      }
+    } else {
+      if (!isPaused) {
+        pauseGame(ref);
+      }
+      overlays.add('main_menu');
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -107,6 +126,8 @@ class BabblelonGame extends FlameGame with
       onTap: () { // Show dialogue overlay when tapped
         if (_canInteractWithNpc) {
           pauseGame(ref);
+          currentInteractingNpcId = "amara"; // Set NPC ID
+          currentInteractingNpcName = "Amara"; // Set NPC Name
           overlays.add('dialogue');
         }
       },
@@ -127,7 +148,12 @@ class BabblelonGame extends FlameGame with
 
     // Initialize and play background music
     FlameAudio.bgm.initialize();
-    FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+    // FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+    // Check music enabled state before playing
+    final initialMusicEnabled = ref.read(gameStateProvider).musicEnabled;
+    if (initialMusicEnabled) {
+      FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+    }
   }
   
   @override
@@ -216,36 +242,25 @@ class BabblelonGame extends FlameGame with
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
-    final isKeyDown = event is KeyDownEvent;
-    final isKeyUp = event is KeyUpEvent;
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    if (isPaused) return KeyEventResult.handled;
 
-    // --- NPC interaction with 'E' key ---
-    if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
-      pauseGame(ref);
-      overlays.add('dialogue');
-      return KeyEventResult.handled;
-    }
+    final isLeftKeyPressed = keysPressed.contains(LogicalKeyboardKey.arrowLeft) ||
+                             keysPressed.contains(LogicalKeyboardKey.keyA);
+    final isRightKeyPressed = keysPressed.contains(LogicalKeyboardKey.arrowRight) ||
+                              keysPressed.contains(LogicalKeyboardKey.keyD);
 
-    if (player.isMounted) { 
-      if (isKeyDown) {
-        if (keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
-          player.isMovingRight = true;
-          return KeyEventResult.handled;
-        } else if (keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
-          player.isMovingLeft = true;
-          return KeyEventResult.handled;
-        }
-      } else if (isKeyUp) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          player.isMovingRight = false;
-          return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          player.isMovingLeft = false;
-          return KeyEventResult.handled;
-        }
-      }
+    if (isLeftKeyPressed) {
+      player.isMovingLeft = true;
+      player.isMovingRight = false;
+    } else if (isRightKeyPressed) {
+      player.isMovingRight = true;
+      player.isMovingLeft = false;
+    } else {
+      player.isMovingLeft = false;
+      player.isMovingRight = false;
     }
-    return KeyEventResult.ignored;
+    return KeyEventResult.handled;
   }
   
   void gameOver() {
@@ -258,16 +273,26 @@ class BabblelonGame extends FlameGame with
   }
 
   void pauseGame(WidgetRef ref) {
-    pauseEngine();
-    ref.read(gameStateProvider.notifier).pause();
-    FlameAudio.bgm.pause();
+    if (ref.read(gameStateProvider).isPaused) return;
+    ref.read(gameStateProvider.notifier).pauseGame();
+    // Store BGM playing state before pausing
+    if (FlameAudio.bgm.isPlaying) {
+        ref.read(gameStateProvider.notifier).setBgmPlaying(true);
+        FlameAudio.bgm.pause();
+    } else {
+        ref.read(gameStateProvider.notifier).setBgmPlaying(false);
+    }
   }
 
   void resumeGame(WidgetRef ref) {
-    resumeEngine();
-    ref.read(gameStateProvider.notifier).resume();
-    if (ref.read(gameStateProvider).musicEnabled) {
-      resumeMusic(ref);
+    if (!ref.read(gameStateProvider).isPaused) return;
+    if (overlays.isActive('dialogue')) return;
+
+    ref.read(gameStateProvider.notifier).resumeGame();
+    // Resume BGM only if it was playing and music is enabled
+    final gameState = ref.read(gameStateProvider);
+    if (gameState.musicEnabled && gameState.bgmIsPlaying) {
+        FlameAudio.bgm.resume();
     }
   }
 
