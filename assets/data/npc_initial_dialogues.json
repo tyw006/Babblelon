@@ -1,0 +1,71 @@
+{
+    "amara": {
+      "greeting_text": "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!",
+      "greeting_audio_path": "assets/audio/npc/amara_greeting.wav",
+      "greeting_english_sentence": "Hello! Welcome to the dim sum stall!",
+      "greeting_translit_sentence": "sawatdi kha! yindi tonrap su phaeng tim sam kha!",
+      "greeting_word_mappings": [
+        {
+          "word_target": "สวัสดี",
+          "word_translit": "sawatdi",
+          "word_eng": "hello/hi",
+          "pos": "INTJ"
+        },
+        {
+          "word_target": "ค่ะ",
+          "word_translit": "kha",
+          "word_eng": "polite particle (female)",
+          "pos": "PART"
+        },
+        {
+          "word_target": "!",
+          "word_translit": "!",
+          "word_eng": "!",
+          "pos": "PUNCT"
+        },
+        {
+          "word_target": "ยินดี",
+          "word_translit": "yindi",
+          "word_eng": "glad/happy",
+          "pos": "ADJ"
+        },
+        {
+          "word_target": "ต้อนรับ",
+          "word_translit": "tonrap",
+          "word_eng": "to welcome",
+          "pos": "VERB"
+        },
+        {
+          "word_target": "สู่",
+          "word_translit": "su",
+          "word_eng": "to/towards",
+          "pos": "ADP"
+        },
+        {
+          "word_target": "แผง",
+          "word_translit": "phaeng",
+          "word_eng": "stall/stand",
+          "pos": "NOUN"
+        },
+        {
+          "word_target": "ติ่มซำ",
+          "word_translit": "tim sam",
+          "word_eng": "dim sum",
+          "pos": "NOUN"
+        },
+        {
+          "word_target": "ค่ะ",
+          "word_translit": "kha",
+          "word_eng": "polite particle (female)",
+          "pos": "PART"
+        },
+        {
+          "word_target": "!",
+          "word_translit": "!",
+          "word_eng": "!",
+          "pos": "PUNCT"
+        }
+      ]
+    }
+  }
+  

@@ -21,7 +21,7 @@ dependencies:
   flame_riverpod: ^5.4.15
   google_fonts: ^6.1.0
   just_audio: ^0.9.36
-  flutter_sound: ^9.2.13
+  flutter_sound: ^9.28.0
   path_provider: ^2.0.0
   permission_handler: ^11.0.0
   http: ^1.2.0
@@ -46,4 +46,5 @@ flutter:
     - assets/audio/npc/
     - assets/audio/bg/
     - assets/audio/test/
+    - assets/data/
     - .env 
