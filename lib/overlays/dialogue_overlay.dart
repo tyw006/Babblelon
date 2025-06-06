@@ -4,8 +4,6 @@ import 'dart:typed_data'; // Added for Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io'; // Added for File
 import 'package:http/http.dart' as http; // Added for http
@@ -13,6 +11,89 @@ import 'dart:convert'; // Added for json encoding/decoding
 import 'package:flutter/services.dart'; // Added for DefaultAssetBundle
 
 import '../game/babblelon_game.dart';
+import '../providers/game_providers.dart'; // Ensure this import is present
+
+// --- POSMapping Model ---
+@immutable
+class POSMapping {
+  final String wordTarget;
+  final String wordTranslit;
+  final String wordEng;
+  final String pos;
+
+  const POSMapping({
+    required this.wordTarget,
+    required this.wordTranslit,
+    required this.wordEng,
+    required this.pos,
+  });
+
+  factory POSMapping.fromJson(Map<String, dynamic> json) {
+    return POSMapping(
+      wordTarget: json['word_target'] as String,
+      wordTranslit: json['word_translit'] as String,
+      wordEng: json['word_eng'] as String,
+      pos: json['pos'] as String,
+    );
+  }
+}
+// --- End POSMapping Model ---
+
+// --- POS Color Mapping ---
+final Map<String, Color> posColorMapping = {
+  'ADJ': Colors.orange.shade700, // Adjective
+  'ADP': Colors.purple.shade700, // Adposition (e.g., prepositions, postpositions)
+  'ADV': Colors.green.shade700, // Adverb
+  'AUX': Colors.blue.shade700, // Auxiliary verb
+  'CCONJ': Colors.cyan.shade700, // Coordinating conjunction
+  'DET': Colors.lime.shade700, // Determiner
+  'INTJ': Colors.pink.shade700, // Interjection
+  'NOUN': Colors.red.shade700, // Noun
+  'NUM': Colors.indigo.shade700, // Numeral
+  'PART': Colors.brown.shade700, // Particle
+  'PRON': Colors.amber.shade700, // Pronoun
+  'PROPN': Colors.deepOrange.shade700, // Proper noun
+  'PUNCT': Colors.grey.shade600, // Punctuation
+  'SCONJ': Colors.lightBlue.shade700, // Subordinating conjunction
+  'SYM': Colors.teal.shade700, // Symbol
+  'VERB': Colors.lightGreen.shade700, // Verb
+  'OTHER': Colors.black54, // Other
+};
+// --- End POS Color Mapping ---
+
+// --- Initial NPC Greeting Model ---
+@immutable
+class InitialNPCGreeting {
+  final String greetingText;
+  final String greetingAudioPath;
+  final String greetingEnglishSentence; // Sentence level
+  final String greetingTranslitSentence; // Sentence level
+  final List<POSMapping> greetingWordMappings;
+
+  const InitialNPCGreeting({
+    required this.greetingText,
+    required this.greetingAudioPath,
+    required this.greetingEnglishSentence,
+    required this.greetingTranslitSentence,
+    required this.greetingWordMappings,
+  });
+
+  factory InitialNPCGreeting.fromJson(Map<String, dynamic> json) {
+    var mappingsList = json['greeting_word_mappings'] as List?;
+    List<POSMapping> mappings = mappingsList != null
+        ? mappingsList.map((i) => POSMapping.fromJson(i as Map<String, dynamic>)).toList()
+        : [];
+
+    return InitialNPCGreeting(
+      greetingText: json['greeting_text'] as String,
+      greetingAudioPath: json['greeting_audio_path'] as String,
+      greetingEnglishSentence: json['greeting_english_sentence'] as String? ?? '', // Provide default
+      greetingTranslitSentence: json['greeting_translit_sentence'] as String? ?? '', // Provide default
+      greetingWordMappings: mappings,
+    );
+  }
+}
+// --- End Initial NPC Greeting Model ---
 
 // --- Dialogue Entry Model ---
 @immutable
@@ -23,38 +104,54 @@ class DialogueEntry {
   final String? audioPath; // For player's recorded audio
   final Uint8List? audioBytes; // For NPC's TTS audio
   final bool isNpc;
+  final List<POSMapping>? posMappings; // Added for POS tagging
+  final String? playerTranscriptionForHistory; // Store player's own transcription here for history dialog
 
-  const DialogueEntry({
-    required this.id,
+  // Constructor modified to accept an optional customId
+  DialogueEntry({
+    String? customId, // Use a different name to avoid conflict with field 'id'
     required this.text,
     required this.speaker,
-    this.audioPath, // Now common for both player and NPC if applicable
+    this.audioPath,
     this.audioBytes,
     required this.isNpc,
-  });
+    this.posMappings,
+    this.playerTranscriptionForHistory,
+  }) : id = customId ?? _generateId(); // Assign or generate
 
-  // Helper to create a unique ID
-  static String _generateId() => DateTime.now().millisecondsSinceEpoch.toString();
+  // Helper to create a unique ID - made slightly more robust
+  static String _generateId() => DateTime.now().millisecondsSinceEpoch.toString() + "_" + math.Random().nextInt(99999).toString();
 
   // Factory constructors for convenience
-  factory DialogueEntry.player(String text, String audioPath) {
+  factory DialogueEntry.player(String transcribedText, String audioPath) {
     return DialogueEntry(
-      id: _generateId(),
-      text: text,
+      // customId will be null, so _generateId() is used by the main constructor
+      text: transcribedText, // Player's own transcribed text
       speaker: 'Player',
       audioPath: audioPath,
       isNpc: false,
+      posMappings: null, // Player entries don't have POS mappings from NPC
+      playerTranscriptionForHistory: transcribedText, // Explicitly set for history
     );
   }
 
-  factory DialogueEntry.npc(String text, {String? audioPath, Uint8List? audioBytes, required String npcName}) {
+  factory DialogueEntry.npc({
+    String? id, // Allow factory to take an ID
+    required String text, 
+    String? audioPath, 
+    Uint8List? audioBytes, 
+    required String npcName, 
+    List<POSMapping>? posMappings
+  }) {
     return DialogueEntry(
-      id: _generateId(),
+      customId: id, // Pass it to the main constructor
       text: text,
       speaker: npcName, // Use dynamic NPC name
-      audioPath: audioPath, // Added audioPath here
+      audioPath: audioPath,
       audioBytes: audioBytes,
       isNpc: true,
+      posMappings: posMappings, // Added
+      playerTranscriptionForHistory: null, // Not applicable for NPC entries
     );
   }
 }
@@ -63,17 +160,17 @@ class DialogueEntry {
 // Provider to track if the greeting has been played for a specific NPC
 final greetingPlayedProvider = StateProvider.family<bool, String>((ref, npcId) => false);
 
-// Provider to manage the current dialogue lines as List<DialogueEntry>
-final dialogueEntriesProvider = StateProvider<List<DialogueEntry>>((ref) => []);
+// Provider for the FULL conversation history (Player and NPC turns)
+final fullConversationHistoryProvider = StateProvider<List<DialogueEntry>>((ref) => []);
+
+// Provider for the CURRENT NPC entry being displayed/animated in the main dialogue box
+final currentNpcDisplayEntryProvider = StateProvider<DialogueEntry?>((ref) => null);
+
+// Provider for the current charm level
+final currentCharmLevelProvider = StateProvider<int>((ref) => 50);
 
 // Provider for the audio player used for replaying dialogue lines
 final dialogueReplayPlayerProvider = Provider<just_audio.AudioPlayer>((ref) => just_audio.AudioPlayer());
-
-// Provider for the recorder
-final soundRecorderProvider = Provider<FlutterSoundRecorder>((ref) {
-  final recorder = FlutterSoundRecorder();
-  return recorder;
-});
 
 // Convert to ConsumerStatefulWidget to access ref
 class DialogueOverlay extends ConsumerStatefulWidget {
@@ -88,192 +185,119 @@ class DialogueOverlay extends ConsumerStatefulWidget {
 }
 
 class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
-  bool _isExpanded = false; // State for textbox expansion
-  final ScrollController _scrollController = ScrollController(); // For auto-scrolling
+  final ScrollController _mainDialogueScrollController = ScrollController();
+  final ScrollController _historyDialogScrollController = ScrollController(); // For history dialog
   late just_audio.AudioPlayer _greetingPlayer;
-  late FlutterSoundRecorder _recorder;
   bool _isRecording = false;
-  String? _recordingPath;
-  Timer? _textStreamTimer;
-  int _currentCharIndex = 0;
-  String _currentGreetingText = "";
-  String _fullGreetingTextToStream = "";
 
-  // Stream controller for NPC TTS audio bytes
-  StreamController<List<int>>? _npcAudioStreamController;
-  just_audio.AudioPlayer? _npcLivePlayer; // Player for live NPC TTS
-
-  // --- Text Animation State ---
-  Timer? _activeTextStreamTimer; // Single timer for current animation
-  
-  String _currentlyAnimatingEntryId = ""; // ID of the DialogueEntry being animated
-  String _fullTextForAnimation = "";    // Full text to be animated for the current entry
-  String _displayedTextForAnimation = ""; // Current partially displayed text for the animation
+  Timer? _activeTextStreamTimer;
+  String _currentlyAnimatingEntryId = "";
+  String _fullTextForAnimation = "";
+  String _displayedTextForAnimation = "";
   int _currentCharIndexForAnimation = 0;
+  final Map<String, String> _fullyAnimatedMainNpcTexts = {}; 
 
-  final Map<String, String> _fullyAnimatedTexts = {}; // Store final text of animated entries to prevent re-animation
+  int _currentCharmLevel = 50;
+  bool _isProcessingBackend = false;
 
-  // --- End Text Animation State ---
-
-  // --- Charm Level State ---
-  int _currentCharmLevel = 50; // Initial charm level
-  // --- End Charm Level State ---
-
-  // --- Processing State for Backend ---
-  bool _isProcessingBackend = false; // Renamed from _isProcessingNpcResponse
-  // --- End Processing State ---
-
-  static const String _initialGreetingAmaraTextOnly = "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!";
-
-  // Function to get the speaker from the line
-  String _getSpeaker(DialogueEntry entry) {
-    return entry.speaker;
-  }
-
-  // Function to get the actual dialogue text without the speaker prefix
-  String _getDialogueText(DialogueEntry entry) {
-    return entry.text;
-  }
+  InitialNPCGreeting? _amaraInitialGreetingData; // To store parsed JSON data
 
   @override
   void initState() {
     super.initState();
     _greetingPlayer = just_audio.AudioPlayer();
-    // _recorder = FlutterSoundRecorder(); // Recorder removed
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadInitialGreetingData();
+
       final hasPlayedGreeting = ref.read(greetingPlayedProvider(widget.currentNpcId));
-      final dialogueNotifier = ref.read(dialogueEntriesProvider.notifier);
+      final currentNpcDisplayNotifier = ref.read(currentNpcDisplayEntryProvider.notifier);
+      final fullHistoryNotifier = ref.read(fullConversationHistoryProvider.notifier);
+
+      if (_amaraInitialGreetingData == null) {
+        print("Error: Amara's initial greeting data could not be loaded.");
+        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", npcName: widget.currentNpcName);
+        currentNpcDisplayNotifier.state = errorEntry;
+        fullHistoryNotifier.state = [errorEntry]; // Also add to history
+        return;
+      }
 
       if (!hasPlayedGreeting) {
-        // This is the conceptual entry with full data
-        final DialogueEntry initialGreetingData = DialogueEntry.npc(
-          _initialGreetingAmaraTextOnly, 
+        final placeholderForAnimation = DialogueEntry.npc(
+          text: "",
           npcName: widget.currentNpcName,
-          audioPath: 'assets/audio/npc/amara_greeting.wav' 
+          posMappings: _amaraInitialGreetingData!.greetingWordMappings,
         );
+        currentNpcDisplayNotifier.state = placeholderForAnimation;
+        // Add to full history as well, it will be updated by animation completion
+        fullHistoryNotifier.state = [placeholderForAnimation];
         
-        // This is the actual entry added to the list, which will be animated.
-        // It starts blank and its text field is populated by the animation.
-        // It gets its own unique ID from the DialogueEntry constructor.
-        final DialogueEntry placeholderForAnimation = DialogueEntry.npc(
-            "", // Blank text initially
-            npcName: widget.currentNpcName
-            // audioPath will be set by animation completion
-        );
-        dialogueNotifier.state = [placeholderForAnimation];
-        
-        // Start animation for the placeholder entry, using data from initialGreetingData
-        _startTextAnimation(
-          entry: placeholderForAnimation, // Animate the placeholder
-          fullText: initialGreetingData.text, 
-          audioPathToPlayWhenDone: initialGreetingData.audioPath
+        _startNpcTextAnimation(
+          idForAnimation: placeholderForAnimation.id,
+          speakerName: widget.currentNpcName,
+          fullText: _amaraInitialGreetingData!.greetingText, 
+          audioPathToPlayWhenDone: _amaraInitialGreetingData!.greetingAudioPath,
+          posMappings: _amaraInitialGreetingData!.greetingWordMappings,
+          onAnimationComplete: (finalAnimatedEntry) {
+            fullHistoryNotifier.update((history) {
+              final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
+              if (index != -1) {
+                history[index] = finalAnimatedEntry;
+                return List.from(history);
+              }
+              return history;
+            });
+          }
         );
         ref.read(greetingPlayedProvider(widget.currentNpcId).notifier).state = true;
       } else {
-        // If greeting already played, ensure current dialogue list is correct
-        // This might involve loading from a saved state in a more complex app
-        if (dialogueNotifier.state.isEmpty || 
-            (dialogueNotifier.state.last.speaker != widget.currentNpcName || 
-             dialogueNotifier.state.last.text != _initialGreetingAmaraTextOnly)) {
-              // Show the full initial greeting if re-entering and it's not the last message
-              // Or, if dialogue is empty, add it.
-              // This assumes we want to always have at least the greeting.
-              // A proper game state would manage this better.
-               DialogueEntry finalGreetingEntry = DialogueEntry.npc(
-                  _initialGreetingAmaraTextOnly, 
+          // If greeting was played, try to restore the last state or show greeting
+          final history = ref.read(fullConversationHistoryProvider);
+          if (history.isNotEmpty && history.last.isNpc) {
+              currentNpcDisplayNotifier.state = history.last;
+              _fullyAnimatedMainNpcTexts[history.last.id] = history.last.text;
+          } else if (history.isEmpty) { // Or if history is empty, replay initial greeting
+              final initialGreetingEntry = DialogueEntry.npc(
+                  text: _amaraInitialGreetingData!.greetingText,
                   npcName: widget.currentNpcName,
-                  audioPath: 'assets/audio/npc/amara_greeting.wav');
-              dialogueNotifier.state = [finalGreetingEntry];
-              _fullyAnimatedTexts[finalGreetingEntry.id] = _initialGreetingAmaraTextOnly;
-
+                  audioPath: _amaraInitialGreetingData!.greetingAudioPath,
+                  posMappings: _amaraInitialGreetingData!.greetingWordMappings
+                );
+              currentNpcDisplayNotifier.state = initialGreetingEntry;
+              fullHistoryNotifier.state = [initialGreetingEntry];
+              _fullyAnimatedMainNpcTexts[initialGreetingEntry.id] = initialGreetingEntry.text;
         }
       }
-      // _requestMicPermission(); // Mic permission removed for now
     });
 
-    // Scroll to bottom when new lines are added or widget builds
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollToBottom();
+      if (_mainDialogueScrollController.hasClients) {
+        _scrollToBottom(_mainDialogueScrollController);
       }
     });
   }
 
-  // Future<void> _requestMicPermission() async {
-  //   var status = await Permission.microphone.request();
-  //   if (status != PermissionStatus.granted) {
-  //     // Handle permission denial
-  //     print("Microphone permission denied");
-  //     // Optionally, show a dialog to the user
-  //   }
-  // }
-
-  void _playInitialGreetingAndStreamText(DialogueEntry initialEntry) async {
+  Future<void> _loadInitialGreetingData() async {
     try {
-      final greetingAudioPath = 'assets/audio/npc/amara_greeting.wav';
-      final duration = await _greetingPlayer.setAsset(greetingAudioPath);
-      // Audio will be played once character streaming starts or slightly after.
-
-      _currentCharIndex = 0;
-      _currentGreetingText = "${initialEntry.speaker}: "; 
-      // Prepend speaker to the text that will be displayed char-by-char
-      String textToStreamWithSpeaker = "${initialEntry.speaker}: ${_fullGreetingTextToStream}";
-      
-      final audioDurationMs = (duration ?? Duration(seconds: _fullGreetingTextToStream.length * 0.1.toInt())) // Estimate 0.1s per char if duration is null
-          .inMilliseconds;
-      
-      // Start playing audio slightly after text streaming begins, or adjust as preferred
-      // For this example, let's play it right away and sync text finish with audio finish.
-      _greetingPlayer.play();
-
-      // Calculate character display time based on audio duration and total characters (including speaker tag)
-      final estimatedCharDisplayTime = (audioDurationMs * 0.95) / (textToStreamWithSpeaker.isEmpty ? 1 : textToStreamWithSpeaker.length);
-      final charDuration = Duration(milliseconds: math.max(50, estimatedCharDisplayTime.round())); // Ensure a minimum speed e.g. 50ms
-
-      _textStreamTimer?.cancel();
-      _textStreamTimer = Timer.periodic(charDuration, (timer) {
-        if (_currentCharIndex < textToStreamWithSpeaker.length) {
-          setState(() {
-            // Append one character at a time
-            _currentGreetingText = textToStreamWithSpeaker.substring(0, _currentCharIndex + 1);
-            
-            // Update the provider with the currently visible text (stripping speaker for the entry's text field)
-            String currentDisplayableText = _currentGreetingText;
-            if (currentDisplayableText.startsWith("${initialEntry.speaker}: ")) {
-                currentDisplayableText = currentDisplayableText.substring(initialEntry.speaker.length + 2);
-            }
-
-            ref.read(dialogueEntriesProvider.notifier).state = [
-              DialogueEntry.npc(currentDisplayableText, 
-                                audioPath: null, // Audio path will be set at the end for replay
-                                npcName: initialEntry.speaker) 
-            ];
-            _scrollToBottom();
-          });
-          _currentCharIndex++;
-        } else {
-          timer.cancel();
-          // Ensure the final full text is set, and associate the audio path for future replays.
-          ref.read(dialogueEntriesProvider.notifier).state = [
-            DialogueEntry.npc(initialEntry.text, audioPath: greetingAudioPath, npcName: initialEntry.speaker)
-          ];
-          _scrollToBottom();
-        }
-      });
+      final String response = await rootBundle.loadString('assets/data/npc_initial_dialogues.json');
+      final data = json.decode(response) as Map<String, dynamic>;
+      if (data[widget.currentNpcId] != null) {
+        _amaraInitialGreetingData = InitialNPCGreeting.fromJson(data[widget.currentNpcId] as Map<String, dynamic>);
+        print("Initial greeting data loaded for ${widget.currentNpcId}");
+      } else {
+        print("No initial greeting data found for NPC ID: ${widget.currentNpcId}");
+      }
     } catch (e) {
-      print("Error playing initial greeting: $e");
-      ref.read(dialogueEntriesProvider.notifier).state = [initialEntry];
-      _scrollToBottom();
+      print("Error loading initial greeting data: $e");
+      _amaraInitialGreetingData = null;
     }
   }
-  
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      // Delay slightly to allow UI to build before scrolling
+
+  void _scrollToBottom(ScrollController controller) {
+    if (controller.hasClients) {
       Future.delayed(Duration(milliseconds: 50), () {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+        controller.animateTo(
+          controller.position.maxScrollExtent,
           duration: Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -284,289 +308,181 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
   @override
   void dispose() {
     _greetingPlayer.dispose();
-    // _recorder.closeRecorder(); // Recorder removed
-    _textStreamTimer?.cancel();
-    _scrollController.dispose();
-    // _npcAudioStreamController?.close(); // Removed
-    // _npcLivePlayer?.dispose(); // Removed
-    _activeTextStreamTimer?.cancel(); // Changed from _textStreamTimer
+    _activeTextStreamTimer?.cancel();
+    _mainDialogueScrollController.dispose();
+    _historyDialogScrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _startRecording() async {
-    // Microphone recording functionality removed for now.
-    // This function can be reinstated later.
-    print("Mic button pressed. Original recording logic removed for testing with fixed audio.");
-    setState(() { _isRecording = true; }); // Keep for UI icon change if desired
+  Future<void> _handlePlayerTurn() async {
+    print("Mic button pressed. Sending test audio to new endpoint.");
+    setState(() { _isRecording = true; _isProcessingBackend = true; });
 
-    // Directly proceed to send test audio
     final String testAudioPath = 'assets/audio/test/test_input1.wav';
-    // We need a File object for _sendAudioToBackend.
-    // For assets, we can't directly create a File object in the same way as a temp file.
-    // The backend expects a file upload. For this temporary workaround,
-    // we'll need to simulate this. A proper solution would be for the backend
-    // to also accept a path or identifier that it can resolve to a pre-stored test file.
-    // OR, we copy the asset to a temporary file first.
-
-    // Set processing state true at the very beginning of the user action
-    setState(() {
-      _isProcessingBackend = true;
-    });
+    File audioFileToSend;
 
     try {
       final byteData = await DefaultAssetBundle.of(context).load(testAudioPath);
       final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/temp_test_input.wav');
-      await tempFile.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+      audioFileToSend = File('${tempDir.path}/temp_test_input.wav');
+      await audioFileToSend.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
       
-      print("Test audio prepared. Sending to backend. Placeholder UI message removed.");
+      print("Test audio prepared: ${audioFileToSend.path}. Sending to backend.");
       
-      // Create a player entry to get a unique ID for this turn. 
-      // This entry might be added to the list later when transcription is received.
-      final playerActionEntry = DialogueEntry.player("...", tempFile.path); // Text is temporary
+      // --- Construct previous_conversation_history for the backend ---
+      final currentFullHistory = ref.read(fullConversationHistoryProvider);
+      List<String> historyLinesForBackend = [];
+      for (var entry in currentFullHistory) {
+          // For player entries, use their stored transcription.
+          // For NPC entries, use their main text.
+          String textForHistory = entry.isNpc ? entry.text : (entry.playerTranscriptionForHistory ?? entry.text);
+          if (_fullyAnimatedMainNpcTexts.containsKey(entry.id) && entry.isNpc) {
+            textForHistory = _fullyAnimatedMainNpcTexts[entry.id]!; // Use fully animated text for NPC if available
+          }
+          historyLinesForBackend.add("${entry.speaker}: $textForHistory");
+      }
+      String previousHistoryPayload = historyLinesForBackend.join("\\n");
+      // --- End history construction ---
 
-      // _sendAudioToBackend(tempFile, playerActionEntry.id); // Old call
-      _sendAudioForTranscription(tempFile, playerActionEntry);
-      
-      // Simulate recording stop for UI consistency if icon changes
-      // No need to call _stopRecordingAndProcess as its logic is now partly here.
-      setState(() { _isRecording = false; });
+      final charmLevelForRequest = ref.read(currentCharmLevelProvider); // Read from provider
 
-    } catch (e) {
-      print("Error preparing or sending test asset: $e");
-      setState(() { _isRecording = false; });
-    }
-  }
-
-  Future<void> _stopRecordingAndProcess() async {
-    // Original recording functionality removed.
-    // This function is not called directly if _startRecording sends the test audio.
-    // If you re-enable recording, this will need to be restored.
-    print("Original _stopRecordingAndProcess called, but recording is disabled for testing.");
-    setState(() { _isRecording = false; });
-  }
-
-  Future<void> _sendAudioForTranscription(File audioFile, DialogueEntry playerEntryPlaceholder) async {
-    var uri = Uri.parse('http://127.0.0.1:8000/transcribe-audio/');
+      var uri = Uri.parse('http://127.0.0.1:8000/generate-npc-response/');
     var request = http.MultipartRequest('POST', uri)
-      ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path));
-
-    final dialogueNotifier = ref.read(dialogueEntriesProvider.notifier);
-
-    // DO NOT add player placeholder to UI here anymore for "(Transcribing...)"
-    // final placeholderWithActualId = DialogueEntry.player(
-    // "(Transcribing...)", 
-    // playerEntryPlaceholder.audioPath!, 
-    // );
-    // dialogueNotifier.state = [...dialogueNotifier.state, placeholderWithActualId];
-    // _scrollToBottom();
-
-    print("Sending audio for transcription...");
-
-    try {
+        ..files.add(await http.MultipartFile.fromPath('audio_file', audioFileToSend.path))
+        ..fields['npc_id'] = widget.currentNpcId
+        ..fields['npc_name'] = widget.currentNpcName
+        ..fields['charm_level'] = charmLevelForRequest.toString() // Use provider value
+        ..fields['previous_conversation_history'] = previousHistoryPayload;
+      
+      print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
-        String playerTranscription = jsonResponse['transcription'];
-        print("Transcription received: $playerTranscription");
-
-        // --- Start NPC response generation in the background --- 
-        // setState(() { // This was for _isProcessingNpcResponse, now covered by _isProcessingBackend
-        // _isProcessingNpcResponse = true; 
-        // });
-        _getNpcResponseAndAudio(playerTranscription, playerEntryPlaceholder.id); // Use placeholder ID
-        // --- End NPC response generation ---
-
-        // Update the player's entry with the transcription and start animation
-        _startTextAnimation(
-          entry: playerEntryPlaceholder, 
-          fullText: playerTranscription,
-          audioPathToPlayWhenDone: playerEntryPlaceholder.audioPath, 
-          onAnimationComplete: () {
-            // NPC response is already being fetched. 
-            // This callback might be used for other UI updates if needed after player text finishes,
-            // or it can be removed if _getNpcResponseAndAudio handles all subsequent steps.
-            print("Player text animation completed. NPC response fetch is in progress.");
-          }
-        );
-      } else {
-        print("Transcription failed. Status: ${response.statusCode}, Body: ${response.body}");
-        // Update UI to show transcription failure for the player's line - REMOVED
-        // dialogueNotifier.update((state) => state.map((entry) { ... }).toList());
-        // _scrollToBottom();
-        setState(() { // Ensure processing indicator is turned off on STT error
-          _isProcessingBackend = false;
-        });
-      }
-    } catch (e, stackTrace) {
-      print("Exception in _sendAudioForTranscription: $e\n$stackTrace");
-      // dialogueNotifier.update((state) => state.map((entry) { ... }).toList()); // Error message removed
-      // _scrollToBottom();
-      setState(() { // Ensure processing indicator is turned off on exception
-        _isProcessingBackend = false;
-      });
-    }
-  }
-
-  Future<void> _getNpcResponseAndAudio(String playerTranscription, String playerEntryIdForHistory) async {
-    // _isProcessingBackend should already be true if this function is called.
-    // if (!_isProcessingBackend) { // This check might be redundant now
-    //   setState(() {
-    // _isProcessingBackend = true;
-    //   });
-    // }
-
-    var uri = Uri.parse('http://127.0.0.1:8000/generate-npc-response/');
-    final dialogueNotifier = ref.read(dialogueEntriesProvider.notifier);
-
-    // Compile conversation history up to, but not including, the player's current turn that was just transcribed.
-    // The playerTranscription is the latest utterance.
-    final currentEntriesForHistory = ref.read(dialogueEntriesProvider);
-    String conversationHistory = currentEntriesForHistory
-        .where((entry) => entry.id != playerEntryIdForHistory) // Exclude the player's line that just finished animating
-        .map((entry) => "${entry.speaker}: ${_fullyAnimatedTexts[entry.id] ?? entry.text}")
-        .join("\\n");
-    
-    // If the player's line (playerEntryIdForHistory) IS in fullyAnimatedTexts, include it.
-    // This ensures if the flow is STT -> display -> LLM, the history is complete up to that point.
-    if (_fullyAnimatedTexts.containsKey(playerEntryIdForHistory)) {
-        final playerEntry = currentEntriesForHistory.firstWhere((e) => e.id == playerEntryIdForHistory);
-        conversationHistory += (conversationHistory.isNotEmpty ? "\n" : "") + "${playerEntry.speaker}: ${_fullyAnimatedTexts[playerEntryIdForHistory]}";
-    }
-
-    print("Requesting NPC response. History:\n$conversationHistory");
-    print("Player's latest (transcribed): $playerTranscription. Charm: $_currentCharmLevel");
-
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'player_transcription': playerTranscription,
-          'conversation_history': conversationHistory,
-          'current_charm': _currentCharmLevel,
-          'npc_id': widget.currentNpcId // Assuming currentNpcId is available
-        }),
-      );
+      setState(() { _isRecording = false; }); // Mic "stops" after sending
 
       if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
-        // String type = jsonResponse['type']; // type is full_npc_response
+        Uint8List npcAudioBytes = response.bodyBytes;
+        String? npcResponseDataJsonB64 = response.headers['x-npc-response-data'];
 
-        var npcResponsePayload = jsonResponse['npc_response_data'];
-        String npcText = npcResponsePayload['response_thai'];
-        String npcAudioBase64 = jsonResponse['npc_audio_base64'];
-        Uint8List npcAudioBytes = base64.decode(npcAudioBase64);
-        print("NPC Audio Bytes (first 100): ${npcAudioBytes.sublist(0, math.min(100, npcAudioBytes.length))}");
+        print("--- Frontend Received from Backend ---");
+        print("NPC Audio Bytes Length: ${npcAudioBytes.lengthInBytes}");
+        print("X-NPC-Response-Data (Base64): $npcResponseDataJsonB64");
+
+        if (npcResponseDataJsonB64 == null) {
+          print("Error: X-NPC-Response-Data header is missing.");
+          setState(() { _isProcessingBackend = false; });
+          return;
+        }
         
-        // --- Save NPC audio to a temporary file ---
-        String? tempAudioPath;
+        String npcResponseDataJson = utf8.decode(base64Decode(npcResponseDataJsonB64));
+        print("Decoded X-NPC-Response-Data (JSON): $npcResponseDataJson");
+        print("-------------------------------------");
+
+        var responsePayload = json.decode(npcResponseDataJson);
+        
+        String playerTranscription = responsePayload['player_transcription'] ?? "Transcription unavailable";
+        String npcText = responsePayload['response_target'];
+        List<POSMapping> posMappings = (responsePayload['response_mapping'] as List? ?? [])
+            .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
+
+        print("Received Player Transcription: $playerTranscription");
+        print("Received NPC Text: $npcText");
+
+        // Update charm level from backend
+        if (responsePayload.containsKey('new_charm_level')) {
+             // Note: NPCResponse model itself doesn't have new_charm_level, it's part of the LLM's raw output that llm_service maps to charm_delta.
+             // The main.py currently sends the *original* NPCResponse model dump.
+             // For now, we rely on charm_delta from NPCResponse.
+        }
+        if (responsePayload.containsKey('charm_delta')) { // This comes from NPCResponse model
+            int charmDelta = responsePayload['charm_delta'] ?? 0;
+             ref.read(currentCharmLevelProvider.notifier).update((state) => (state + charmDelta).clamp(0, 100));
+             print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider)}");
+        }
+
+        // Save NPC audio to a temporary file
+        String? tempNpcAudioPath;
         try {
           final tempDir = await getTemporaryDirectory();
-          tempAudioPath = '${tempDir.path}/npc_audio_${DateTime.now().millisecondsSinceEpoch}.wav'; // Save as .wav
-          final audioFile = File(tempAudioPath);
-          await audioFile.writeAsBytes(npcAudioBytes);
-          print("NPC audio saved to temporary file: $tempAudioPath");
+          tempNpcAudioPath = '${tempDir.path}/npc_audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+          await File(tempNpcAudioPath).writeAsBytes(npcAudioBytes);
         } catch (e) {
-          print("Error saving NPC audio to temporary file: $e");
-          tempAudioPath = null; // Ensure path is null if saving failed
-        }
-        // --- End save NPC audio ---
-
-        if (npcResponsePayload.containsKey('new_charm_level')) {
-          setState(() {
-            _currentCharmLevel = npcResponsePayload['new_charm_level'];
-            print("Charm level updated by backend to: $_currentCharmLevel");
-          });
-        }
-        if (npcResponsePayload.containsKey('charm_delta')) {
-             print("Charm delta from this interaction: ${npcResponsePayload['charm_delta']}");
+          print("Error saving NPC audio to temp file: $e");
         }
 
-        // --- Print NPC response to terminal ---
-        print("NPC Full Response (from backend for terminal):");
-        print("  Thai: ${npcResponsePayload['response_thai']}");
-        print("  English: ${npcResponsePayload['response_eng']}");
-        print("  RTGS: ${npcResponsePayload['response_rtgs']}");
-        print("  Expression: ${npcResponsePayload['expression']}");
-        print("  Tone: ${npcResponsePayload['response_tone']}");
-        // --- End Print --- 
-
-        // Create NPC entry and animate it
-        final npcEntryForAnimation = DialogueEntry.npc(
-          "", // Text will be animated
-          npcName: widget.currentNpcName, 
-          audioPath: tempAudioPath // Use the path to the saved temporary file
-        );
-        dialogueNotifier.state = [...dialogueNotifier.state, npcEntryForAnimation];
-        _scrollToBottom();
+        // Create entries for full history
+        final playerEntryForHistory = DialogueEntry.player(playerTranscription, audioFileToSend.path);
         
-        _startTextAnimation(
-          entry: npcEntryForAnimation,
-          fullText: npcText,
-          audioPathToPlayWhenDone: tempAudioPath
+        // Generate a stable ID for the NPC entry BEFORE creating it
+        final String npcEntryId = DialogueEntry._generateId();
+
+        final npcEntryForDisplayAndHistory = DialogueEntry.npc(
+          id: npcEntryId, // Use the pre-generated ID
+          text: "", // Start with blank for animation
+          npcName: widget.currentNpcName,
+          audioPath: tempNpcAudioPath, // This is the path to the NPC's audio file
+          audioBytes: npcAudioBytes, // This is the actual audio data for NPC
+          posMappings: posMappings, 
         );
-        print("NPC response and audio received, animation started.");
+
+        // Update full conversation history
+        final fullHistoryNotifier = ref.read(fullConversationHistoryProvider.notifier);
+        fullHistoryNotifier.update((history) => [...history, playerEntryForHistory, npcEntryForDisplayAndHistory]);
+         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(_historyDialogScrollController));
+
+        // Set current NPC display entry for the main box and start animation
+        ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntryForDisplayAndHistory;
+        _startNpcTextAnimation(
+          idForAnimation: npcEntryId, // Pass the pre-generated ID
+          speakerName: widget.currentNpcName, // Pass speaker name
+          fullText: npcText,
+          audioPathToPlayWhenDone: tempNpcAudioPath, // Pass audio path
+          audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
+          posMappings: posMappings,
+          onAnimationComplete: (finalAnimatedEntry) {
+             // Update the entry in full history with the final animated text
+            fullHistoryNotifier.update((history) {
+                final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
+                if (index != -1) {
+                    history[index] = finalAnimatedEntry; // finalAnimatedEntry now has the full text
+                    return List.from(history);
+                }
+                return history;
+            });
+            _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
+          }
+        );
 
       } else {
-        print("Failed to get NPC response. Status: ${response.statusCode}, Body: ${response.body}");
+        print("Backend processing failed. Status: ${response.statusCode}, Body: ${response.body}");
       }
     } catch (e, stackTrace) {
-      print("Exception in _getNpcResponseAndAudio: $e\n$stackTrace");
+      print("Exception in _handlePlayerTurn: $e\\n$stackTrace");
+    } finally {
+      setState(() { _isProcessingBackend = false; });
     }
-    // Ensure processing indicator is turned off regardless of success/failure of this specific step
-    // as long as the flow that initiated it is considered complete.
-    setState(() {
-      _isProcessingBackend = false;
-    });
   }
   
   Future<void> _playDialogueAudio(DialogueEntry entry) async {
     final player = ref.read(dialogueReplayPlayerProvider);
-    await player.stop(); // Stop any current playback
-
-    // --- Debug Player State ---
-    player.playerStateStream.listen((state) {
-      print('[DialogueReplayPlayer ID: ${player.hashCode}] State: ${state.processingState}, Playing: ${state.playing}');
-      if (state.processingState == just_audio.ProcessingState.completed) {
-        print('[DialogueReplayPlayer ID: ${player.hashCode}] Playback completed.');
-      }
-    });
-    // --- End Debug Player State ---
+    await player.stop();
 
     try {
       if (entry.audioPath != null && entry.audioPath!.isNotEmpty) {
         if (entry.audioPath!.startsWith('assets/')) {
-          // Handle as an asset
-          await player.setAudioSource(just_audio.AudioSource.asset(entry.audioPath!));
-          print("Playing from asset: ${entry.audioPath}");
-        } else {
-          // Handle as a local file path
-          if (Uri.tryParse(entry.audioPath!)?.isAbsolute == true && Uri.tryParse(entry.audioPath!)!.scheme == 'file') {
-            await player.setAudioSource(just_audio.AudioSource.uri(Uri.parse(entry.audioPath!)));
+          await player.setAsset(entry.audioPath!);
           } else {
             await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(entry.audioPath!)));
-          }
-          print("Playing from file path: ${entry.audioPath}");
         }
       } else if (entry.audioBytes != null && entry.audioBytes!.isNotEmpty) {
-        final source = _MyCustomStreamAudioSource.fromBytes(entry.audioBytes!);
-        await player.setAudioSource(source); // This is a just_audio.StreamAudioSource
-        print("Playing from bytes, length: ${entry.audioBytes!.length}");
+        await player.setAudioSource(_MyCustomStreamAudioSource.fromBytes(entry.audioBytes!));
       } else {
-        print("No audio data to play for this entry.");
+        print("No audio data to play for entry ID ${entry.id}.");
         return;
       }
-      await player.play(); // Added await here
+      await player.play();
     } catch (e) {
-      print("Error playing dialogue audio: $e");
-      // UI message removed:
-      // final dialogueNotifier = ref.read(dialogueEntriesProvider.notifier);
-      // final errorFeedback = DialogueEntry.npc("Sorry, I couldn't play that audio.", npcName: "System");
-      // dialogueNotifier.state = [...dialogueNotifier.state, errorFeedback];
-      // _scrollToBottom();
+      print("Error playing dialogue audio for entry ID ${entry.id}: $e");
     }
   }
 
@@ -576,57 +492,140 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
     final screenHeight = MediaQuery.of(context).size.height;
     final double outerHorizontalPadding = screenWidth * 0.01;
 
-    final double minTextboxHeight = 150.0;
-    final double minTextboxWidth = 368.0;
-    final double expandedTextboxHeight = math.min(screenHeight * 0.9, 500.0);
+    final double textboxHeight = 150.0; // Fixed height for main dialogue box
+    final double textboxWidth = math.max(screenWidth * 0.95, 368.0);
 
-    // Target height for the AnimatedContainer, respecting min/max logic
-    final double targetAnimatedHeight = _isExpanded
-        ? math.max(expandedTextboxHeight, minTextboxHeight)
-        : minTextboxHeight;
+    final dialogueSettings = ref.watch(dialogueSettingsProvider); // Watch the central provider
+    final currentNpcDisplayEntry = ref.watch(currentNpcDisplayEntryProvider);
+    final bool showTranslations = dialogueSettings.showTranslation;
+    final bool showTransliterations = dialogueSettings.showTransliteration;
+    final bool showPOSColors = dialogueSettings.showPos;
+    final int displayedCharmLevel = ref.watch(currentCharmLevelProvider); // Watch charm level for UI
 
-    // Max height for ConstrainedBox should accommodate the fully expanded state
-    final double maxConstrainedHeight = math.max(expandedTextboxHeight, minTextboxHeight);
+    // Define isAnimatingThisNpcEntry carefully, ensuring currentNpcDisplayEntry is not null before accessing 'id'
+    final bool isAnimatingThisNpcEntry = (currentNpcDisplayEntry != null && currentNpcDisplayEntry.id == _currentlyAnimatingEntryId);
 
-    final EdgeInsets dialogueListPadding = _isExpanded
-      ? const EdgeInsets.only(left: 30.0, top: 10.0, right: 25.0, bottom: 25.0)
-      : const EdgeInsets.only(left: 30.0, top: 5.0, right: 25.0, bottom: 25.0);
+    Widget npcContentWidget;
+    bool isInitialAmaraGreetingBeingDisplayed = false;
+    if (currentNpcDisplayEntry == null) {
+        npcContentWidget = SizedBox.shrink(); // Or a placeholder
+    } else {
+        String textToDisplayForNpc = isAnimatingThisNpcEntry ? _displayedTextForAnimation : (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] ?? currentNpcDisplayEntry.text);
 
-    final currentDialogueEntries = ref.watch(dialogueEntriesProvider);
+        isInitialAmaraGreetingBeingDisplayed = currentNpcDisplayEntry != null && // Added null check
+            _amaraInitialGreetingData != null &&
+            currentNpcDisplayEntry.speaker == widget.currentNpcName &&
+            (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] == _amaraInitialGreetingData!.greetingText || (currentNpcDisplayEntry.text == _amaraInitialGreetingData!.greetingText && !_currentlyAnimatingEntryId.isNotEmpty) ) &&
+            !isAnimatingThisNpcEntry && // isAnimatingThisNpcEntry is now defined above
+            currentNpcDisplayEntry.posMappings == _amaraInitialGreetingData!.greetingWordMappings;
+
+        if (isAnimatingThisNpcEntry) {
+            npcContentWidget = Text(
+                textToDisplayForNpc,
+                textAlign: TextAlign.left,
+                style: TextStyle(color: Colors.black, fontSize: 16),
+            );
+        } else if (isInitialAmaraGreetingBeingDisplayed) {
+            // Display logic for initial greeting (sentence level with POS)
+            List<Widget> initialGreetingRenderParts = [];
+
+            // Actual Greeting Content
+            List<Widget> actualGreetingContent = [];
+            if (_amaraInitialGreetingData!.greetingWordMappings.isNotEmpty) {
+                actualGreetingContent.add(RichText(
+                    textAlign: TextAlign.left,
+                    text: TextSpan(
+                        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 16, color: Colors.black),
+                        children: _amaraInitialGreetingData!.greetingWordMappings.map((mapping) {
+                            return TextSpan(
+                                text: mapping.wordTarget + " ",
+                                style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 16, fontWeight: FontWeight.w500),
+                            );
+                        }).toList(),
+                    ),
+                ));
+            } else {
+                 actualGreetingContent.add(Text(
+                    _amaraInitialGreetingData!.greetingText,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w500),
+                ));
+            }
+            if (showTransliterations && _amaraInitialGreetingData!.greetingTranslitSentence.isNotEmpty) {
+                actualGreetingContent.add(SizedBox(height: 4));
+                actualGreetingContent.add(Text(_amaraInitialGreetingData!.greetingTranslitSentence, textAlign: TextAlign.left, style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.80))));
+            }
+            if (showTranslations && _amaraInitialGreetingData!.greetingEnglishSentence.isNotEmpty) {
+                actualGreetingContent.add(SizedBox(height: 4));
+                actualGreetingContent.add(Text(_amaraInitialGreetingData!.greetingEnglishSentence, textAlign: TextAlign.left, style: TextStyle(fontSize: 13, color: Colors.blueGrey.shade800, fontStyle: FontStyle.italic)));
+            }
+            initialGreetingRenderParts.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: actualGreetingContent));
+            npcContentWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: initialGreetingRenderParts);
+        } else if (currentNpcDisplayEntry.isNpc && currentNpcDisplayEntry.posMappings != null && currentNpcDisplayEntry.posMappings!.isNotEmpty) {
+            // Word-column display for live NPC responses
+            List<InlineSpan> wordSpans = currentNpcDisplayEntry.posMappings!.map((mapping) {
+                List<Widget> wordParts = [
+                    Text(mapping.wordTarget, style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 16, fontWeight: FontWeight.w500)),
+                ];
+                if (showTransliterations && mapping.wordTranslit.isNotEmpty) {
+                    wordParts.add(SizedBox(height: 1));
+                    wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
+                }
+                if (showTranslations && mapping.wordEng.isNotEmpty) {
+                    wordParts.add(SizedBox(height: 1));
+                    wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+                }
+                return WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+                  ),
+                );
+            }).toList();
+            npcContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+        } else {
+            // NPC text without special formatting (e.g., if no POS mappings)
+            npcContentWidget = Text(textToDisplayForNpc, style: TextStyle(fontSize: 14, color: Colors.black87));
+        }
+    }
 
     return Material(
-      color: Colors.transparent, // Ensure transparency if debugging colors are removed
-      child: Stack( // Move Stack to be the direct child of Material for full-screen background
+      color: Colors.transparent,
+      child: Stack(
         children: <Widget>[
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/background/convo_yaowarat_bg.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/background/convo_yaowarat_bg.png', fit: BoxFit.cover),
           ),
-          SafeArea( // Apply SafeArea only to content that needs to avoid notches/insets
-            bottom: false, // Already here, good
-            top: true, // Ensure top safe area is respected for UI elements placed near top if any
-            child: Stack( // This stack is for the foreground elements
+          SafeArea(
+            bottom: false,
+            top: true,
+            child: Stack(
               children: <Widget>[
-                // NPC bar image - no changes here unless it needs to respect SafeArea differently
                 Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
                     padding: EdgeInsets.only(top: screenHeight * 0.002),
-                    child: Image.asset(
-                      'assets/images/npcs/sprite_dimsum_vendor_bar.png',
-                      width: screenWidth * 0.7, // User adjusted this
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/images/npcs/sprite_dimsum_vendor_bar.png', width: screenWidth * 0.7, fit: BoxFit.contain),
                   ),
                 ),
                 Align(
                   alignment: Alignment(0.0, 0.0),
-                  child: Image.asset(
-                    'assets/images/npcs/sprite_dimsum_vendor_female_portrait.png',
-                    height: screenHeight * 0.70,
-                    fit: BoxFit.contain,
+                  child: Image.asset('assets/images/npcs/sprite_dimsum_vendor_female_portrait.png', height: screenHeight * 0.70, fit: BoxFit.contain),
+                ),
+                Positioned( // Charm Score Display
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      'Charm: $displayedCharmLevel',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 Positioned(
@@ -637,112 +636,64 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                     padding: EdgeInsets.only(
                       left: outerHorizontalPadding,
                       right: outerHorizontalPadding,
-                      bottom: MediaQuery.of(context).padding.bottom + 0.0, // Adjusted to move UI further down
+                      bottom: MediaQuery.of(context).padding.bottom + 0.0,
                     ),
                     child: Container(
                       color: Colors.transparent,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minWidth: minTextboxWidth,
-                              minHeight: minTextboxHeight, // Enforce minimum height
-                              maxHeight: maxConstrainedHeight, // Allow space for full expansion
-                            ),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut, // Added for smoother animation
-                              width: math.max(screenWidth * 0.95, minTextboxWidth),
-                              height: targetAnimatedHeight, // This height drives the animation
-                              clipBehavior: Clip.hardEdge, // Added to ensure text clipping
+                          Container( // Main Dialogue Box
+                            width: textboxWidth,
+                            height: textboxHeight,
+                            clipBehavior: Clip.hardEdge,
                               decoration: BoxDecoration(
                                 image: DecorationImage(
-                                  image: AssetImage('assets/images/ui/textbox_hdpi.9.png'), // Changed to 9-patch
+                                image: AssetImage('assets/images/ui/textbox_hdpi.9.png'),
                                   fit: BoxFit.fill,
                                   centerSlice: Rect.fromLTWH(22, 22, 324, 229),
                                 ),
                               ),
-                              child: Stack( // Use Stack to position expand/contract buttons
+                            child: Stack(
                                 children: [
-                                  Column(
-                                    children: <Widget>[
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 30.0, left: 30.0, right: 30.0),
-                                      ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: dialogueListPadding,
-                                          child: LayoutBuilder(
-                                            builder: (context, constraints) {
-                                              return Scrollbar(
+                                  padding: const EdgeInsets.only(top: 30.0, left: 30.0, right: 25.0, bottom: 25.0),
+                                  child: Scrollbar(
                                                 thumbVisibility: true,
-                                                controller: _scrollController,
+                                    controller: _mainDialogueScrollController,
                                                 child: SingleChildScrollView(
-                                                  controller: _scrollController,
-                                                  child: ConstrainedBox(
-                                                    constraints: BoxConstraints(
-                                                      minHeight: constraints.maxHeight,
-                                                    ),
+                                      controller: _mainDialogueScrollController,
                                                     child: Column(
                                                       mainAxisAlignment: MainAxisAlignment.end,
                                                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                                                      children: currentDialogueEntries.map((entry) {
-                                                        final speaker = _getSpeaker(entry);
-                                                        // Determine the text to display: animated or final
-                                                        String textToDisplay;
-                                                        if (entry.id == _currentlyAnimatingEntryId) {
-                                                          textToDisplay = _displayedTextForAnimation;
-                                                        } else {
-                                                          textToDisplay = _fullyAnimatedTexts[entry.id] ?? entry.text;
-                                                        }
-                                                        
-                                                        return InkWell( 
-                                                          onTap: () {
-                                                            // Only allow replay if not currently animating this entry
-                                                            if (entry.id != _currentlyAnimatingEntryId && (_fullyAnimatedTexts.containsKey(entry.id) || entry.text.isNotEmpty)) {
-                                                              if (entry.audioPath != null || entry.audioBytes != null) {
-                                                                _playDialogueAudio(entry);
-                                                              }
-                                                            }
-                                                          },
-                                                          child: Padding(
+                                        children: [
+                                          if (currentNpcDisplayEntry != null) // Combined speaker and content logic
+                                            Padding(
                                                             padding: const EdgeInsets.symmetric(vertical: 4.0), 
                                                             child: Column( 
                                                               crossAxisAlignment: CrossAxisAlignment.stretch,
                                                               children: [
-                                                                if (speaker.isNotEmpty) // Always show speaker if available
-                                                                  Text(
-                                                                    speaker,
-                                                                    style: TextStyle(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      color: entry.isNpc ? Colors.teal : Colors.blueGrey, // Differentiate color
-                                                                      fontSize: 14,
-                                                                    ),
-                                                                  ),
-                                                                if (speaker.isNotEmpty) SizedBox(height: 2), // Add space if speaker is shown
-                                                                Text( 
-                                                                  textToDisplay, // This is just the dialogue part
-                                                                  textAlign: TextAlign.left,
-                                                                  style: TextStyle(
-                                                                    color: Colors.black,
-                                                                    fontSize: 16,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList(),
-                                                    ),
+                                                  
+                                                  Row( // Row for content and play button
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Expanded(child: npcContentWidget), // Dialogue content
+                                                      // Play button only if not animating and content is present and has audio
+                                                      if (currentNpcDisplayEntry.id != _currentlyAnimatingEntryId && 
+                                                          (_fullyAnimatedMainNpcTexts.containsKey(currentNpcDisplayEntry.id) || currentNpcDisplayEntry.text.isNotEmpty) &&
+                                                          (currentNpcDisplayEntry.audioPath != null || currentNpcDisplayEntry.audioBytes != null))
+                                                        IconButton(
+                                                          icon: Icon(Icons.volume_up, color: Colors.black54),
+                                                          iconSize: 20,
+                                                          padding: EdgeInsets.only(left: 8, top: 0, bottom: 0, right: 0),
+                                                          constraints: BoxConstraints(),
+                                                          onPressed: () => _playDialogueAudio(currentNpcDisplayEntry),
+                                                        ),
+                                                    ],
                                                   ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      // Add the processing indicator here
+                                                ],
+                                              ),
+                                            ),
                                       if (_isProcessingBackend)
                                         Padding(
                                           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -750,104 +701,49 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                                         ),
                                     ],
                                   ),
-                                  Positioned(
-                                    top: 0, // Adjust to be slightly above the textbox border
-                                    right: 30, // Adjust horizontal position as needed
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min, // To make buttons touch
-                                      children: [
-                                        SizedBox(
-                                          width: 25,
-                                          height: 25,
-                                          child: IconButton(
-                                            icon: Image.asset('assets/images/ui/button_arrow.png', width: 30, height: 30),
+                                    ),
+                                  ),
+                                ),
+                                Positioned( // Full Convo Button
+                                  top: 0, 
+                                  right: 30,
+                                  child: SizedBox(
+                                    width: 35, // Adjust size as needed
+                                    height: 35,
+                                    child: IconButton(
+                                      icon: Image.asset('assets/images/ui/button_full_convo.png'), // New button
                                             padding: EdgeInsets.zero,
                                             constraints: BoxConstraints(),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isExpanded = true;
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 25,
-                                          height: 25,
-                                          child: IconButton(
-                                            icon: Transform(
-                                              alignment: Alignment.center,
-                                              transform: Matrix4.rotationX(math.pi), // Flip vertically
-                                              child: Image.asset('assets/images/ui/button_arrow.png', width: 30, height: 30),
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                            constraints: BoxConstraints(),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isExpanded = false;
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ],
+                                      onPressed: () => _showFullConversationHistoryDialog(context),
+                                    ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          Row(
+                          Row( // Bottom Action Buttons
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: <Widget>[
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                icon: SizedBox(
-                                  width: 70,
-                                  height: 70,
-                                  child: Image.asset(
-                                    'assets/images/ui/button_back.png',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
+                                icon: SizedBox(width: 70, height: 70, child: Image.asset('assets/images/ui/button_back.png', fit: BoxFit.contain)),
                                 onPressed: () {
-                                  print("Back button pressed. Overlay removal should be handled by game logic.");
-                                   widget.game.overlays.remove('dialogue'); // Ensure correct key - assuming 'dialogue'
-                                   widget.game.resumeGame(ref); // Pass ref here
+                                  widget.game.overlays.remove('dialogue');
+                                  widget.game.resumeGame(ref);
                                 },
                               ),
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                icon: SizedBox(
-                                  width: 90,
-                                  height: 90,
-                                  child: Image.asset(
-                                    'assets/images/ui/button_mic.png', // Always use the default mic button
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  // if (_isRecording) { // Original logic
-                                  //   _stopRecordingAndProcess();
-                                  // } else {
-                                  //   _startRecording();
-                                  // }
-                                  // New logic: always call _startRecording which now sends test audio
-                                  _startRecording(); 
-                                },
+                                icon: SizedBox(width: 90, height: 90, child: Image.asset('assets/images/ui/button_mic.png', fit: BoxFit.contain)),
+                                onPressed: _isProcessingBackend ? null : _handlePlayerTurn, // Disable while processing
                               ),
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                icon: SizedBox(
-                                  width: 80,
-                                  height: 80,
-                                  child: Image.asset(
-                                    'assets/images/ui/button_translate.png',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                onPressed: () => _showTranslationDialog(context),
+                                icon: SizedBox(width: 80, height: 80, child: Image.asset('assets/images/ui/button_translate.png', fit: BoxFit.contain)),
+                                onPressed: () => _showEnglishToThaiTranslationDialog(context), // Changed to new dialog
                               ),
                             ],
                           ),
@@ -858,28 +754,264 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+                          ),
+                        ],
+                      ),
     );
   }
 
-  Future<void> _showTranslationDialog(BuildContext context) async {
+  // --- Full Conversation History Dialog ---
+  Future<void> _showFullConversationHistoryDialog(BuildContext context) async {
+    final historyEntries = ref.watch(fullConversationHistoryProvider); // Watch for live updates
+    final dialogueSettings = ref.watch(dialogueSettingsProvider);
+    final bool showTranslationsInHistory = dialogueSettings.showTranslation;
+    final bool showTransliterationsInHistory = dialogueSettings.showTransliteration;
+    final bool showPOSColorsInHistory = dialogueSettings.showPos;
+
+    // Ensure scroll to bottom when dialog opens or updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_historyDialogScrollController.hasClients) {
+            _scrollToBottom(_historyDialogScrollController);
+        }
+    });
+
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Full Conversation History'),
+          contentPadding: EdgeInsets.all(10), // Adjust padding
+          content: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.8, // 80% of screen width
+            height: MediaQuery.of(dialogContext).size.height * 0.6, // 60% of screen height
+            child: Scrollbar(
+              thumbVisibility: true,
+              controller: _historyDialogScrollController,
+              child: ListView.builder(
+                controller: _historyDialogScrollController,
+                itemCount: historyEntries.length,
+                itemBuilder: (context, index) {
+                  final entry = historyEntries[index];
+                  Widget entryContentWidget;
+
+                  bool isInitialAmaraGreetingInHistory = _amaraInitialGreetingData != null &&
+                      entry.speaker == widget.currentNpcName &&
+                      entry.text == _amaraInitialGreetingData!.greetingText &&
+                      entry.posMappings == _amaraInitialGreetingData!.greetingWordMappings;
+
+                  if (entry.isNpc) {
+                      if (isInitialAmaraGreetingInHistory) {
+                          List<Widget> parts = [];
+                          if (_amaraInitialGreetingData!.greetingWordMappings.isNotEmpty) {
+                              parts.add(RichText(textAlign: TextAlign.left, text: TextSpan(
+                                  style: DefaultTextStyle.of(context).style.copyWith(fontSize: 14, color: Colors.black87),
+                                  children: _amaraInitialGreetingData!.greetingWordMappings.map((m) => TextSpan(text: m.wordTarget + " ", style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[m.pos] ?? Colors.black87) : Colors.black87, fontWeight: FontWeight.w500))).toList()
+                              )));
+                          } else {
+                              parts.add(Text(_amaraInitialGreetingData!.greetingText, style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)));
+                          }
+                          if (showTransliterationsInHistory && _amaraInitialGreetingData!.greetingTranslitSentence.isNotEmpty) {
+                              parts.add(SizedBox(height: 2));
+                              parts.add(Text(_amaraInitialGreetingData!.greetingTranslitSentence, style: TextStyle(fontSize: 11, color: Colors.black54)));
+                          }
+                          if (showTranslationsInHistory && _amaraInitialGreetingData!.greetingEnglishSentence.isNotEmpty) {
+                              parts.add(SizedBox(height: 2));
+                              parts.add(Text(_amaraInitialGreetingData!.greetingEnglishSentence, style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic)));
+                          }
+                          entryContentWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: parts);
+                      } else if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
+                      // NPC live response with word columns
+                      List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
+                        List<Widget> wordParts = [
+                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black87) : Colors.black87, fontSize: 14, fontWeight: FontWeight.w500)),
+                        ];
+                        if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
+                          wordParts.add(SizedBox(height: 1));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
+                        }
+                        if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
+                          wordParts.add(SizedBox(height: 1));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+                        }
+                        return WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+                          ),
+                        );
+                      }).toList();
+                      entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                    } else {
+                      // NPC text without special formatting (e.g., if no POS mappings)
+                      entryContentWidget = Text(entry.text, style: TextStyle(fontSize: 14, color: Colors.black87));
+                    }
+                  } else {
+                    // Player's transcribed text
+                    entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 14, color: Colors.deepPurple.shade700));
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.speaker,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: entry.isNpc ? Colors.teal.shade600 : Colors.indigo.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Row( // Row for content and play button
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: entryContentWidget), // Dialogue content
+                            // Play button only if entry has audio
+                            if (entry.audioPath != null || entry.audioBytes != null)
+                              IconButton(
+                                icon: Icon(Icons.volume_up, color: Colors.black45),
+                                iconSize: 18,
+                                 padding: EdgeInsets.only(left: 6, top: 0, bottom: 0, right: 0),
+                                constraints: BoxConstraints(),
+                                onPressed: () => _playDialogueAudio(entry),
+                              ),
+                          ],
+          ),
+        ],
+      ),
+                  );
+                },
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // --- New Dialog for English to Thai Translation Input ---
+  Future<void> _showEnglishToThaiTranslationDialog(BuildContext context) async {
+    final TextEditingController englishTextController = TextEditingController();
+    final ValueNotifier<String> translatedThaiTextNotifier = ValueNotifier<String>("");
+    final ValueNotifier<String> translatedRomanizationNotifier = ValueNotifier<String>("");
+    final ValueNotifier<String> audioBase64Notifier = ValueNotifier<String>(""); // To store audio data
+    final ValueNotifier<bool> isLoadingNotifier = ValueNotifier<bool>(false);
+    final ValueNotifier<String?> errorNotifier = ValueNotifier<String?>(null);
+
+    // Get the audio player from Riverpod
+    final audioPlayer = ref.read(dialogueReplayPlayerProvider);
+
+    void playTranslatedAudio(String audioBase64) async {
+      if (audioBase64.isEmpty) return;
+      try {
+        await audioPlayer.stop();
+        final audioBytes = base64Decode(audioBase64);
+        // Use a custom audio source that can play from bytes
+        await audioPlayer.setAudioSource(_MyCustomStreamAudioSource.fromBytes(audioBytes));
+        await audioPlayer.play();
+      } catch (e) {
+        print("Error playing translated audio: $e");
+        errorNotifier.value = "Error playing audio.";
+      }
+    }
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Translate to Thai'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Enter text to translate:'),
-                const TextField(
+                Text('Enter English text to translate:'),
+                SizedBox(height: 8),
+                TextField(
+                  controller: englishTextController,
                   decoration: InputDecoration(
+                    border: OutlineInputBorder(),
                     hintText: 'Type here...',
                   ),
-                  maxLines: 3,
+                  minLines: 3,
+                  maxLines: 5,
+                ),
+                SizedBox(height: 16),
+                ValueListenableBuilder<bool>(
+                  valueListenable: isLoadingNotifier,
+                  builder: (context, isLoading, child) {
+                    if (isLoading) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ValueListenableBuilder<String?>(
+                          valueListenable: errorNotifier,
+                          builder: (context, error, child) {
+                            if (error != null) {
+                              return Text(error, style: TextStyle(color: Colors.red));
+                            }
+                            return SizedBox.shrink();
+                          },
+                        ),
+                        ValueListenableBuilder<String>(
+                          valueListenable: translatedThaiTextNotifier,
+                          builder: (context, thaiText, child) {
+                            if (thaiText.isEmpty) return SizedBox.shrink();
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 8),
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.teal[50],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row( // Row for text and play button
+                                children: [
+                                  Expanded(
+                                    child: Text(thaiText, style: TextStyle(fontSize: 16, color: Colors.teal[800]))
+                                  ),
+                                  ValueListenableBuilder<String>(
+                                    valueListenable: audioBase64Notifier,
+                                    builder: (context, audioBase64, child) {
+                                      if (audioBase64.isEmpty) return SizedBox.shrink();
+                                      return IconButton(
+                                        icon: Icon(Icons.volume_up, color: Colors.teal[700]),
+                                        onPressed: () => playTranslatedAudio(audioBase64),
+                                      );
+                                    }
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        ValueListenableBuilder<String>(
+                          valueListenable: translatedRomanizationNotifier,
+                          builder: (context, romanizedText, child) {
+                            if (romanizedText.isEmpty) return SizedBox.shrink();
+                            return Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blueGrey[50],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(romanizedText, style: TextStyle(fontSize: 14, color: Colors.blueGrey[700])),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -887,11 +1019,50 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
             ),
-            TextButton(
+            ElevatedButton(
               child: const Text('Translate'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () async {
+                final String englishText = englishTextController.text;
+                if (englishText.trim().isEmpty) return;
+
+                isLoadingNotifier.value = true;
+                translatedThaiTextNotifier.value = "";
+                translatedRomanizationNotifier.value = "";
+                errorNotifier.value = null;
+                audioBase64Notifier.value = ""; // Clear previous audio
+
+                try {
+                  final response = await http.post(
+                    Uri.parse('http://127.0.0.1:8000/gcloud-translate-tts/'), // New endpoint
+                    headers: {'Content-Type': 'application/json'},
+                    body: jsonEncode({'english_text': englishText}),
+                  );
+
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    translatedThaiTextNotifier.value = data['thai_text'] ?? "";
+                    translatedRomanizationNotifier.value = data['romanized_text'] ?? "";
+                    audioBase64Notifier.value = data['audio_base64'] ?? ""; // Store the audio
+                  } else {
+                    String errorMessage = "Error: ${response.statusCode}";
+                    try {
+                       final errorData = jsonDecode(response.body);
+                       errorMessage += ": ${errorData['detail'] ?? 'Unknown backend error'}";
+                    } catch(_){ /* Ignore if error body is not json */ }
+                    errorNotifier.value = errorMessage;
+                    print("Backend translation error: ${response.body}");
+                  }
+                } catch (e) {
+                  errorNotifier.value = "Error: Could not connect to translation service.";
+                  print("Network or other error calling translation backend: $e");
+                }
+
+                isLoadingNotifier.value = false;
+              },
             ),
           ],
         );
@@ -899,108 +1070,69 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
     );
   }
 
-  // General text animation function
-  void _startTextAnimation({
-    required DialogueEntry entry, 
+  // --- Text Animation for Main NPC Display Box ---
+  void _startNpcTextAnimation({
+    required String idForAnimation, // Expecting the ID to be passed
+    required String speakerName,    // Expecting speaker name
     required String fullText,    
-    String? audioPathToPlayWhenDone, // Made this explicitly nullable String
-    Function? onAnimationComplete,
+    String? audioPathToPlayWhenDone,
+    Uint8List? audioBytesToPlayWhenDone, // Added to handle direct bytes
+    List<POSMapping>? posMappings,
+    Function(DialogueEntry finalAnimatedEntry)? onAnimationComplete,
   }) {
     _activeTextStreamTimer?.cancel(); 
 
+    final currentNpcNotifier = ref.read(currentNpcDisplayEntryProvider.notifier);
+    
+    // Create the entry for animation using the passed ID
+    DialogueEntry entryWithCorrectIdForAnimation = DialogueEntry.npc(
+        id: idForAnimation, 
+        text: "", // Start with blank text for animation
+        npcName: speakerName, 
+        audioPath: audioPathToPlayWhenDone,
+        audioBytes: audioBytesToPlayWhenDone,
+        posMappings: posMappings
+    );
+
+    currentNpcNotifier.state = entryWithCorrectIdForAnimation;
+
     setState(() {
-      _currentlyAnimatingEntryId = entry.id;
+      _currentlyAnimatingEntryId = entryWithCorrectIdForAnimation.id; 
       _fullTextForAnimation = fullText;
-      // _displayedTextForAnimation now only holds the dialogue text part, not speaker
       _displayedTextForAnimation = ""; 
       _currentCharIndexForAnimation = 0;
-
-      ref.read(dialogueEntriesProvider.notifier).update((state) {
-        final index = state.indexWhere((e) => e.id == entry.id);
-        if (index != -1) {
-           final existingEntry = state[index];
-           state[index] = DialogueEntry(
-            id: existingEntry.id,
-            text: "", // Text will be built by animation
-            speaker: existingEntry.speaker,
-            isNpc: existingEntry.isNpc,
-            audioPath: audioPathToPlayWhenDone ?? existingEntry.audioPath, // Associate audio early
-            audioBytes: existingEntry.audioBytes, // Preserve if it was player's recorded bytes initially
-          );
-          return List.from(state);
-        } 
-        // If not found (e.g. new NPC entry for animation chain), add it.
-        // This happens when player text finishes, and we add a new blank NPC entry to animate.
-        else if (entry.id.isNotEmpty) { // Ensure entry has an ID to add
-            state.add(DialogueEntry(
-                id: entry.id, 
-                text: "", 
-                speaker: entry.speaker, 
-                isNpc: entry.isNpc, 
-                audioPath: audioPathToPlayWhenDone,
-                audioBytes: entry.audioBytes // Preserve if it was player's recorded bytes initially
-            ));
-            return List.from(state);
-        }
-        return state;
-      });
-       _scrollToBottom();
+       _scrollToBottom(_mainDialogueScrollController);
     });
 
     Duration charDuration = Duration(milliseconds: 50); 
-    bool audioPlayed = false;
 
-    // Attempt to get audio duration for syncing
     Future<Duration?> getAudioDuration() async {
-        if (audioPathToPlayWhenDone != null) {
+        if (audioPathToPlayWhenDone != null && audioPathToPlayWhenDone!.isNotEmpty) {
             final tempPlayer = just_audio.AudioPlayer();
             try {
-                // Check if it's an asset or a file path
-                if (audioPathToPlayWhenDone!.startsWith('assets/')) {
-                  return await tempPlayer.setAsset(audioPathToPlayWhenDone!);
-                } else {
-                  // Assume it's a local file path (like our temp NPC audio)
-                  return await tempPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPathToPlayWhenDone!)));
-                }
-            } catch (e) { print("Error getting duration for path $audioPathToPlayWhenDone: $e"); return null; }
-            finally { tempPlayer.dispose(); }
-        } else if (entry.audioBytes != null && entry.audioBytes!.isNotEmpty) { // Fallback to bytes if path isn't there but bytes are (e.g. player)
+                return audioPathToPlayWhenDone!.startsWith('assets/') 
+                    ? await tempPlayer.setAsset(audioPathToPlayWhenDone!)
+                    : await tempPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPathToPlayWhenDone!)));
+            } finally { tempPlayer.dispose(); }
+        } else if (entryWithCorrectIdForAnimation.audioBytes != null && entryWithCorrectIdForAnimation.audioBytes!.isNotEmpty) {
             final tempPlayer = just_audio.AudioPlayer();
             try {
-                return await tempPlayer.setAudioSource(_MyCustomStreamAudioSource.fromBytes(entry.audioBytes!));
-            } catch (e) { print("Error getting duration for bytes: $e"); return null; }
-            finally { tempPlayer.dispose(); }
+                return await tempPlayer.setAudioSource(_MyCustomStreamAudioSource.fromBytes(entryWithCorrectIdForAnimation.audioBytes!));
+             } finally { tempPlayer.dispose(); }
         }
         return null;
     }
 
     getAudioDuration().then((duration) {
-        if (duration != null && duration.inMilliseconds > 0) {
-            final audioDurationMs = duration.inMilliseconds;
-            if (fullText.isNotEmpty) {
-                final charTimeMs = (audioDurationMs * 0.95) / fullText.length; // sync text to 95% of audio
-                charDuration = Duration(milliseconds: math.max(30, charTimeMs.round())); // Min 30ms
-            }
-            print("Audio duration: ${audioDurationMs}ms, Char duration: ${charDuration.inMilliseconds}ms for entry ${entry.id}");
-        } else {
-            print("Could not get audio duration or audio is null/empty for entry ${entry.id}. Using default char speed.");
+        if (duration != null && duration.inMilliseconds > 0 && fullText.isNotEmpty) {
+            charDuration = Duration(milliseconds: math.max(30, (duration.inMilliseconds * 0.95 / fullText.length).round()));
+        }
+        
+        // Play audio for the entry being animated (using entryWithCorrectIdForAnimation)
+        if (entryWithCorrectIdForAnimation.audioPath != null || entryWithCorrectIdForAnimation.audioBytes != null) {
+            _playDialogueAudio(entryWithCorrectIdForAnimation);
         }
 
-        // Start playing audio as the first character appears
-        if (audioPathToPlayWhenDone != null /*|| audioBytesToPlayWhenDone != null*/) {
-             _playDialogueAudio(DialogueEntry(
-                id: entry.id, 
-                text: fullText, 
-                speaker: entry.speaker, 
-                isNpc: entry.isNpc, 
-                audioPath: audioPathToPlayWhenDone, 
-                audioBytes: entry.audioBytes // Pass original bytes if they exist (for player)
-            ));
-            audioPlayed = true;
-        }
-
-        // Setup animation timer after potentially getting audio duration
-        _activeTextStreamTimer?.cancel(); // Ensure no old timer runs
         _activeTextStreamTimer = Timer.periodic(charDuration, (timer) {
             if (_currentCharIndexForAnimation < fullText.length) {
                 setState(() {
@@ -1010,55 +1142,46 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
             } else {
                 timer.cancel();
                 _activeTextStreamTimer = null;
-                setState(() {
-                _displayedTextForAnimation = fullText;
-                _fullyAnimatedTexts[entry.id] = fullText; 
-                _currentlyAnimatingEntryId = ""; 
-                });
                 
-                ref.read(dialogueEntriesProvider.notifier).update((state) {
-                final index = state.indexWhere((e) => e.id == entry.id);
-                if (index != -1) {
-                    final existing = state[index];
-                    state[index] = DialogueEntry(
-                    id: existing.id, 
+                // Create the final version of the entry with full text, using the same ID
+                DialogueEntry finalAnimatedEntry = DialogueEntry.npc(
+                    id: entryWithCorrectIdForAnimation.id, 
                     text: fullText, 
-                    speaker: existing.speaker, 
-                    isNpc: existing.isNpc,
-                    audioPath: audioPathToPlayWhenDone ?? existing.audioPath, 
-                    audioBytes: existing.audioBytes // Preserve original bytes
-                    );
-                }
-                return List.from(state);
+                    npcName: entryWithCorrectIdForAnimation.speaker, 
+                    audioPath: entryWithCorrectIdForAnimation.audioPath, 
+                    audioBytes: entryWithCorrectIdForAnimation.audioBytes,
+                    posMappings: entryWithCorrectIdForAnimation.posMappings
+                );
+
+                currentNpcNotifier.state = finalAnimatedEntry; // Update provider with final text
+                
+                setState(() {
+                    _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = fullText; 
+                    _currentlyAnimatingEntryId = ""; 
                 });
 
                 if (onAnimationComplete != null) {
-                onAnimationComplete();
+                    onAnimationComplete(finalAnimatedEntry);
                 }
-                _scrollToBottom();
+                _scrollToBottom(_mainDialogueScrollController);
             }
         });
     });
   }
 }
 
-// Custom AudioSource for playing from a list of bytes or a stream
+// Custom AudioSource for playing from a list of bytes or a stream (Unchanged)
 class _MyCustomStreamAudioSource extends just_audio.StreamAudioSource {
   final Uint8List? _fixedBytes;
   final Stream<List<int>>? _streamBytes;
 
-  // Constructor for a fixed list of bytes (e.g., complete NPC audio for replay)
   _MyCustomStreamAudioSource.fromBytes(this._fixedBytes) 
     : _streamBytes = null, 
-      super(tag: 'npc-audio-bytes-${DateTime.now().millisecondsSinceEpoch}') {
-        print("[_MyCustomStreamAudioSource.fromBytes] Created with ${_fixedBytes?.length ?? 0} bytes.");
-      }
+      super(tag: 'npc-audio-bytes-${DateTime.now().millisecondsSinceEpoch}');
 
-  // Constructor for a stream of bytes (e.g., live TTS from backend)
   _MyCustomStreamAudioSource.fromStream(this._streamBytes) 
     : _fixedBytes = null,
       super(tag: 'npc-audio-stream-${DateTime.now().millisecondsSinceEpoch}');
-
 
   @override
   Future<just_audio.StreamAudioResponse> request([int? start, int? end]) async {
@@ -1070,19 +1193,15 @@ class _MyCustomStreamAudioSource extends just_audio.StreamAudioSource {
         contentLength: end - start,
         offset: start,
         stream: Stream.value(_fixedBytes!.sublist(start, end)),
-        contentType: 'audio/wav', // Expect WAV as backend now sends complete WAV files
+        contentType: 'audio/wav',
       );
     } else if (_streamBytes != null) {
-      // For a true stream, contentLength and sourceLength might be unknown initially
-      // or you might need to buffer or make assumptions.
-      // just_audio expects to know the length for some operations.
-      // This setup is more for when the stream provides chunks of a known total or can be fully consumed.
       return just_audio.StreamAudioResponse(
         sourceLength: null, 
         contentLength: null, 
         offset: start ?? 0,
         stream: _streamBytes!, 
-        contentType: 'audio/wav', // Expect WAV
+        contentType: 'audio/wav',
       );
     }
     throw Exception("CustomStreamAudioSource not initialized with bytes or stream");

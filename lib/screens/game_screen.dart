@@ -45,7 +45,14 @@ class _GameScreenState extends State<GameScreen> {
                     game: game as BabblelonGame,
                     onClose: _closeMenuAndResume,
                   ),
-                  'dialogue': (context, game) => DialogueOverlay(game: game as BabblelonGame),
+                  'dialogue': (context, game) {
+                    final babbleGame = game as BabblelonGame;
+                    // Assuming BabblelonGame has these properties.
+                    // If not, they will need to be added to BabblelonGame.
+                    return DialogueOverlay(
+                      game: babbleGame,
+                    );
+                  }
                 },
               ),
               // Hamburger menu icon (always visible)
@@ -130,6 +137,8 @@ class MainMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameStateProvider);
+    final dialogueSettings = ref.watch(dialogueSettingsProvider);
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onClose, // Tap outside closes menu and resumes game
@@ -151,21 +160,82 @@ class MainMenu extends ConsumerWidget {
                   style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
+
+                // Music Toggle
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
                   children: [
                     Icon(gameState.bgmIsPlaying ? Icons.music_note : Icons.music_off, color: Colors.white),
                     const SizedBox(width: 8),
+                    Text(
+                      gameState.musicEnabled ? 'Music On' : 'Music Off',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                     Switch(
                       value: gameState.musicEnabled,
                       onChanged: (val) => ref.read(gameStateProvider.notifier).toggleMusic(),
                       activeColor: Colors.green,
                       inactiveThumbColor: Colors.red,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Translation Toggle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
+                  children: [
+                    Icon(dialogueSettings.showTranslation ? Icons.translate : Icons.translate_outlined, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      gameState.musicEnabled ? 'Music On' : 'Music Off',
+                      dialogueSettings.showTranslation ? 'Translation On' : 'Translation Off',
                       style: const TextStyle(color: Colors.white),
+                    ),
+                    Switch(
+                      value: dialogueSettings.showTranslation,
+                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
+                      activeColor: Colors.lightBlueAccent,
+                      inactiveThumbColor: Colors.grey,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Transliteration Toggle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
+                  children: [
+                    Icon(dialogueSettings.showTransliteration ? Icons.spellcheck : Icons.spellcheck_outlined, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      dialogueSettings.showTransliteration ? 'Transliteration On' : 'Transliteration Off',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    Switch(
+                      value: dialogueSettings.showTransliteration,
+                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
+                      activeColor: Colors.orangeAccent,
+                      inactiveThumbColor: Colors.grey,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Word Highlighting (formerly POS Colors) Toggle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
+                  children: [
+                    Icon(dialogueSettings.showPos ? Icons.color_lens : Icons.color_lens_outlined, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      dialogueSettings.showPos ? 'Word Colors On' : 'Word Colors Off', // Renamed
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    Switch(
+                      value: dialogueSettings.showPos,
+                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
+                      activeColor: Colors.purpleAccent,
+                      inactiveThumbColor: Colors.grey,
                     ),
                   ],
                 ),
