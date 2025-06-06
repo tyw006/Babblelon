@@ -1,10 +1,10 @@
 {
     "amara": {
-      "greeting_text": "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!",
-      "greeting_audio_path": "assets/audio/npc/amara_greeting.wav",
-      "greeting_english_sentence": "Hello! Welcome to the dim sum stall!",
-      "greeting_translit_sentence": "sawatdi kha! yindi tonrap su phaeng tim sam kha!",
-      "greeting_word_mappings": [
+      "response_target": "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!",
+      "response_audio_path": "assets/audio/npc/amara_greeting.wav",
+      "response_english": "Hello! Welcome to the dim sum stall!",
+      "response_translit": "sawatdi kha! yindi tonrap su phaeng tim sam kha!",
+      "response_mapping": [
         {
           "word_target": "สวัสดี",
           "word_translit": "sawatdi",
