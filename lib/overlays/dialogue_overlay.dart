@@ -64,32 +64,32 @@ final Map<String, Color> posColorMapping = {
 // --- Initial NPC Greeting Model ---
 @immutable
 class InitialNPCGreeting {
-  final String greetingText;
-  final String greetingAudioPath;
-  final String greetingEnglishSentence; // Sentence level
-  final String greetingTranslitSentence; // Sentence level
-  final List<POSMapping> greetingWordMappings;
+  final String responseTarget;
+  final String responseAudioPath;
+  final String responseEnglish;
+  final String responseTranslit;
+  final List<POSMapping> responseMapping;
 
   const InitialNPCGreeting({
-    required this.greetingText,
-    required this.greetingAudioPath,
-    required this.greetingEnglishSentence,
-    required this.greetingTranslitSentence,
-    required this.greetingWordMappings,
+    required this.responseTarget,
+    required this.responseAudioPath,
+    required this.responseEnglish,
+    required this.responseTranslit,
+    required this.responseMapping,
   });
 
   factory InitialNPCGreeting.fromJson(Map<String, dynamic> json) {
-    var mappingsList = json['greeting_word_mappings'] as List?;
+    var mappingsList = json['response_mapping'] as List?;
     List<POSMapping> mappings = mappingsList != null
         ? mappingsList.map((i) => POSMapping.fromJson(i as Map<String, dynamic>)).toList()
         : [];
 
     return InitialNPCGreeting(
-      greetingText: json['greeting_text'] as String,
-      greetingAudioPath: json['greeting_audio_path'] as String,
-      greetingEnglishSentence: json['greeting_english_sentence'] as String? ?? '', // Provide default
-      greetingTranslitSentence: json['greeting_translit_sentence'] as String? ?? '', // Provide default
-      greetingWordMappings: mappings,
+      responseTarget: json['response_target'] as String,
+      responseAudioPath: json['response_audio_path'] as String,
+      responseEnglish: json['response_english'] as String? ?? '', 
+      responseTranslit: json['response_translit'] as String? ?? '',
+      responseMapping: mappings,
     );
   }
 }
@@ -226,7 +226,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
         final placeholderForAnimation = DialogueEntry.npc(
           text: "",
           npcName: widget.currentNpcName,
-          posMappings: _amaraInitialGreetingData!.greetingWordMappings,
+          posMappings: _amaraInitialGreetingData!.responseMapping,
         );
         currentNpcDisplayNotifier.state = placeholderForAnimation;
         // Add to full history as well, it will be updated by animation completion
@@ -235,9 +235,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
         _startNpcTextAnimation(
           idForAnimation: placeholderForAnimation.id,
           speakerName: widget.currentNpcName,
-          fullText: _amaraInitialGreetingData!.greetingText, 
-          audioPathToPlayWhenDone: _amaraInitialGreetingData!.greetingAudioPath,
-          posMappings: _amaraInitialGreetingData!.greetingWordMappings,
+          fullText: _amaraInitialGreetingData!.responseTarget, 
+          audioPathToPlayWhenDone: _amaraInitialGreetingData!.responseAudioPath,
+          posMappings: _amaraInitialGreetingData!.responseMapping,
           onAnimationComplete: (finalAnimatedEntry) {
             fullHistoryNotifier.update((history) {
               final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
@@ -258,10 +258,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
               _fullyAnimatedMainNpcTexts[history.last.id] = history.last.text;
           } else if (history.isEmpty) { // Or if history is empty, replay initial greeting
               final initialGreetingEntry = DialogueEntry.npc(
-                  text: _amaraInitialGreetingData!.greetingText,
+                  text: _amaraInitialGreetingData!.responseTarget,
                   npcName: widget.currentNpcName,
-                  audioPath: _amaraInitialGreetingData!.greetingAudioPath,
-                  posMappings: _amaraInitialGreetingData!.greetingWordMappings
+                  audioPath: _amaraInitialGreetingData!.responseAudioPath,
+                  posMappings: _amaraInitialGreetingData!.responseMapping
                 );
               currentNpcDisplayNotifier.state = initialGreetingEntry;
               fullHistoryNotifier.state = [initialGreetingEntry];
@@ -506,18 +506,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
     final bool isAnimatingThisNpcEntry = (currentNpcDisplayEntry != null && currentNpcDisplayEntry.id == _currentlyAnimatingEntryId);
 
     Widget npcContentWidget;
-    bool isInitialAmaraGreetingBeingDisplayed = false;
     if (currentNpcDisplayEntry == null) {
         npcContentWidget = SizedBox.shrink(); // Or a placeholder
     } else {
         String textToDisplayForNpc = isAnimatingThisNpcEntry ? _displayedTextForAnimation : (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] ?? currentNpcDisplayEntry.text);
-
-        isInitialAmaraGreetingBeingDisplayed = currentNpcDisplayEntry != null && // Added null check
-            _amaraInitialGreetingData != null &&
-            currentNpcDisplayEntry.speaker == widget.currentNpcName &&
-            (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] == _amaraInitialGreetingData!.greetingText || (currentNpcDisplayEntry.text == _amaraInitialGreetingData!.greetingText && !_currentlyAnimatingEntryId.isNotEmpty) ) &&
-            !isAnimatingThisNpcEntry && // isAnimatingThisNpcEntry is now defined above
-            currentNpcDisplayEntry.posMappings == _amaraInitialGreetingData!.greetingWordMappings;
 
         if (isAnimatingThisNpcEntry) {
             npcContentWidget = Text(
@@ -525,42 +517,6 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                 textAlign: TextAlign.left,
                 style: TextStyle(color: Colors.black, fontSize: 16),
             );
-        } else if (isInitialAmaraGreetingBeingDisplayed) {
-            // Display logic for initial greeting (sentence level with POS)
-            List<Widget> initialGreetingRenderParts = [];
-
-            // Actual Greeting Content
-            List<Widget> actualGreetingContent = [];
-            if (_amaraInitialGreetingData!.greetingWordMappings.isNotEmpty) {
-                actualGreetingContent.add(RichText(
-                    textAlign: TextAlign.left,
-                    text: TextSpan(
-                        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 16, color: Colors.black),
-                        children: _amaraInitialGreetingData!.greetingWordMappings.map((mapping) {
-                            return TextSpan(
-                                text: mapping.wordTarget + " ",
-                                style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 16, fontWeight: FontWeight.w500),
-                            );
-                        }).toList(),
-                    ),
-                ));
-            } else {
-                 actualGreetingContent.add(Text(
-                    _amaraInitialGreetingData!.greetingText,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w500),
-                ));
-            }
-            if (showTransliterations && _amaraInitialGreetingData!.greetingTranslitSentence.isNotEmpty) {
-                actualGreetingContent.add(SizedBox(height: 4));
-                actualGreetingContent.add(Text(_amaraInitialGreetingData!.greetingTranslitSentence, textAlign: TextAlign.left, style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.80))));
-            }
-            if (showTranslations && _amaraInitialGreetingData!.greetingEnglishSentence.isNotEmpty) {
-                actualGreetingContent.add(SizedBox(height: 4));
-                actualGreetingContent.add(Text(_amaraInitialGreetingData!.greetingEnglishSentence, textAlign: TextAlign.left, style: TextStyle(fontSize: 13, color: Colors.blueGrey.shade800, fontStyle: FontStyle.italic)));
-            }
-            initialGreetingRenderParts.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: actualGreetingContent));
-            npcContentWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: initialGreetingRenderParts);
         } else if (currentNpcDisplayEntry.isNpc && currentNpcDisplayEntry.posMappings != null && currentNpcDisplayEntry.posMappings!.isNotEmpty) {
             // Word-column display for live NPC responses
             List<InlineSpan> wordSpans = currentNpcDisplayEntry.posMappings!.map((mapping) {
@@ -795,32 +751,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                   final entry = historyEntries[index];
                   Widget entryContentWidget;
 
-                  bool isInitialAmaraGreetingInHistory = _amaraInitialGreetingData != null &&
-                      entry.speaker == widget.currentNpcName &&
-                      entry.text == _amaraInitialGreetingData!.greetingText &&
-                      entry.posMappings == _amaraInitialGreetingData!.greetingWordMappings;
-
                   if (entry.isNpc) {
-                      if (isInitialAmaraGreetingInHistory) {
-                          List<Widget> parts = [];
-                          if (_amaraInitialGreetingData!.greetingWordMappings.isNotEmpty) {
-                              parts.add(RichText(textAlign: TextAlign.left, text: TextSpan(
-                                  style: DefaultTextStyle.of(context).style.copyWith(fontSize: 14, color: Colors.black87),
-                                  children: _amaraInitialGreetingData!.greetingWordMappings.map((m) => TextSpan(text: m.wordTarget + " ", style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[m.pos] ?? Colors.black87) : Colors.black87, fontWeight: FontWeight.w500))).toList()
-                              )));
-                          } else {
-                              parts.add(Text(_amaraInitialGreetingData!.greetingText, style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)));
-                          }
-                          if (showTransliterationsInHistory && _amaraInitialGreetingData!.greetingTranslitSentence.isNotEmpty) {
-                              parts.add(SizedBox(height: 2));
-                              parts.add(Text(_amaraInitialGreetingData!.greetingTranslitSentence, style: TextStyle(fontSize: 11, color: Colors.black54)));
-                          }
-                          if (showTranslationsInHistory && _amaraInitialGreetingData!.greetingEnglishSentence.isNotEmpty) {
-                              parts.add(SizedBox(height: 2));
-                              parts.add(Text(_amaraInitialGreetingData!.greetingEnglishSentence, style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic)));
-                          }
-                          entryContentWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: parts);
-                      } else if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
+                      if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
                       // NPC live response with word columns
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
