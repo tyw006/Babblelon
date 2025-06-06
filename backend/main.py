@@ -31,7 +31,7 @@ from services.stt_service import transcribe_audio
 # from services.translation_service import translate_english_to_thai_and_romanize
 
 # Import the new Google Cloud service functions
-from services.google_cloud_service import translate_text, romanize_thai_text, synthesize_speech
+from services.translation_service import translate_text, romanize_thai_text, synthesize_speech
 
 app = FastAPI()
 
