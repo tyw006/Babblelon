@@ -43,8 +43,6 @@ def load_prompt_from_file(npc_id: str) -> str | None:
 
 NPC_PROMPTS_CACHE: Dict[str, str] = {} # Optional: For caching loaded prompts
 
-
-
 class POSMapping(BaseModel):
     word_target: str = Field(description = "A single word in the target language (e.g., Thai)")
     word_translit: str = Field(description = "The romanized/transliterated version of the target word")
@@ -53,24 +51,35 @@ class POSMapping(BaseModel):
                  'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'VERB', 'OTHER'] = Field(description="Part of speech tag for the target word")
 
 class NPCResponse(BaseModel):
-    expression: Literal["angry", "annoyed", "content", "happy", "sad", "surprised", "laughing"]
+    input_target: str = Field(description="The latest input message from the user in the target language")
+    input_mapping: List[POSMapping] = Field(description="The Part-of-Speech(POS) classification for each of words in the target latest input message")
+    emotion: Literal["angry", "annoyed", "content", "happy", "sad", "surprised", "laughing"]
     response_tone: str
     response_target: str # This is the primary TargetLanguage response
-    response_eng: str    # English translation provided by LLM
-    response_translit: str # RTGS (or general transliteration) provided by LLM
-    response_mapping: List[POSMapping] # POS tagging and word-level translations/transliterations by LLM
+    response_mapping: List[POSMapping] = Field(description="POS tagging and word-level translations/transliterations in the response")
     charm_delta: int
-    # Removed: response_rtgs (now response_translit)
-    # Removed: tagged_thai_words (now response_mapping)
 
-async def get_llm_response(npc_id: str, npc_name: str, conversation_history_full: str, current_charm_level: int) -> NPCResponse:
+async def get_llm_response(
+    npc_id: str, 
+    npc_name: str, 
+    conversation_history: str, 
+    latest_player_message: str,
+    current_charm_level: int,
+    target_language: str = "Thai"
+) -> NPCResponse:
     """
-    Gets a response from the OpenAI LLM based on the conversation history, charm level, and system prompt for the NPC.
-    conversation_history_full: The entire conversation history including NPC and player messages, ending with the latest player message.
-    npc_id: The identifier for the NPC.
-    npc_name: The name of the NPC.
-    current_charm_level: The current charm level of the player with this NPC.
-    Returns an NPCResponse object.
+    Gets a response from the OpenAI LLM based on the conversation history, latest player message, charm level, and system prompt for the NPC.
+    
+    Args:
+        npc_id: The identifier for the NPC.
+        npc_name: The name of the NPC.
+        conversation_history: The conversation history up to (but not including) the latest player message.
+        latest_player_message: The most recent message from the player.
+        current_charm_level: The current charm level of the player with this NPC.
+        target_language: The target language for the conversation (default: "Thai").
+    
+    Returns:
+        NPCResponse object.
     """
     if not openai_client:
         raise HTTPException(status_code=500, detail="OpenAI client not initialized. Check API key.")
@@ -82,12 +91,15 @@ async def get_llm_response(npc_id: str, npc_name: str, conversation_history_full
             raise HTTPException(status_code=404, detail=f"NPC with ID '{npc_id}' not found or prompt file missing/unreadable.")
         NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc
 
-    # conversation_history_full is expected to contain the complete dialogue, ending with the player's last message.
-    llm_input = f"""Current Charm with {npc_name.capitalize()}: {current_charm_level}
+    # Format the input to match the desired structure
+    llm_input = f"""Target Language: {target_language}
+Current Charm: {current_charm_level}
 
-Respond to the latest message in the conversation history:
-{conversation_history_full}
-"""
+Conversation History:
+{conversation_history}
+
+Respond to the latest message:
+Player: {latest_player_message}"""
 
     # print(f"""DEBUG: llm_input for {npc_id} (first 500 chars):
     # {llm_input[:500]}...""") # Commented out verbose log
