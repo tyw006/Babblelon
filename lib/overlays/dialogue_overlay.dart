@@ -1,6 +1,5 @@
 import 'dart:async'; // Added for Timer
 import 'dart:math' as math; // Added for math.min
-import 'dart:typed_data'; // Added for Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
@@ -9,6 +8,8 @@ import 'dart:io'; // Added for File
 import 'package:http/http.dart' as http; // Added for http
 import 'dart:convert'; // Added for json encoding/decoding
 import 'package:flutter/services.dart'; // Added for DefaultAssetBundle
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../game/babblelon_game.dart';
 import '../providers/game_providers.dart'; // Ensure this import is present
@@ -120,7 +121,7 @@ class DialogueEntry {
   }) : id = customId ?? _generateId(); // Assign or generate
 
   // Helper to create a unique ID - made slightly more robust
-  static String _generateId() => DateTime.now().millisecondsSinceEpoch.toString() + "_" + math.Random().nextInt(99999).toString();
+  static String _generateId() => "${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999)}";
 
   // Factory constructors for convenience
   factory DialogueEntry.player(String transcribedText, String audioPath) {
@@ -178,26 +179,33 @@ class DialogueOverlay extends ConsumerStatefulWidget {
   final String currentNpcId = "amara"; // Example NPC ID, this should be dynamic
   final String currentNpcName = "Amara"; // Example NPC Name
 
-  const DialogueOverlay({Key? key, required this.game}) : super(key: key);
+  const DialogueOverlay({super.key, required this.game});
 
   @override
   ConsumerState<DialogueOverlay> createState() => _DialogueOverlayState();
 }
 
-class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
+class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerProviderStateMixin {
   final ScrollController _mainDialogueScrollController = ScrollController();
   final ScrollController _historyDialogScrollController = ScrollController(); // For history dialog
   late just_audio.AudioPlayer _greetingPlayer;
   bool _isRecording = false;
 
+  // --- Audio Recording State ---
+  late final AudioRecorder _audioRecorder;
+  // --- End Audio Recording State ---
+
+  // --- Animation State ---
+  AnimationController? _animationController;
+  Animation<double>? _scaleAnimation;
+  // --- End Animation State ---
+
   Timer? _activeTextStreamTimer;
   String _currentlyAnimatingEntryId = "";
-  String _fullTextForAnimation = "";
   String _displayedTextForAnimation = "";
   int _currentCharIndexForAnimation = 0;
   final Map<String, String> _fullyAnimatedMainNpcTexts = {}; 
 
-  int _currentCharmLevel = 50;
   bool _isProcessingBackend = false;
 
   InitialNPCGreeting? _amaraInitialGreetingData; // To store parsed JSON data
@@ -206,6 +214,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
   void initState() {
     super.initState();
     _greetingPlayer = just_audio.AudioPlayer();
+    _audioRecorder = AudioRecorder();
+
+    // --- Animation Initialization ---
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _animationController!, curve: Curves.easeInOut),
+    );
+    // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadInitialGreetingData();
@@ -308,26 +324,80 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
   @override
   void dispose() {
     _greetingPlayer.dispose();
+    _audioRecorder.dispose();
+    _animationController?.dispose();
     _activeTextStreamTimer?.cancel();
     _mainDialogueScrollController.dispose();
     _historyDialogScrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _handlePlayerTurn() async {
-    print("Mic button pressed. Sending test audio to new endpoint.");
-    setState(() { _isRecording = true; _isProcessingBackend = true; });
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      print("Microphone permission denied");
+      // Optionally, show a dialog to the user explaining why you need the permission.
+      return;
+    }
 
-    final String testAudioPath = 'assets/audio/test/test_input1.wav';
-    File audioFileToSend;
+    setState(() {
+      _isRecording = true;
+    });
+    _animationController?.repeat(reverse: true);
+
+    final tempDir = await getTemporaryDirectory();
+    final path = '${tempDir.path}/c_input_${DateTime.now().millisecondsSinceEpoch}.wav';
+
+    // Add the path to the provider to be cleaned up later
+    ref.read(tempFilePathsProvider.notifier).update((state) => [...state, path]);
 
     try {
-      final byteData = await DefaultAssetBundle.of(context).load(testAudioPath);
-      final tempDir = await getTemporaryDirectory();
-      audioFileToSend = File('${tempDir.path}/temp_test_input.wav');
-      await audioFileToSend.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-      
-      print("Test audio prepared: ${audioFileToSend.path}. Sending to backend.");
+      await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      print("Recording started at path: $path");
+    } catch (e) {
+      print("Error starting recording: $e");
+      setState(() {
+        _isRecording = false;
+      });
+      _animationController?.stop();
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_isRecording) return; // Avoid stopping if not recording
+
+    _animationController?.stop();
+    setState(() {
+      _isRecording = false;
+    });
+
+    try {
+      final path = await _audioRecorder.stop();
+      if (path != null) {
+        print("Recording stopped, file at: $path");
+        _sendAudioToBackend(path);
+      } else {
+        print("Error: Recording path is null.");
+      }
+    } catch (e) {
+      print("Error stopping recording: $e");
+    }
+  }
+
+  Future<void> _sendAudioToBackend(String audioPath) async {
+    print("Mic button action triggered. Sending audio to new endpoint.");
+    setState(() { _isProcessingBackend = true; });
+
+    final File audioFileToSend = File(audioPath);
+
+    if (!await audioFileToSend.exists()) {
+        print("Error: Recorded audio file does not exist at path: $audioPath");
+        setState(() { _isProcessingBackend = false; });
+        return;
+    }
+
+    try {
+      print("Recorded audio prepared: ${audioFileToSend.path}. Sending to backend.");
       
       // --- Construct previous_conversation_history for the backend ---
       final currentFullHistory = ref.read(fullConversationHistoryProvider);
@@ -357,8 +427,6 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
       print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-
-      setState(() { _isRecording = false; }); // Mic "stops" after sending
 
       if (response.statusCode == 200) {
         Uint8List npcAudioBytes = response.bodyBytes;
@@ -457,9 +525,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
         print("Backend processing failed. Status: ${response.statusCode}, Body: ${response.body}");
       }
     } catch (e, stackTrace) {
-      print("Exception in _handlePlayerTurn: $e\\n$stackTrace");
+      print("Exception in _sendAudioToBackend: $e\\n$stackTrace");
     } finally {
       setState(() { _isProcessingBackend = false; });
+      // The recorded file is no longer deleted here.
+      // It will be cleaned up on game exit.
     }
   }
   
@@ -575,7 +645,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withAlpha(128),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: Text(
@@ -689,11 +759,35 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
                                   widget.game.resumeGame(ref);
                                 },
                               ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                icon: SizedBox(width: 90, height: 90, child: Image.asset('assets/images/ui/button_mic.png', fit: BoxFit.contain)),
-                                onPressed: _isProcessingBackend ? null : _handlePlayerTurn, // Disable while processing
+                              GestureDetector(
+                                onLongPressStart: (_) {
+                                  if (!_isProcessingBackend) _startRecording();
+                                },
+                                onLongPressEnd: (_) {
+                                  if (!_isProcessingBackend) _stopRecording();
+                                },
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    if (_isRecording)
+                                      ScaleTransition(
+                                        scale: _scaleAnimation!,
+                                        child: Container(
+                                          width: 100,
+                                          height: 100,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.blue.withAlpha(128),
+                                          ),
+                                        ),
+                                      ),
+                                    SizedBox(
+                                      width: 90,
+                                      height: 90,
+                                      child: Image.asset('assets/images/ui/button_mic.png', fit: BoxFit.contain)
+                                    ),
+                                  ],
+                                ),
                               ),
                               IconButton(
                                 padding: EdgeInsets.zero,
@@ -1030,7 +1124,6 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
 
     setState(() {
       _currentlyAnimatingEntryId = entryWithCorrectIdForAnimation.id; 
-      _fullTextForAnimation = fullText;
       _displayedTextForAnimation = ""; 
       _currentCharIndexForAnimation = 0;
        _scrollToBottom(_mainDialogueScrollController);
@@ -1105,34 +1198,20 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> {
 // Custom AudioSource for playing from a list of bytes or a stream (Unchanged)
 class _MyCustomStreamAudioSource extends just_audio.StreamAudioSource {
   final Uint8List? _fixedBytes;
-  final Stream<List<int>>? _streamBytes;
 
   _MyCustomStreamAudioSource.fromBytes(this._fixedBytes) 
-    : _streamBytes = null, 
-      super(tag: 'npc-audio-bytes-${DateTime.now().millisecondsSinceEpoch}');
-
-  _MyCustomStreamAudioSource.fromStream(this._streamBytes) 
-    : _fixedBytes = null,
-      super(tag: 'npc-audio-stream-${DateTime.now().millisecondsSinceEpoch}');
+    : super(tag: 'npc-audio-bytes-${DateTime.now().millisecondsSinceEpoch}');
 
   @override
   Future<just_audio.StreamAudioResponse> request([int? start, int? end]) async {
     if (_fixedBytes != null) {
       start ??= 0;
-      end ??= _fixedBytes!.length;
+      end ??= _fixedBytes.length;
       return just_audio.StreamAudioResponse(
-        sourceLength: _fixedBytes!.length,
+        sourceLength: _fixedBytes.length,
         contentLength: end - start,
         offset: start,
-        stream: Stream.value(_fixedBytes!.sublist(start, end)),
-        contentType: 'audio/wav',
-      );
-    } else if (_streamBytes != null) {
-      return just_audio.StreamAudioResponse(
-        sourceLength: null, 
-        contentLength: null, 
-        offset: start ?? 0,
-        stream: _streamBytes!, 
+        stream: Stream.value(_fixedBytes.sublist(start, end)),
         contentType: 'audio/wav',
       );
     }

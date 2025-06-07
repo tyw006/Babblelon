@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui';
 import '../game/babblelon_game.dart';
 import '../overlays/dialogue_overlay.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -18,6 +21,39 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late WidgetRef _ref;
+  late final AppLifecycleListener _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    _listener = AppLifecycleListener(
+      onExitRequested: _onExitRequested,
+    );
+  }
+
+  @override
+  void dispose() {
+    _listener.dispose();
+    super.dispose();
+  }
+
+  Future<AppExitResponse> _onExitRequested() async {
+    final tempFiles = _ref.read(tempFilePathsProvider);
+    for (final path in tempFiles) {
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+          print('Deleted temporary file: $path');
+        }
+      } catch (e) {
+        print('Error deleting temporary file $path: $e');
+      }
+    }
+    // Clear the provider list after deleting the files
+    _ref.read(tempFilePathsProvider.notifier).state = [];
+    return AppExitResponse.exit;
+  }
 
   @override
   Widget build(BuildContext context) {
