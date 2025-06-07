@@ -46,7 +46,7 @@ async def transcribe_audio(audio_stream: io.BytesIO) -> str:
         transcription_response = elevenlabs_client.speech_to_text.convert(
             file=audio_stream, # Pass the BytesIO stream directly
             model_id="scribe_v1", # Model to use
-            # language_code="tha", # Optional: Specify language or let it auto-detect
+            language_code="tha", # Optional: Specify language or let it auto-detect
         )
         
         if transcription_response and hasattr(transcription_response, 'text'):
