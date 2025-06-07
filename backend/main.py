@@ -79,8 +79,10 @@ class TextToSpeechRequest(BaseModel):
 class TestLLMRequest(BaseModel):
     npc_id: str
     npc_name: str
-    conversation_history_full: str
+    conversation_history: str
+    latest_player_message: str
     current_charm_level: int
+    target_language: str = "Thai"
 
 class TranslationRequest(BaseModel):
     english_text: str
@@ -109,9 +111,10 @@ async def generate_npc_response(
     npc_id: str = Form(...),
     npc_name: str = Form(...),
     charm_level: int = Form(...),
-    previous_conversation_history: Optional[str] = Form(None) # Client sends history UP TO this player's turn
+    previous_conversation_history: Optional[str] = Form(None), # Client sends history UP TO this player's turn
+    target_language: Optional[str] = Form("Thai") # Add target language parameter
 ):
-    print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}. File: {audio_file.filename}")
+    print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. File: {audio_file.filename}")
     
     try:
         # 1. STT - Transcribe player's audio
@@ -124,20 +127,21 @@ async def generate_npc_response(
         player_transcription = await transcribe_audio(player_audio_stream)
         print(f"[{datetime.datetime.now()}] INFO: STT for {npc_id} successful. Transcription: '{player_transcription}'")
 
-        # 2. Construct full conversation history for LLM
-        conversation_history_full_for_llm = previous_conversation_history if previous_conversation_history else ""
-        if player_transcription and player_transcription.strip(): # Ensure transcription is not empty
-            conversation_history_full_for_llm += f"\nPlayer: {player_transcription}"
-        # Ensure it's not just a blank line if previous_history was None and transcription was empty
-        conversation_history_full_for_llm = conversation_history_full_for_llm.strip()
-
+        # 2. Prepare conversation history and latest message for LLM
+        conversation_history = previous_conversation_history if previous_conversation_history else ""
+        latest_player_message = player_transcription if player_transcription and player_transcription.strip() else ""
+        
+        if not latest_player_message:
+            raise HTTPException(status_code=400, detail="Player transcription is empty or invalid.")
 
         # 3. LLM - Get NPC's response
         npc_response_data: NPCResponse = await get_llm_response(
             npc_id=npc_id, 
             npc_name=npc_name,
-            conversation_history_full=conversation_history_full_for_llm, 
-            current_charm_level=charm_level
+            conversation_history=conversation_history,
+            latest_player_message=latest_player_message,
+            current_charm_level=charm_level,
+            target_language=target_language
         )
         print(f"[{datetime.datetime.now()}] INFO: LLM response for {npc_id} OK. Target: '{npc_response_data.response_target[:30]}...', Tone: '{npc_response_data.response_tone}'")
 
@@ -276,8 +280,10 @@ async def test_llm_response_endpoint(request: TestLLMRequest):
         npc_response_data = await get_llm_response(
             npc_id=request.npc_id,
             npc_name=request.npc_name,
-            conversation_history_full=request.conversation_history_full,
-            current_charm_level=request.current_charm_level
+            conversation_history=request.conversation_history,
+            latest_player_message=request.latest_player_message,
+            current_charm_level=request.current_charm_level,
+            target_language=request.target_language
         )
         print(f"[{datetime.datetime.now()}] INFO: LLM test response for {request.npc_id} OK.")
         return npc_response_data # Returns NPCResponse Pydantic model as JSON

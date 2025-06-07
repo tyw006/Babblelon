@@ -124,14 +124,14 @@ class DialogueEntry {
   static String _generateId() => "${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999)}";
 
   // Factory constructors for convenience
-  factory DialogueEntry.player(String transcribedText, String audioPath) {
+  factory DialogueEntry.player(String transcribedText, String audioPath, {List<POSMapping>? inputMappings}) {
     return DialogueEntry(
       // customId will be null, so _generateId() is used by the main constructor
       text: transcribedText, // Player's own transcribed text
       speaker: 'Player',
       audioPath: audioPath,
       isNpc: false,
-      posMappings: null, // Player entries don't have POS mappings from NPC
+      posMappings: inputMappings, // Now player entries can have POS mappings from input_mapping
       playerTranscriptionForHistory: transcribedText, // Explicitly set for history
     );
   }
@@ -450,11 +450,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         
         String playerTranscription = responsePayload['player_transcription'] ?? "Transcription unavailable";
         String npcText = responsePayload['response_target'];
-        List<POSMapping> posMappings = (responsePayload['response_mapping'] as List? ?? [])
+        List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List? ?? [])
+            .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
+        List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
 
         print("Received Player Transcription: $playerTranscription");
         print("Received NPC Text: $npcText");
+        print("Received Player Input Mappings: ${playerInputMappings.length} words");
 
         // Update charm level from backend
         if (responsePayload.containsKey('new_charm_level')) {
@@ -479,7 +482,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
 
         // Create entries for full history
-        final playerEntryForHistory = DialogueEntry.player(playerTranscription, audioFileToSend.path);
+        final playerEntryForHistory = DialogueEntry.player(playerTranscription, audioFileToSend.path, inputMappings: playerInputMappings);
         
         // Generate a stable ID for the NPC entry BEFORE creating it
         final String npcEntryId = DialogueEntry._generateId();
@@ -490,7 +493,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           npcName: widget.currentNpcName,
           audioPath: tempNpcAudioPath, // This is the path to the NPC's audio file
           audioBytes: npcAudioBytes, // This is the actual audio data for NPC
-          posMappings: posMappings, 
+          posMappings: npcPosMappings, 
         );
 
         // Update full conversation history
@@ -506,7 +509,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           fullText: npcText,
           audioPathToPlayWhenDone: tempNpcAudioPath, // Pass audio path
           audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
-          posMappings: posMappings,
+          posMappings: npcPosMappings,
           onAnimationComplete: (finalAnimatedEntry) {
              // Update the entry in full history with the final animated text
             fullHistoryNotifier.update((history) {
@@ -874,8 +877,34 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       entryContentWidget = Text(entry.text, style: TextStyle(fontSize: 14, color: Colors.black87));
                     }
                   } else {
-                    // Player's transcribed text
-                    entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 14, color: Colors.deepPurple.shade700));
+                    // Player's transcribed text - check if we have POS mappings for enhanced display
+                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
+                      // Player input with word columns (same as NPC but with different base color)
+                      List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
+                        List<Widget> wordParts = [
+                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700) : Colors.deepPurple.shade700, fontSize: 14, fontWeight: FontWeight.w500)),
+                        ];
+                        if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
+                          wordParts.add(SizedBox(height: 1));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400) : Colors.deepPurple.shade400)));
+                        }
+                        if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
+                          wordParts.add(SizedBox(height: 1));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300) : Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
+                        }
+                        return WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+                          ),
+                        );
+                      }).toList();
+                      entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                    } else {
+                      // Player's transcribed text without POS mappings (fallback)
+                      entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 14, color: Colors.deepPurple.shade700));
+                    }
                   }
 
                   return Padding(
