@@ -52,10 +52,12 @@ class POSMapping(BaseModel):
 
 class NPCResponse(BaseModel):
     input_target: str = Field(description="The latest input message from the user in the target language")
+    input_english: str = Field(description="The latest input message from the user in English")
     input_mapping: List[POSMapping] = Field(description="The Part-of-Speech(POS) classification for each of words in the target latest input message")
     emotion: Literal["angry", "annoyed", "content", "happy", "sad", "surprised", "laughing"]
     response_tone: str
     response_target: str # This is the primary TargetLanguage response
+    response_english: str # This is the English response
     response_mapping: List[POSMapping] = Field(description="POS tagging and word-level translations/transliterations in the response")
     charm_delta: int
 
@@ -98,7 +100,8 @@ Current Charm: {current_charm_level}
 Conversation History:
 {conversation_history}
 
-Respond to the latest message:
+Respond to the latest message. If you don't understand what the user is saying, simply say you don't understand and ask the user to explain themselves.
+Latest message:
 Player: {latest_player_message}"""
 
     # print(f"""DEBUG: llm_input for {npc_id} (first 500 chars):
