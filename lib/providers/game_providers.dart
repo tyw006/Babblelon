@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'game_providers.g.dart';
 
@@ -98,4 +99,7 @@ class DialogueSettings extends _$DialogueSettings {
 }
 
 // --- Dialogue Overlay Visibility ---
-final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false); 
+final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false);
+
+// Provider to hold the list of temporary file paths to be cleaned up on exit
+final tempFilePathsProvider = StateProvider<List<String>>((ref) => []); 
