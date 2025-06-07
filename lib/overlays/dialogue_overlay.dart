@@ -14,6 +14,14 @@ import 'package:permission_handler/permission_handler.dart';
 import '../game/babblelon_game.dart';
 import '../providers/game_providers.dart'; // Ensure this import is present
 
+// --- Sanitization Helper ---
+String _sanitizeString(String text) {
+  // Re-encoding and decoding with allowMalformed: true replaces invalid sequences
+  // with the Unicode replacement character (U+FFFD), preventing rendering errors.
+  return utf8.decode(utf8.encode(text), allowMalformed: true);
+}
+// --- End Sanitization Helper ---
+
 // --- POSMapping Model ---
 @immutable
 class POSMapping {
@@ -31,10 +39,10 @@ class POSMapping {
 
   factory POSMapping.fromJson(Map<String, dynamic> json) {
     return POSMapping(
-      wordTarget: json['word_target'] as String,
-      wordTranslit: json['word_translit'] as String,
-      wordEng: json['word_eng'] as String,
-      pos: json['pos'] as String,
+      wordTarget: _sanitizeString(json['word_target'] as String? ?? ''),
+      wordTranslit: _sanitizeString(json['word_translit'] as String? ?? ''),
+      wordEng: _sanitizeString(json['word_eng'] as String? ?? ''),
+      pos: _sanitizeString(json['pos'] as String? ?? ''),
     );
   }
 }
@@ -86,10 +94,10 @@ class InitialNPCGreeting {
         : [];
 
     return InitialNPCGreeting(
-      responseTarget: json['response_target'] as String,
+      responseTarget: _sanitizeString(json['response_target'] as String? ?? ''),
       responseAudioPath: json['response_audio_path'] as String,
-      responseEnglish: json['response_english'] as String? ?? '', 
-      responseTranslit: json['response_translit'] as String? ?? '',
+      responseEnglish: _sanitizeString(json['response_english'] as String? ?? ''), 
+      responseTranslit: _sanitizeString(json['response_translit'] as String? ?? ''),
       responseMapping: mappings,
     );
   }
@@ -173,6 +181,24 @@ final currentCharmLevelProvider = StateProvider<int>((ref) => 50);
 // Provider for the audio player used for replaying dialogue lines
 final dialogueReplayPlayerProvider = Provider<just_audio.AudioPlayer>((ref) => just_audio.AudioPlayer());
 
+// --- Language Name Helper ---
+String getLanguageName(String code) {
+  switch (code.toLowerCase()) {
+    case 'th':
+      return 'Thai';
+    case 'vi':
+      return 'Vietnamese';
+    case 'zh':
+      return 'Chinese';
+    case 'ja':
+      return 'Japanese';
+    case 'ko':
+      return 'Korean';
+    default:
+      return code.toUpperCase();
+  }
+}
+
 // Convert to ConsumerStatefulWidget to access ref
 class DialogueOverlay extends ConsumerStatefulWidget {
   final BabblelonGame game;
@@ -191,9 +217,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   late just_audio.AudioPlayer _greetingPlayer;
   bool _isRecording = false;
 
+  // --- State for Translation Dialog ---
+  final TextEditingController _translationEnglishController = TextEditingController();
+  final ValueNotifier<List<Map<String, String>>> _translationMappingsNotifier = ValueNotifier<List<Map<String, String>>>([]);
+  final ValueNotifier<String> _translationAudioNotifier = ValueNotifier<String>("");
+  final ValueNotifier<bool> _translationIsLoadingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> _translationErrorNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Translate to Thai'); // Default title
+
   // --- Audio Recording State ---
   late final AudioRecorder _audioRecorder;
-  // --- End Audio Recording State ---
 
   // --- Animation State ---
   AnimationController? _animationController;
@@ -329,6 +362,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _activeTextStreamTimer?.cancel();
     _mainDialogueScrollController.dispose();
     _historyDialogScrollController.dispose();
+    
+    // Dispose translation dialog state
+    _translationEnglishController.dispose();
+    _translationMappingsNotifier.dispose();
+    _translationAudioNotifier.dispose();
+    _translationIsLoadingNotifier.dispose();
+    _translationErrorNotifier.dispose();
+    _translationDialogTitleNotifier.dispose();
+
     super.dispose();
   }
 
@@ -448,8 +490,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
         var responsePayload = json.decode(npcResponseDataJson);
         
-        String playerTranscription = responsePayload['player_transcription'] ?? "Transcription unavailable";
-        String npcText = responsePayload['response_target'];
+        String playerTranscription = _sanitizeString(responsePayload['input_target'] ?? "Transcription unavailable");
+        String npcText = _sanitizeString(responsePayload['response_target'] ?? '...');
         List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
         List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
@@ -796,7 +838,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 icon: SizedBox(width: 80, height: 80, child: Image.asset('assets/images/ui/button_translate.png', fit: BoxFit.contain)),
-                                onPressed: () => _showEnglishToThaiTranslationDialog(context), // Changed to new dialog
+                                onPressed: () => _showEnglishToTargetLanguageTranslationDialog(context), // Changed to new dialog
                               ),
                             ],
                           ),
@@ -954,14 +996,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
   
-  // --- New Dialog for English to Thai Translation Input ---
-  Future<void> _showEnglishToThaiTranslationDialog(BuildContext context) async {
-    final TextEditingController englishTextController = TextEditingController();
-    final ValueNotifier<String> translatedThaiTextNotifier = ValueNotifier<String>("");
-    final ValueNotifier<String> translatedRomanizationNotifier = ValueNotifier<String>("");
-    final ValueNotifier<String> audioBase64Notifier = ValueNotifier<String>(""); // To store audio data
-    final ValueNotifier<bool> isLoadingNotifier = ValueNotifier<bool>(false);
-    final ValueNotifier<String?> errorNotifier = ValueNotifier<String?>(null);
+  // --- New Dialog for English to Target Language Translation Input ---
+  Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th"}) async {
+    // Set initial title when dialog is opened.
+    _translationDialogTitleNotifier.value = 'Translate to ${getLanguageName(targetLanguage)}';
 
     // Get the audio player from Riverpod
     final audioPlayer = ref.read(dialogueReplayPlayerProvider);
@@ -976,7 +1014,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         await audioPlayer.play();
       } catch (e) {
         print("Error playing translated audio: $e");
-        errorNotifier.value = "Error playing audio.";
+        _translationErrorNotifier.value = "Error playing audio.";
       }
     }
 
@@ -985,14 +1023,17 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Translate to Thai'),
+          title: ValueListenableBuilder<String>(
+            valueListenable: _translationDialogTitleNotifier,
+            builder: (context, title, child) => Text(title),
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 Text('Enter English text to translate:'),
                 SizedBox(height: 8),
                 TextField(
-                  controller: englishTextController,
+                  controller: _translationEnglishController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     hintText: 'Type here...',
@@ -1002,7 +1043,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 ),
                 SizedBox(height: 16),
                 ValueListenableBuilder<bool>(
-                  valueListenable: isLoadingNotifier,
+                  valueListenable: _translationIsLoadingNotifier,
                   builder: (context, isLoading, child) {
                     if (isLoading) {
                       return Center(child: CircularProgressIndicator());
@@ -1011,7 +1052,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ValueListenableBuilder<String?>(
-                          valueListenable: errorNotifier,
+                          valueListenable: _translationErrorNotifier,
                           builder: (context, error, child) {
                             if (error != null) {
                               return Text(error, style: TextStyle(color: Colors.red));
@@ -1019,10 +1060,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                             return SizedBox.shrink();
                           },
                         ),
-                        ValueListenableBuilder<String>(
-                          valueListenable: translatedThaiTextNotifier,
-                          builder: (context, thaiText, child) {
-                            if (thaiText.isEmpty) return SizedBox.shrink();
+                        // Word mappings display with column format
+                        ValueListenableBuilder<List<Map<String, String>>>(
+                          valueListenable: _translationMappingsNotifier,
+                          builder: (context, wordMappings, child) {
+                            if (wordMappings.isEmpty) return SizedBox.shrink();
+                            
                             return Container(
                               margin: EdgeInsets.only(bottom: 8),
                               padding: EdgeInsets.all(8),
@@ -1030,37 +1073,85 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                                 color: Colors.teal[50],
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Row( // Row for text and play button
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Text(thaiText, style: TextStyle(fontSize: 16, color: Colors.teal[800]))
+                                  // Header row with play button
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Translation:',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal[800],
+                                        ),
+                                      ),
+                                      ValueListenableBuilder<String>(
+                                        valueListenable: _translationAudioNotifier,
+                                        builder: (context, audioBase64, child) {
+                                          if (audioBase64.isEmpty) return SizedBox.shrink();
+                                          return IconButton(
+                                            icon: Icon(Icons.volume_up, color: Colors.teal[700]),
+                                            onPressed: () => playTranslatedAudio(audioBase64),
+                                          );
+                                        }
+                                      ),
+                                    ],
                                   ),
-                                  ValueListenableBuilder<String>(
-                                    valueListenable: audioBase64Notifier,
-                                    builder: (context, audioBase64, child) {
-                                      if (audioBase64.isEmpty) return SizedBox.shrink();
-                                      return IconButton(
-                                        icon: Icon(Icons.volume_up, color: Colors.teal[700]),
-                                        onPressed: () => playTranslatedAudio(audioBase64),
+                                  SizedBox(height: 8),
+                                  // Word mappings in column format
+                                  Wrap(
+                                    spacing: 8.0,
+                                    runSpacing: 4.0,
+                                    children: wordMappings.map((mapping) {
+                                      return Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.7),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.teal.shade200),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Target language text (top)
+                                            Text(
+                                              mapping['target'] ?? '',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.teal[800],
+                                              ),
+                                            ),
+                                            SizedBox(height: 1),
+                                            // Romanized text (middle)
+                                            Text(
+                                              mapping['romanized'] ?? '',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.teal[600],
+                                              ),
+                                            ),
+                                            SizedBox(height: 1),
+                                            // English text (bottom)
+                                            Text(
+                                              mapping['english'] ?? '',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.blueGrey[600],
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       );
-                                    }
+                                    }).toList(),
                                   ),
                                 ],
                               ),
-                            );
-                          },
-                        ),
-                        ValueListenableBuilder<String>(
-                          valueListenable: translatedRomanizationNotifier,
-                          builder: (context, romanizedText, child) {
-                            if (romanizedText.isEmpty) return SizedBox.shrink();
-                            return Container(
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.blueGrey[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(romanizedText, style: TextStyle(fontSize: 14, color: Colors.blueGrey[700])),
                             );
                           },
                         ),
@@ -1081,42 +1172,61 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             ElevatedButton(
               child: const Text('Translate'),
               onPressed: () async {
-                final String englishText = englishTextController.text;
+                final String englishText = _translationEnglishController.text;
                 if (englishText.trim().isEmpty) return;
 
-                isLoadingNotifier.value = true;
-                translatedThaiTextNotifier.value = "";
-                translatedRomanizationNotifier.value = "";
-                errorNotifier.value = null;
-                audioBase64Notifier.value = ""; // Clear previous audio
+                _translationIsLoadingNotifier.value = true;
+                _translationErrorNotifier.value = null; // Clear previous errors
 
                 try {
                   final response = await http.post(
                     Uri.parse('http://127.0.0.1:8000/gcloud-translate-tts/'), // New endpoint
                     headers: {'Content-Type': 'application/json'},
-                    body: jsonEncode({'english_text': englishText}),
+                    body: jsonEncode({
+                      'english_text': englishText,
+                      'target_language': targetLanguage
+                    }),
                   );
 
                   if (response.statusCode == 200) {
                     final data = jsonDecode(response.body);
-                    translatedThaiTextNotifier.value = data['thai_text'] ?? "";
-                    translatedRomanizationNotifier.value = data['romanized_text'] ?? "";
-                    audioBase64Notifier.value = data['audio_base64'] ?? ""; // Store the audio
+                    
+                    // Update dialog title with actual language name from response
+                    if (data['target_language_name'] != null) {
+                      _translationDialogTitleNotifier.value = 'Translate to ${data['target_language_name']}';
+                    }
+                    
+                    _translationAudioNotifier.value = data['audio_base64'] ?? ""; // Store the audio
+                    
+                    // Handle word mappings, updating the display
+                    if (data['word_mappings'] != null) {
+                      List<Map<String, String>> mappings = [];
+                      for (var mapping in data['word_mappings']) {
+                        mappings.add({
+                          'english': mapping['english']?.toString() ?? '',
+                          'target': mapping['target']?.toString() ?? '',
+                          'romanized': mapping['romanized']?.toString() ?? '',
+                        });
+                      }
+                      _translationMappingsNotifier.value = mappings;
+                    } else {
+                      _translationMappingsNotifier.value = []; // Clear mappings if none are returned
+                    }
                   } else {
                     String errorMessage = "Error: ${response.statusCode}";
                     try {
                        final errorData = jsonDecode(response.body);
                        errorMessage += ": ${errorData['detail'] ?? 'Unknown backend error'}";
                     } catch(_){ /* Ignore if error body is not json */ }
-                    errorNotifier.value = errorMessage;
+                    _translationErrorNotifier.value = errorMessage;
                     print("Backend translation error: ${response.body}");
                   }
                 } catch (e) {
-                  errorNotifier.value = "Error: Could not connect to translation service.";
+                  _translationErrorNotifier.value = "Error: Could not connect to translation service.";
                   print("Network or other error calling translation backend: $e");
                 }
 
-                isLoadingNotifier.value = false;
+                _translationIsLoadingNotifier.value = false;
               },
             ),
           ],
@@ -1164,9 +1274,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         if (audioPathToPlayWhenDone != null && audioPathToPlayWhenDone!.isNotEmpty) {
             final tempPlayer = just_audio.AudioPlayer();
             try {
-                return audioPathToPlayWhenDone!.startsWith('assets/') 
-                    ? await tempPlayer.setAsset(audioPathToPlayWhenDone!)
-                    : await tempPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPathToPlayWhenDone!)));
+                return audioPathToPlayWhenDone.startsWith('assets/') 
+                    ? await tempPlayer.setAsset(audioPathToPlayWhenDone)
+                    : await tempPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPathToPlayWhenDone)));
             } finally { tempPlayer.dispose(); }
         } else if (entryWithCorrectIdForAnimation.audioBytes != null && entryWithCorrectIdForAnimation.audioBytes!.isNotEmpty) {
             final tempPlayer = just_audio.AudioPlayer();

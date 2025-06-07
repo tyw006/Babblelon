@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import datetime
 from pydantic import BaseModel # For request body model
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 # --- Load .env file very first ---
 # This ensures that environment variables are loaded before any other modules
@@ -27,11 +27,7 @@ else:
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse
 from services.stt_service import transcribe_audio
-# Remove the old translation service import
-# from services.translation_service import translate_english_to_thai_and_romanize
-
-# Import the new Google Cloud service functions
-from services.translation_service import translate_text, romanize_thai_text, synthesize_speech
+from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name
 
 app = FastAPI()
 
@@ -60,38 +56,22 @@ app.add_middleware(
 )
 
 # --- Pydantic Models for Endpoints ---
-class TextToSpeechRequest(BaseModel):
-    text: str
-    voice_name: Optional[str] = "Puck"
-    response_tone: Optional[str] = None # Added to allow testing tone directly
-
-# TranscribeRequest is not strictly needed if /transcribe-audio/ uses File directly
-# class TranscribeRequest(BaseModel):
-# audio_file: UploadFile
-
-# GenerateNPCResponseRequest is removed as parameters will be handled by Form for this endpoint.
-# class GenerateNPCResponseRequest(BaseModel):
-#     npc_id: str
-#     npc_name: str
-#     conversation_history: str # This is conversation_history_full for get_llm_response
-#     charm_level: int
-
-class TestLLMRequest(BaseModel):
-    npc_id: str
-    npc_name: str
-    conversation_history: str
-    latest_player_message: str
-    current_charm_level: int
-    target_language: str = "Thai"
-
 class TranslationRequest(BaseModel):
     english_text: str
+    target_language: str = "th"  # Default to Thai for backward compatibility
+
+class WordMapping(BaseModel):
+    english: str
+    target: str  # Changed from 'thai' to 'target'
+    romanized: str
 
 class GoogleTranslationResponse(BaseModel):
     english_text: str
-    thai_text: str
+    target_text: str  # Changed from 'thai_text' to 'target_text'
     romanized_text: str
     audio_base64: str
+    word_mappings: list[WordMapping]
+    target_language_name: str
 
 # --- End Pydantic Models ---
 
@@ -106,13 +86,13 @@ async def root():
     return {"message": "Welcome to the Babblelon Backend!"}
 
 @app.post("/generate-npc-response/")
-async def generate_npc_response(
+async def generate_npc_response_endpoint(
     audio_file: UploadFile = File(...),
     npc_id: str = Form(...),
     npc_name: str = Form(...),
-    charm_level: int = Form(...),
-    previous_conversation_history: Optional[str] = Form(None), # Client sends history UP TO this player's turn
-    target_language: Optional[str] = Form("Thai") # Add target language parameter
+    charm_level: int = Form(50),
+    target_language: Optional[str] = Form("th"),  # Add target language parameter
+    previous_conversation_history: Optional[str] = Form("")
 ):
     print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. File: {audio_file.filename}")
     
@@ -162,19 +142,30 @@ async def generate_npc_response(
         header_payload = npc_response_data.model_dump() # NPCResponse fields
         header_payload["player_transcription"] = player_transcription # Add player's transcription
         
-        response_data_json = json.dumps(header_payload)
-        response_data_json_b64 = base64.b64encode(response_data_json.encode('utf-8')).decode('ascii')
+        # The JSON data part of the response needs to be base64 encoded to be sent in a header.
+        response_data_dict = {
+            "input_target": npc_response_data.input_target,
+            "emotion": npc_response_data.emotion,
+            "response_tone": npc_response_data.response_tone,
+            "response_target": npc_response_data.response_target,
+            "response_english": npc_response_data.response_english,
+            "response_mapping": [m.model_dump() for m in npc_response_data.response_mapping],
+            "input_mapping": [m.model_dump() for m in npc_response_data.input_mapping],
+            "charm_delta": npc_response_data.charm_delta
+        }
+        response_data_json = json.dumps(response_data_dict)
+        response_data_b64 = base64.b64encode(response_data_json.encode('utf-8')).decode('utf-8')
 
         print(f"[{datetime.datetime.now()}] DEBUG: Backend preparing to send X-NPC-Response-Data (JSON): {response_data_json}") # Log the JSON before base64
         print(f"[{datetime.datetime.now()}] DEBUG: Backend preparing to send audio bytes length: {len(npc_audio_bytes) if npc_audio_bytes else 'None'}")
 
-        print(f"[{datetime.datetime.now()}] INFO: Sending NPC response for {npc_id}. Header JSON (first 60 chars of b64): {response_data_json_b64[:60]}...")
+        print(f"[{datetime.datetime.now()}] INFO: Sending NPC response for {npc_id}. Header JSON (first 60 chars of b64): {response_data_b64[:60]}...")
         
         return StreamingResponse(
             io.BytesIO(npc_audio_bytes), 
             media_type="audio/wav",
             headers={
-                "X-NPC-Response-Data": response_data_json_b64
+                "X-NPC-Response-Data": response_data_b64
             }
         )
     except HTTPException as e:
@@ -186,28 +177,6 @@ async def generate_npc_response(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="An unexpected error occurred processing NPC response.")
-
-@app.post("/text-to-speech/")
-async def convert_text_to_speech(request: TextToSpeechRequest):
-    print(f"Received TTS request for text: '{request.text}' with voice '{request.voice_name}', tone: '{request.response_tone}'")
-    try:
-        audio_bytes = await text_to_speech_full( # Use text_to_speech_full
-            text_to_speak=request.text, 
-            voice_name=request.voice_name,
-            response_tone=request.response_tone # Pass tone
-        )
-        if not audio_bytes:
-            raise HTTPException(status_code=500, detail="Failed to generate audio (empty bytes returned)")
-        
-        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-        return {"audio_base64": audio_base64} # Return as base64 JSON for simple clients
-    except HTTPException as e: # Re-raise HTTP exceptions from tts_service
-        raise
-    except Exception as e:
-        print(f"Error in /text-to-speech/: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"TTS conversion error: {str(e)}")
 
 @app.get("/health")
 async def health_check():
@@ -237,103 +206,31 @@ async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
         total_time = datetime.datetime.now() - request_time
         print(f"[{datetime.datetime.now()}] INFO: /transcribe-audio/ finished. Total time: {total_time}")
 
-# --- Temporary Debug Endpoint for STT ---
-@app.post("/debug-stt/")
-async def debug_stt_endpoint(file_path: str = Form("assets/audio/test/test_input1.wav")):
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /debug-stt/ endpoint hit. Testing with file: {file_path}")
-    abs_file_path = project_root / file_path # Construct absolute path from project root
-    
-    if not os.path.exists(abs_file_path):
-        print(f"[{datetime.datetime.now()}] ERROR: File not found for STT debug: {abs_file_path}")
-        raise HTTPException(status_code=404, detail=f"File not found: {abs_file_path}")
-    
-    try:
-        with open(abs_file_path, 'rb') as audio_file:
-            audio_bytes = audio_file.read()
-        audio_content_stream = io.BytesIO(audio_bytes)
-        print(f"[{datetime.datetime.now()}] DEBUG: Read {len(audio_bytes)} bytes from {abs_file_path} for STT debug.")
-
-        transcription = await transcribe_audio(audio_content_stream)
-        print(f"[{datetime.datetime.now()}] DEBUG: STT debug result: '{transcription}'.")
-        
-        return {"file_path": str(abs_file_path), "transcription": transcription}
-    except HTTPException as e:
-        # Re-raise HTTPExceptions from the service
-        print(f"[{datetime.datetime.now()}] ERROR: HTTPException in STT debug: {e.detail}")
-        raise e
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] CRITICAL: Unexpected error in STT debug: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Unexpected error during STT debug: {str(e)}")
-    finally:
-        total_time = datetime.datetime.now() - request_time
-        print(f"[{datetime.datetime.now()}] INFO: /debug-stt/ request finished. Total time: {total_time}")
-# --- End Temporary Debug Endpoint ---
-
-# --- New Test Endpoint for LLM ---
-@app.post("/test-llm-response/")
-async def test_llm_response_endpoint(request: TestLLMRequest):
-    print(f"[{datetime.datetime.now()}] INFO: /test-llm-response/ received request for NPC: {request.npc_id}, Name: {request.npc_name}")
-    try:
-        npc_response_data = await get_llm_response(
-            npc_id=request.npc_id,
-            npc_name=request.npc_name,
-            conversation_history=request.conversation_history,
-            latest_player_message=request.latest_player_message,
-            current_charm_level=request.current_charm_level,
-            target_language=request.target_language
-        )
-        print(f"[{datetime.datetime.now()}] INFO: LLM test response for {request.npc_id} OK.")
-        return npc_response_data # Returns NPCResponse Pydantic model as JSON
-    except HTTPException as e:
-        print(f"[{datetime.datetime.now()}] ERROR: HTTPException in /test-llm-response/: {e.detail}")
-        raise e
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /test-llm-response/: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during LLM test: {str(e)}")
-# --- End New Test Endpoint for LLM ---
-
-# --- New Google Cloud Translation and TTS Endpoint ---
+# --- Google Cloud Translation and TTS Endpoint ---
 @app.post("/gcloud-translate-tts/", response_model=GoogleTranslationResponse)
 async def gcloud_translate_tts_endpoint(request: TranslationRequest):
     request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /gcloud-translate-tts/ received request for text: '{request.english_text[:50]}...'")
+    print(f"[{request_time}] INFO: /gcloud-translate-tts/ received request for text: '{request.english_text[:50]}...' in {request.target_language}")
     try:
-        # 1. Translate English to Thai
-        translation_result = await translate_text(request.english_text)
-        thai_text = translation_result["translated_text"]
-
-        # 2. Romanize the resulting Thai text
-        romanization_result = await romanize_thai_text(thai_text)
-        romanized_text = romanization_result["romanized_text"]
-
-        # 3. Synthesize speech from the Thai text
-        tts_result = await synthesize_speech(thai_text)
-        audio_base64 = tts_result["audio_base64"]
+        # Use the new optimized and parallelized mapping function
+        translation_result = await create_word_level_translation_mapping(request.english_text, request.target_language)
 
         response_payload = {
             "english_text": request.english_text,
-            "thai_text": thai_text,
-            "romanized_text": romanized_text,
-            "audio_base64": audio_base64,
+            "target_text": translation_result["target_text_spaced"],
+            "romanized_text": translation_result["romanized_text"],
+            "audio_base64": translation_result["audio_base64"],
+            "word_mappings": translation_result["word_mappings"],
+            "target_language_name": get_language_name(request.target_language)
         }
         
-        return GoogleTranslationResponse(**response_payload)
-
+        return JSONResponse(content=response_payload)
     except HTTPException as e:
-        # Re-raise exceptions from the service layer
-        print(f"[{datetime.datetime.now()}] ERROR: HTTPException in /gcloud-translate-tts/: {e.detail}")
+        # Re-raise HTTPException to let FastAPI handle it
         raise e
     except Exception as e:
-        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /gcloud-translate-tts/: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during Google Cloud processing: {str(e)}")
-# --- End New Google Cloud Translation and TTS Endpoint ---
+        print(f"[{datetime.datetime.now()}] ERROR: in /gcloud-translate-tts/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 
