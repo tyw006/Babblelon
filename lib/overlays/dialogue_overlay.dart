@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../game/babblelon_game.dart';
+import '../models/npc_item_data.dart';
 import '../providers/game_providers.dart'; // Ensure this import is present
 
 // --- Sanitization Helper ---
@@ -502,15 +503,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         print("Received Player Input Mappings: ${playerInputMappings.length} words");
 
         // Update charm level from backend
-        if (responsePayload.containsKey('new_charm_level')) {
-             // Note: NPCResponse model itself doesn't have new_charm_level, it's part of the LLM's raw output that llm_service maps to charm_delta.
-             // The main.py currently sends the *original* NPCResponse model dump.
-             // For now, we rely on charm_delta from NPCResponse.
-        }
         if (responsePayload.containsKey('charm_delta')) { // This comes from NPCResponse model
             int charmDelta = responsePayload['charm_delta'] ?? 0;
-             ref.read(currentCharmLevelProvider.notifier).update((state) => (state + charmDelta).clamp(0, 100));
-             print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider)}");
+            final charmNotifier = ref.read(currentCharmLevelProvider.notifier);
+            final oldCharm = charmNotifier.state;
+            int newCharm = (oldCharm + charmDelta).clamp(0, 100);
+
+            if (newCharm == 100 && oldCharm < 100) {
+              // Using context from the widget, which should be safe.
+              _showMaxCharmNotification(context);
+            }
+            
+            charmNotifier.state = newCharm;
+            print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider)}");
         }
 
         // Save NPC audio to a temporary file
@@ -687,15 +692,31 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 Positioned( // Charm Score Display
                   top: 10,
                   right: 10,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(128),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      'Charm: $displayedCharmLevel',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  child: GestureDetector(
+                    onDoubleTap: () => _showDebugCharmDialog(context), // Triple tap for debug
+                    child: Row(
+                      children: [
+                        if (displayedCharmLevel >= 75)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: IconButton(
+                              icon: Icon(Icons.card_giftcard, color: Colors.yellowAccent, size: 30),
+                              tooltip: 'Request Item',
+                              onPressed: () => _showRequestItemDialog(context),
+                            ),
+                          ),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(128),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Text(
+                            'Charm: $displayedCharmLevel',
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -852,6 +873,154 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           ),
                         ],
                       ),
+    );
+  }
+
+  // --- Item Request Dialogs ---
+  Future<void> _showRequestItemDialog(BuildContext context) async {
+    final int currentCharm = ref.read(currentCharmLevelProvider);
+    final String npcId = widget.currentNpcId;
+    final NpcItemData? itemData = npcItemDataMap[npcId];
+
+    if (itemData == null) {
+      print("Error: No item data found for NPC ID: $npcId");
+      return;
+    }
+
+    String dialogTitle = "Request an item from ${itemData.npcName}?";
+    String dialogContent;
+
+    if (currentCharm >= 100) {
+        dialogContent = "You have reached maximum charm! You can receive a special item. This will end the conversation.";
+    } else {
+        dialogContent = "Your charm is high enough to request an item. Request the regular item now, or wait until your charm is 100 to receive a special item? Requesting an item will end the conversation.";
+    }
+
+    return showDialog<void>(
+        context: context,
+        barrierDismissible: false, // User must make a choice
+        builder: (BuildContext dialogContext) {
+            return AlertDialog(
+                title: Text(dialogTitle),
+                content: Text(dialogContent),
+                actions: <Widget>[
+                    TextButton(
+                        child: const Text('Wait'),
+                        onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                        },
+                    ),
+                    ElevatedButton(
+                        child: Text(currentCharm >= 100 ? 'Receive Special Item' : 'Request Regular Item'),
+                        onPressed: () {
+                            Navigator.of(dialogContext).pop(); // Close this dialog
+                            final isSpecial = currentCharm >= 100;
+                            String receivedItem = isSpecial ? itemData.specialItem : itemData.regularItem;
+                            String receivedItemAsset = isSpecial ? itemData.specialItemAsset : itemData.regularItemAsset;
+                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset);
+                        },
+                    ),
+                ],
+            );
+        },
+    );
+  }
+
+  Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset) {
+    return showDialog<void>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+            return AlertDialog(
+                title: Text("Item Received!"),
+                content: Text("You have received: $itemName"),
+                actions: <Widget>[
+                    TextButton(
+                        child: const Text('OK'),
+                        onPressed: () {
+                            // Update inventory state
+                            ref.read(inventoryProvider.notifier).update((state) {
+                              final newState = Map<String, String?>.from(state);
+                              newState['attack'] = itemAsset;
+                              return newState;
+                            });
+
+                            Navigator.of(dialogContext).pop(); // Close this dialog first
+
+                            // Then close the main dialogue overlay and resume game
+                            widget.game.overlays.remove('dialogue');
+                            widget.game.resumeGame(ref);
+                        },
+                    ),
+                ],
+            );
+        },
+    );
+  }
+
+  // --- Max Charm Notification ---
+  Future<void> _showMaxCharmNotification(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text("Max Charm Reached!"),
+          content: Text("You have reached the maximum charm level with ${widget.currentNpcName}! You can now request a special item."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Debug Charm Dialog ---
+  Future<void> _showDebugCharmDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text("Debug: Set Charm Level"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                child: Text("Set Charm to 20"),
+                onPressed: () {
+                  ref.read(currentCharmLevelProvider.notifier).state = 20;
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+              ElevatedButton(
+                child: Text("Set Charm to 75"),
+                onPressed: () {
+                  ref.read(currentCharmLevelProvider.notifier).state = 75;
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+              ElevatedButton(
+                child: Text("Set Charm to 100"),
+                onPressed: () {
+                  ref.read(currentCharmLevelProvider.notifier).state = 100;
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -1,71 +1,128 @@
 {
-    "amara": {
-      "response_target": "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!",
-      "response_audio_path": "assets/audio/npc/amara_greeting.wav",
-      "response_english": "Hello! Welcome to the dim sum stall!",
-      "response_translit": "sawatdi kha! yindi tonrap su phaeng tim sam kha!",
-      "response_mapping": [
-        {
-          "word_target": "สวัสดี",
-          "word_translit": "sawatdi",
-          "word_eng": "hello/hi",
-          "pos": "INTJ"
-        },
-        {
-          "word_target": "ค่ะ",
-          "word_translit": "kha",
-          "word_eng": "polite particle (female)",
-          "pos": "PART"
-        },
-        {
-          "word_target": "!",
-          "word_translit": "!",
-          "word_eng": "!",
-          "pos": "PUNCT"
-        },
-        {
-          "word_target": "ยินดี",
-          "word_translit": "yindi",
-          "word_eng": "glad/happy",
-          "pos": "ADJ"
-        },
-        {
-          "word_target": "ต้อนรับ",
-          "word_translit": "tonrap",
-          "word_eng": "to welcome",
-          "pos": "VERB"
-        },
-        {
-          "word_target": "สู่",
-          "word_translit": "su",
-          "word_eng": "to/towards",
-          "pos": "ADP"
-        },
-        {
-          "word_target": "แผง",
-          "word_translit": "phaeng",
-          "word_eng": "stall/stand",
-          "pos": "NOUN"
-        },
-        {
-          "word_target": "ติ่มซำ",
-          "word_translit": "tim sam",
-          "word_eng": "dim sum",
-          "pos": "NOUN"
-        },
-        {
-          "word_target": "ค่ะ",
-          "word_translit": "kha",
-          "word_eng": "polite particle (female)",
-          "pos": "PART"
-        },
-        {
-          "word_target": "!",
-          "word_translit": "!",
-          "word_eng": "!",
-          "pos": "PUNCT"
-        }
-      ]
-    }
+  "amara": {
+    "response_target": "สวัสดีค่ะ! ยินดีต้อนรับสู่แผงติ่มซำค่ะ!",
+    "response_audio_path": "assets/audio/npc/amara_greeting.wav",
+    "response_english": "Hello! Welcome to the dim sum stall!",
+    "response_translit": "sawatdi kha! yindi tonrap su phaeng tim sam kha!",
+    "tone": "Brightly Welcoming",
+    "response_mapping": [
+      {
+        "word_target": "สวัสดี",
+        "word_translit": "sawatdi",
+        "word_eng": "hello/hi",
+        "pos": "INTJ"
+      },
+      {
+        "word_target": "ค่ะ",
+        "word_translit": "kha",
+        "word_eng": "polite particle (female)",
+        "pos": "PART"
+      },
+      {
+        "word_target": "!",
+        "word_translit": "!",
+        "word_eng": "!",
+        "pos": "PUNCT"
+      },
+      {
+        "word_target": "ยินดี",
+        "word_translit": "yindi",
+        "word_eng": "glad/happy",
+        "pos": "ADJ"
+      },
+      {
+        "word_target": "ต้อนรับ",
+        "word_translit": "tonrap",
+        "word_eng": "to welcome",
+        "pos": "VERB"
+      },
+      {
+        "word_target": "สู่",
+        "word_translit": "su",
+        "word_eng": "to/towards",
+        "pos": "ADP"
+      },
+      {
+        "word_target": "แผง",
+        "word_translit": "phaeng",
+        "word_eng": "stall/stand",
+        "pos": "NOUN"
+      },
+      {
+        "word_target": "ติ่มซำ",
+        "word_translit": "tim sam",
+        "word_eng": "dim sum",
+        "pos": "NOUN"
+      },
+      {
+        "word_target": "ค่ะ",
+        "word_translit": "kha",
+        "word_eng": "polite particle (female)",
+        "pos": "PART"
+      },
+      {
+        "word_target": "!",
+        "word_translit": "!",
+        "word_eng": "!",
+        "pos": "PUNCT"
+      }
+    ]
+  },
+  "somchai": {
+    "response_target": "อ้าวไอ้หนู มากินก๋วยจั๊บเหรอครับ?",
+    "response_audio_path": "assets/audio/npc/somchai_greeting.wav",
+    "response_english": "Hey kid, here to eat Kway Chap?",
+    "response_translit": "ao ai nu ma gin kway chap roe khrap?",
+    "tone": "Gruffly Inquisitive",
+    "response_mapping": [
+      {
+        "word_target": "อ้าว",
+        "word_translit": "ao",
+        "word_eng": "hey",
+        "pos": "INTJ"
+      },
+      {
+        "word_target": "ไอ้หนู",
+        "word_translit": "ai nu",
+        "word_eng": "kid",
+        "pos": "NOUN"
+      },
+      {
+        "word_target": "มา",
+        "word_translit": "ma",
+        "word_eng": "to come",
+        "pos": "VERB"
+      },
+      {
+        "word_target": "กิน",
+        "word_translit": "gin",
+        "word_eng": "to eat",
+        "pos": "VERB"
+      },
+      {
+        "word_target": "ก๋วยจั๊บ",
+        "word_translit": "kway chap",
+        "word_eng": "Kway Chap",
+        "pos": "NOUN"
+      },
+      {
+        "word_target": "เหรอ",
+        "word_translit": "roe",
+        "word_eng": "question particle",
+        "pos": "PART"
+      },
+      {
+        "word_target": "ครับ",
+        "word_translit": "khrap",
+        "word_eng": "polite particle (male)",
+        "pos": "PART"
+      },
+      {
+        "word_target": "?",
+        "word_translit": "?",
+        "word_eng": "?",
+        "pos": "PUNCT"
+      }
+    ]
   }
-  
+}
