@@ -131,6 +131,56 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
+class InventoryWidget extends ConsumerWidget {
+  const InventoryWidget({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inventory = ref.watch(inventoryProvider);
+    final attackItem = inventory['attack'];
+    final defenseItem = inventory['defense'];
+
+    // Using an Opacity widget to hide/show the inventory based on whether it's empty.
+    return Opacity(
+      opacity: (attackItem == null && defenseItem == null) ? 0.0 : 1.0,
+      child: Container(
+        width: 80, // Adjusted size to better fit the UI
+        height: 160, // Adjusted size
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/ui/inventory.png'),
+            fit: BoxFit.contain,
+          ),
+        ),
+        child: Column(
+          children: [
+            Expanded( // Attack Slot
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.all(12), // Padding inside the slot
+                margin: const EdgeInsets.only(top: 20), // Margin to align with the box
+                child: attackItem != null 
+                  ? Image.asset(attackItem) 
+                  : const SizedBox.shrink(),
+              ),
+            ),
+            Expanded( // Defense Slot
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.all(12), // Padding inside the slot
+                margin: const EdgeInsets.only(bottom: 20), // Margin to align with the box
+                child: defenseItem != null 
+                  ? Image.asset(defenseItem) 
+                  : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class GameOverMenu extends StatelessWidget {
   const GameOverMenu({super.key});
 
@@ -191,89 +241,52 @@ class MainMenu extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // --- Inventory Section ---
+                const _InventoryCard(),
+                const SizedBox(height: 24),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 16),
+                // --- End Inventory Section ---
+
                 const Text(
                   'Menu',
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
 
                 // Music Toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
-                  children: [
-                    Icon(gameState.bgmIsPlaying ? Icons.music_note : Icons.music_off, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      gameState.musicEnabled ? 'Music On' : 'Music Off',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    Switch(
-                      value: gameState.musicEnabled,
-                      onChanged: (val) => ref.read(gameStateProvider.notifier).toggleMusic(),
-                      activeColor: Colors.green,
-                      inactiveThumbColor: Colors.red,
-                    ),
-                  ],
+                _MenuRow(
+                  icon: gameState.musicEnabled ? Icons.music_note : Icons.music_off,
+                  label: gameState.musicEnabled ? 'Music On' : 'Music Off',
+                  value: gameState.musicEnabled,
+                  onChanged: (val) => ref.read(gameStateProvider.notifier).toggleMusic(),
                 ),
                 const SizedBox(height: 16),
 
                 // Translation Toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
-                  children: [
-                    Icon(dialogueSettings.showTranslation ? Icons.translate : Icons.translate_outlined, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      dialogueSettings.showTranslation ? 'Translation On' : 'Translation Off',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    Switch(
-                      value: dialogueSettings.showTranslation,
-                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
-                      activeColor: Colors.lightBlueAccent,
-                      inactiveThumbColor: Colors.grey,
-                    ),
-                  ],
+                _MenuRow(
+                  icon: dialogueSettings.showTranslation ? Icons.translate : Icons.translate_outlined,
+                  label: dialogueSettings.showTranslation ? 'Translation On' : 'Translation Off',
+                  value: dialogueSettings.showTranslation,
+                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
                 ),
                 const SizedBox(height: 16),
 
                 // Transliteration Toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
-                  children: [
-                    Icon(dialogueSettings.showTransliteration ? Icons.spellcheck : Icons.spellcheck_outlined, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      dialogueSettings.showTransliteration ? 'Transliteration On' : 'Transliteration Off',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    Switch(
-                      value: dialogueSettings.showTransliteration,
-                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
-                      activeColor: Colors.orangeAccent,
-                      inactiveThumbColor: Colors.grey,
-                    ),
-                  ],
+                _MenuRow(
+                  icon: dialogueSettings.showTransliteration ? Icons.spellcheck : Icons.spellcheck_outlined,
+                  label: dialogueSettings.showTransliteration ? 'Transliteration On' : 'Transliteration Off',
+                  value: dialogueSettings.showTransliteration,
+                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
                 ),
                 const SizedBox(height: 16),
 
                 // Word Highlighting (formerly POS Colors) Toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items
-                  children: [
-                    Icon(dialogueSettings.showPos ? Icons.color_lens : Icons.color_lens_outlined, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      dialogueSettings.showPos ? 'Word Colors On' : 'Word Colors Off', // Renamed
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    Switch(
-                      value: dialogueSettings.showPos,
-                      onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
-                      activeColor: Colors.purpleAccent,
-                      inactiveThumbColor: Colors.grey,
-                    ),
-                  ],
+                _MenuRow(
+                  icon: dialogueSettings.showPos ? Icons.color_lens : Icons.color_lens_outlined,
+                  label: dialogueSettings.showPos ? 'Word Colors On' : 'Word Colors Off',
+                  value: dialogueSettings.showPos,
+                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -285,6 +298,120 @@ class MainMenu extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _InventoryCard extends ConsumerWidget {
+  const _InventoryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inventory = ref.watch(inventoryProvider);
+    final attackItem = inventory['attack'];
+    final defenseItem = inventory['defense'];
+
+    // If both slots are empty, don't show the inventory section at all.
+    if (attackItem == null && defenseItem == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Inventory',
+            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _InventorySlot(title: 'Attack', itemAsset: attackItem),
+              _InventorySlot(title: 'Defense', itemAsset: defenseItem),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InventorySlot extends StatelessWidget {
+  final String title;
+  final String? itemAsset;
+
+  const _InventorySlot({required this.title, this.itemAsset});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(title, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+        const SizedBox(height: 8),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: itemAsset != null
+              ? Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.asset(itemAsset!, fit: BoxFit.contain),
+                )
+              : const Center(
+                  child: Text(
+                  'Empty',
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                )),
+        ),
+      ],
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final Function(bool) onChanged;
+
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Icon(icon, color: Colors.white),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: Colors.green,
+          inactiveThumbColor: Colors.red,
+        ),
+      ],
     );
   }
 } 

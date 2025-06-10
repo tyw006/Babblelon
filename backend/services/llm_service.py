@@ -60,6 +60,7 @@ class NPCResponse(BaseModel):
     response_english: str # This is the English response
     response_mapping: List[POSMapping] = Field(description="POS tagging and word-level translations/transliterations in the response")
     charm_delta: int
+    charm_reason: str = Field(description="The reason for the charm delta")
 
 async def get_llm_response(
     npc_id: str, 
@@ -100,12 +101,8 @@ Current Charm: {current_charm_level}
 Conversation History:
 {conversation_history}
 
-Respond to the latest message. If you don't understand what the user is saying, simply say you don't understand and ask the user to explain themselves.
-Latest message:
+Respond to the latest message:
 Player: {latest_player_message}"""
-
-    # print(f"""DEBUG: llm_input for {npc_id} (first 500 chars):
-    # {llm_input[:500]}...""") # Commented out verbose log
 
     try:
         # Using client.responses.parse based on user's example

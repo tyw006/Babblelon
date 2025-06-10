@@ -102,4 +102,11 @@ class DialogueSettings extends _$DialogueSettings {
 final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false);
 
 // Provider to hold the list of temporary file paths to be cleaned up on exit
-final tempFilePathsProvider = StateProvider<List<String>>((ref) => []); 
+final tempFilePathsProvider = StateProvider<List<String>>((ref) => []);
+
+// --- Inventory State ---
+// Holds the asset path for items in 'attack' and 'defense' slots.
+final inventoryProvider = StateProvider<Map<String, String?>>((ref) => {
+  'attack': null,
+  'defense': null,
+}); 
