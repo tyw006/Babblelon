@@ -4,3 +4,4 @@ python-dotenv
 openai
 elevenlabs
 google-generativeai
+azure-cognitiveservices-speech
