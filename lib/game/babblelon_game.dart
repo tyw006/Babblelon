@@ -349,4 +349,18 @@ class BabblelonGame extends FlameGame with
     FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
     ref.read(gameStateProvider.notifier).setBgmPlaying(true);
   }
+
+  void hideSpeechBubbleFor(String npcId) {
+    if (_speechBubbles.containsKey(npcId)) {
+      final bubble = _speechBubbles[npcId]!;
+      if (bubble.isMounted) {
+        bubble.removeFromParent();
+      }
+    }
+    // If this was the active NPC, clear it so the bubble doesn't reappear
+    // until the player moves to a different NPC.
+    if (_activeNpcId == npcId) {
+      _activeNpcId = null;
+    }
+  }
 } 
