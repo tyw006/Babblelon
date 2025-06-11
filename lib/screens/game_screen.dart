@@ -251,39 +251,25 @@ class MainMenu extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Music Toggle
-                _MenuRow(
+                _MenuButton(
                   icon: gameState.musicEnabled ? Icons.music_note : Icons.music_off,
                   label: gameState.musicEnabled ? 'Music On' : 'Music Off',
                   value: gameState.musicEnabled,
                   onChanged: (val) => ref.read(gameStateProvider.notifier).toggleMusic(),
                 ),
-                const SizedBox(height: 16),
-
-                // Translation Toggle
-                _MenuRow(
-                  icon: dialogueSettings.showTranslation ? Icons.translate : Icons.translate_outlined,
-                  label: dialogueSettings.showTranslation ? 'Translation On' : 'Translation Off',
-                  value: dialogueSettings.showTranslation,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
+                const SizedBox(height: 12),
+                _MenuButton(
+                  icon: dialogueSettings.showEnglishTranslation ? Icons.visibility : Icons.visibility_off,
+                  label: 'English Translation',
+                  value: dialogueSettings.showEnglishTranslation,
+                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
                 ),
-                const SizedBox(height: 16),
-
-                // Transliteration Toggle
-                _MenuRow(
-                  icon: dialogueSettings.showTransliteration ? Icons.spellcheck : Icons.spellcheck_outlined,
-                  label: dialogueSettings.showTransliteration ? 'Transliteration On' : 'Transliteration Off',
-                  value: dialogueSettings.showTransliteration,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
-                ),
-                const SizedBox(height: 16),
-
-                // Word Highlighting (formerly POS Colors) Toggle
-                _MenuRow(
-                  icon: dialogueSettings.showPos ? Icons.color_lens : Icons.color_lens_outlined,
-                  label: dialogueSettings.showPos ? 'Word Colors On' : 'Word Colors Off',
-                  value: dialogueSettings.showPos,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
+                const SizedBox(height: 12),
+                _MenuButton(
+                  icon: dialogueSettings.showWordByWordAnalysis ? Icons.segment : Icons.segment_outlined,
+                  label: 'Word Analysis',
+                  value: dialogueSettings.showWordByWordAnalysis,
+                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -398,6 +384,41 @@ class _MenuRow extends StatelessWidget {
   final Function(bool) onChanged;
 
   const _MenuRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Icon(icon, color: Colors.white),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: Colors.green,
+          inactiveThumbColor: Colors.red,
+        ),
+      ],
+    );
+  }
+}
+
+class _MenuButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final Function(bool) onChanged;
+
+  const _MenuButton({
     required this.icon,
     required this.label,
     required this.value,

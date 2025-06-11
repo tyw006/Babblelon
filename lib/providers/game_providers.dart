@@ -66,28 +66,24 @@ class GameState extends _$GameState {
 // --- Dialogue Settings ---
 @immutable
 class DialogueSettingsData {
-  final bool showTranslation;
-  final bool showTransliteration;
-  final bool showPos;
+  final bool showWordByWordAnalysis;
+  final bool showEnglishTranslation;
   final bool isMicEnabled;
 
   const DialogueSettingsData({
-    this.showTranslation = false,
-    this.showTransliteration = false,
-    this.showPos = false,
+    this.showWordByWordAnalysis = false,
+    this.showEnglishTranslation = false,
     this.isMicEnabled = true,
   });
 
   DialogueSettingsData copyWith({
-    bool? showTranslation,
-    bool? showTransliteration,
-    bool? showPos,
+    bool? showWordByWordAnalysis,
+    bool? showEnglishTranslation,
     bool? isMicEnabled,
   }) {
     return DialogueSettingsData(
-      showTranslation: showTranslation ?? this.showTranslation,
-      showTransliteration: showTransliteration ?? this.showTransliteration,
-      showPos: showPos ?? this.showPos,
+      showWordByWordAnalysis: showWordByWordAnalysis ?? this.showWordByWordAnalysis,
+      showEnglishTranslation: showEnglishTranslation ?? this.showEnglishTranslation,
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,
     );
   }
@@ -98,9 +94,14 @@ class DialogueSettings extends _$DialogueSettings {
   @override
   DialogueSettingsData build() => const DialogueSettingsData();
 
-  void toggleTranslation() => state = state.copyWith(showTranslation: !state.showTranslation);
-  void toggleTransliteration() => state = state.copyWith(showTransliteration: !state.showTransliteration);
-  void toggleShowPos() => state = state.copyWith(showPos: !state.showPos);
+  void toggleWordByWordAnalysis() {
+    state = state.copyWith(showWordByWordAnalysis: !state.showWordByWordAnalysis);
+  }
+
+  void toggleShowEnglishTranslation() {
+    state = state.copyWith(showEnglishTranslation: !state.showEnglishTranslation);
+  }
+
   void toggleMicUsage() => state = state.copyWith(isMicEnabled: !state.isMicEnabled);
 }
 

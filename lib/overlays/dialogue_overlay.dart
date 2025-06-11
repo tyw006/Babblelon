@@ -112,6 +112,7 @@ class InitialNPCGreeting {
 class DialogueEntry {
   final String id; // Unique ID for the entry
   final String text;
+  final String englishText; // To store the full English translation
   final String speaker;
   final String? audioPath; // For player's recorded audio
   final Uint8List? audioBytes; // For NPC's TTS audio
@@ -123,6 +124,7 @@ class DialogueEntry {
   DialogueEntry({
     String? customId, // Use a different name to avoid conflict with field 'id'
     required this.text,
+    required this.englishText,
     required this.speaker,
     this.audioPath,
     this.audioBytes,
@@ -139,6 +141,7 @@ class DialogueEntry {
     return DialogueEntry(
       // customId will be null, so _generateId() is used by the main constructor
       text: transcribedText, // Player's own transcribed text
+      englishText: transcribedText,
       speaker: 'Player',
       audioPath: audioPath,
       isNpc: false,
@@ -149,7 +152,8 @@ class DialogueEntry {
 
   factory DialogueEntry.npc({
     String? id, // Allow factory to take an ID
-    required String text, 
+    required String text,
+    required String englishText,
     String? audioPath, 
     Uint8List? audioBytes, 
     required String npcName, 
@@ -158,6 +162,7 @@ class DialogueEntry {
     return DialogueEntry(
       customId: id, // Pass it to the main constructor
       text: text,
+      englishText: englishText,
       speaker: npcName, // Use dynamic NPC name
       audioPath: audioPath,
       audioBytes: audioBytes,
@@ -269,7 +274,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _loadInitialGreetingData();
+      await _loadAndPlayInitialGreeting();
 
       final hasPlayedGreeting = ref.read(greetingPlayedProvider(widget.npcId));
       final currentNpcDisplayNotifier = ref.read(currentNpcDisplayEntryProvider.notifier);
@@ -277,7 +282,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
       if (_initialGreetingData == null) {
         print("Error: ${_npcData.name}'s initial greeting data could not be loaded.");
-        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", npcName: _npcData.name);
+        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", englishText: "Error loading greeting.", npcName: _npcData.name);
         currentNpcDisplayNotifier.state = errorEntry;
         fullHistoryNotifier.state = [errorEntry]; // Also add to history
         return;
@@ -285,9 +290,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
       if (!hasPlayedGreeting) {
         final placeholderForAnimation = DialogueEntry.npc(
-          text: "",
+          id: 'placeholder_anim',
+          text: '',
+          englishText: '',
           npcName: _npcData.name,
-          posMappings: _initialGreetingData!.responseMapping,
+          posMappings: [],
         );
         currentNpcDisplayNotifier.state = placeholderForAnimation;
         // Add to full history as well, it will be updated by animation completion
@@ -297,6 +304,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           idForAnimation: placeholderForAnimation.id,
           speakerName: _npcData.name,
           fullText: _initialGreetingData!.responseTarget, 
+          englishText: _initialGreetingData!.responseEnglish,
           audioPathToPlayWhenDone: _initialGreetingData!.responseAudioPath,
           posMappings: _initialGreetingData!.responseMapping,
           onAnimationComplete: (finalAnimatedEntry) {
@@ -320,6 +328,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           } else if (history.isEmpty) { // Or if history is empty, replay initial greeting
               final initialGreetingEntry = DialogueEntry.npc(
                   text: _initialGreetingData!.responseTarget,
+                  englishText: _initialGreetingData!.responseEnglish,
                   npcName: _npcData.name,
                   audioPath: _initialGreetingData!.responseAudioPath,
                   posMappings: _initialGreetingData!.responseMapping
@@ -338,18 +347,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     });
   }
 
-  Future<void> _loadInitialGreetingData() async {
-    try {
-      final String response = await rootBundle.loadString('assets/data/npc_initial_dialogues.json');
-      final data = json.decode(response) as Map<String, dynamic>;
-      if (data[widget.npcId] != null) {
-        _initialGreetingData = InitialNPCGreeting.fromJson(data[widget.npcId] as Map<String, dynamic>);
-      } else {
-        print("No initial greeting data found for NPC ID: ${widget.npcId}");
-      }
-    } catch (e) {
-      print("Error loading initial greeting data: $e");
-      _initialGreetingData = null;
+  Future<void> _loadAndPlayInitialGreeting() async {
+    final npcId = widget.npcId;
+    // Load the initial dialogue data from JSON
+    final jsonString = await rootBundle.loadString('assets/data/npc_initial_dialogues.json');
+    final Map<String, dynamic> allGreetings = json.decode(jsonString);
+    final greetingData = allGreetings[npcId];
+
+    if (greetingData != null) {
+      _initialGreetingData = InitialNPCGreeting.fromJson(greetingData);
+      
+      final entry = DialogueEntry.npc(
+        id: 'greeting_$npcId',
+        text: _initialGreetingData!.responseTarget,
+        englishText: _initialGreetingData!.responseEnglish,
+        audioPath: _initialGreetingData!.responseAudioPath,
+        npcName: _npcData.name,
+        posMappings: _initialGreetingData!.responseMapping,
+      );
+
+      // Set this as the current entry to display
+      ref.read(currentNpcDisplayEntryProvider.notifier).state = entry;
+      ref.read(fullConversationHistoryProvider.notifier).update((history) => [...history, entry]);
+      _scrollToBottom(_historyDialogScrollController);
+    } else {
+      print("Error: No initial greeting data found for NPC: $npcId");
+      final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", englishText: "Error loading greeting.", npcName: _npcData.name);
+      ref.read(currentNpcDisplayEntryProvider.notifier).state = errorEntry;
     }
   }
 
@@ -548,6 +572,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         final npcEntryForDisplayAndHistory = DialogueEntry.npc(
           id: npcEntryId, // Use the pre-generated ID
           text: "", // Start with blank for animation
+          englishText: responsePayload['response_english'] ?? '',
           npcName: _npcData.name,
           audioPath: tempNpcAudioPath, // This is the path to the NPC's audio file
           audioBytes: npcAudioBytes, // This is the actual audio data for NPC
@@ -565,6 +590,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           idForAnimation: npcEntryId, // Pass the pre-generated ID
           speakerName: _npcData.name, // Pass speaker name
           fullText: npcText,
+          englishText: responsePayload['response_english'] ?? '',
           audioPathToPlayWhenDone: tempNpcAudioPath, // Pass audio path
           audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
           posMappings: npcPosMappings,
@@ -685,9 +711,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     final dialogueSettings = ref.watch(dialogueSettingsProvider);
     final currentNpcDisplayEntry = ref.watch(currentNpcDisplayEntryProvider);
-    final bool showTranslations = dialogueSettings.showTranslation;
-    final bool showTransliterations = dialogueSettings.showTransliteration;
-    final bool showPOSColors = dialogueSettings.showPos;
+    final bool showEnglishTranslation = dialogueSettings.showEnglishTranslation;
+    final bool showWordByWordAnalysis = dialogueSettings.showWordByWordAnalysis;
     final int displayedCharmLevel = ref.watch(currentCharmLevelProvider(widget.npcId));
 
     final bool isAnimatingThisNpcEntry = (currentNpcDisplayEntry != null && currentNpcDisplayEntry.id == _currentlyAnimatingEntryId);
@@ -696,11 +721,13 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     if (currentNpcDisplayEntry == null) {
       npcContentWidget = const SizedBox.shrink();
     } else {
+      // Always build the main content first
+      Widget mainContent;
       String textToDisplayForNpc = isAnimatingThisNpcEntry ? _displayedTextForAnimation : (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] ?? currentNpcDisplayEntry.text);
-      bool useCenteredLayout = !showTranslations && !showTransliterations && textToDisplayForNpc.length < 40 && !isAnimatingThisNpcEntry && (currentNpcDisplayEntry.posMappings == null || currentNpcDisplayEntry.posMappings!.isEmpty);
+      bool useCenteredLayout = !showWordByWordAnalysis && textToDisplayForNpc.length < 40 && !isAnimatingThisNpcEntry && (currentNpcDisplayEntry.posMappings == null || currentNpcDisplayEntry.posMappings!.isEmpty);
 
       if (useCenteredLayout) {
-        npcContentWidget = Center(
+        mainContent = Center(
           child: Text(
             textToDisplayForNpc,
             textAlign: TextAlign.center,
@@ -708,7 +735,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           ),
         );
       } else if (isAnimatingThisNpcEntry) {
-        npcContentWidget = Text(
+        mainContent = Text(
           textToDisplayForNpc,
           textAlign: TextAlign.left,
           style: const TextStyle(color: Colors.black, fontSize: 20),
@@ -716,15 +743,17 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       } else if (currentNpcDisplayEntry.isNpc && currentNpcDisplayEntry.posMappings != null && currentNpcDisplayEntry.posMappings!.isNotEmpty) {
         List<InlineSpan> wordSpans = currentNpcDisplayEntry.posMappings!.map((mapping) {
           List<Widget> wordParts = [
-            Text(mapping.wordTarget, style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 20, fontWeight: FontWeight.w500)),
+            Text(mapping.wordTarget, style: TextStyle(color: showWordByWordAnalysis ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 20, fontWeight: FontWeight.w500)),
           ];
-          if (showTransliterations && mapping.wordTranslit.isNotEmpty) {
-            wordParts.add(const SizedBox(height: 1));
-            wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
-          }
-          if (showTranslations && mapping.wordEng.isNotEmpty) {
-            wordParts.add(const SizedBox(height: 1));
-            wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+          if (showWordByWordAnalysis) {
+            if (mapping.wordTranslit.isNotEmpty) {
+              wordParts.add(const SizedBox(height: 1));
+              wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.black54)));
+            }
+            if (mapping.wordEng.isNotEmpty) {
+              wordParts.add(const SizedBox(height: 1));
+              wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+            }
           }
           return WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -734,10 +763,28 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             ),
           );
         }).toList();
-        npcContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+        mainContent = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
       } else {
-        npcContentWidget = Text(textToDisplayForNpc, style: const TextStyle(fontSize: 18, color: Colors.black87));
+        mainContent = Text(textToDisplayForNpc, style: const TextStyle(fontSize: 18, color: Colors.black87));
       }
+      
+      // Now, wrap the main content in a Column and conditionally add the English translation below it.
+      npcContentWidget = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: useCenteredLayout ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          mainContent,
+          if (showEnglishTranslation && currentNpcDisplayEntry.englishText.isNotEmpty && !isAnimatingThisNpcEntry)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                currentNpcDisplayEntry.englishText,
+                textAlign: useCenteredLayout ? TextAlign.center : TextAlign.left,
+                style: const TextStyle(fontSize: 18, color: Colors.black54, fontStyle: FontStyle.italic),
+              ),
+            ),
+        ],
+      );
     }
 
     return DialogueUI(
@@ -806,19 +853,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SwitchListTile(
-                    title: const Text('Show English Translation'),
-                    value: settings.showTranslation,
-                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
+                    title: const Text('English Translation'),
+                    subtitle: const Text('Show full English translation of dialogue.'),
+                    value: settings.showEnglishTranslation,
+                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
                   ),
                   SwitchListTile(
-                    title: const Text('Show Transliteration'),
-                    value: settings.showTransliteration,
-                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Show Parts of Speech'),
-                    value: settings.showPos,
-                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
+                    title: const Text('Language Breakdown'),
+                    subtitle: const Text('Show transliteration and POS for each word.'),
+                    value: settings.showWordByWordAnalysis,
+                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
                   ),
                 ],
               ),
@@ -990,9 +1034,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   Future<void> _showFullConversationHistoryDialog(BuildContext context) async {
     final historyEntries = ref.watch(fullConversationHistoryProvider); // Watch for live updates
     final dialogueSettings = ref.watch(dialogueSettingsProvider);
-    final bool showTranslationsInHistory = dialogueSettings.showTranslation;
-    final bool showTransliterationsInHistory = dialogueSettings.showTransliteration;
-    final bool showPOSColorsInHistory = dialogueSettings.showPos;
+    final bool showEnglishTranslationInHistory = dialogueSettings.showEnglishTranslation;
+    final bool showWordByWordAnalysisInHistory = dialogueSettings.showWordByWordAnalysis;
 
     // Ensure scroll to bottom when dialog opens or updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1019,22 +1062,39 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 itemCount: historyEntries.length,
                 itemBuilder: (context, index) {
                   final entry = historyEntries[index];
-                  Widget entryContentWidget;
+                  Widget mainContentWidget;
+                  Widget? englishTranslationWidget;
 
+                  // Conditionally create the English translation widget to be added later
+                  if (showEnglishTranslationInHistory && entry.englishText.isNotEmpty) {
+                    englishTranslationWidget = Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        entry.englishText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: entry.isNpc ? Colors.black54 : Colors.deepPurple.shade300,
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Build the main content (Thai or Word Analysis)
                   if (entry.isNpc) {
-                      if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
-                      // NPC live response with word columns
+                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
+                      // NPC with word analysis
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black87) : Colors.black87, fontSize: 18, fontWeight: FontWeight.w500)),
+                          Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.black87, fontSize: 18, fontWeight: FontWeight.w500)),
                         ];
-                        if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
+                        if (mapping.wordTranslit.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.black54)));
                         }
-                        if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
+                        if (mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1044,26 +1104,26 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           ),
                         );
                       }).toList();
-                      entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                      mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
                     } else {
-                      // NPC text without special formatting (e.g., if no POS mappings)
-                      entryContentWidget = Text(entry.text, style: TextStyle(fontSize: 18, color: Colors.black87));
+                      // Plain NPC text
+                      mainContentWidget = Text(entry.text, style: TextStyle(fontSize: 18, color: Colors.black87));
                     }
                   } else {
-                    // Player's transcribed text - check if we have POS mappings for enhanced display
-                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty) {
-                      // Player input with word columns (same as NPC but with different base color)
+                    // Player's transcribed text
+                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
+                      // Player with word analysis
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700) : Colors.deepPurple.shade700, fontSize: 18, fontWeight: FontWeight.w500)),
+                          Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700, fontSize: 18, fontWeight: FontWeight.w500)),
                         ];
-                        if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
+                        if (mapping.wordTranslit.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400) : Colors.deepPurple.shade400)));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400)));
                         }
-                        if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
+                        if (mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300) : Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1073,10 +1133,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           ),
                         );
                       }).toList();
-                      entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                      mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
                     } else {
-                      // Player's transcribed text without POS mappings (fallback)
-                      entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 18, color: Colors.deepPurple.shade700));
+                      // Plain player text
+                      mainContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 18, color: Colors.deepPurple.shade700));
                     }
                   }
 
@@ -1094,11 +1154,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           ),
                         ),
                         SizedBox(height: 2),
-                        Row( // Row for content and play button
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: entryContentWidget), // Dialogue content
-                            // Play button only if entry has audio
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  mainContentWidget, // Always show main content
+                                  if (englishTranslationWidget != null) englishTranslationWidget, // Conditionally show English translation
+                                ],
+                              ),
+                            ),
                             if (entry.audioPath != null || entry.audioBytes != null)
                               IconButton(
                                 icon: Icon(Icons.volume_up, color: Colors.black45),
@@ -1108,9 +1175,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                                 onPressed: () => _playDialogueAudio(entry),
                               ),
                           ],
-          ),
-        ],
-      ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -1371,6 +1438,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     required String idForAnimation, // Expecting the ID to be passed
     required String speakerName,    // Expecting speaker name
     required String fullText,    
+    required String englishText,
     String? audioPathToPlayWhenDone,
     Uint8List? audioBytesToPlayWhenDone, // Added to handle direct bytes
     List<POSMapping>? posMappings,
@@ -1384,6 +1452,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     DialogueEntry entryWithCorrectIdForAnimation = DialogueEntry.npc(
         id: idForAnimation, 
         text: "", // Start with blank text for animation
+        englishText: englishText,
         npcName: speakerName, 
         audioPath: audioPathToPlayWhenDone,
         audioBytes: audioBytesToPlayWhenDone,
@@ -1442,6 +1511,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 DialogueEntry finalAnimatedEntry = DialogueEntry.npc(
                     id: entryWithCorrectIdForAnimation.id, 
                     text: fullText, 
+                    englishText: englishText,
                     npcName: entryWithCorrectIdForAnimation.speaker, 
                     audioPath: entryWithCorrectIdForAnimation.audioPath, 
                     audioBytes: entryWithCorrectIdForAnimation.audioBytes,
