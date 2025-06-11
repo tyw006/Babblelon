@@ -78,7 +78,7 @@ class GoogleTranslationResponse(BaseModel):
 # Voice mapping for NPCs
 NPC_VOICE_MAP: Dict[str, str] = {
     "amara": "Sulafat",
-    "somchai": "Algenib",
+    "somchai": "Charon",
     "default": "Puck" 
 }
 

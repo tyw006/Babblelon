@@ -22,6 +22,7 @@ class DialogueUI extends StatelessWidget {
   final bool isProcessingBackend;
   final ScrollController mainDialogueScrollController;
   final VoidCallback onShowHistory;
+  final Widget? topRightAction;
 
   const DialogueUI({
     super.key,
@@ -40,6 +41,7 @@ class DialogueUI extends StatelessWidget {
     required this.isProcessingBackend,
     required this.mainDialogueScrollController,
     required this.onShowHistory,
+    this.topRightAction,
   });
 
   @override
@@ -182,6 +184,8 @@ class DialogueUI extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (topRightAction != null)
+                            topRightAction!,
                           Positioned(
                             bottom: 10,
                             right: 0,
