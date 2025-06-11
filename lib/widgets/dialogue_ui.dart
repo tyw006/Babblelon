@@ -15,10 +15,8 @@ class DialogueUI extends StatelessWidget {
   final AnimationController giftIconAnimationController;
   final VoidCallback onRequestItem;
   final VoidCallback onResumeGame;
-  final VoidCallback onStartRecording;
-  final VoidCallback onStopRecording;
   final VoidCallback onShowTranslation;
-  final Widget micButton;
+  final Widget micControls;
   final bool isProcessingBackend;
   final ScrollController mainDialogueScrollController;
   final VoidCallback onShowHistory;
@@ -34,10 +32,8 @@ class DialogueUI extends StatelessWidget {
     required this.giftIconAnimationController,
     required this.onRequestItem,
     required this.onResumeGame,
-    required this.onStartRecording,
-    required this.onStopRecording,
     required this.onShowTranslation,
-    required this.micButton,
+    required this.micControls,
     required this.isProcessingBackend,
     required this.mainDialogueScrollController,
     required this.onShowHistory,
@@ -213,12 +209,9 @@ class DialogueUI extends StatelessWidget {
                         icon: Icons.arrow_back,
                         onTap: onResumeGame,
                       ),
-                      GestureDetector(
-                        onLongPressStart: (_) => onStartRecording(),
-                        onLongPressEnd: (_) => onStopRecording(),
-                        onLongPressCancel: () => onStopRecording(),
-                        child: micButton,
-                      ),
+                      isProcessingBackend
+                          ? const CircularProgressIndicator()
+                          : micControls,
                       _buildControlButton(
                         icon: Icons.translate,
                         onTap: onShowTranslation,
