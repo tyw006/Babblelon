@@ -78,6 +78,7 @@ class GoogleTranslationResponse(BaseModel):
 # Voice mapping for NPCs
 NPC_VOICE_MAP: Dict[str, str] = {
     "amara": "Sulafat",
+    "somchai": "Algenib",
     "default": "Puck" 
 }
 
@@ -132,7 +133,7 @@ async def generate_npc_response_endpoint(
             voice_name=voice_name,
             response_tone=npc_response_data.response_tone 
         )
-        print(f"[{datetime.datetime.now()}] INFO: TTS for {npc_id} OK. Audio bytes: {len(npc_audio_bytes) if npc_audio_bytes else 'None'}")
+        print(f"[{datetime.datetime.now()}] INFO: TTS for {npc_id} using voice '{voice_name}' OK. Audio bytes: {len(npc_audio_bytes) if npc_audio_bytes else 'None'}")
 
         if not npc_audio_bytes:
             print(f"[{datetime.datetime.now()}] ERROR: text_to_speech_full returned empty audio_bytes for NPC {npc_id}, text: '{npc_response_data.response_target}'")
@@ -151,10 +152,14 @@ async def generate_npc_response_endpoint(
             "response_english": npc_response_data.response_english,
             "response_mapping": [m.model_dump() for m in npc_response_data.response_mapping],
             "input_mapping": [m.model_dump() for m in npc_response_data.input_mapping],
-            "charm_delta": npc_response_data.charm_delta
+            "charm_delta": npc_response_data.charm_delta,
+            "player_transcription_raw": player_transcription,
         }
-        response_data_json = json.dumps(response_data_dict)
-        response_data_b64 = base64.b64encode(response_data_json.encode('utf-8')).decode('utf-8')
+        # Force JSON to ASCII to prevent encoding errors on the client.
+        # This escapes all non-ASCII characters (e.g., to \uXXXX), making it safe
+        # for transport and decoding on the Flutter client.
+        response_data_json = json.dumps(response_data_dict, ensure_ascii=True)
+        response_data_b64 = base64.b64encode(response_data_json.encode('ascii')).decode('ascii')
 
         print(f"[{datetime.datetime.now()}] DEBUG: Backend preparing to send X-NPC-Response-Data (JSON): {response_data_json}") # Log the JSON before base64
         print(f"[{datetime.datetime.now()}] DEBUG: Backend preparing to send audio bytes length: {len(npc_audio_bytes) if npc_audio_bytes else 'None'}")
