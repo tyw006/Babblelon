@@ -917,9 +917,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                               return newState;
                             });
 
-                            // If it's a special item, mark it as received to prevent future interaction pop-ups
+                            // If it's a special item, mark it as received AND hide the speech bubble immediately.
                             if (isSpecial) {
                               ref.read(specialItemReceivedProvider(widget.npcId).notifier).state = true;
+                              widget.game.hideSpeechBubbleFor(widget.npcId);
                             }
                             
                             // Set providers for new item notification
