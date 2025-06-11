@@ -48,6 +48,7 @@ app.*.map.json
 # Environment variables
 .env
 .env.local
+babbleon-4cb3b57a2d79.json
 
 # Firebase-related
 google-services.json
@@ -61,6 +62,9 @@ supabase/.temp
 # Temporary files
 *.tmp
 *.temp
+
+# Test files
+/backend/test_files
 
 # Generated files
 *.g.dart

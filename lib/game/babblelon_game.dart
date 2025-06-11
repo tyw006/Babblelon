@@ -10,6 +10,7 @@ import 'components/player_component.dart';
 import 'components/speech_bubble_component.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
+import '../models/npc_data.dart'; // Import the new NPC data model
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,11 +33,27 @@ class BabblelonGame extends FlameGame with
   double backgroundHeight = 0.0;
   Vector2 gameResolution = Vector2.zero();
   
-  // Remove the TextComponent speech bubble
-  SpeechBubbleComponent? _npcSpeechBubbleSprite;
-  late SpriteComponent npc;
-  bool _npcSpeechBubbleShown = false;
-  bool _canInteractWithNpc = false;
+  // --- Refactored NPC Management ---
+  final Map<String, SpriteComponent> _npcs = {};
+  final Map<String, SpeechBubbleComponent> _speechBubbles = {};
+  String? _activeNpcId; // Tracks which NPC is currently interactable
+  String? activeNpcIdForOverlay; // Used to pass the ID to the overlay
+  // --- End Refactored NPC Management ---
+
+  void toggleMenu(BuildContext context, WidgetRef ref) {
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    if (overlays.isActive('main_menu')) {
+      overlays.remove('main_menu');
+      if (!overlays.isActive('dialogue') && isPaused) {
+        resumeGame(ref);
+      }
+    } else {
+      if (!isPaused) {
+        pauseGame(ref);
+      }
+      overlays.add('main_menu');
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -74,45 +91,9 @@ class BabblelonGame extends FlameGame with
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
 
-    // --- Add stationary NPC (noodle vendor) ---
-    final npcImage = await images.load('npcs/sprite_dimsum_vendor_female.png');
-    final npcSprite = Sprite(npcImage);
-    // Use same scale factor as PlayerComponent
-    const double npcScaleFactor = 0.25;
-    final npcSize = npcSprite.originalSize * npcScaleFactor;
-    // Place NPC at a visible position (adjust as needed)
-    final npcPosition = Vector2(900, backgroundHeight * 0.93);
-    npc = SpriteComponent(
-      sprite: npcSprite,
-      size: npcSize,
-      position: npcPosition,
-      anchor: Anchor.bottomCenter,
-      priority: -1, // Above background, same as player
-    );
-    // This is the stationary noodle vendor NPC
-    gameWorld.add(npc);
+    // --- Add all NPCs from the data map ---
+    await _addNpcs();
     // --- End NPC addition ---
-
-    // --- Add speech bubble sprite (hidden by default) ---
-    final bubbleImage = await images.load('ui/speech_bubble_interact.png');
-    final bubbleSprite = Sprite(bubbleImage);
-    final bubbleWidth = npcSize.x;
-    final bubbleHeight = bubbleSprite.srcSize.y * (bubbleWidth / bubbleSprite.srcSize.x);
-    _npcSpeechBubbleSprite = SpeechBubbleComponent(
-      sprite: bubbleSprite,
-      size: Vector2(bubbleWidth, bubbleHeight),
-      anchor: Anchor.bottomLeft,
-      position: npcPosition - Vector2(0, npcSize.y),
-      priority: 1,
-      onTap: () { // Show dialogue overlay when tapped
-        if (_canInteractWithNpc) {
-          pauseGame(ref);
-          overlays.add('dialogue');
-        }
-      },
-    );
-    // Do not add to world yet
-    // --- End speech bubble sprite addition ---
 
     final worldBounds = Rectangle.fromLTWH(
       0, 
@@ -126,8 +107,62 @@ class BabblelonGame extends FlameGame with
     cameraComponent.viewfinder.position = Vector2(0, 0);
 
     // Initialize and play background music
-    await FlameAudio.bgm.initialize();
-    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    FlameAudio.bgm.initialize();
+    // FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+    // Check music enabled state before playing
+    final initialMusicEnabled = ref.read(gameStateProvider).musicEnabled;
+    if (initialMusicEnabled) {
+      FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+    }
+  }
+  
+  Future<void> _addNpcs() async {
+    final bubbleImage = await images.load('ui/speech_bubble_interact.png');
+    final bubbleSprite = Sprite(bubbleImage);
+    const double npcScaleFactor = 0.25;
+
+    // Manually define positions for now
+    // You can adjust the X and Y coordinates here to move the NPCs.
+    // X is the horizontal position, Y is the vertical position.
+    // Smaller X moves the NPC to the left.
+    final npcPositions = {
+      'amara': Vector2(500, backgroundHeight * 0.93), // Was 900
+      'somchai': Vector2(1000, backgroundHeight * 0.93), // Was 1400
+    };
+
+    for (var entry in npcDataMap.entries) {
+      final npcData = entry.value;
+      final npcId = entry.key;
+
+      final npcImage = await images.load(npcData.spritePath);
+      final npcSprite = Sprite(npcImage);
+      final npcSize = npcSprite.originalSize * npcScaleFactor;
+      final npcPosition = npcPositions[npcId] ?? Vector2.zero(); // Fallback position
+
+      final npcComponent = SpriteComponent(
+        sprite: npcSprite,
+        size: npcSize,
+        position: npcPosition,
+        anchor: Anchor.bottomCenter,
+        priority: -1,
+      );
+
+      _npcs[npcId] = npcComponent;
+      gameWorld.add(npcComponent);
+
+      final bubbleWidth = npcSize.x;
+      final bubbleHeight = bubbleSprite.srcSize.y * (bubbleWidth / bubbleSprite.srcSize.x);
+      final speechBubble = SpeechBubbleComponent(
+        sprite: bubbleSprite,
+        size: Vector2(bubbleWidth, bubbleHeight),
+        anchor: Anchor.bottomCenter,
+        position: npcPosition - Vector2(0, npcSize.y) + npcData.speechBubbleOffset,
+        priority: 1,
+        onTap: () => _startDialogue(npcId),
+      );
+
+      _speechBubbles[npcId] = speechBubble;
+    }
   }
   
   @override
@@ -157,25 +192,60 @@ class BabblelonGame extends FlameGame with
     }
 
     // --- NPC speech bubble sprite logic ---
-    if (_npcSpeechBubbleSprite != null && npc.isMounted && player.isMounted) {
-      final double distance = (player.position - npc.position).length;
-      if (distance < 150) {
-        if (!_npcSpeechBubbleShown) {
-          gameWorld.add(_npcSpeechBubbleSprite!);
-          _npcSpeechBubbleShown = true;
+    if (!ref.read(gameStateProvider).isPaused && overlays.activeOverlays.isEmpty) {
+      String? closestNpcId;
+      double minDistance = 150.0; // Interaction distance
+
+      for (var entry in _npcs.entries) {
+        final npcId = entry.key;
+        final npcComponent = entry.value;
+
+        if (npcComponent.isMounted) {
+          final double distance = (player.position - npcComponent.position).length;
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestNpcId = npcId;
+          }
         }
-        // Keep bubble above NPC, bottom left at top center of NPC
-        _npcSpeechBubbleSprite!.position = npc.position - Vector2(110, npc.size.y - 40);
-        _canInteractWithNpc = true;
-      } else {
-        if (_npcSpeechBubbleShown) {
-          _npcSpeechBubbleSprite!.removeFromParent();
-          _npcSpeechBubbleShown = false;
+      }
+
+      // If a new NPC is the closest/active one
+      if (closestNpcId != _activeNpcId) {
+        // Hide the bubble for the previously active NPC
+        if (_activeNpcId != null && _speechBubbles[_activeNpcId]!.isMounted) {
+          _speechBubbles[_activeNpcId]!.removeFromParent();
         }
-        _canInteractWithNpc = false;
+
+        // Show the bubble for the new active NPC, but only if they haven't given their special item
+        if (closestNpcId != null) {
+          final hasReceivedSpecialItem = ref.read(specialItemReceivedProvider(closestNpcId));
+          if (!hasReceivedSpecialItem) {
+            final bubble = _speechBubbles[closestNpcId]!;
+            if (!bubble.isMounted) {
+              gameWorld.add(bubble);
+            }
+          }
+        }
+        _activeNpcId = closestNpcId;
+      }
+
+      // Keep the active bubble positioned correctly
+      if (_activeNpcId != null) {
+        final npcComponent = _npcs[_activeNpcId]!;
+        final bubble = _speechBubbles[_activeNpcId]!;
+        final npcData = npcDataMap[_activeNpcId]!;
+        bubble.position = npcComponent.position - Vector2(0, npcComponent.size.y) + npcData.speechBubbleOffset;
       }
     }
     // --- End NPC speech bubble sprite logic ---
+  }
+  
+  void _startDialogue(String npcId) {
+    if (_activeNpcId == npcId) {
+      pauseGame(ref);
+      activeNpcIdForOverlay = npcId; // Set the ID for the overlay builder
+      overlays.add('dialogue');
+    }
   }
   
   @override
@@ -216,36 +286,25 @@ class BabblelonGame extends FlameGame with
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
-    final isKeyDown = event is KeyDownEvent;
-    final isKeyUp = event is KeyUpEvent;
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    if (isPaused) return KeyEventResult.handled;
 
-    // --- NPC interaction with 'E' key ---
-    if (_canInteractWithNpc && isKeyDown && event.logicalKey == LogicalKeyboardKey.keyE) {
-      pauseGame(ref);
-      overlays.add('dialogue');
-      return KeyEventResult.handled;
-    }
+    final isLeftKeyPressed = keysPressed.contains(LogicalKeyboardKey.arrowLeft) ||
+                             keysPressed.contains(LogicalKeyboardKey.keyA);
+    final isRightKeyPressed = keysPressed.contains(LogicalKeyboardKey.arrowRight) ||
+                              keysPressed.contains(LogicalKeyboardKey.keyD);
 
-    if (player.isMounted) { 
-      if (isKeyDown) {
-        if (keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
-          player.isMovingRight = true;
-          return KeyEventResult.handled;
-        } else if (keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
-          player.isMovingLeft = true;
-          return KeyEventResult.handled;
-        }
-      } else if (isKeyUp) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          player.isMovingRight = false;
-          return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          player.isMovingLeft = false;
-          return KeyEventResult.handled;
-        }
-      }
+    if (isLeftKeyPressed) {
+      player.isMovingLeft = true;
+      player.isMovingRight = false;
+    } else if (isRightKeyPressed) {
+      player.isMovingRight = true;
+      player.isMovingLeft = false;
+    } else {
+      player.isMovingLeft = false;
+      player.isMovingRight = false;
     }
-    return KeyEventResult.ignored;
+    return KeyEventResult.handled;
   }
   
   void gameOver() {
@@ -258,16 +317,26 @@ class BabblelonGame extends FlameGame with
   }
 
   void pauseGame(WidgetRef ref) {
-    pauseEngine();
-    ref.read(gameStateProvider.notifier).pause();
-    FlameAudio.bgm.pause();
+    if (ref.read(gameStateProvider).isPaused) return;
+    ref.read(gameStateProvider.notifier).pauseGame();
+    // Store BGM playing state before pausing
+    if (FlameAudio.bgm.isPlaying) {
+        ref.read(gameStateProvider.notifier).setBgmPlaying(true);
+        FlameAudio.bgm.pause();
+    } else {
+        ref.read(gameStateProvider.notifier).setBgmPlaying(false);
+    }
   }
 
   void resumeGame(WidgetRef ref) {
-    resumeEngine();
-    ref.read(gameStateProvider.notifier).resume();
-    if (ref.read(gameStateProvider).musicEnabled) {
-      resumeMusic(ref);
+    if (!ref.read(gameStateProvider).isPaused) return;
+    if (overlays.isActive('dialogue')) return;
+
+    ref.read(gameStateProvider.notifier).resumeGame();
+    // Resume BGM only if it was playing and music is enabled
+    final gameState = ref.read(gameStateProvider);
+    if (gameState.musicEnabled && gameState.bgmIsPlaying) {
+        FlameAudio.bgm.resume();
     }
   }
 
@@ -277,7 +346,21 @@ class BabblelonGame extends FlameGame with
   }
 
   void resumeMusic(WidgetRef ref) {
-    FlameAudio.bgm.play('Chinatown in Summer.mp3', volume: 0.5);
+    FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
     ref.read(gameStateProvider.notifier).setBgmPlaying(true);
+  }
+
+  void hideSpeechBubbleFor(String npcId) {
+    if (_speechBubbles.containsKey(npcId)) {
+      final bubble = _speechBubbles[npcId]!;
+      if (bubble.isMounted) {
+        bubble.removeFromParent();
+      }
+    }
+    // If this was the active NPC, clear it so the bubble doesn't reappear
+    // until the player moves to a different NPC.
+    if (_activeNpcId == npcId) {
+      _activeNpcId = null;
+    }
   }
 } 
