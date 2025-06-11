@@ -119,4 +119,7 @@ final inventoryProvider = StateProvider<Map<String, String?>>((ref) => {
 });
 
 // Provider for the current charm level, now specific to each NPC
-final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId) => 50); 
+final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId) => 50);
+
+// Provider to track if a special item has been received from an NPC
+final specialItemReceivedProvider = StateProvider.family<bool, String>((ref, npcId) => false); 
