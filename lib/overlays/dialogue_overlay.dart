@@ -25,6 +25,14 @@ String _sanitizeString(String text) {
 }
 // --- End Sanitization Helper ---
 
+// --- Recording State Enum ---
+enum RecordingState {
+  idle,
+  recording,
+  reviewing,
+}
+// --- End Recording State Enum ---
+
 // --- POSMapping Model ---
 @immutable
 class POSMapping {
@@ -219,6 +227,13 @@ class DialogueOverlay extends ConsumerStatefulWidget {
 class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerProviderStateMixin {
   final ScrollController _mainDialogueScrollController = ScrollController();
   final ScrollController _historyDialogScrollController = ScrollController(); // For history dialog
+  
+  // --- Recording State ---
+  RecordingState _recordingState = RecordingState.idle;
+  String? _lastRecordingPath;
+  final just_audio.AudioPlayer _reviewPlayer = just_audio.AudioPlayer();
+  // We keep _isRecording for now to avoid breaking existing animation logic that relies on it.
+  // It will be kept in sync with _recordingState.
   bool _isRecording = false;
 
   // --- State for Translation Dialog ---
@@ -228,6 +243,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   final ValueNotifier<bool> _translationIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _translationErrorNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Translate to Thai'); // Default title
+  final AudioRecorder _translationAudioRecorder = AudioRecorder();
+  final ValueNotifier<bool> _isTranslationRecording = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isTranscribing = ValueNotifier<bool>(false);
+
+  // State for the new practice recording feature
+  final AudioRecorder _practiceAudioRecorder = AudioRecorder();
+  final ValueNotifier<RecordingState> _practiceRecordingState = ValueNotifier<RecordingState>(RecordingState.idle);
+  final ValueNotifier<String?> _lastPracticeRecordingPath = ValueNotifier<String?>(null);
+  final just_audio.AudioPlayer _practiceReviewPlayer = just_audio.AudioPlayer();
 
   // --- Audio Recording State ---
   late final AudioRecorder _audioRecorder;
@@ -366,6 +390,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _mainDialogueScrollController.dispose();
     _historyDialogScrollController.dispose();
     
+    // Dispose review player
+    _reviewPlayer.dispose();
+
     // Dispose translation dialog state
     _translationEnglishController.dispose();
     _translationMappingsNotifier.dispose();
@@ -373,6 +400,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _translationIsLoadingNotifier.dispose();
     _translationErrorNotifier.dispose();
     _translationDialogTitleNotifier.dispose();
+    
+    // Dispose practice recording state
+    _practiceAudioRecorder.dispose();
+    _practiceRecordingState.dispose();
+    _lastPracticeRecordingPath.dispose();
+    _practiceReviewPlayer.dispose();
 
     super.dispose();
   }
@@ -385,8 +418,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       return;
     }
 
+    // Clean up previous recording if user decides to re-record
+    if (_lastRecordingPath != null) {
+      final file = File(_lastRecordingPath!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      _lastRecordingPath = null;
+    }
+
     setState(() {
-      _isRecording = true;
+      _recordingState = RecordingState.recording;
+      _isRecording = true; // Sync for animation
     });
     _animationController?.repeat(reverse: true);
 
@@ -402,32 +445,70 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     } catch (e) {
       print("Error starting recording: $e");
       setState(() {
-        _isRecording = false;
+        _recordingState = RecordingState.idle;
+        _isRecording = false; // Sync for animation
       });
       _animationController?.stop();
     }
   }
 
-  Future<void> _stopRecording() async {
-    if (!_isRecording) return; // Avoid stopping if not recording
+  Future<void> _stopRecordingAndReview() async {
+    if (_recordingState != RecordingState.recording) return;
 
     _animationController?.stop();
-    setState(() {
-      _isRecording = false;
-    });
 
     try {
       final path = await _audioRecorder.stop();
       if (path != null) {
-        print("Recording stopped, file at: $path");
-        _sendAudioToBackend(path);
+        print("Recording stopped for review, file at: $path");
+        setState(() {
+          _lastRecordingPath = path;
+          _recordingState = RecordingState.reviewing;
+          _isRecording = false; // Sync for animation
+        });
       } else {
-        print("Error: Recording path is null.");
+        print("Error: Recording path is null after stopping.");
+        setState(() {
+          _recordingState = RecordingState.idle;
+          _isRecording = false; // Sync for animation
+        });
       }
     } catch (e) {
       print("Error stopping recording: $e");
+      setState(() {
+        _recordingState = RecordingState.idle;
+        _isRecording = false; // Sync for animation
+      });
     }
   }
+
+  // --- New functions for review mode ---
+  Future<void> _playLastRecording() async {
+    if (_lastRecordingPath == null) return;
+    try {
+      await _reviewPlayer.stop();
+      await _reviewPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(_lastRecordingPath!)));
+      await _reviewPlayer.play();
+    } catch (e) {
+      print("Error playing review audio: $e");
+    }
+  }
+
+  void _reRecord() {
+    // Simply go back to the recording state. _startRecording will handle cleanup.
+    _startRecording();
+  }
+
+  void _sendApprovedRecording() {
+    if (_lastRecordingPath != null) {
+      _sendAudioToBackend(_lastRecordingPath!);
+      setState(() {
+        _recordingState = RecordingState.idle;
+        _lastRecordingPath = null;
+      });
+    }
+  }
+  // --- End new functions ---
 
   Future<void> _sendAudioToBackend(String audioPath) async {
     print("Mic button action triggered. Sending audio to new endpoint.");
@@ -775,10 +856,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         widget.game.overlays.remove('dialogue');
         widget.game.resumeGame(ref);
       },
-      onStartRecording: () => _startRecording(),
-      onStopRecording: () => _stopRecording(),
       onShowTranslation: () => _showEnglishToTargetLanguageTranslationDialog(context),
-      micButton: _buildMicButton(),
+      micControls: _buildMicOrReviewControls(),
       isProcessingBackend: _isProcessingBackend,
       mainDialogueScrollController: _mainDialogueScrollController,
       onShowHistory: () => _showFullConversationHistoryDialog(context),
@@ -813,6 +892,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         child: Icon(Icons.mic, color: Colors.white, size: 40),
       ),
     );
+  }
+
+  Widget _buildMicOrReviewControls() {
+    switch (_recordingState) {
+      case RecordingState.recording:
+        return GestureDetector(
+          onTap: _stopRecordingAndReview,
+          child: _buildMicButton(),
+        );
+      case RecordingState.reviewing:
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildControlButton(icon: Icons.replay, onTap: _reRecord, padding: 16),
+            const SizedBox(width: 20),
+            _buildControlButton(icon: Icons.play_arrow, onTap: _playLastRecording, padding: 16),
+            const SizedBox(width: 20),
+            _buildControlButton(icon: Icons.send, onTap: _sendApprovedRecording, padding: 16),
+          ],
+        );
+      case RecordingState.idle:
+      default:
+        return GestureDetector(
+          onTap: _startRecording,
+          child: _buildMicButton(),
+        );
+    }
   }
 
   void _showSettingsDialog(BuildContext context) {
@@ -1202,6 +1308,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   
   // --- New Dialog for English to Target Language Translation Input ---
   Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th"}) async {
+    // Reset state when opening the dialog
+    _translationEnglishController.clear();
+    _translationMappingsNotifier.value = [];
+    _translationAudioNotifier.value = "";
+    _translationErrorNotifier.value = null;
+    _practiceRecordingState.value = RecordingState.idle;
+    _lastPracticeRecordingPath.value = null;
+
     // Set initial title when dialog is opened.
     _translationDialogTitleNotifier.value = 'Translate to ${getLanguageName(targetLanguage)}';
 
@@ -1250,7 +1364,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   valueListenable: _translationIsLoadingNotifier,
                   builder: (context, isLoading, child) {
                     if (isLoading) {
-                      return Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator());
                     }
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1261,101 +1375,107 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                             if (error != null) {
                               return Text(error, style: TextStyle(color: Colors.red));
                             }
-                            return SizedBox.shrink();
+                            return const SizedBox.shrink();
                           },
                         ),
                         // Word mappings display with column format
                         ValueListenableBuilder<List<Map<String, String>>>(
                           valueListenable: _translationMappingsNotifier,
                           builder: (context, wordMappings, child) {
-                            if (wordMappings.isEmpty) return SizedBox.shrink();
+                            if (wordMappings.isEmpty) return const SizedBox.shrink();
                             
-                            return Container(
-                              margin: EdgeInsets.only(bottom: 8),
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.teal[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Header row with play button
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            return Column(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal[50],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Translation:',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.teal[800],
-                                        ),
+                                      // Header row with play button
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Translation:',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.teal[800],
+                                            ),
+                                          ),
+                                          ValueListenableBuilder<String>(
+                                            valueListenable: _translationAudioNotifier,
+                                            builder: (context, audioBase64, child) {
+                                              if (audioBase64.isEmpty) return const SizedBox.shrink();
+                                              return IconButton(
+                                                icon: Icon(Icons.volume_up, color: Colors.teal[700]),
+                                                onPressed: () => playTranslatedAudio(audioBase64),
+                                              );
+                                            }
+                                          ),
+                                        ],
                                       ),
-                                      ValueListenableBuilder<String>(
-                                        valueListenable: _translationAudioNotifier,
-                                        builder: (context, audioBase64, child) {
-                                          if (audioBase64.isEmpty) return SizedBox.shrink();
-                                          return IconButton(
-                                            icon: Icon(Icons.volume_up, color: Colors.teal[700]),
-                                            onPressed: () => playTranslatedAudio(audioBase64),
+                                      const SizedBox(height: 8),
+                                      // Word mappings in column format
+                                      Wrap(
+                                        spacing: 8.0,
+                                        runSpacing: 4.0,
+                                        children: wordMappings.map((mapping) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withAlpha(180),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: Colors.teal.shade200),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Target language text (top)
+                                                Text(
+                                                  mapping['target'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.teal[800],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 1),
+                                                // Romanized text (middle)
+                                                Text(
+                                                  mapping['romanized'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.teal[600],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 1),
+                                                // English text (bottom)
+                                                Text(
+                                                  mapping['english'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.blueGrey[600],
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           );
-                                        }
+                                        }).toList(),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
-                                  // Word mappings in column format
-                                  Wrap(
-                                    spacing: 8.0,
-                                    runSpacing: 4.0,
-                                    children: wordMappings.map((mapping) {
-                                      return Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.7),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: Colors.teal.shade200),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Target language text (top)
-                                            Text(
-                                              mapping['target'] ?? '',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.teal[800],
-                                              ),
-                                            ),
-                                            SizedBox(height: 1),
-                                            // Romanized text (middle)
-                                            Text(
-                                              mapping['romanized'] ?? '',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.teal[600],
-                                              ),
-                                            ),
-                                            SizedBox(height: 1),
-                                            // English text (bottom)
-                                            Text(
-                                              mapping['english'] ?? '',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.blueGrey[600],
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildPracticeMicControls(),
+                              ],
                             );
                           },
                         ),
@@ -1381,6 +1501,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
                 _translationIsLoadingNotifier.value = true;
                 _translationErrorNotifier.value = null; // Clear previous errors
+                _practiceRecordingState.value = RecordingState.idle; // Reset mic on new translation
 
                 try {
                   final response = await http.post(
@@ -1437,6 +1558,226 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         );
       },
     );
+  }
+
+  Future<void> _toggleTranslationRecording() async {
+    if (_isTranslationRecording.value) {
+      // Stop recording
+      try {
+        final path = await _translationAudioRecorder.stop();
+        if (path != null) {
+          print("Translation recording stopped, file at: $path");
+          _transcribeForTranslation(path);
+        }
+      } catch (e) {
+        print("Error stopping translation recording: $e");
+      } finally {
+        _isTranslationRecording.value = false;
+      }
+    } else {
+      // Start recording
+      final status = await Permission.microphone.request();
+      if (status != PermissionStatus.granted) {
+        _translationErrorNotifier.value = "Microphone permission is required.";
+        return;
+      }
+      _isTranslationRecording.value = true;
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/translation_input_${DateTime.now().millisecondsSinceEpoch}.wav';
+        await _translationAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      } catch (e) {
+        print("Error starting translation recording: $e");
+        _isTranslationRecording.value = false;
+      }
+    }
+  }
+
+  Future<void> _transcribeForTranslation(String audioPath) async {
+    _isTranscribing.value = true;
+    _translationErrorNotifier.value = null;
+
+    final File audioFile = File(audioPath);
+    if (!await audioFile.exists()) {
+      _translationErrorNotifier.value = "Error: Audio file not found.";
+      _isTranscribing.value = false;
+      return;
+    }
+
+    try {
+      var uri = Uri.parse('http://127.0.0.1:8000/gcloud-transcribe/');
+      var request = http.MultipartRequest('POST', uri)
+        ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final transcription = data['transcription'] as String?;
+        if (transcription != null) {
+          _translationEnglishController.text = transcription;
+          // Clear previous results when new text is dictated
+          _translationMappingsNotifier.value = [];
+          _translationAudioNotifier.value = "";
+        } else {
+          _translationErrorNotifier.value = "Failed to get transcription.";
+        }
+      } else {
+        _translationErrorNotifier.value = "Transcription failed (code: ${response.statusCode}).";
+        print("Transcription backend error: ${response.body}");
+      }
+    } catch (e) {
+      _translationErrorNotifier.value = "Error connecting to transcription service.";
+      print("Error calling transcription backend: $e");
+    } finally {
+      _isTranscribing.value = false;
+      // Clean up temp file
+      if (await audioFile.exists()) {
+        await audioFile.delete();
+      }
+    }
+  }
+
+  Widget _buildPracticeMicControls() {
+    return ValueListenableBuilder<RecordingState>(
+      valueListenable: _practiceRecordingState,
+      builder: (context, state, child) {
+        switch (state) {
+          case RecordingState.idle:
+            return Center(
+              child: GestureDetector(
+                onTap: _startPracticeRecording,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.mic, color: Colors.white, size: 32),
+                ),
+              ),
+            );
+          case RecordingState.recording:
+            return Center(
+              child: GestureDetector(
+                onTap: _stopPracticeRecording,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.stop, color: Colors.white, size: 32),
+                ),
+              ),
+            );
+          case RecordingState.reviewing:
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildReviewButton(icon: Icons.refresh, onTap: _resetPracticeRecording),
+                  _buildReviewButton(icon: Icons.play_arrow, onTap: _playPracticeRecording),
+                  _buildReviewButton(icon: Icons.send, onTap: () {
+                    if (_lastPracticeRecordingPath.value != null) {
+                      _sendAudioToBackend(_lastPracticeRecordingPath.value!);
+                      Navigator.of(context).pop(); // Close the translation dialog
+                    }
+                  }),
+                ],
+              ),
+            );
+        }
+      },
+    );
+  }
+
+  Widget _buildReviewButton({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Icon(icon, color: Colors.black87, size: 26),
+      ),
+    );
+  }
+
+  Future<void> _resetPracticeRecording() async {
+    await _practiceReviewPlayer.stop();
+    if (_lastPracticeRecordingPath.value != null) {
+      final file = File(_lastPracticeRecordingPath.value!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      _lastPracticeRecordingPath.value = null;
+    }
+    _practiceRecordingState.value = RecordingState.idle;
+  }
+
+  Future<void> _startPracticeRecording() async {
+    // Clean up previous recording before starting a new one
+    await _practiceReviewPlayer.stop();
+    if (_lastPracticeRecordingPath.value != null) {
+      final file = File(_lastPracticeRecordingPath.value!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      _lastPracticeRecordingPath.value = null;
+    }
+
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      _translationErrorNotifier.value = "Microphone permission is required.";
+      return;
+    }
+
+    _practiceRecordingState.value = RecordingState.recording;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/practice_input_${DateTime.now().millisecondsSinceEpoch}.wav';
+      await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      _lastPracticeRecordingPath.value = path; // Store path immediately
+    } catch (e) {
+      print("Error starting practice recording: $e");
+      _practiceRecordingState.value = RecordingState.idle;
+    }
+  }
+
+  Future<void> _stopPracticeRecording() async {
+    if (_practiceRecordingState.value != RecordingState.recording) return;
+    try {
+      await _practiceAudioRecorder.stop();
+      _practiceRecordingState.value = RecordingState.reviewing;
+    } catch (e) {
+      print("Error stopping practice recording: $e");
+      _practiceRecordingState.value = RecordingState.idle;
+    }
+  }
+
+  Future<void> _playPracticeRecording() async {
+    if (_lastPracticeRecordingPath.value == null) return;
+    try {
+      await _practiceReviewPlayer.stop();
+      await _practiceReviewPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(_lastPracticeRecordingPath.value!)));
+      await _practiceReviewPlayer.play();
+    } catch (e) {
+      print("Error playing practice audio: $e");
+    }
   }
 
   // --- Text Animation for Main NPC Display Box ---
@@ -1589,9 +1930,15 @@ class _CharmChangeDialogContentState extends State<_CharmChangeDialogContent> wi
     if (widget.charmDelta > 0) {
       // Bouncy, expanding animation for positive charm
       _animation = TweenSequence<double>([
-        TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 1.6), weight: 50),
-        TweenSequenceItem(tween: Tween<double>(begin: 1.6, end: 1.0), weight: 50),
-      ]).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 1.0, end: 1.6).chain(CurveTween(curve: Curves.easeOut)),
+          weight: 50
+        ),
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 1.6, end: 1.0).chain(CurveTween(curve: Curves.easeIn)),
+          weight: 50
+        ),
+      ]).animate(_controller);
     } else {
       // Shake animation for negative charm
       _animation = TweenSequence<double>([
