@@ -20,10 +20,11 @@ if ELEVENLABS_API_KEY:
         print(f"Error initializing ElevenLabs client: {e}")
         # The client will remain None, and calls will fail.
 
-async def transcribe_audio(audio_stream: io.BytesIO) -> str:
+async def transcribe_audio(audio_stream: io.BytesIO, language_code: str = "tha") -> str:
     """
     Transcribes audio using ElevenLabs STT service.
     audio_stream: A BytesIO stream of the audio file.
+    language_code: The language code for transcription (e.g., "tha" for Thai, "en" for English).
     Returns the transcribed text or None if an error occurs.
     """
     if not elevenlabs_client:
@@ -46,7 +47,7 @@ async def transcribe_audio(audio_stream: io.BytesIO) -> str:
         transcription_response = elevenlabs_client.speech_to_text.convert(
             file=audio_stream, # Pass the BytesIO stream directly
             model_id="scribe_v1", # Model to use
-            # language_code="tha", # Optional: Specify language or let it auto-detect
+            language_code=language_code, # Use the provided language code
         )
         
         if transcription_response and hasattr(transcription_response, 'text'):
