@@ -153,6 +153,7 @@ async def generate_npc_response_endpoint(
             "response_mapping": [m.model_dump() for m in npc_response_data.response_mapping],
             "input_mapping": [m.model_dump() for m in npc_response_data.input_mapping],
             "charm_delta": npc_response_data.charm_delta,
+            "charm_reason": npc_response_data.charm_reason,
             "player_transcription_raw": player_transcription,
         }
         # Force JSON to ASCII to prevent encoding errors on the client.
