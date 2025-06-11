@@ -504,16 +504,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         print("Received NPC Text: $npcText");
         print("Received Player Input Mappings: ${playerInputMappings.length} words");
 
+        int charmDelta = 0;
+        String charmReason = '';
+        bool justReachedMaxCharm = false;
         // Update charm level from backend
         if (responsePayload.containsKey('charm_delta')) { // This comes from NPCResponse model
-            int charmDelta = responsePayload['charm_delta'] ?? 0;
+            charmDelta = responsePayload['charm_delta'] ?? 0;
+            charmReason = _sanitizeString(responsePayload['charm_reason'] as String? ?? '');
             final charmNotifier = ref.read(currentCharmLevelProvider(widget.npcId).notifier);
             final oldCharm = charmNotifier.state;
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
             if (newCharm == 100 && oldCharm < 100) {
-              // Using context from the widget, which should be safe.
-              _showMaxCharmNotification(context);
+              justReachedMaxCharm = true;
             }
             
             charmNotifier.state = newCharm;
@@ -562,6 +565,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           audioPathToPlayWhenDone: tempNpcAudioPath, // Pass audio path
           audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
           posMappings: npcPosMappings,
+          charmDelta: charmDelta,
+          charmReason: charmReason,
+          justReachedMaxCharm: justReachedMaxCharm,
           onAnimationComplete: (finalAnimatedEntry) {
             // History is already updated. Just update the map for correct display on rebuild.
             _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
@@ -947,6 +953,30 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         return AlertDialog(
           title: Text("Max Charm Reached!"),
           content: Text("You have reached the maximum charm level with ${_npcData.name}! You can now request a special item."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Charm Change Notification ---
+  Future<void> _showCharmChangeNotification(BuildContext context, int charmDelta, String charmReason) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text("Charm Changed!"),
+          content: _CharmChangeDialogContent(
+            charmDelta: charmDelta,
+            charmReason: charmReason,
+          ),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
@@ -1418,6 +1448,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     String? audioPathToPlayWhenDone,
     Uint8List? audioBytesToPlayWhenDone, // Added to handle direct bytes
     List<POSMapping>? posMappings,
+    int? charmDelta,
+    String? charmReason,
+    bool? justReachedMaxCharm,
     Function(DialogueEntry finalAnimatedEntry)? onAnimationComplete,
   }) {
     _activeTextStreamTimer?.cancel(); 
@@ -1505,6 +1538,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     _currentlyAnimatingEntryId = ""; 
                 });
 
+                // Show charm notifications after animation completes
+                if (charmDelta != null && charmDelta != 0 && charmReason != null && charmReason.isNotEmpty) {
+                  Future.microtask(() {
+                    _showCharmChangeNotification(context, charmDelta, charmReason).then((_) {
+                      if (justReachedMaxCharm == true) {
+                        _showMaxCharmNotification(context);
+                      }
+                    });
+                  });
+                } else if (justReachedMaxCharm == true) {
+                  Future.microtask(() => _showMaxCharmNotification(context));
+                }
+
                 if (onAnimationComplete != null) {
                     onAnimationComplete(finalAnimatedEntry);
                 }
@@ -1512,6 +1558,106 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
         });
     });
+  }
+}
+
+class _CharmChangeDialogContent extends StatefulWidget {
+  final int charmDelta;
+  final String charmReason;
+
+  const _CharmChangeDialogContent({
+    required this.charmDelta,
+    required this.charmReason,
+  });
+
+  @override
+  _CharmChangeDialogContentState createState() => _CharmChangeDialogContentState();
+}
+
+class _CharmChangeDialogContentState extends State<_CharmChangeDialogContent> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(milliseconds: widget.charmDelta > 0 ? 800 : 500),
+      vsync: this,
+    );
+
+    if (widget.charmDelta > 0) {
+      // Bouncy, expanding animation for positive charm
+      _animation = TweenSequence<double>([
+        TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 1.6), weight: 50),
+        TweenSequenceItem(tween: Tween<double>(begin: 1.6, end: 1.0), weight: 50),
+      ]).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
+    } else {
+      // Shake animation for negative charm
+      _animation = TweenSequence<double>([
+        TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 5),
+        TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: -8.0), weight: 10),
+        TweenSequenceItem(tween: Tween<double>(begin: -8.0, end: 8.0), weight: 20),
+        TweenSequenceItem(tween: Tween<double>(begin: 8.0, end: -8.0), weight: 20),
+        TweenSequenceItem(tween: Tween<double>(begin: -8.0, end: 4.0), weight: 15),
+        TweenSequenceItem(tween: Tween<double>(begin: 4.0, end: -4.0), weight: 15),
+        TweenSequenceItem(tween: Tween<double>(begin: -4.0, end: 0.0), weight: 10),
+      ]).animate(_controller);
+    }
+    
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPositive = widget.charmDelta > 0;
+    final Color deltaColor = isPositive ? Colors.green.shade600 : Colors.red.shade600;
+    final String sign = isPositive ? '+' : '';
+
+    final Widget textWidget = Text(
+      '$sign${widget.charmDelta}',
+      style: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.bold,
+          color: deltaColor,
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            if (isPositive) {
+              return Transform.scale(
+                scale: _animation.value,
+                child: child,
+              );
+            } else {
+              return Transform.translate(
+                offset: Offset(_animation.value, 0),
+                child: child,
+              );
+            }
+          },
+          child: textWidget,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          widget.charmReason,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18),
+        ),
+      ],
+    );
   }
 }
 
