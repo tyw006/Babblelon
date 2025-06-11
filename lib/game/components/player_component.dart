@@ -6,7 +6,9 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
   final double speed = 250.0; // Slightly increased speed
   bool isMovingRight = false;
   bool isMovingLeft = false;  // Flag for moving left
-  bool _isFacingRight = false; // Tracks if the player is CURRENTLY facing right. Assumes sprite asset faces left initially.
+  // Set to false initially, as the sprite asset faces left.
+  // The onLoad method will correctly flip it to face right at the start.
+  bool isFacingRight = false;
 
   double backgroundWidth = 0.0; // Will be set from game.backgroundWidth
 
@@ -26,8 +28,9 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
     size = sprite!.originalSize * scaleFactor;
     anchor = Anchor.bottomCenter;
 
-    // Start so the left edge is at world X=0
-    double playerX = size.x / 2;
+    // Start further to the right.
+    // EDIT THIS VALUE to change the player's starting X position.
+    double playerX = 150.0;
     double playerY = (game.backgroundHeight > 0) ? game.backgroundHeight : game.size.y;
     position = Vector2(playerX, playerY);
 
@@ -56,12 +59,12 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
   }
 
   void _ensureCorrectFacing(bool shouldFaceRight) {
-    if (_isFacingRight && !shouldFaceRight) { 
+    if (isFacingRight && !shouldFaceRight) { 
       flipHorizontally();
-      _isFacingRight = false;
-    } else if (!_isFacingRight && shouldFaceRight) { 
+      isFacingRight = false;
+    } else if (!isFacingRight && shouldFaceRight) { 
       flipHorizontally();
-      _isFacingRight = true;
+      isFacingRight = true;
     }
   }
 
