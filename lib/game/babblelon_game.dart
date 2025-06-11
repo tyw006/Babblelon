@@ -216,11 +216,14 @@ class BabblelonGame extends FlameGame with
           _speechBubbles[_activeNpcId]!.removeFromParent();
         }
 
-        // Show the bubble for the new active NPC
+        // Show the bubble for the new active NPC, but only if they haven't given their special item
         if (closestNpcId != null) {
-          final bubble = _speechBubbles[closestNpcId]!;
-          if (!bubble.isMounted) {
-            gameWorld.add(bubble);
+          final hasReceivedSpecialItem = ref.read(specialItemReceivedProvider(closestNpcId));
+          if (!hasReceivedSpecialItem) {
+            final bubble = _speechBubbles[closestNpcId]!;
+            if (!bubble.isMounted) {
+              gameWorld.add(bubble);
+            }
           }
         }
         _activeNpcId = closestNpcId;

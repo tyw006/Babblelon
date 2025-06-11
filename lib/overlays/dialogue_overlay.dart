@@ -174,11 +174,8 @@ class DialogueEntry {
 }
 // --- End Dialogue Entry Model ---
 
-// Provider to track if the greeting has been played for a specific NPC
-final greetingPlayedProvider = StateProvider.family<bool, String>((ref, npcId) => false);
-
-// Provider for the FULL conversation history (Player and NPC turns)
-final fullConversationHistoryProvider = StateProvider<List<DialogueEntry>>((ref) => []);
+// Provider for the FULL conversation history (Player and NPC turns) for a specific NPC
+final fullConversationHistoryProvider = StateProvider.family<List<DialogueEntry>, String>((ref, npcId) => []);
 
 // Provider for the CURRENT NPC entry being displayed/animated in the main dialogue box
 final currentNpcDisplayEntryProvider = StateProvider<DialogueEntry?>((ref) => null);
@@ -222,7 +219,6 @@ class DialogueOverlay extends ConsumerStatefulWidget {
 class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerProviderStateMixin {
   final ScrollController _mainDialogueScrollController = ScrollController();
   final ScrollController _historyDialogScrollController = ScrollController(); // For history dialog
-  late just_audio.AudioPlayer _greetingPlayer;
   bool _isRecording = false;
 
   // --- State for Translation Dialog ---
@@ -235,6 +231,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   // --- Audio Recording State ---
   late final AudioRecorder _audioRecorder;
+  late final just_audio.AudioPlayer _replayPlayer;
 
   // --- Animation State ---
   AnimationController? _animationController;
@@ -256,8 +253,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   @override
   void initState() {
     super.initState();
-    _greetingPlayer = just_audio.AudioPlayer();
     _audioRecorder = AudioRecorder();
+    _replayPlayer = ref.read(dialogueReplayPlayerProvider);
 
     // Look up the NPC data using the widget's npcId
     _npcData = npcDataMap[widget.npcId]!;
@@ -274,31 +271,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _loadAndPlayInitialGreeting();
+      await _loadInitialGreetingData();
 
-      final hasPlayedGreeting = ref.read(greetingPlayedProvider(widget.npcId));
+      final history = ref.read(fullConversationHistoryProvider(widget.npcId));
       final currentNpcDisplayNotifier = ref.read(currentNpcDisplayEntryProvider.notifier);
-      final fullHistoryNotifier = ref.read(fullConversationHistoryProvider.notifier);
+      final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
 
       if (_initialGreetingData == null) {
         print("Error: ${_npcData.name}'s initial greeting data could not be loaded.");
         final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", englishText: "Error loading greeting.", npcName: _npcData.name);
         currentNpcDisplayNotifier.state = errorEntry;
-        fullHistoryNotifier.state = [errorEntry]; // Also add to history
+        if (history.isEmpty) {
+          fullHistoryNotifier.state = [errorEntry];
+        }
         return;
       }
-
-      if (!hasPlayedGreeting) {
+      
+      if (history.isEmpty) {
+        // First-time interaction: Animate the initial greeting.
         final placeholderForAnimation = DialogueEntry.npc(
-          id: 'placeholder_anim',
+          id: 'greeting_${widget.npcId}', // Use a predictable ID
           text: '',
           englishText: '',
           npcName: _npcData.name,
           posMappings: [],
         );
+        // ONLY set the current display entry. Do NOT add the placeholder to the full history yet.
         currentNpcDisplayNotifier.state = placeholderForAnimation;
-        // Add to full history as well, it will be updated by animation completion
-        fullHistoryNotifier.state = [placeholderForAnimation];
         
         _startNpcTextAnimation(
           idForAnimation: placeholderForAnimation.id,
@@ -307,35 +306,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           englishText: _initialGreetingData!.responseEnglish,
           audioPathToPlayWhenDone: _initialGreetingData!.responseAudioPath,
           posMappings: _initialGreetingData!.responseMapping,
+          // This callback now adds the COMPLETED entry to the history for the first time.
           onAnimationComplete: (finalAnimatedEntry) {
-            fullHistoryNotifier.update((history) {
-              final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
-              if (index != -1) {
-                history[index] = finalAnimatedEntry;
-                return List.from(history);
-              }
-              return history;
-            });
+            fullHistoryNotifier.update((history) => [...history, finalAnimatedEntry]);
           }
         );
-        ref.read(greetingPlayedProvider(widget.npcId).notifier).state = true;
       } else {
-          // If greeting was played, try to restore the last state or show greeting
-          final history = ref.read(fullConversationHistoryProvider);
-          if (history.isNotEmpty && history.last.isNpc) {
-              currentNpcDisplayNotifier.state = history.last;
-              _fullyAnimatedMainNpcTexts[history.last.id] = history.last.text;
-          } else if (history.isEmpty) { // Or if history is empty, replay initial greeting
-              final initialGreetingEntry = DialogueEntry.npc(
-                  text: _initialGreetingData!.responseTarget,
-                  englishText: _initialGreetingData!.responseEnglish,
-                  npcName: _npcData.name,
-                  audioPath: _initialGreetingData!.responseAudioPath,
-                  posMappings: _initialGreetingData!.responseMapping
-                );
-              currentNpcDisplayNotifier.state = initialGreetingEntry;
-              fullHistoryNotifier.state = [initialGreetingEntry];
-              _fullyAnimatedMainNpcTexts[initialGreetingEntry.id] = initialGreetingEntry.text;
+        // Returning to an existing conversation, restore the last state.
+        final lastEntry = history.last;
+        currentNpcDisplayNotifier.state = lastEntry;
+        if (lastEntry.isNpc) {
+          // Ensure the text is fully displayed and not in an intermediate animation state
+          _fullyAnimatedMainNpcTexts[lastEntry.id] = lastEntry.text;
         }
       }
     });
@@ -347,7 +329,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     });
   }
 
-  Future<void> _loadAndPlayInitialGreeting() async {
+  Future<void> _loadInitialGreetingData() async {
     final npcId = widget.npcId;
     // Load the initial dialogue data from JSON
     final jsonString = await rootBundle.loadString('assets/data/npc_initial_dialogues.json');
@@ -356,24 +338,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     if (greetingData != null) {
       _initialGreetingData = InitialNPCGreeting.fromJson(greetingData);
-      
-      final entry = DialogueEntry.npc(
-        id: 'greeting_$npcId',
-        text: _initialGreetingData!.responseTarget,
-        englishText: _initialGreetingData!.responseEnglish,
-        audioPath: _initialGreetingData!.responseAudioPath,
-        npcName: _npcData.name,
-        posMappings: _initialGreetingData!.responseMapping,
-      );
-
-      // Set this as the current entry to display
-      ref.read(currentNpcDisplayEntryProvider.notifier).state = entry;
-      ref.read(fullConversationHistoryProvider.notifier).update((history) => [...history, entry]);
-      _scrollToBottom(_historyDialogScrollController);
     } else {
       print("Error: No initial greeting data found for NPC: $npcId");
-      final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", englishText: "Error loading greeting.", npcName: _npcData.name);
-      ref.read(currentNpcDisplayEntryProvider.notifier).state = errorEntry;
+      _initialGreetingData = null; // Ensure it's null if not found
     }
   }
 
@@ -391,7 +358,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   @override
   void dispose() {
-    _greetingPlayer.dispose();
+    _replayPlayer.stop(); // Stop any playing audio on exit
     _audioRecorder.dispose();
     _animationController?.dispose();
     _giftIconAnimationController.dispose();
@@ -478,7 +445,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       print("Recorded audio prepared: ${audioFileToSend.path}. Sending to backend.");
       
       // --- Construct previous_conversation_history for the backend ---
-      final currentFullHistory = ref.read(fullConversationHistoryProvider);
+      final currentFullHistory = ref.read(fullConversationHistoryProvider(widget.npcId));
       List<String> historyLinesForBackend = [];
       for (var entry in currentFullHistory) {
           // For player entries, use their stored transcription.
@@ -569,9 +536,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         // Generate a stable ID for the NPC entry BEFORE creating it
         final String npcEntryId = DialogueEntry._generateId();
 
+        // The NPC entry for display should be created with the FULL text for history purposes
         final npcEntryForDisplayAndHistory = DialogueEntry.npc(
           id: npcEntryId, // Use the pre-generated ID
-          text: "", // Start with blank for animation
+          text: npcText, // Use the full text immediately for the history
           englishText: responsePayload['response_english'] ?? '',
           npcName: _npcData.name,
           audioPath: tempNpcAudioPath, // This is the path to the NPC's audio file
@@ -579,10 +547,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           posMappings: npcPosMappings, 
         );
 
-        // Update full conversation history
-        final fullHistoryNotifier = ref.read(fullConversationHistoryProvider.notifier);
+        // Update full conversation history with both the player's entry and the NPC's full entry.
+        final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
         fullHistoryNotifier.update((history) => [...history, playerEntryForHistory, npcEntryForDisplayAndHistory]);
-         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(_historyDialogScrollController));
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(_historyDialogScrollController));
 
         // Set current NPC display entry for the main box and start animation
         ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntryForDisplayAndHistory;
@@ -595,15 +563,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
           posMappings: npcPosMappings,
           onAnimationComplete: (finalAnimatedEntry) {
-             // Update the entry in full history with the final animated text
-            fullHistoryNotifier.update((history) {
-                final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
-                if (index != -1) {
-                    history[index] = finalAnimatedEntry; // finalAnimatedEntry now has the full text
-                    return List.from(history);
-                }
-                return history;
-            });
+            // History is already updated. Just update the map for correct display on rebuild.
             _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
           }
         );
@@ -752,7 +712,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
             if (mapping.wordEng.isNotEmpty) {
               wordParts.add(const SizedBox(height: 1));
-              wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+              wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
             }
           }
           return WidgetSpan(
@@ -793,6 +753,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       npcContentWidget: npcContentWidget,
+      topRightAction: (currentNpcDisplayEntry?.isNpc ?? false) && !isAnimatingThisNpcEntry && (currentNpcDisplayEntry?.audioPath != null || currentNpcDisplayEntry?.audioBytes != null)
+        ? Positioned(
+            top: -7,
+            right: -7, // Adjusted to be next to the history icon
+            child: IconButton(
+              icon: Icon(Icons.volume_up, color: Colors.grey.shade600, size: 27),
+              onPressed: () => _playDialogueAudio(currentNpcDisplayEntry!),
+            ),
+          )
+        : null,
       giftIconAnimationController: _giftIconAnimationController,
       onRequestItem: () => _showRequestItemDialog(context),
       onResumeGame: () {
@@ -920,7 +890,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                             String receivedItem = isSpecial ? itemData.specialItemName : itemData.regularItemName;
                             String receivedItemAsset = isSpecial ? itemData.specialItemAsset : itemData.regularItemAsset;
                             String receivedItemType = isSpecial ? itemData.specialItemType : itemData.regularItemType;
-                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset, receivedItemType);
+                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset, receivedItemType, isSpecial);
                         },
                     ),
                 ],
@@ -929,7 +899,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
 
-  Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset, String itemType) {
+  Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset, String itemType, bool isSpecial) {
     return showDialog<void>(
         context: context,
         builder: (BuildContext dialogContext) {
@@ -947,6 +917,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                               return newState;
                             });
 
+                            // If it's a special item, mark it as received to prevent future interaction pop-ups
+                            if (isSpecial) {
+                              ref.read(specialItemReceivedProvider(widget.npcId).notifier).state = true;
+                            }
+                            
                             // Set providers for new item notification
                             ref.read(gameStateProvider.notifier).setNewItem();
 
@@ -1032,7 +1007,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   // --- Full Conversation History Dialog ---
   Future<void> _showFullConversationHistoryDialog(BuildContext context) async {
-    final historyEntries = ref.watch(fullConversationHistoryProvider); // Watch for live updates
+    final historyEntries = ref.watch(fullConversationHistoryProvider(widget.npcId)); // Watch for live updates
     final dialogueSettings = ref.watch(dialogueSettingsProvider);
     final bool showEnglishTranslationInHistory = dialogueSettings.showEnglishTranslation;
     final bool showWordByWordAnalysisInHistory = dialogueSettings.showWordByWordAnalysis;
@@ -1094,7 +1069,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                         }
                         if (mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1123,7 +1098,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                         }
                         if (mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1498,6 +1473,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
 
         _activeTextStreamTimer = Timer.periodic(charDuration, (timer) {
+            if (!mounted) {
+              timer.cancel();
+              return;
+            }
             if (_currentCharIndexForAnimation < fullText.length) {
                 setState(() {
                 _displayedTextForAnimation = fullText.substring(0, _currentCharIndexForAnimation + 1);
