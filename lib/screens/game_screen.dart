@@ -76,19 +76,34 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
                 overlayBuilderMap: {
-                  'game_over': (context, game) => const GameOverMenu(),
                   'main_menu': (context, game) => MainMenu(
                     game: game as BabblelonGame,
                     onClose: _closeMenuAndResume,
                   ),
                   'dialogue': (context, game) {
-                    final babbleGame = game as BabblelonGame;
-                    // Assuming BabblelonGame has these properties.
-                    // If not, they will need to be added to BabblelonGame.
-                    return DialogueOverlay(
-                      game: babbleGame,
+                    final babblelonGame = game as BabblelonGame;
+                    final npcId = babblelonGame.activeNpcIdForOverlay;
+
+                    if (npcId == null) {
+                      // This is a fallback, should not happen in normal flow
+                      return const Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Text(
+                            "Error: No NPC selected for dialogue.",
+                            style: TextStyle(color: Colors.red, fontSize: 24),
+                          ),
+                        ),
+                      );
+                    }
+                    return DialogueOverlay(game: babblelonGame, npcId: npcId);
+                  },
+                  'game_over': (context, game) {
+                    return GameOverMenu(
+                      game: game as BabblelonGame,
+                      onRestart: () => (game as BabblelonGame).reset(),
                     );
-                  }
+                  },
                 },
               ),
               // Hamburger menu icon (always visible)
@@ -99,9 +114,41 @@ class _GameScreenState extends State<GameScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Material(
                       color: Colors.transparent,
-                      child: IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.white, size: 32),
-                        onPressed: _openMenu,
+                      child: Consumer(
+                        builder: (context, ref, child) {
+                          final hasNewItem = ref.watch(gameStateProvider.select((s) => s.hasNewItem));
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.menu, color: Colors.white, size: 32),
+                                onPressed: () {
+                                  // When opening menu, mark new item as seen
+                                  if (hasNewItem) {
+                                    ref.read(gameStateProvider.notifier).clearNewItem();
+                                  }
+                                  _openMenu();
+                                },
+                              ),
+                              if (hasNewItem)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 12,
+                                      minHeight: 12,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -131,58 +178,10 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
-class InventoryWidget extends ConsumerWidget {
-  const InventoryWidget({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final inventory = ref.watch(inventoryProvider);
-    final attackItem = inventory['attack'];
-    final defenseItem = inventory['defense'];
-
-    // Using an Opacity widget to hide/show the inventory based on whether it's empty.
-    return Opacity(
-      opacity: (attackItem == null && defenseItem == null) ? 0.0 : 1.0,
-      child: Container(
-        width: 80, // Adjusted size to better fit the UI
-        height: 160, // Adjusted size
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/ui/inventory.png'),
-            fit: BoxFit.contain,
-          ),
-        ),
-        child: Column(
-          children: [
-            Expanded( // Attack Slot
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.all(12), // Padding inside the slot
-                margin: const EdgeInsets.only(top: 20), // Margin to align with the box
-                child: attackItem != null 
-                  ? Image.asset(attackItem) 
-                  : const SizedBox.shrink(),
-              ),
-            ),
-            Expanded( // Defense Slot
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.all(12), // Padding inside the slot
-                margin: const EdgeInsets.only(bottom: 20), // Margin to align with the box
-                child: defenseItem != null 
-                  ? Image.asset(defenseItem) 
-                  : const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class GameOverMenu extends StatelessWidget {
-  const GameOverMenu({super.key});
+  final BabblelonGame game;
+  final VoidCallback onRestart;
+  const GameOverMenu({super.key, required this.game, required this.onRestart});
 
   @override
   Widget build(BuildContext context) {
@@ -203,9 +202,7 @@ class GameOverMenu extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // Restart game logic will go here
-              },
+              onPressed: onRestart,
               child: const Text('Play Again'),
             ),
           ],
@@ -308,34 +305,38 @@ class _InventoryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final inventory = ref.watch(inventoryProvider);
-    final attackItem = inventory['attack'];
-    final defenseItem = inventory['defense'];
-
-    // If both slots are empty, don't show the inventory section at all.
-    if (attackItem == null && defenseItem == null) {
-      return const SizedBox.shrink();
-    }
+    final hasNewItem = ref.watch(gameStateProvider.select((s) => s.hasNewItem));
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12, width: 2),
+        color: Colors.grey.shade800.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: hasNewItem ? Colors.amber.shade700 : Colors.black, 
+          width: 2
+        ),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
             'Inventory',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _InventorySlot(title: 'Attack', itemAsset: attackItem),
-              _InventorySlot(title: 'Defense', itemAsset: defenseItem),
+              _InventorySlot(
+                label: 'Attack',
+                assetPath: inventory['attack'],
+                isHighlighted: false, // This can be driven by a different provider if needed
+              ),
+              _InventorySlot(
+                label: 'Defense',
+                assetPath: inventory['defense'],
+                isHighlighted: false, // This can be driven by a different provider if needed
+              ),
             ],
           ),
         ],
@@ -345,36 +346,45 @@ class _InventoryCard extends ConsumerWidget {
 }
 
 class _InventorySlot extends StatelessWidget {
-  final String title;
-  final String? itemAsset;
+  final String label;
+  final String? assetPath;
+  final bool isHighlighted;
 
-  const _InventorySlot({required this.title, this.itemAsset});
+  const _InventorySlot({required this.label, this.assetPath, this.isHighlighted = false});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(title, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 8),
-        Container(
-          width: 80,
-          height: 80,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 70,
+          height: 70,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black38,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white24),
+            border: Border.all(
+              color: isHighlighted ? Colors.yellowAccent : Colors.white24,
+              width: isHighlighted ? 3 : 1,
+            ),
+            boxShadow: isHighlighted
+                ? [
+                    BoxShadow(
+                      color: Colors.yellowAccent.withOpacity(0.7),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    )
+                  ]
+                : [],
           ),
-          child: itemAsset != null
+          child: assetPath != null
               ? Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Image.asset(itemAsset!, fit: BoxFit.contain),
+                  child: Image.asset(assetPath!),
                 )
-              : const Center(
-                  child: Text(
-                  'Empty',
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                )),
+              : const Icon(Icons.add_box_outlined, color: Colors.white38, size: 30),
         ),
       ],
     );

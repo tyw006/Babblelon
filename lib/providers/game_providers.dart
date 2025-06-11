@@ -11,18 +11,21 @@ class GameStateData {
   final bool isPaused;
   final bool musicEnabled;
   final bool bgmIsPlaying;
+  final bool hasNewItem;
 
   const GameStateData({
     this.isPaused = false,
     this.musicEnabled = true,
     this.bgmIsPlaying = false,
+    this.hasNewItem = false,
   });
 
-  GameStateData copyWith({bool? isPaused, bool? musicEnabled, bool? bgmIsPlaying}) {
+  GameStateData copyWith({bool? isPaused, bool? musicEnabled, bool? bgmIsPlaying, bool? hasNewItem}) {
     return GameStateData(
       isPaused: isPaused ?? this.isPaused,
       musicEnabled: musicEnabled ?? this.musicEnabled,
       bgmIsPlaying: bgmIsPlaying ?? this.bgmIsPlaying,
+      hasNewItem: hasNewItem ?? this.hasNewItem,
     );
   }
 }
@@ -45,6 +48,9 @@ class GameState extends _$GameState {
       _stopBGM();
     }
   }
+
+  void setNewItem() => state = state.copyWith(hasNewItem: true);
+  void clearNewItem() => state = state.copyWith(hasNewItem: false);
 
   void setBgmPlaying(bool playing) => state = state.copyWith(bgmIsPlaying: playing);
 
@@ -109,4 +115,7 @@ final tempFilePathsProvider = StateProvider<List<String>>((ref) => []);
 final inventoryProvider = StateProvider<Map<String, String?>>((ref) => {
   'attack': null,
   'defense': null,
-}); 
+});
+
+// Provider for the current charm level, now specific to each NPC
+final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId) => 50); 
