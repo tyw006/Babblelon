@@ -12,8 +12,10 @@ import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../game/babblelon_game.dart';
-import '../models/npc_item_data.dart';
+import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../providers/game_providers.dart'; // Ensure this import is present
+import '../widgets/charm_bar.dart';
+import '../widgets/dialogue_ui.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -176,9 +178,6 @@ final fullConversationHistoryProvider = StateProvider<List<DialogueEntry>>((ref)
 // Provider for the CURRENT NPC entry being displayed/animated in the main dialogue box
 final currentNpcDisplayEntryProvider = StateProvider<DialogueEntry?>((ref) => null);
 
-// Provider for the current charm level
-final currentCharmLevelProvider = StateProvider<int>((ref) => 50);
-
 // Provider for the audio player used for replaying dialogue lines
 final dialogueReplayPlayerProvider = Provider<just_audio.AudioPlayer>((ref) => just_audio.AudioPlayer());
 
@@ -203,10 +202,13 @@ String getLanguageName(String code) {
 // Convert to ConsumerStatefulWidget to access ref
 class DialogueOverlay extends ConsumerStatefulWidget {
   final BabblelonGame game;
-  final String currentNpcId = "amara"; // Example NPC ID, this should be dynamic
-  final String currentNpcName = "Amara"; // Example NPC Name
+  final String npcId; // NPC ID is now passed in
 
-  const DialogueOverlay({super.key, required this.game});
+  const DialogueOverlay({
+    super.key, 
+    required this.game,
+    required this.npcId, // Make npcId required
+  });
 
   @override
   ConsumerState<DialogueOverlay> createState() => _DialogueOverlayState();
@@ -232,6 +234,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   // --- Animation State ---
   AnimationController? _animationController;
   Animation<double>? _scaleAnimation;
+  late final AnimationController _giftIconAnimationController;
   // --- End Animation State ---
 
   Timer? _activeTextStreamTimer;
@@ -242,7 +245,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   bool _isProcessingBackend = false;
 
-  InitialNPCGreeting? _amaraInitialGreetingData; // To store parsed JSON data
+  InitialNPCGreeting? _initialGreetingData;
+  late NpcData _npcData; // Store the current NPC's data
 
   @override
   void initState() {
@@ -250,23 +254,30 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _greetingPlayer = just_audio.AudioPlayer();
     _audioRecorder = AudioRecorder();
 
+    // Look up the NPC data using the widget's npcId
+    _npcData = npcDataMap[widget.npcId]!;
+
     // --- Animation Initialization ---
     _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
       CurvedAnimation(parent: _animationController!, curve: Curves.easeInOut),
     );
+    _giftIconAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadInitialGreetingData();
 
-      final hasPlayedGreeting = ref.read(greetingPlayedProvider(widget.currentNpcId));
+      final hasPlayedGreeting = ref.read(greetingPlayedProvider(widget.npcId));
       final currentNpcDisplayNotifier = ref.read(currentNpcDisplayEntryProvider.notifier);
       final fullHistoryNotifier = ref.read(fullConversationHistoryProvider.notifier);
 
-      if (_amaraInitialGreetingData == null) {
-        print("Error: Amara's initial greeting data could not be loaded.");
-        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", npcName: widget.currentNpcName);
+      if (_initialGreetingData == null) {
+        print("Error: ${_npcData.name}'s initial greeting data could not be loaded.");
+        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", npcName: _npcData.name);
         currentNpcDisplayNotifier.state = errorEntry;
         fullHistoryNotifier.state = [errorEntry]; // Also add to history
         return;
@@ -275,8 +286,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       if (!hasPlayedGreeting) {
         final placeholderForAnimation = DialogueEntry.npc(
           text: "",
-          npcName: widget.currentNpcName,
-          posMappings: _amaraInitialGreetingData!.responseMapping,
+          npcName: _npcData.name,
+          posMappings: _initialGreetingData!.responseMapping,
         );
         currentNpcDisplayNotifier.state = placeholderForAnimation;
         // Add to full history as well, it will be updated by animation completion
@@ -284,10 +295,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         
         _startNpcTextAnimation(
           idForAnimation: placeholderForAnimation.id,
-          speakerName: widget.currentNpcName,
-          fullText: _amaraInitialGreetingData!.responseTarget, 
-          audioPathToPlayWhenDone: _amaraInitialGreetingData!.responseAudioPath,
-          posMappings: _amaraInitialGreetingData!.responseMapping,
+          speakerName: _npcData.name,
+          fullText: _initialGreetingData!.responseTarget, 
+          audioPathToPlayWhenDone: _initialGreetingData!.responseAudioPath,
+          posMappings: _initialGreetingData!.responseMapping,
           onAnimationComplete: (finalAnimatedEntry) {
             fullHistoryNotifier.update((history) {
               final index = history.indexWhere((h) => h.id == finalAnimatedEntry.id);
@@ -299,7 +310,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             });
           }
         );
-        ref.read(greetingPlayedProvider(widget.currentNpcId).notifier).state = true;
+        ref.read(greetingPlayedProvider(widget.npcId).notifier).state = true;
       } else {
           // If greeting was played, try to restore the last state or show greeting
           final history = ref.read(fullConversationHistoryProvider);
@@ -308,10 +319,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               _fullyAnimatedMainNpcTexts[history.last.id] = history.last.text;
           } else if (history.isEmpty) { // Or if history is empty, replay initial greeting
               final initialGreetingEntry = DialogueEntry.npc(
-                  text: _amaraInitialGreetingData!.responseTarget,
-                  npcName: widget.currentNpcName,
-                  audioPath: _amaraInitialGreetingData!.responseAudioPath,
-                  posMappings: _amaraInitialGreetingData!.responseMapping
+                  text: _initialGreetingData!.responseTarget,
+                  npcName: _npcData.name,
+                  audioPath: _initialGreetingData!.responseAudioPath,
+                  posMappings: _initialGreetingData!.responseMapping
                 );
               currentNpcDisplayNotifier.state = initialGreetingEntry;
               fullHistoryNotifier.state = [initialGreetingEntry];
@@ -331,15 +342,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     try {
       final String response = await rootBundle.loadString('assets/data/npc_initial_dialogues.json');
       final data = json.decode(response) as Map<String, dynamic>;
-      if (data[widget.currentNpcId] != null) {
-        _amaraInitialGreetingData = InitialNPCGreeting.fromJson(data[widget.currentNpcId] as Map<String, dynamic>);
-        print("Initial greeting data loaded for ${widget.currentNpcId}");
+      if (data[widget.npcId] != null) {
+        _initialGreetingData = InitialNPCGreeting.fromJson(data[widget.npcId] as Map<String, dynamic>);
       } else {
-        print("No initial greeting data found for NPC ID: ${widget.currentNpcId}");
+        print("No initial greeting data found for NPC ID: ${widget.npcId}");
       }
     } catch (e) {
       print("Error loading initial greeting data: $e");
-      _amaraInitialGreetingData = null;
+      _initialGreetingData = null;
     }
   }
 
@@ -360,6 +370,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _greetingPlayer.dispose();
     _audioRecorder.dispose();
     _animationController?.dispose();
+    _giftIconAnimationController.dispose();
     _activeTextStreamTimer?.cancel();
     _mainDialogueScrollController.dispose();
     _historyDialogScrollController.dispose();
@@ -457,13 +468,13 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       String previousHistoryPayload = historyLinesForBackend.join("\\n");
       // --- End history construction ---
 
-      final charmLevelForRequest = ref.read(currentCharmLevelProvider); // Read from provider
+      final charmLevelForRequest = ref.read(currentCharmLevelProvider(widget.npcId)); // Read from provider
 
       var uri = Uri.parse('http://127.0.0.1:8000/generate-npc-response/');
     var request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('audio_file', audioFileToSend.path))
-        ..fields['npc_id'] = widget.currentNpcId
-        ..fields['npc_name'] = widget.currentNpcName
+        ..fields['npc_id'] = _npcData.id
+        ..fields['npc_name'] = _npcData.name
         ..fields['charm_level'] = charmLevelForRequest.toString() // Use provider value
         ..fields['previous_conversation_history'] = previousHistoryPayload;
       
@@ -505,7 +516,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         // Update charm level from backend
         if (responsePayload.containsKey('charm_delta')) { // This comes from NPCResponse model
             int charmDelta = responsePayload['charm_delta'] ?? 0;
-            final charmNotifier = ref.read(currentCharmLevelProvider.notifier);
+            final charmNotifier = ref.read(currentCharmLevelProvider(widget.npcId).notifier);
             final oldCharm = charmNotifier.state;
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
@@ -515,7 +526,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
             
             charmNotifier.state = newCharm;
-            print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider)}");
+            print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider(widget.npcId))}");
         }
 
         // Save NPC audio to a temporary file
@@ -537,7 +548,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         final npcEntryForDisplayAndHistory = DialogueEntry.npc(
           id: npcEntryId, // Use the pre-generated ID
           text: "", // Start with blank for animation
-          npcName: widget.currentNpcName,
+          npcName: _npcData.name,
           audioPath: tempNpcAudioPath, // This is the path to the NPC's audio file
           audioBytes: npcAudioBytes, // This is the actual audio data for NPC
           posMappings: npcPosMappings, 
@@ -552,7 +563,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntryForDisplayAndHistory;
         _startNpcTextAnimation(
           idForAnimation: npcEntryId, // Pass the pre-generated ID
-          speakerName: widget.currentNpcName, // Pass speaker name
+          speakerName: _npcData.name, // Pass speaker name
           fullText: npcText,
           audioPathToPlayWhenDone: tempNpcAudioPath, // Pass audio path
           audioBytesToPlayWhenDone: npcAudioBytes,   // Pass audio bytes
@@ -573,9 +584,49 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
       } else {
         print("Backend processing failed. Status: ${response.statusCode}, Body: ${response.body}");
+        
+        String errorMessage = "An unexpected error occurred.";
+        try {
+          final errorBody = json.decode(response.body);
+          final detail = errorBody['detail'];
+          if (detail is String) {
+            // Regex to find 'message': '...'
+            final messageRegex = RegExp(r"'message':\s*'([^']*)'");
+            final messageMatch = messageRegex.firstMatch(detail);
+
+            if (messageMatch != null) {
+              errorMessage = messageMatch.group(1)!;
+            } else {
+              // Regex to find 'status': '...' as a fallback
+              final statusRegex = RegExp(r"'status':\s*'([^']*)'");
+              final statusMatch = statusRegex.firstMatch(detail);
+              if (statusMatch != null) {
+                String status = statusMatch.group(1)!.replaceAll('_', ' ');
+                errorMessage = status[0].toUpperCase() + status.substring(1);
+              } else {
+                 // Fallback to the start of the detail string if it's simple
+                errorMessage = detail.split(':').first;
+              }
+            }
+          } else if (detail != null) {
+            errorMessage = detail.toString();
+          }
+        } catch (e) {
+          // If JSON parsing fails, use the raw body for diagnostics, but maybe not for the user.
+          // For the user, a generic message is better if parsing fails.
+          errorMessage = "Could not process error response from server.";
+          print("Error parsing backend error response: $e");
+        }
+
+        if (mounted) {
+          _showErrorDialog(errorMessage);
+        }
       }
     } catch (e, stackTrace) {
       print("Exception in _sendAudioToBackend: $e\\n$stackTrace");
+      if (mounted) {
+        _showErrorDialog("A client-side error occurred: ${e.toString()}");
+      }
     } finally {
       setState(() { _isProcessingBackend = false; });
       // The recorded file is no longer deleted here.
@@ -583,6 +634,27 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
   
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _playDialogueAudio(DialogueEntry entry) async {
     final player = ref.read(dialogueReplayPlayerProvider);
     await player.stop();
@@ -610,284 +682,170 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final double outerHorizontalPadding = screenWidth * 0.01;
 
-    final double textboxHeight = 150.0; // Fixed height for main dialogue box
-    final double textboxWidth = math.max(screenWidth * 0.95, 368.0);
-
-    final dialogueSettings = ref.watch(dialogueSettingsProvider); // Watch the central provider
+    final dialogueSettings = ref.watch(dialogueSettingsProvider);
     final currentNpcDisplayEntry = ref.watch(currentNpcDisplayEntryProvider);
     final bool showTranslations = dialogueSettings.showTranslation;
     final bool showTransliterations = dialogueSettings.showTransliteration;
     final bool showPOSColors = dialogueSettings.showPos;
-    final int displayedCharmLevel = ref.watch(currentCharmLevelProvider); // Watch charm level for UI
+    final int displayedCharmLevel = ref.watch(currentCharmLevelProvider(widget.npcId));
 
-    // Define isAnimatingThisNpcEntry carefully, ensuring currentNpcDisplayEntry is not null before accessing 'id'
     final bool isAnimatingThisNpcEntry = (currentNpcDisplayEntry != null && currentNpcDisplayEntry.id == _currentlyAnimatingEntryId);
 
     Widget npcContentWidget;
     if (currentNpcDisplayEntry == null) {
-        npcContentWidget = SizedBox.shrink(); // Or a placeholder
+      npcContentWidget = const SizedBox.shrink();
     } else {
-        String textToDisplayForNpc = isAnimatingThisNpcEntry ? _displayedTextForAnimation : (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] ?? currentNpcDisplayEntry.text);
+      String textToDisplayForNpc = isAnimatingThisNpcEntry ? _displayedTextForAnimation : (_fullyAnimatedMainNpcTexts[currentNpcDisplayEntry.id] ?? currentNpcDisplayEntry.text);
+      bool useCenteredLayout = !showTranslations && !showTransliterations && textToDisplayForNpc.length < 40 && !isAnimatingThisNpcEntry && (currentNpcDisplayEntry.posMappings == null || currentNpcDisplayEntry.posMappings!.isEmpty);
 
-        if (isAnimatingThisNpcEntry) {
-            npcContentWidget = Text(
-                textToDisplayForNpc,
-                textAlign: TextAlign.left,
-                style: TextStyle(color: Colors.black, fontSize: 16),
-            );
-        } else if (currentNpcDisplayEntry.isNpc && currentNpcDisplayEntry.posMappings != null && currentNpcDisplayEntry.posMappings!.isNotEmpty) {
-            // Word-column display for live NPC responses
-            List<InlineSpan> wordSpans = currentNpcDisplayEntry.posMappings!.map((mapping) {
-                List<Widget> wordParts = [
-                    Text(mapping.wordTarget, style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 16, fontWeight: FontWeight.w500)),
-                ];
-                if (showTransliterations && mapping.wordTranslit.isNotEmpty) {
-                    wordParts.add(SizedBox(height: 1));
-                    wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
-                }
-                if (showTranslations && mapping.wordEng.isNotEmpty) {
-                    wordParts.add(SizedBox(height: 1));
-                    wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
-                }
-                return WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
-                  ),
-                );
-            }).toList();
-            npcContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
-        } else {
-            // NPC text without special formatting (e.g., if no POS mappings)
-            npcContentWidget = Text(textToDisplayForNpc, style: TextStyle(fontSize: 14, color: Colors.black87));
-        }
+      if (useCenteredLayout) {
+        npcContentWidget = Center(
+          child: Text(
+            textToDisplayForNpc,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.w500),
+          ),
+        );
+      } else if (isAnimatingThisNpcEntry) {
+        npcContentWidget = Text(
+          textToDisplayForNpc,
+          textAlign: TextAlign.left,
+          style: const TextStyle(color: Colors.black, fontSize: 20),
+        );
+      } else if (currentNpcDisplayEntry.isNpc && currentNpcDisplayEntry.posMappings != null && currentNpcDisplayEntry.posMappings!.isNotEmpty) {
+        List<InlineSpan> wordSpans = currentNpcDisplayEntry.posMappings!.map((mapping) {
+          List<Widget> wordParts = [
+            Text(mapping.wordTarget, style: TextStyle(color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black) : Colors.black, fontSize: 20, fontWeight: FontWeight.w500)),
+          ];
+          if (showTransliterations && mapping.wordTranslit.isNotEmpty) {
+            wordParts.add(const SizedBox(height: 1));
+            wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
+          }
+          if (showTranslations && mapping.wordEng.isNotEmpty) {
+            wordParts.add(const SizedBox(height: 1));
+            wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColors ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+          }
+          return WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+            ),
+          );
+        }).toList();
+        npcContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+      } else {
+        npcContentWidget = Text(textToDisplayForNpc, style: const TextStyle(fontSize: 18, color: Colors.black87));
+      }
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Image.asset('assets/images/background/convo_yaowarat_bg.png', fit: BoxFit.cover),
-          ),
-          SafeArea(
-            bottom: false,
-            top: true,
-            child: Stack(
-              children: <Widget>[
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: screenHeight * 0.002),
-                    child: Image.asset('assets/images/npcs/sprite_dimsum_vendor_bar.png', width: screenWidth * 0.7, fit: BoxFit.contain),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment(0.0, 0.0),
-                  child: Image.asset('assets/images/npcs/sprite_dimsum_vendor_female_portrait.png', height: screenHeight * 0.70, fit: BoxFit.contain),
-                ),
-                Positioned( // Charm Score Display
-                  top: 10,
-                  right: 10,
-                  child: GestureDetector(
-                    onDoubleTap: () => _showDebugCharmDialog(context), // Triple tap for debug
-                    child: Row(
-                      children: [
-                        if (displayedCharmLevel >= 75)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: IconButton(
-                              icon: Icon(Icons.card_giftcard, color: Colors.yellowAccent, size: 30),
-                              tooltip: 'Request Item',
-                              onPressed: () => _showRequestItemDialog(context),
-                            ),
-                          ),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withAlpha(128),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Text(
-                            'Charm: $displayedCharmLevel',
-                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: outerHorizontalPadding,
-                      right: outerHorizontalPadding,
-                      bottom: MediaQuery.of(context).padding.bottom + 0.0,
-                    ),
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container( // Main Dialogue Box
-                            width: textboxWidth,
-                            height: textboxHeight,
-                            clipBehavior: Clip.hardEdge,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                image: AssetImage('assets/images/ui/textbox_hdpi.9.png'),
-                                  fit: BoxFit.fill,
-                                  centerSlice: Rect.fromLTWH(22, 22, 324, 229),
-                                ),
-                              ),
-                            child: Stack(
-                                children: [
-                                      Padding(
-                                  padding: const EdgeInsets.only(top: 30.0, left: 30.0, right: 25.0, bottom: 25.0),
-                                  child: Scrollbar(
-                                                thumbVisibility: true,
-                                    controller: _mainDialogueScrollController,
-                                                child: SingleChildScrollView(
-                                      controller: _mainDialogueScrollController,
-                                                    child: Column(
-                                                      mainAxisAlignment: MainAxisAlignment.end,
-                                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          if (currentNpcDisplayEntry != null) // Combined speaker and content logic
-                                            Padding(
-                                                            padding: const EdgeInsets.symmetric(vertical: 4.0), 
-                                                            child: Column( 
-                                                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                                                              children: [
-                                                  
-                                                  Row( // Row for content and play button
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Expanded(child: npcContentWidget), // Dialogue content
-                                                      // Play button only if not animating and content is present and has audio
-                                                      if (currentNpcDisplayEntry.id != _currentlyAnimatingEntryId && 
-                                                          (_fullyAnimatedMainNpcTexts.containsKey(currentNpcDisplayEntry.id) || currentNpcDisplayEntry.text.isNotEmpty) &&
-                                                          (currentNpcDisplayEntry.audioPath != null || currentNpcDisplayEntry.audioBytes != null))
-                                                        IconButton(
-                                                          icon: Icon(Icons.volume_up, color: Colors.black54),
-                                                          iconSize: 20,
-                                                          padding: EdgeInsets.only(left: 8, top: 0, bottom: 0, right: 0),
-                                                          constraints: BoxConstraints(),
-                                                          onPressed: () => _playDialogueAudio(currentNpcDisplayEntry),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                      if (_isProcessingBackend)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Text("...", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                                        ),
-                                    ],
-                                  ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned( // Full Convo Button
-                                  top: 0, 
-                                  right: 30,
-                                  child: SizedBox(
-                                    width: 35, // Adjust size as needed
-                                    height: 35,
-                                    child: IconButton(
-                                      icon: Image.asset('assets/images/ui/button_full_convo.png'), // New button
-                                            padding: EdgeInsets.zero,
-                                            constraints: BoxConstraints(),
-                                      onPressed: () => _showFullConversationHistoryDialog(context),
-                                    ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          Row( // Bottom Action Buttons
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                icon: SizedBox(width: 70, height: 70, child: Image.asset('assets/images/ui/button_back.png', fit: BoxFit.contain)),
-                                onPressed: () {
-                                  widget.game.overlays.remove('dialogue');
-                                  widget.game.resumeGame(ref);
-                                },
-                              ),
-                              GestureDetector(
-                                onLongPressStart: (_) {
-                                  if (!_isProcessingBackend) _startRecording();
-                                },
-                                onLongPressEnd: (_) {
-                                  if (!_isProcessingBackend) _stopRecording();
-                                },
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    if (_isRecording)
-                                      ScaleTransition(
-                                        scale: _scaleAnimation!,
-                                        child: Container(
-                                          width: 100,
-                                          height: 100,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.blue.withAlpha(128),
-                                          ),
-                                        ),
-                                      ),
-                                    SizedBox(
-                                      width: 90,
-                                      height: 90,
-                                      child: Image.asset('assets/images/ui/button_mic.png', fit: BoxFit.contain)
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                icon: SizedBox(width: 80, height: 80, child: Image.asset('assets/images/ui/button_translate.png', fit: BoxFit.contain)),
-                                onPressed: () => _showEnglishToTargetLanguageTranslationDialog(context), // Changed to new dialog
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-                          ),
-                        ],
-                      ),
+    return DialogueUI(
+      npcData: _npcData,
+      displayedCharmLevel: displayedCharmLevel,
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+      npcContentWidget: npcContentWidget,
+      giftIconAnimationController: _giftIconAnimationController,
+      onRequestItem: () => _showRequestItemDialog(context),
+      onResumeGame: () {
+        widget.game.overlays.remove('dialogue');
+        widget.game.resumeGame(ref);
+      },
+      onStartRecording: () => _startRecording(),
+      onStopRecording: () => _stopRecording(),
+      onShowTranslation: () => _showEnglishToTargetLanguageTranslationDialog(context),
+      micButton: _buildMicButton(),
+      isProcessingBackend: _isProcessingBackend,
+      mainDialogueScrollController: _mainDialogueScrollController,
+      onShowHistory: () => _showFullConversationHistoryDialog(context),
     );
   }
 
+  Widget _buildControlButton({required IconData icon, required VoidCallback onTap, double size = 28, double padding = 12}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white70),
+        ),
+        child: Icon(icon, color: Colors.white, size: size),
+      ),
+    );
+  }
+
+  Widget _buildMicButton() {
+    return ScaleTransition(
+      scale: _scaleAnimation ?? const AlwaysStoppedAnimation(1.0),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: _isRecording ? Colors.red.withOpacity(0.8) : Colors.black.withOpacity(0.6),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: Icon(Icons.mic, color: Colors.white, size: 40),
+      ),
+    );
+  }
+
+  void _showSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        // Use a Consumer to rebuild only this dialog when settings change
+        return Consumer(
+          builder: (context, ref, child) {
+            final settings = ref.watch(dialogueSettingsProvider);
+            return AlertDialog(
+              title: const Text('Dialogue Settings'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Show English Translation'),
+                    value: settings.showTranslation,
+                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleTranslation(),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Show Transliteration'),
+                    value: settings.showTransliteration,
+                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleTransliteration(),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Show Parts of Speech'),
+                    value: settings.showPos,
+                    onChanged: (_) => ref.read(dialogueSettingsProvider.notifier).toggleShowPos(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  
   // --- Item Request Dialogs ---
   Future<void> _showRequestItemDialog(BuildContext context) async {
-    final int currentCharm = ref.read(currentCharmLevelProvider);
-    final String npcId = widget.currentNpcId;
-    final NpcItemData? itemData = npcItemDataMap[npcId];
+    final int currentCharm = ref.read(currentCharmLevelProvider(widget.npcId));
+    final NpcData? itemData = npcDataMap[widget.npcId];
 
     if (itemData == null) {
-      print("Error: No item data found for NPC ID: $npcId");
+      print("Error: No item data found for NPC ID: ${widget.npcId}");
       return;
     }
 
-    String dialogTitle = "Request an item from ${itemData.npcName}?";
+    String dialogTitle = "Request an item from ${itemData.name}?";
     String dialogContent;
 
     if (currentCharm >= 100) {
@@ -915,9 +873,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                         onPressed: () {
                             Navigator.of(dialogContext).pop(); // Close this dialog
                             final isSpecial = currentCharm >= 100;
-                            String receivedItem = isSpecial ? itemData.specialItem : itemData.regularItem;
+                            String receivedItem = isSpecial ? itemData.specialItemName : itemData.regularItemName;
                             String receivedItemAsset = isSpecial ? itemData.specialItemAsset : itemData.regularItemAsset;
-                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset);
+                            String receivedItemType = isSpecial ? itemData.specialItemType : itemData.regularItemType;
+                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset, receivedItemType);
                         },
                     ),
                 ],
@@ -926,7 +885,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
 
-  Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset) {
+  Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset, String itemType) {
     return showDialog<void>(
         context: context,
         builder: (BuildContext dialogContext) {
@@ -940,9 +899,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                             // Update inventory state
                             ref.read(inventoryProvider.notifier).update((state) {
                               final newState = Map<String, String?>.from(state);
-                              newState['attack'] = itemAsset;
+                              newState[itemType] = itemAsset; // Use itemType as the key
                               return newState;
                             });
+
+                            // Set providers for new item notification
+                            ref.read(gameStateProvider.notifier).setNewItem();
 
                             Navigator.of(dialogContext).pop(); // Close this dialog first
 
@@ -964,7 +926,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text("Max Charm Reached!"),
-          content: Text("You have reached the maximum charm level with ${widget.currentNpcName}! You can now request a special item."),
+          content: Text("You have reached the maximum charm level with ${_npcData.name}! You can now request a special item."),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
@@ -991,21 +953,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               ElevatedButton(
                 child: Text("Set Charm to 20"),
                 onPressed: () {
-                  ref.read(currentCharmLevelProvider.notifier).state = 20;
+                  ref.read(currentCharmLevelProvider(widget.npcId).notifier).state = 20;
                   Navigator.of(dialogContext).pop();
                 },
               ),
               ElevatedButton(
                 child: Text("Set Charm to 75"),
                 onPressed: () {
-                  ref.read(currentCharmLevelProvider.notifier).state = 75;
+                  ref.read(currentCharmLevelProvider(widget.npcId).notifier).state = 75;
                   Navigator.of(dialogContext).pop();
                 },
               ),
               ElevatedButton(
                 child: Text("Set Charm to 100"),
                 onPressed: () {
-                  ref.read(currentCharmLevelProvider.notifier).state = 100;
+                  ref.read(currentCharmLevelProvider(widget.npcId).notifier).state = 100;
                   Navigator.of(dialogContext).pop();
                 },
               ),
@@ -1064,15 +1026,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       // NPC live response with word columns
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black87) : Colors.black87, fontSize: 14, fontWeight: FontWeight.w500)),
+                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black87) : Colors.black87, fontSize: 18, fontWeight: FontWeight.w500)),
                         ];
                         if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.black54) : Colors.black54)));
                         }
                         if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600) : Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1085,7 +1047,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
                     } else {
                       // NPC text without special formatting (e.g., if no POS mappings)
-                      entryContentWidget = Text(entry.text, style: TextStyle(fontSize: 14, color: Colors.black87));
+                      entryContentWidget = Text(entry.text, style: TextStyle(fontSize: 18, color: Colors.black87));
                     }
                   } else {
                     // Player's transcribed text - check if we have POS mappings for enhanced display
@@ -1093,15 +1055,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       // Player input with word columns (same as NPC but with different base color)
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700) : Colors.deepPurple.shade700, fontSize: 14, fontWeight: FontWeight.w500)),
+                          Text(mapping.wordTarget, style: TextStyle(color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700) : Colors.deepPurple.shade700, fontSize: 18, fontWeight: FontWeight.w500)),
                         ];
                         if (showTransliterationsInHistory && mapping.wordTranslit.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400) : Colors.deepPurple.shade400)));
+                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400) : Colors.deepPurple.shade400)));
                         }
                         if (showTranslationsInHistory && mapping.wordEng.isNotEmpty) {
                           wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 10, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300) : Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
+                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: showPOSColorsInHistory ? (posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300) : Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
                         }
                         return WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -1114,7 +1076,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       entryContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
                     } else {
                       // Player's transcribed text without POS mappings (fallback)
-                      entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 14, color: Colors.deepPurple.shade700));
+                      entryContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 18, color: Colors.deepPurple.shade700));
                     }
                   }
 
@@ -1128,7 +1090,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: entry.isNpc ? Colors.teal.shade600 : Colors.indigo.shade600,
-                            fontSize: 12,
+                            fontSize: 14,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -1486,7 +1448,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     posMappings: entryWithCorrectIdForAnimation.posMappings
                 );
 
-                currentNpcNotifier.state = finalAnimatedEntry; // Update provider with final text
+                currentNpcNotifier.state = finalAnimatedEntry; // Update provider with full text
                 
                 setState(() {
                     _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = fullText; 
@@ -1503,23 +1465,69 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
 }
 
+class _SpeechBubblePainter extends CustomPainter {
+  final Color backgroundColor;
+  final Color borderColor;
+  final double borderWidth;
+
+  _SpeechBubblePainter({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth;
+
+    final RRect bubbleRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height - 10),
+      const Radius.circular(10),
+    );
+
+    final Path path = Path()..addRRect(bubbleRect);
+
+    // Triangle/tail of the bubble
+    final Path tail = Path();
+    tail.moveTo(size.width * 0.5 - 15, size.height - 10);
+    tail.lineTo(size.width * 0.5, size.height);
+    tail.lineTo(size.width * 0.5 + 15, size.height - 10);
+    tail.close();
+
+    path.addPath(tail, Offset.zero);
+
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 // Custom AudioSource for playing from a list of bytes or a stream (Unchanged)
 class _MyCustomStreamAudioSource extends just_audio.StreamAudioSource {
   final Uint8List? _fixedBytes;
 
-  _MyCustomStreamAudioSource.fromBytes(this._fixedBytes) 
+  _MyCustomStreamAudioSource.fromBytes(this._fixedBytes)
     : super(tag: 'npc-audio-bytes-${DateTime.now().millisecondsSinceEpoch}');
 
   @override
   Future<just_audio.StreamAudioResponse> request([int? start, int? end]) async {
     if (_fixedBytes != null) {
       start ??= 0;
-      end ??= _fixedBytes.length;
+      end ??= _fixedBytes!.length;
       return just_audio.StreamAudioResponse(
-        sourceLength: _fixedBytes.length,
+        sourceLength: _fixedBytes!.length,
         contentLength: end - start,
         offset: start,
-        stream: Stream.value(_fixedBytes.sublist(start, end)),
+        stream: Stream.value(_fixedBytes!.sublist(start, end)),
         contentType: 'audio/wav',
       );
     }
