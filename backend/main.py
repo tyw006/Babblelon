@@ -105,7 +105,7 @@ async def generate_npc_response_endpoint(
             raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
         
         player_audio_stream = io.BytesIO(player_audio_bytes)
-        player_transcription = await transcribe_audio(player_audio_stream)
+        player_transcription = await transcribe_audio(player_audio_stream, language_code=target_language)
         print(f"[{datetime.datetime.now()}] INFO: STT for {npc_id} successful. Transcription: '{player_transcription}'")
 
         # 2. Prepare conversation history and latest message for LLM
@@ -189,9 +189,12 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/transcribe-audio/")
-async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
+async def transcribe_audio_endpoint(
+    audio_file: UploadFile = File(...),
+    language_code: Optional[str] = Form("tha")
+):
     request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /transcribe-audio/ endpoint hit. File: {audio_file.filename}")
+    print(f"[{request_time}] INFO: /transcribe-audio/ endpoint hit. File: {audio_file.filename}, Language: {language_code}")
     audio_bytes = await audio_file.read()
     await audio_file.close()
     if not audio_bytes:
@@ -199,7 +202,7 @@ async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
 
     audio_content_stream = io.BytesIO(audio_bytes)
     try:
-        transcription = await transcribe_audio(audio_content_stream)
+        transcription = await transcribe_audio(audio_content_stream, language_code=language_code)
         print(f"[{datetime.datetime.now()}] DEBUG: /transcribe-audio/ STT result: '{transcription}'.")
         return {"transcription": transcription}
     except HTTPException as e:

@@ -6,7 +6,7 @@ import '../providers/game_providers.dart';
 import 'charm_bar.dart';
 import '../overlays/dialogue_overlay.dart';
 
-class DialogueUI extends StatelessWidget {
+class DialogueUI extends StatefulWidget {
   final NpcData npcData;
   final int displayedCharmLevel;
   final double screenWidth;
@@ -41,17 +41,55 @@ class DialogueUI extends StatelessWidget {
   });
 
   @override
+  State<DialogueUI> createState() => _DialogueUIState();
+}
+
+class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
+  late AnimationController _thinkingAnimationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _thinkingAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    if (widget.isProcessingBackend) {
+      _thinkingAnimationController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(DialogueUI oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isProcessingBackend != oldWidget.isProcessingBackend) {
+      if (widget.isProcessingBackend) {
+        _thinkingAnimationController.repeat();
+      } else {
+        _thinkingAnimationController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _thinkingAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final double outerHorizontalPadding = screenWidth * 0.01;
+    final double outerHorizontalPadding = widget.screenWidth * 0.01;
     final double textboxHeight = 150.0;
-    final double textboxWidth = math.max(screenWidth * 0.95, 368.0);
+    final double textboxWidth = math.max(widget.screenWidth * 0.95, 368.0);
 
     return Material(
       color: Colors.transparent,
       child: Stack(
         children: <Widget>[
           Positioned.fill(
-            child: Image.asset(npcData.dialogueBackgroundPath, fit: BoxFit.cover),
+            child: Image.asset(widget.npcData.dialogueBackgroundPath, fit: BoxFit.cover),
           ),
           SafeArea(
             bottom: false,
@@ -71,7 +109,7 @@ class DialogueUI extends StatelessWidget {
                           builder: (context, ref, child) {
                             return GestureDetector(
                               onDoubleTap: () {
-                                final charmNotifier = ref.read(currentCharmLevelProvider(npcData.id).notifier);
+                                final charmNotifier = ref.read(currentCharmLevelProvider(widget.npcData.id).notifier);
                                 if (charmNotifier.state >= 100) {
                                   charmNotifier.state = 0;
                                 } else {
@@ -82,23 +120,23 @@ class DialogueUI extends StatelessWidget {
                             );
                           },
                           child: CharmBar(
-                            npcId: npcData.id,
-                            npcName: npcData.name,
-                            maxWidth: screenWidth * 0.75,
+                            npcId: widget.npcData.id,
+                            npcName: widget.npcData.name,
+                            maxWidth: widget.screenWidth * 0.75,
                             height: 32,
                             nameFontSize: 28,
                             charmFontSize: 16,
-                            trailing: displayedCharmLevel >= 75
+                            trailing: widget.displayedCharmLevel >= 75
                                 ? GestureDetector(
-                                    onTap: onRequestItem,
+                                    onTap: widget.onRequestItem,
                                     child: AnimatedBuilder(
-                                      animation: giftIconAnimationController,
+                                      animation: widget.giftIconAnimationController,
                                       builder: (context, child) {
-                                        final bool isMaxCharm = displayedCharmLevel >= 100;
+                                        final bool isMaxCharm = widget.displayedCharmLevel >= 100;
                                         final Color glowColor = isMaxCharm ? Colors.yellow.shade700 : Colors.pink.shade400;
                                         final double maxBlur = isMaxCharm ? 20.0 : 12.0;
                                         final double maxSpread = isMaxCharm ? 5.0 : 2.0;
-                                        final double glowValue = giftIconAnimationController.value;
+                                        final double glowValue = widget.giftIconAnimationController.value;
 
                                         return Container(
                                           padding: const EdgeInsets.all(8),
@@ -134,8 +172,8 @@ class DialogueUI extends StatelessWidget {
                 Align(
                   alignment: const Alignment(0.0, 0.0),
                   child: Image.asset(
-                    npcData.dialoguePortraitPath,
-                    height: screenHeight * 0.7,
+                    widget.npcData.dialoguePortraitPath,
+                    height: widget.screenHeight * 0.7,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -165,28 +203,30 @@ class DialogueUI extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                             child: Scrollbar(
-                              controller: mainDialogueScrollController,
+                              controller: widget.mainDialogueScrollController,
                               thumbVisibility: true,
                               child: SingleChildScrollView(
-                                controller: mainDialogueScrollController,
+                                controller: widget.mainDialogueScrollController,
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(
                                     minHeight: textboxHeight - 24, // Expanded text area
                                   ),
                                   child: Center(
-                                    child: npcContentWidget,
+                                    child: widget.isProcessingBackend
+                                        ? _buildThinkingText()
+                                        : widget.npcContentWidget,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          if (topRightAction != null)
-                            topRightAction!,
+                          if (widget.topRightAction != null)
+                            widget.topRightAction!,
                           Positioned(
                             bottom: 10,
                             right: 0,
                             child: GestureDetector(
-                              onTap: onShowHistory,
+                              onTap: widget.onShowHistory,
                               child: Icon(
                                 Icons.history,
                                 color: Colors.grey.shade600,
@@ -207,14 +247,14 @@ class DialogueUI extends StatelessWidget {
                     children: <Widget>[
                       _buildControlButton(
                         icon: Icons.arrow_back,
-                        onTap: onResumeGame,
+                        onTap: widget.onResumeGame,
                       ),
-                      isProcessingBackend
+                      widget.isProcessingBackend
                           ? const CircularProgressIndicator()
-                          : micControls,
+                          : widget.micControls,
                       _buildControlButton(
                         icon: Icons.translate,
-                        onTap: onShowTranslation,
+                        onTap: widget.onShowTranslation,
                       ),
                     ],
                   ),
@@ -222,15 +262,29 @@ class DialogueUI extends StatelessWidget {
               ],
             ),
           ),
-          if (isProcessingBackend)
-            const Opacity(
-              opacity: 0.8,
-              child: ModalBarrier(dismissible: false, color: Colors.black),
-            ),
-          if (isProcessingBackend)
-            const Center(child: CircularProgressIndicator()),
         ],
       ),
+    );
+  }
+
+  Widget _buildThinkingText() {
+    return AnimatedBuilder(
+      animation: _thinkingAnimationController,
+      builder: (context, child) {
+        // Create animated dots based on animation progress
+        final int dotCount = ((_thinkingAnimationController.value * 4) % 4).floor();
+        final String dots = '.' * (dotCount + 1);
+        
+        return Text(
+          '${widget.npcData.name} is thinking$dots',
+          style: const TextStyle(
+            fontSize: 18,
+            fontStyle: FontStyle.italic,
+            color: Colors.grey,
+          ),
+          textAlign: TextAlign.center,
+        );
+      },
     );
   }
 
