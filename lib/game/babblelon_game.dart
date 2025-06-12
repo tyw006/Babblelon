@@ -7,6 +7,7 @@ import 'package:flame/experimental.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'components/player_component.dart';
+import 'components/capybara_companion.dart';
 import 'components/speech_bubble_component.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
@@ -28,6 +29,7 @@ class BabblelonGame extends FlameGame with
 
   // Game Components (will be added to the world)
   late PlayerComponent player; 
+  late CapybaraCompanion capybara;
   late SpriteComponent background; 
   double backgroundWidth = 0.0;
   double backgroundHeight = 0.0;
@@ -90,6 +92,11 @@ class BabblelonGame extends FlameGame with
     player = PlayerComponent();
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
+
+    // Add capybara companion after player is created
+    capybara = CapybaraCompanion(player: player);
+    capybara.backgroundWidth = backgroundWidth;
+    gameWorld.add(capybara);
 
     // --- Add all NPCs from the data map ---
     await _addNpcs();
