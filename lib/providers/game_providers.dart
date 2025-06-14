@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
 part 'game_providers.g.dart';
 
@@ -9,23 +10,32 @@ part 'game_providers.g.dart';
 @immutable
 class GameStateData {
   final bool isPaused;
-  final bool musicEnabled;
   final bool bgmIsPlaying;
+  final bool musicEnabled;
   final bool hasNewItem;
+  final bool soundEffectsEnabled;
 
   const GameStateData({
     this.isPaused = false,
-    this.musicEnabled = true,
     this.bgmIsPlaying = false,
+    this.musicEnabled = true,
     this.hasNewItem = false,
+    this.soundEffectsEnabled = true,
   });
 
-  GameStateData copyWith({bool? isPaused, bool? musicEnabled, bool? bgmIsPlaying, bool? hasNewItem}) {
+  GameStateData copyWith({
+    bool? isPaused,
+    bool? musicEnabled,
+    bool? bgmIsPlaying,
+    bool? hasNewItem,
+    bool? soundEffectsEnabled,
+  }) {
     return GameStateData(
       isPaused: isPaused ?? this.isPaused,
       musicEnabled: musicEnabled ?? this.musicEnabled,
       bgmIsPlaying: bgmIsPlaying ?? this.bgmIsPlaying,
       hasNewItem: hasNewItem ?? this.hasNewItem,
+      soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
     );
   }
 }
@@ -37,29 +47,17 @@ class GameState extends _$GameState {
 
   void pauseGame() => state = state.copyWith(isPaused: true);
   void resumeGame() => state = state.copyWith(isPaused: false);
-  void toggleMusic() {
-    final newMusicEnabledState = !state.musicEnabled;
-    state = state.copyWith(musicEnabled: newMusicEnabledState);
-    if (newMusicEnabledState) {
-      // Always try to play BGM if music is enabled, regardless of pause state.
-      // The _playBGM method itself can check if it's already playing.
-      _playBGM(); 
-    } else {
-      _stopBGM();
-    }
-  }
-
+  void setBgmPlaying(bool playing) => state = state.copyWith(bgmIsPlaying: playing);
+  void toggleMusic() => setMusicEnabled(!state.musicEnabled);
   void setNewItem() => state = state.copyWith(hasNewItem: true);
   void clearNewItem() => state = state.copyWith(hasNewItem: false);
 
-  void setBgmPlaying(bool playing) => state = state.copyWith(bgmIsPlaying: playing);
-
-  void _playBGM() {
-    // Implementation of _playBGM method
+  void setMusicEnabled(bool isEnabled) {
+    state = state.copyWith(musicEnabled: isEnabled);
   }
 
-  void _stopBGM() {
-    // Implementation of _stopBGM method
+  void setSoundEffectsEnabled(bool isEnabled) {
+    state = state.copyWith(soundEffectsEnabled: isEnabled);
   }
 }
 
@@ -108,6 +106,12 @@ class DialogueSettings extends _$DialogueSettings {
 // --- Dialogue Overlay Visibility ---
 final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false);
 
+// Provider to hold the turn count in a battle
+final turnCounterProvider = StateProvider<int>((ref) => 1);
+
+// Provider to hold the player's score
+final scoreProvider = StateProvider<int>((ref) => 0);
+
 // Provider to hold the list of temporary file paths to be cleaned up on exit
 final tempFilePathsProvider = StateProvider<List<String>>((ref) => []);
 
@@ -121,5 +125,32 @@ final inventoryProvider = StateProvider<Map<String, String?>>((ref) => {
 // Provider for the current charm level, now specific to each NPC
 final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId) => 50);
 
+// Provider for the shared preferences instance
+@riverpod
+Future<SharedPreferences> sharedPreferences(AutoDisposeFutureProviderRef ref) async {
+  return SharedPreferences.getInstance();
+}
+
 // Provider to track if a special item has been received from an NPC
-final specialItemReceivedProvider = StateProvider.family<bool, String>((ref, npcId) => false); 
+final specialItemReceivedProvider = StateProvider.family<bool, String>((ref, npcId) => false);
+
+@immutable
+class PopupConfig {
+  final String title;
+  final String message;
+  final String? confirmText;
+  final void Function(BuildContext context)? onConfirm;
+  final String? cancelText;
+  final void Function(BuildContext context)? onCancel;
+
+  const PopupConfig({
+    required this.title,
+    required this.message,
+    this.confirmText,
+    this.onConfirm,
+    this.cancelText,
+    this.onCancel,
+  });
+}
+
+final popupConfigProvider = StateProvider<PopupConfig?>((ref) => null);

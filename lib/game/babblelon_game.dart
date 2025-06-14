@@ -9,8 +9,10 @@ import 'package:flutter/services.dart';
 import 'components/player_component.dart';
 import 'components/capybara_companion.dart';
 import 'components/speech_bubble_component.dart';
+import 'components/portal_component.dart'; // Import the new portal component
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
+import '../models/boss_data.dart';
 import '../models/npc_data.dart'; // Import the new NPC data model
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,6 +103,25 @@ class BabblelonGame extends FlameGame with
     // --- Add all NPCs from the data map ---
     await _addNpcs();
     // --- End NPC addition ---
+
+    // Define the boss for this level
+    const tuktukBoss = BossData(
+      name: "Tuk-Tuk Monster",
+      spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
+      maxHealth: 500,
+      vocabularyPath: 'assets/data/boss_vocabulary.json',
+      backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
+    );
+
+    // --- Portal Setup ---
+    // 🎯 CONFIGURE PORTAL HERE: Set which boss, size, and position
+    // The PortalComponent handles the visual implementation details.
+    final portal = PortalComponent(
+      bossData: tuktukBoss,                    // Which boss this portal leads to
+      desiredHeight: 300.0,                   // How tall the portal should be (width auto-calculated to maintain aspect ratio)
+      offsetFromBottomRight: Vector2(40, 0.02), // Distance from screen edge: (X: pixels from right, Y: % from bottom)
+    );
+    gameWorld.add(portal);
 
     final worldBounds = Rectangle.fromLTWH(
       0, 
