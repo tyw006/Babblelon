@@ -1,0 +1,44 @@
+{
+  "vocabulary": [
+    {
+      "english": "Hello",
+      "thai": "สวัสดี",
+      "transliteration": "Sawasdee"
+    },
+    {
+      "english": "Thank you",
+      "thai": "ขอบคุณ",
+      "transliteration": "Khob khun"
+    },
+    {
+      "english": "Sorry",
+      "thai": "ขอโทษ",
+      "transliteration": "Kaw thot"
+    },
+    {
+      "english": "Yes",
+      "thai": "ใช่",
+      "transliteration": "Chai"
+    },
+    {
+      "english": "No",
+      "thai": "ไม่",
+      "transliteration": "Mai"
+    },
+    {
+      "english": "Water",
+      "thai": "น้ำ",
+      "transliteration": "Naam"
+    },
+    {
+      "english": "Food",
+      "thai": "อาหาร",
+      "transliteration": "Ahaan"
+    },
+    {
+      "english": "Delicious",
+      "thai": "อร่อย",
+      "transliteration": "Aroy"
+    }
+  ]
+} 

@@ -48,5 +48,6 @@ flutter:
     - assets/audio/npc/
     - assets/audio/bg/
     - assets/audio/test/
+    - assets/images/bosses/tuktuk/
     - assets/data/
     - .env 

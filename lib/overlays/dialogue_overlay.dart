@@ -865,7 +865,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
 
   Widget _buildControlButton({required IconData icon, required VoidCallback onTap, double size = 28, double padding = 12}) {
-    return GestureDetector(
+    return _AnimatedPressWrapper(
       onTap: onTap,
       child: Container(
         padding: EdgeInsets.all(padding),
@@ -897,7 +897,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   Widget _buildMicOrReviewControls() {
     switch (_recordingState) {
       case RecordingState.recording:
-        return GestureDetector(
+        return _AnimatedPressWrapper(
           onTap: _stopRecordingAndReview,
           child: _buildMicButton(),
         );
@@ -914,7 +914,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         );
       case RecordingState.idle:
       default:
-        return GestureDetector(
+        return _AnimatedPressWrapper(
           onTap: _startRecording,
           child: _buildMicButton(),
         );
@@ -2077,3 +2077,77 @@ class _MyCustomStreamAudioSource extends just_audio.StreamAudioSource {
     throw Exception("CustomStreamAudioSource not initialized with bytes or stream");
   }
 } 
+
+// --- End Custom AudioSource ---
+
+class _AnimatedPressWrapper extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final bool isDisabled;
+
+  const _AnimatedPressWrapper({
+    required this.child,
+    this.onTap,
+    this.isDisabled = false,
+  });
+
+  @override
+  _AnimatedPressWrapperState createState() => _AnimatedPressWrapperState();
+}
+
+class _AnimatedPressWrapperState extends State<_AnimatedPressWrapper> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.90).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (!widget.isDisabled) {
+      _controller.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    if (!widget.isDisabled) {
+      _controller.reverse().then((_) {
+        widget.onTap?.call();
+      });
+    }
+  }
+
+  void _onTapCancel() {
+    if (!widget.isDisabled) {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: widget.child,
+      ),
+    );
+  }
+}
