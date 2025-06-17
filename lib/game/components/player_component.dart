@@ -1,5 +1,6 @@
 import 'dart:math'; // For max function
 import 'package:flame/components.dart';
+import 'package:flame/collisions.dart';
 import '../babblelon_game.dart'; // Adjust if your game class file is named differently or located elsewhere
 
 class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
@@ -36,6 +37,9 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
 
     // Set initial facing direction to Right
     _ensureCorrectFacing(true);
+    
+    // Add collision detection
+    add(RectangleHitbox());
   }
 
   @override

@@ -1,44 +1,796 @@
 {
-  "vocabulary": [
-    {
-      "english": "Hello",
-      "thai": "สวัสดี",
-      "transliteration": "Sawasdee"
-    },
-    {
-      "english": "Thank you",
-      "thai": "ขอบคุณ",
-      "transliteration": "Khob khun"
-    },
-    {
-      "english": "Sorry",
-      "thai": "ขอโทษ",
-      "transliteration": "Kaw thot"
-    },
-    {
-      "english": "Yes",
-      "thai": "ใช่",
-      "transliteration": "Chai"
-    },
-    {
-      "english": "No",
-      "thai": "ไม่",
-      "transliteration": "Mai"
-    },
-    {
-      "english": "Water",
-      "thai": "น้ำ",
-      "transliteration": "Naam"
-    },
-    {
-      "english": "Food",
-      "thai": "อาหาร",
-      "transliteration": "Ahaan"
-    },
-    {
-      "english": "Delicious",
-      "thai": "อร่อย",
-      "transliteration": "Aroy"
-    }
-  ]
-} 
+    "vocabulary": [
+      {
+        "english": "Hello",
+        "thai": "สวัสดี",
+        "transliteration": "Sawasdee",
+        "explanation": "สวัสดี (Sawasdee) is a versatile word for both 'hello' and 'goodbye'. It is often paired with a polite particle: ครับ (khrap) for men and ค่ะ (kha) for women. It should be accompanied by a 'wai' gesture (palms together).",
+        "example_sentence": "สวัสดี (Sawasdee - 'hello') ครับ (khrap - polite particle) คุณ (khun - 'you') ครู (khruu - 'teacher') - Hello, teacher. (male speaker)",
+        "slang": "หวัดดี (Wat-dee), a shortened and more casual version used among friends."
+      },
+      {
+        "english": "Thank you",
+        "thai": "ขอบคุณ",
+        "transliteration": "Khob khun",
+        "explanation": "ขอบคุณ (Khob khun) is the standard polite phrase for 'thank you'. ขอบ (khob) relates to gratitude, and คุณ (khun) is the formal word for 'you'.",
+        "example_sentence": "ขอบคุณ (Khob khun - 'thank you') มาก (mak - 'very') ค่ะ (kha - polite particle) - Thank you very much. (female speaker)",
+        "slang": "ขอบใจ (Khob jai), an informal 'thanks' used with friends or subordinates. ใจ (jai) means 'heart'."
+      },
+      {
+        "english": "Sorry / Excuse me",
+        "thai": "ขอโทษ",
+        "transliteration": "Kaw thot",
+        "explanation": "ขอ (kaw) means 'to ask for' or 'to request', and โทษ (thot) means 'blame' or 'punishment'. Together, it means 'I ask for forgiveness'. It's used to apologize or to get someone's attention.",
+        "example_sentence": "ขอโทษ (Kaw thot - 'sorry') ครับ (khrap - polite particle) ผม (phom - 'I') มา (ma - 'come') สาย (sai - 'late') - Sorry, I'm late. (male speaker)",
+        "slang": "โทษที (Tote tee), a very casual 'my bad' or 'oops, sorry' used between friends."
+      },
+      {
+        "english": "Yes",
+        "thai": "ใช่",
+        "transliteration": "Chai",
+        "explanation": "ใช่ (Chai) means 'yes' in the sense of 'that is correct'. It's primarily used to confirm a fact or answer a question that ends in '...ไหม?' (...mai?).",
+        "example_sentence": "A: นี่ (Nee - 'this') คือ (kue - 'is') ของ (khong - 'of') คุณ (khun - 'you') ใช่ไหม (chai mai - 'right?')? - Is this yours? B: ใช่ (Chai - 'yes') ครับ (khrap - polite particle) - Yes, it is.",
+        "slang": "อือ (Euh) or อืม (Umm), a casual sound of agreement used with friends, similar to 'yeah' or 'uh-huh'."
+      },
+      {
+        "english": "No",
+        "thai": "ไม่",
+        "transliteration": "Mai",
+        "explanation": "ไม่ (Mai) is a negation word placed before a verb or adjective to make it negative. For example, when placed before 'spicy' (เผ็ด - phet), it becomes 'not spicy' (ไม่เผ็ด - mai phet).",
+        "example_sentence": "ผม (Phom - 'I') ไม่ (mai - 'not') ชอบ (chob - 'like') กาแฟ (kafae - 'coffee') - I don't like coffee. (male speaker)",
+        "slang": "เปล่า (Plao), used informally to say 'no' or 'nothing' in response to a question, e.g., 'Are you tired?' 'Plao'."
+      },
+      {
+        "english": "Water",
+        "thai": "น้ำ",
+        "transliteration": "Naam",
+        "explanation": "น้ำ (Naam) is the general word for 'water' or any liquid.",
+        "example_sentence": "ขอ (Kaw - 'may I have') น้ำเปล่า (naam plao - 'drinking water') หนึ่ง (nueng - 'one') ขวด (khuat - 'bottle') ครับ (khrap - polite particle) - Can I have one bottle of drinking water, please?",
+        "slang": ""
+      },
+      {
+        "english": "Food",
+        "thai": "อาหาร",
+        "transliteration": "Ahaan",
+        "explanation": "อาหาร (Ahaan) is the formal and general word for 'food'.",
+        "example_sentence": "อาหารไทย (Ahaan thai - 'Thai food') อร่อย (aroy - 'delicious') มาก (mak - 'very') - Thai food is very delicious.",
+        "slang": "ข้าว (Khao), which means 'rice', is very commonly used to refer to a 'meal' in general (e.g., 'gin khao' - to eat a meal)."
+      },
+      {
+        "english": "Delicious",
+        "thai": "อร่อย",
+        "transliteration": "Aroy",
+        "explanation": "อร่อย (Aroy) is the standard word for 'delicious' or 'tasty'.",
+        "example_sentence": "แกงเขียวหวาน (Gaeng khiao waan - 'green curry') นี้ (nee - 'this') อร่อย (aroy - 'delicious') มาก (mak - 'very') - This green curry is very delicious.",
+        "slang": "แซ่บ (Saap) for 'spicy and delicious', especially for Northeastern (Isaan) food. 'ฟิน' (Fin) for ultimate satisfaction, like 'blissful'."
+      },
+      {
+        "english": "How are you?",
+        "thai": "สบายดีไหม",
+        "transliteration": "Sabai dee mai?",
+        "explanation": "สบายดี (sabai dee) means 'to be well' or 'fine'. ไหม (mai) is a question particle. So, it literally means 'Are you well?'.",
+        "example_sentence": "สวัสดี (Sawasdee - 'hello') ครับ (khrap - polite particle), สบายดีไหม (sabai dee mai - 'how are you?') ครับ (khrap - polite particle)? - Hello, how are you?",
+        "slang": "เป็นไงบ้าง (Pen ngai bang?), a more casual 'What's up?' or 'How's it going?' used with friends."
+      },
+      {
+        "english": "I am fine",
+        "thai": "สบายดี",
+        "transliteration": "Sabai dee",
+        "explanation": "สบายดี (Sabai dee) is the standard response to 'How are you?', meaning 'I am well'.",
+        "example_sentence": "A: สบายดีไหม (Sabai dee mai - 'how are you?') คะ (kha - polite particle)? B: สบายดี (Sabai dee - 'I am fine') ค่ะ (kha - polite particle) - A: How are you? B: I'm fine.",
+        "slang": "ก็ดี (Gor dee) for 'pretty good', or เรื่อยๆ (Reuay-reuay) for 'so-so' or 'same as usual'."
+      },
+      {
+        "english": "What is your name?",
+        "thai": "คุณชื่ออะไร",
+        "transliteration": "Khun chue arai?",
+        "explanation": "คุณ (khun) is 'you'. ชื่อ (chue) is 'name'. อะไร (arai) is 'what'. Literally 'You name what?'.",
+        "example_sentence": "ขอโทษ (Kaw thot - 'excuse me') ค่ะ (kha - polite particle), คุณ (khun - 'you') ชื่อ (chue - 'name') อะไร (arai - 'what') คะ (kha - polite particle)? - Excuse me, what is your name?",
+        "slang": ""
+      },
+      {
+        "english": "My name is...",
+        "thai": "ฉันชื่อ...",
+        "transliteration": "Chan chue...",
+        "explanation": "ฉัน (chan) is 'I/me' (gender neutral/female). Men usually use ผม (phom). ชื่อ (chue) means 'name'.",
+        "example_sentence": "ผม (Phom - 'I') ชื่อ (chue - 'name') เดวิด (David) ครับ (khrap - polite particle) - My name is David. (male speaker)",
+        "slang": ""
+      },
+      {
+        "english": "Pleased to meet you",
+        "thai": "ยินดีที่ได้รู้จัก",
+        "transliteration": "Yindee ti dai roo jak",
+        "explanation": "ยินดี (Yindee) means 'glad' or 'pleased'. ที่ (ti) means 'that'. ได้รู้จัก (dai roo jak) means 'to get to know'.",
+        "example_sentence": "ยินดีที่ได้รู้จัก (Yindee ti dai roo jak - 'pleased to meet you') ครับ (khrap - polite particle) - Pleased to meet you.",
+        "slang": ""
+      },
+      {
+        "english": "Goodbye",
+        "thai": "ลาก่อน",
+        "transliteration": "La gorn",
+        "explanation": "ลา (La) means 'to leave', and ก่อน (gorn) means 'before' or 'first'. It implies a more permanent or long-term departure. สวัสดี (Sawasdee) is more common for daily goodbyes.",
+        "example_sentence": "ผม (Phom - 'I') ต้อง (tong - 'must') ไป (pai - 'go') แล้ว (laew - 'already'), ลาก่อน (la gorn - 'goodbye') ครับ (khrap - polite particle) - I have to go now. Goodbye.",
+        "slang": "เจอกัน (Jer gun) for 'see you later'. English 'Bye-bye' is also very common."
+      },
+      {
+        "english": "Where is the bathroom?",
+        "thai": "ห้องน้ำอยู่ที่ไหน",
+        "transliteration": "Hong nam yoo ti nai?",
+        "explanation": "ห้องน้ำ (Hong nam) means 'bathroom' (literally 'water room'). อยู่ (yoo) means 'to be at'. ที่ไหน (ti nai) means 'where'.",
+        "example_sentence": "ขอโทษ (Kaw thot - 'excuse me') ค่ะ (kha - polite particle), ห้องน้ำ (hong nam - 'bathroom') อยู่ที่ไหน (yoo ti nai - 'where is') คะ (kha - polite particle)? - Excuse me, where is the bathroom?",
+        "slang": ""
+      },
+      {
+        "english": "How much?",
+        "thai": "เท่าไหร่",
+        "transliteration": "Tao rai?",
+        "explanation": "เท่าไหร่ (Tao rai) is the standard question phrase for 'how much?' when asking for a price.",
+        "example_sentence": "อันนี้ (An nee - 'this one') ราคา (raka - 'price') เท่าไหร่ (tao rai - 'how much') ครับ (khrap - polite particle)? - How much does this one cost?",
+        "slang": ""
+      },
+      {
+        "english": "Not spicy",
+        "thai": "ไม่เผ็ด",
+        "transliteration": "Mai phet",
+        "explanation": "ไม่ (Mai) is 'not' and เผ็ด (phet) is 'spicy'. A crucial phrase for ordering food.",
+        "example_sentence": "ขอ (Kaw - 'I'd like') ส้มตำ (som tam - 'papaya salad') ไม่เผ็ด (mai phet - 'not spicy') ค่ะ (kha - polite particle) - I'd like papaya salad, not spicy.",
+        "slang": ""
+      },
+      {
+        "english": "A little spicy",
+        "thai": "เผ็ดน้อย",
+        "transliteration": "Phet noi",
+        "explanation": "เผ็ด (Phet) means 'spicy' and น้อย (noi) means 'a little'.",
+        "example_sentence": "เอา (Ao - 'I'll have') ผัดไทย (pad thai - 'Pad Thai') เผ็ดน้อย (phet noi - 'a little spicy') ครับ (khrap - polite particle) - I'll have the Pad Thai, a little spicy.",
+        "slang": "เผ็ดนิดหน่อย (Phet nit noi) is also very common and means the same thing."
+      },
+      {
+        "english": "I don't understand",
+        "thai": "ไม่เข้าใจ",
+        "transliteration": "Mai khao jai",
+        "explanation": "ไม่ (Mai) is 'not'. เข้าใจ (khao jai) means 'to understand' (literally 'enter heart').",
+        "example_sentence": "ขอโทษ (Kaw thot - 'sorry') ค่ะ (kha - polite particle), พูด (pood - 'speak') อีก (eek - 'again') ครั้ง (krang - 'time') ได้ไหม (dai mai - 'can you') คะ (kha - polite particle)? ฉัน (Chan - 'I') ไม่เข้าใจ (mai khao jai - 'don't understand') - Sorry, can you say that again? I don't understand.",
+        "slang": ""
+      },
+      {
+        "english": "Never mind / It's okay",
+        "thai": "ไม่เป็นไร",
+        "transliteration": "Mai pen rai",
+        "explanation": "A key cultural phrase. ไม่ (Mai) is 'not'. เป็นไร (pen rai) means 'to be anything'. Together, it means 'it's nothing'. Used for 'you're welcome', 'it's okay', 'don't worry about it'.",
+        "example_sentence": "A: ขอโทษ (Kaw thot - 'sorry') ครับ (khrap - polite particle). B: ไม่เป็นไร (Mai pen rai - 'it's okay') ครับ (khrap - polite particle) - A: Sorry. B: It's okay.",
+        "slang": ""
+      },
+      {
+        "english": "Can you speak English?",
+        "thai": "คุณพูดภาษาอังกฤษได้ไหม",
+        "transliteration": "Khun pood pasa angkrit dai mai?",
+        "explanation": "คุณ (Khun) is 'you'. พูด (pood) is 'speak'. ภาษาอังกฤษ (pasa angkrit) is 'English language'. ได้ไหม (dai mai) is 'can you?'.",
+        "example_sentence": "ขอโทษ (Kaw thot - 'excuse me') ค่ะ (kha - polite particle), คุณ (khun - 'you') พูด (pood - 'speak') ภาษาอังกฤษ (pasa angkrit - 'English') ได้ไหม (dai mai - 'can you') คะ (kha - polite particle)? - Excuse me, can you speak English?",
+        "slang": ""
+      },
+      {
+        "english": "I can speak a little Thai",
+        "thai": "ฉันพูดภาษาไทยได้นิดหน่อย",
+        "transliteration": "Chan pood pasa thai dai nit noi",
+        "explanation": "ฉัน (Chan) is 'I'. พูด (pood) is 'speak'. ภาษาไทย (pasa thai) is 'Thai language'. ได้ (dai) is 'can'. นิดหน่อย (nit noi) is 'a little'.",
+        "example_sentence": "ผม (Phom - 'I') พูด (pood - 'speak') ภาษาไทย (pasa thai - 'Thai language') ได้ (dai - 'can') นิดหน่อย (nit noi - 'a little') ครับ (khrap - polite particle) - I can speak a little Thai.",
+        "slang": ""
+      },
+      {
+        "english": "What is this?",
+        "thai": "นี่คืออะไร",
+        "transliteration": "Nee kue arai?",
+        "explanation": "นี่ (Nee) is 'this'. คือ (kue) is 'is'. อะไร (arai) is 'what'.",
+        "example_sentence": "(Pointing at a fruit) นี่ (Nee - 'this') คือ (kue - 'is') อะไร (arai - 'what') คะ (kha - polite particle)? - What is this?",
+        "slang": "อันนี้อะไร (An nee arai?) is a more casual way to ask."
+      },
+      {
+        "english": "I would like...",
+        "thai": "ฉันอยากได้...",
+        "transliteration": "Chan yak dai...",
+        "explanation": "ฉัน (Chan) is 'I'. อยากได้ (yak dai) means 'to want to have' or 'would like to get'. It is used when requesting objects.",
+        "example_sentence": "ฉัน (Chan - 'I') อยากได้ (yak dai - 'would like') กาแฟร้อน (kafae rorn - 'hot coffee') ค่ะ (kha - polite particle) - I would like a hot coffee.",
+        "slang": "เอา (Ao) + [item name] is the most common and casual way to order or request something, e.g., 'Ao naam' (I'll have water)."
+      },
+      {
+        "english": "Check, please",
+        "thai": "เก็บเงินด้วย",
+        "transliteration": "Geb ngern duay",
+        "explanation": "เก็บ (Geb) means 'to collect'. เงิน (ngern) means 'money'. ด้วย (duay) is a polite particle to soften the request, similar to 'please'.",
+        "example_sentence": "พี่ (Pee - 'waiter/staff') คะ (kha - polite particle), เก็บเงินด้วย (geb ngern duay - 'check, please') ค่ะ (kha - polite particle) - (Calling a waiter) Check, please.",
+        "slang": "เช็คบิล (Check bin) is very common, borrowing from English."
+      },
+      {
+        "english": "Go",
+        "thai": "ไป",
+        "transliteration": "Pai",
+        "explanation": "ไป (Pai) is the fundamental verb for 'to go'.",
+        "example_sentence": "วันนี้ (Wan nee - 'today') ผม (phom - 'I') จะ (ja - 'will') ไป (pai - 'go') ตลาด (talat - 'market') - Today I will go to the market.",
+        "slang": ""
+      },
+      {
+        "english": "Come",
+        "thai": "มา",
+        "transliteration": "Maa",
+        "explanation": "มา (Maa) is the fundamental verb for 'to come'.",
+        "example_sentence": "เขา (Khao - 'he/she') จะ (ja - 'will') มา (maa - 'come') พรุ่งนี้ (prung nee - 'tomorrow') - He/She will come tomorrow.",
+        "slang": ""
+      },
+      {
+        "english": "Eat",
+        "thai": "กิน",
+        "transliteration": "Gin",
+        "explanation": "กิน (Gin) is the common, everyday word for 'to eat'. The formal word is ทาน (taan).",
+        "example_sentence": "คุณ (Khun - 'you') อยาก (yak - 'want') กิน (gin - 'eat') อะไร (arai - 'what')? - What do you want to eat?",
+        "slang": ""
+      },
+      {
+        "english": "Drink",
+        "thai": "ดื่ม",
+        "transliteration": "Duem",
+        "explanation": "ดื่ม (Duem) is the standard verb for 'to drink'.",
+        "example_sentence": "ฉัน (Chan - 'I') ไม่ (mai - 'not') ดื่ม (duem - 'drink') แอลกอฮอล์ (alcohol) - I don't drink alcohol.",
+        "slang": "กิน (Gin) is often used for 'drink' as well, especially with water (e.g., 'gin naam')."
+      },
+      {
+        "english": "Want",
+        "thai": "อยาก",
+        "transliteration": "Yaak",
+        "explanation": "อยาก (Yaak) expresses a desire or want for an action (e.g., 'yaak pai' - want to go). For objects, use 'อยากได้' (yaak dai) or 'เอา' (ao).",
+        "example_sentence": "ฉัน (Chan - 'I') อยาก (yaak - 'want') ไป (pai - 'go') ทะเล (talay - 'the sea') - I want to go to the sea.",
+        "slang": ""
+      },
+      {
+        "english": "Like",
+        "thai": "ชอบ",
+        "transliteration": "Chob",
+        "explanation": "ชอบ (Chob) is the verb 'to like'.",
+        "example_sentence": "ผม (Phom - 'I') ชอบ (chob - 'like') อาหารไทย (ahaan thai - 'Thai food') - I like Thai food.",
+        "slang": ""
+      },
+      {
+        "english": "Have",
+        "thai": "มี",
+        "transliteration": "Mee",
+        "explanation": "มี (Mee) is a verb that means both 'to have' (possession) and 'there is/are' (existence).",
+        "example_sentence": "คุณ (Khun - 'you') มี (mee - 'have') พี่น้อง (pee nong - 'siblings') ไหม (mai - 'question particle')? - Do you have siblings?",
+        "slang": ""
+      },
+      {
+        "english": "Don't have",
+        "thai": "ไม่มี",
+        "transliteration": "Mai mee",
+        "explanation": "ไม่มี (Mai mee) is the direct negation of 'have'. ไม่ (mai) means 'not' and มี (mee) means 'have'.",
+        "example_sentence": "ฉัน (Chan - 'I') ไม่มี (mai mee - 'don't have') เงินสด (ngern sot - 'cash') - I don't have cash.",
+        "slang": ""
+      },
+      {
+        "english": "Hot (temperature)",
+        "thai": "ร้อน",
+        "transliteration": "Rorn",
+        "explanation": "ร้อน (Rorn) is used for hot weather, hot food, or feeling hot.",
+        "example_sentence": "วันนี้ (Wan nee - 'today') อากาศ (a-gaat - 'weather') ร้อน (rorn - 'hot') มาก (mak - 'very') - The weather is very hot today.",
+        "slang": ""
+      },
+      {
+        "english": "Cold",
+        "thai": "หนาว",
+        "transliteration": "Nao",
+        "explanation": "หนาว (Nao) is used for cold weather or feeling cold. For an iced/cold drink, use 'เย็น' (yen).",
+        "example_sentence": "ฉัน (Chan - 'I') รู้สึก (roo-suek - 'feel') หนาว (nao - 'cold') - I feel cold.",
+        "slang": ""
+      },
+      {
+        "english": "Big",
+        "thai": "ใหญ่",
+        "transliteration": "Yai",
+        "explanation": "ใหญ่ (Yai) is the standard adjective for 'big' or 'large'.",
+        "example_sentence": "บ้าน (Baan - 'house') ของ (khong - 'of') เขา (khao - 'his/her') ใหญ่ (yai - 'big') มาก (mak - 'very') - His house is very big.",
+        "slang": ""
+      },
+      {
+        "english": "Small",
+        "thai": "เล็ก",
+        "transliteration": "Lek",
+        "explanation": "เล็ก (Lek) is the standard adjective for 'small'.",
+        "example_sentence": "ขอ (Kaw - 'I'd like') กาแฟ (kafae - 'coffee') แก้ว (gaew - 'cup') เล็ก (lek - 'small') ค่ะ (kha - polite particle) - I'd like a small cup of coffee.",
+        "slang": ""
+      },
+      {
+        "english": "Today",
+        "thai": "วันนี้",
+        "transliteration": "Wan nee",
+        "explanation": "วัน (Wan) means 'day' and นี้ (nee) means 'this'. Together, 'this day'.",
+        "example_sentence": "วันนี้ (Wan nee - 'today') เป็น (pen - 'is') วันจันทร์ (wan jan - 'Monday') - Today is Monday.",
+        "slang": ""
+      },
+      {
+        "english": "Tomorrow",
+        "thai": "พรุ่งนี้",
+        "transliteration": "Prung nee",
+        "explanation": "พรุ่งนี้ (Prung nee) is the single word for 'tomorrow'.",
+        "example_sentence": "เจอกัน (Jer gun - 'see you') พรุ่งนี้ (prung nee - 'tomorrow') นะ (na - particle) - See you tomorrow.",
+        "slang": ""
+      },
+      {
+        "english": "Yesterday",
+        "thai": "เมื่อวาน",
+        "transliteration": "Muea wan",
+        "explanation": "เมื่อวาน (Muea wan) is the single word for 'yesterday'.",
+        "example_sentence": "เมื่อวาน (Muea wan - 'yesterday') ฉัน (chan - 'I') ไป (pai - 'went') ดูหนัง (doo nang - 'watch a movie') - Yesterday I went to watch a movie.",
+        "slang": ""
+      },
+      {
+        "english": "Now",
+        "thai": "ตอนนี้",
+        "transliteration": "Torn nee",
+        "explanation": "ตอน (Torn) means 'period of time' and นี้ (nee) means 'this'. Together, 'this period of time'.",
+        "example_sentence": "คุณ (Khun - 'you') ต้อง (tong - 'must') ทำ (tam - 'do') ตอนนี้ (torn nee - 'now') - You have to do it now.",
+        "slang": ""
+      },
+      {
+        "english": "Later",
+        "thai": "ทีหลัง",
+        "transliteration": "Tee lang",
+        "explanation": "ทีหลัง (Tee lang) means 'later on' or 'afterwards'.",
+        "example_sentence": "เรา (Rao - 'we') คุยกัน (kui gun - 'talk together') ทีหลัง (tee lang - 'later') ได้ไหม (dai mai - 'can we')? - Can we talk later?",
+        "slang": ""
+      },
+      {
+        "english": "Left",
+        "thai": "ซ้าย",
+        "transliteration": "Sai",
+        "explanation": "ซ้าย (Sai) means 'left'. Used in phrases like เลี้ยวซ้าย (liao sai) - 'turn left'.",
+        "example_sentence": "เลี้ยวซ้าย (Liao sai - 'turn left') ที่ (tee - 'at') สี่แยก (see yaek - 'intersection') ข้างหน้า (kang na - 'ahead') - Turn left at the intersection ahead.",
+        "slang": ""
+      },
+      {
+        "english": "Right",
+        "thai": "ขวา",
+        "transliteration": "Khwaa",
+        "explanation": "ขวา (Khwaa) means 'right'. Used in phrases like เลี้ยวขวา (liao khwaa) - 'turn right'.",
+        "example_sentence": "ร้านอาหาร (Raan ahaan - 'restaurant') อยู่ (yoo - 'is at') ทางขวา (tang khwaa - 'on the right') - The restaurant is on the right.",
+        "slang": ""
+      },
+      {
+        "english": "Straight",
+        "thai": "ตรงไป",
+        "transliteration": "Trong pai",
+        "explanation": "ตรง (Trong) means 'straight' and ไป (pai) means 'go'.",
+        "example_sentence": "ตรงไป (Trong pai - 'go straight') อีก (eek - 'another') สองร้อย (song roy - '200') เมตร (met - 'meters') ครับ (khrap - polite particle) - Go straight for another 200 meters.",
+        "slang": ""
+      },
+      {
+        "english": "Stop",
+        "thai": "หยุด",
+        "transliteration": "Yut",
+        "explanation": "หยุด (Yut) is the general verb for 'to stop'. To ask a driver to stop here, say 'จอดที่นี่' (jot tee nee).",
+        "example_sentence": "หยุด (Yut - 'stop') พูด (pood - 'talking') ได้แล้ว (dai laew - 'now') - Stop talking now.",
+        "slang": ""
+      },
+      {
+        "english": "Here",
+        "thai": "ที่นี่",
+        "transliteration": "Tee nee",
+        "explanation": "ที่ (Tee) means 'place' and นี่ (nee) means 'this'. Together, 'this place'.",
+        "example_sentence": "จอด (Jot - 'park') ที่นี่ (tee nee - 'here') ได้ไหม (dai mai - 'can you') คะ (kha - polite particle)? - Can you park here?",
+        "slang": ""
+      },
+      {
+        "english": "There",
+        "thai": "ที่นั่น",
+        "transliteration": "Tee nan",
+        "explanation": "ที่ (Tee) means 'place' and นั่น (nan) means 'that'. Together, 'that place'.",
+        "example_sentence": "ฉัน (Chan - 'I') เคย (koey - 'have ever') ไป (pai - 'been') ที่นั่น (tee nan - 'there') แล้ว (laew - 'already') - I have been there before.",
+        "slang": ""
+      },
+      {
+        "english": "Market",
+        "thai": "ตลาด",
+        "transliteration": "Talat",
+        "explanation": "ตลาด (Talat) is the general word for a market.",
+        "example_sentence": "ไป (Pai - 'go') ซื้อของ (sue khong - 'shopping') ที่ (tee - 'at') ตลาด (talat - 'the market') กันเถอะ (gun tuh - 'let's') - Let's go shopping at the market.",
+        "slang": ""
+      },
+      {
+        "english": "Airport",
+        "thai": "สนามบิน",
+        "transliteration": "Sanam bin",
+        "explanation": "สนาม (Sanam) means 'field' and บิน (bin) means 'to fly'.",
+        "example_sentence": "ผม (Phom - 'I') ต้อง (tong - 'must') ไป (pai - 'go') สนามบิน (sanam bin - 'airport') ตอน (torn - 'at') เจ็ดโมงเช้า (jet mong chao - '7 AM') - I have to go to the airport at 7 AM.",
+        "slang": ""
+      },
+      {
+        "english": "Hotel",
+        "thai": "โรงแรม",
+        "transliteration": "Rong raem",
+        "explanation": "โรงแรม (Rong raem) is the standard word for 'hotel'.",
+        "example_sentence": "โรงแรม (Rong raem - 'hotel') นี้ (nee - 'this') ดี (dee - 'good') มาก (mak - 'very') - This hotel is very good.",
+        "slang": ""
+      },
+      {
+        "english": "Restaurant",
+        "thai": "ร้านอาหาร",
+        "transliteration": "Raan ahaan",
+        "explanation": "ร้าน (Raan) means 'shop' and อาหาร (ahaan) means 'food'.",
+        "example_sentence": "มี (Mee - 'is there') ร้านอาหาร (raan ahaan - 'a restaurant') ใกล้ๆ (glai glai - 'nearby') นี้ (nee - 'here') ไหม (mai - 'question particle')? - Is there a restaurant near here?",
+        "slang": ""
+      },
+      {
+        "english": "Taxi",
+        "thai": "แท็กซี่",
+        "transliteration": "Taxi",
+        "explanation": "แท็กซี่ (Taxi) is borrowed directly from English and is universally understood.",
+        "example_sentence": "เรา (Rao - 'we') เรียก (riak - 'call') แท็กซี่ (taxi) ไป (pai - 'to') สนามบิน (sanam bin - 'the airport') กัน (gun - 'together') - Let's call a taxi to the airport.",
+        "slang": ""
+      },
+      {
+        "english": "Train",
+        "thai": "รถไฟ",
+        "transliteration": "Rot fai",
+        "explanation": "รถ (Rot) means 'vehicle' and ไฟ (fai) means 'fire'. For the skytrain in Bangkok, it's 'รถไฟฟ้า' (rot fai faa), where ฟ้า (faa) means 'sky'.",
+        "example_sentence": "ฉัน (Chan - 'I') จะ (ja - 'will') นั่ง (nang - 'take/sit') รถไฟ (rot fai - 'train') ไป (pai - 'to') เชียงใหม่ (Chiang Mai) - I will take the train to Chiang Mai.",
+        "slang": ""
+      },
+      {
+        "english": "Bus",
+        "thai": "รถเมล์",
+        "transliteration": "Rot mae",
+        "explanation": "รถ (Rot) means 'vehicle'. The 'เมล์' (mae) part is derived from 'mail' as buses used to carry mail.",
+        "example_sentence": "รถเมล์ (Rot mae - 'bus') สายไหน (sai nai - 'which line') ไป (pai - 'goes to') สยาม (Siam)? - Which bus line goes to Siam?",
+        "slang": ""
+      },
+      {
+        "english": "Telephone",
+        "thai": "โทรศัพท์",
+        "transliteration": "Torasap",
+        "explanation": "โทรศัพท์ (Torasap) is the formal word for telephone.",
+        "example_sentence": "ขอ (Kaw - 'may I') ใช้ (chai - 'use') โทรศัพท์ (torasap - 'telephone') หน่อย (noi - 'a little') ได้ไหม (dai mai - 'can I')? - May I use the telephone?",
+        "slang": "มือถือ (Meu-teu) for 'mobile phone' is extremely common."
+      },
+      {
+        "english": "Money",
+        "thai": "เงิน",
+        "transliteration": "Ngern",
+        "explanation": "เงิน (Ngern) is the standard word for 'money' and also 'silver'.",
+        "example_sentence": "ฉัน (Chan - 'I') ต้องการ (tong-garn - 'need') แลก (laek - 'to exchange') เงิน (ngern - 'money') - I need to exchange money.",
+        "slang": "ตังค์ (Tang), a very common and casual word for 'money'."
+      },
+      {
+        "english": "Friend",
+        "thai": "เพื่อน",
+        "transliteration": "Puen",
+        "explanation": "เพื่อน (Puen) is the standard word for 'friend'.",
+        "example_sentence": "นี่ (Nee - 'this') คือ (kue - 'is') เพื่อน (puen - 'friend') ของ (khong - 'of') ฉัน (chan - 'my') - This is my friend.",
+        "slang": ""
+      },
+      {
+        "english": "I am a tourist",
+        "thai": "ฉันเป็นนักท่องเที่ยว",
+        "transliteration": "Chan pen nak tong tiao",
+        "explanation": "ฉัน (Chan) is 'I'. เป็น (pen) means 'to be'. นักท่องเที่ยว (nak tong tiao) means 'tourist'.",
+        "example_sentence": "ผม (Phom - 'I') เป็น (pen - 'am') นักท่องเที่ยว (nak tong tiao - 'a tourist'), มาจาก (ma jak - 'from') แคนาดา (Canada) - I am a tourist from Canada.",
+        "slang": ""
+      },
+      {
+        "english": "Can you help me?",
+        "thai": "ช่วยหน่อยได้ไหม",
+        "transliteration": "Chuay noi dai mai?",
+        "explanation": "ช่วย (Chuay) means 'to help'. หน่อย (noi) means 'a little' (softens the request). ได้ไหม (dai mai) means 'can you?'.",
+        "example_sentence": "ช่วย (Chuay - 'help') ถ่ายรูปให้ (tai roop hai - 'take a picture for me') หน่อย (noi - 'a little') ได้ไหม (dai mai - 'can you') ครับ (khrap - polite particle)? - Can you help take a picture for me?",
+        "slang": ""
+      },
+      {
+        "english": "One",
+        "thai": "หนึ่ง",
+        "transliteration": "Nueng",
+        "explanation": "The number one.",
+        "example_sentence": "ขอ (Kaw - 'may I have') น้ำ (naam - 'water') หนึ่ง (nueng - 'one') แก้ว (gaew - 'glass') - May I have one glass of water.",
+        "slang": ""
+      },
+      {
+        "english": "Two",
+        "thai": "สอง",
+        "transliteration": "Song",
+        "explanation": "The number two.",
+        "example_sentence": "ผม (Phom - 'I') มี (mee - 'have') พี่ชาย (pee chai - 'older brothers') สอง (song - 'two') คน (khon - 'people/classifier') - I have two older brothers.",
+        "slang": ""
+      },
+      {
+        "english": "Three",
+        "thai": "สาม",
+        "transliteration": "Sam",
+        "explanation": "The number three.",
+        "example_sentence": "เรา (Rao - 'we') จะ (ja - 'will') อยู่ (yoo - 'be') ที่นี่ (tee nee - 'here') สาม (sam - 'three') วัน (wan - 'days') - We will be here for three days.",
+        "slang": ""
+      },
+      {
+        "english": "Four",
+        "thai": "สี่",
+        "transliteration": "See",
+        "explanation": "The number four.",
+        "example_sentence": "ตอนนี้ (Torn nee - 'now') เป็นเวลา (pen wela - 'is the time') บ่ายสี่โมง (bai see mong - '4 PM') - It is four o'clock in the afternoon now.",
+        "slang": ""
+      },
+      {
+        "english": "Five",
+        "thai": "ห้า",
+        "transliteration": "Ha",
+        "explanation": "The number five. The pronunciation 'ha' is why '555' is used as laughing in Thai text messages.",
+        "example_sentence": "หนัง (Nang - 'movie') เริ่ม (rerm - 'starts') ตอน (torn - 'at') ห้าโมงเย็น (ha mong yen - '5 PM') - The movie starts at 5 PM.",
+        "slang": ""
+      },
+      {
+        "english": "Six",
+        "thai": "หก",
+        "transliteration": "Hok",
+        "explanation": "The number six.",
+        "example_sentence": "ฉัน (Chan - 'I') ตื่นนอน (tuen non - 'wake up') หกโมงเช้า (hok mong chao - '6 AM') - I wake up at 6 AM.",
+        "slang": ""
+      },
+      {
+        "english": "Seven",
+        "thai": "เจ็ด",
+        "transliteration": "Jet",
+        "explanation": "The number seven.",
+        "example_sentence": "มี (Mee - 'there are') เจ็ด (jet - 'seven') วัน (wan - 'days') ใน (nai - 'in') หนึ่ง (nueng - 'one') สัปดาห์ (sapda - 'week') - There are seven days in a week.",
+        "slang": ""
+      },
+      {
+        "english": "Eight",
+        "thai": "แปด",
+        "transliteration": "Paet",
+        "explanation": "The number eight.",
+        "example_sentence": "โต๊ะ (Toh - 'table') นี้ (nee - 'this') สำหรับ (samrap - 'is for') แปด (paet - 'eight') คน (khon - 'people') - This table is for eight people.",
+        "slang": ""
+      },
+      {
+        "english": "Nine",
+        "thai": "เก้า",
+        "transliteration": "Gao",
+        "explanation": "The number nine. Pronounced the same as ก้าว (gao), meaning 'step' or 'progress', making it a lucky number.",
+        "example_sentence": "เบอร์โทร (Ber toh - 'phone number') ของ (khong - 'of') ฉัน (chan - 'my') มี (mee - 'has') เลข (lek - 'number') เก้า (gao - 'nine') - My phone number has the number nine.",
+        "slang": ""
+      },
+      {
+        "english": "Ten",
+        "thai": "สิบ",
+        "transliteration": "Sip",
+        "explanation": "The number ten.",
+        "example_sentence": "ขอ (Kaw - 'may I have') สิบ (sip - 'ten') นาที (na-tee - 'minutes') - May I have ten minutes.",
+        "slang": ""
+      },
+      {
+        "english": "Hundred",
+        "thai": "ร้อย",
+        "transliteration": "Roy",
+        "explanation": "The number one hundred.",
+        "example_sentence": "เสื้อ (Suea - 'shirt') ตัวนี้ (tua nee - 'this one') ราคา (raka - 'costs') สองร้อย (song roy - 'two hundred') บาท (baht) - This shirt costs two hundred baht.",
+        "slang": ""
+      },
+      {
+        "english": "Thousand",
+        "thai": "พัน",
+        "transliteration": "Pan",
+        "explanation": "The number one thousand.",
+        "example_sentence": "ค่าเช่า (Kha chao - 'rent') ห้อง (hong - 'room') เดือนละ (duean la - 'per month') ห้า (ha - 'five') พัน (pan - 'thousand') บาท (baht) - The room rent is five thousand baht per month.",
+        "slang": ""
+      },
+      {
+        "english": "What time is it?",
+        "thai": "กี่โมงแล้ว",
+        "transliteration": "Gee mong laew?",
+        "explanation": "กี่ (Gee) means 'how many'. โมง (mong) is 'o'clock'. แล้ว (laew) is a particle indicating a completed action or change of state. So, 'How many o'clock is it now?'.",
+        "example_sentence": "ขอโทษ (Kaw thot - 'excuse me') ครับ (khrap - polite particle), กี่โมงแล้ว (gee mong laew - 'what time is it') ครับ (khrap - polite particle)? - Excuse me, what time is it?",
+        "slang": ""
+      },
+      {
+        "english": "I am hungry",
+        "thai": "ฉันหิว",
+        "transliteration": "Chan hiw",
+        "explanation": "ฉัน (Chan) means 'I'. หิว (hiw) means 'hungry'.",
+        "example_sentence": "ฉัน (Chan - 'I') หิว (hiw - 'hungry') แล้ว (laew - 'already'), ไปหา (pai ha - 'go find') อะไร (arai - 'something') กินกัน (gin gun - 'to eat together') - I'm hungry now, let's go find something to eat.",
+        "slang": ""
+      },
+      {
+        "english": "I am thirsty",
+        "thai": "ฉันหิวน้ำ",
+        "transliteration": "Chan hiw naam",
+        "explanation": "ฉัน (Chan) is 'I'. หิว (hiw) is 'hungry'. น้ำ (naam) is 'water'. The phrase literally means 'I am hungry for water'.",
+        "example_sentence": "ฉัน (Chan - 'I') หิวน้ำ (hiw naam - 'am thirsty') มาก (mak - 'very'), ขอน้ำ (kaw naam - 'can I have water') หน่อย (noi - 'please') - I'm very thirsty, can I have some water.",
+        "slang": ""
+      },
+      {
+        "english": "Cheers!",
+        "thai": "ชนแก้ว",
+        "transliteration": "Chon gaew!",
+        "explanation": "ชน (Chon) means 'to bump' or 'to collide'. แก้ว (gaew) means 'glass'.",
+        "example_sentence": "มา (Ma - 'come') ดื่มกันเถอะ (duem gun tuh - 'let's drink'), ชนแก้ว (chon gaew - 'cheers')! - Let's drink! Cheers!",
+        "slang": "ชน (Chon!) is a common shortened version."
+      },
+      {
+        "english": "Good luck",
+        "thai": "โชคดี",
+        "transliteration": "Chok dee",
+        "explanation": "โชค (Chok) means 'luck' or 'fortune'. ดี (dee) means 'good'.",
+        "example_sentence": "พรุ่งนี้ (Prung nee - 'tomorrow') คุณ (khun - 'you') มี (mee - 'have') สอบ (sob - 'an exam'), ขอให้ (kaw hai - 'wish you') โชคดี (chok dee - 'good luck') นะ (na - particle) - You have an exam tomorrow, good luck.",
+        "slang": ""
+      },
+      {
+        "english": "Happy",
+        "thai": "มีความสุข",
+        "transliteration": "Mee kwarm sook",
+        "explanation": "มี (Mee) means 'to have'. ความสุข (kwarm sook) is the noun for 'happiness'. So, 'to have happiness'.",
+        "example_sentence": "ฉัน (Chan - 'I') มีความสุข (mee kwarm sook - 'am happy') มาก (mak - 'very') ที่ได้ (tee dai - 'that I get to') มาเที่ยว (ma tiao - 'travel') เมืองไทย (mueang thai - 'Thailand') - I am very happy to be traveling in Thailand.",
+        "slang": "แฮปปี้ (Happy), from English, is very common."
+      },
+      {
+        "english": "Sad",
+        "thai": "เศร้า",
+        "transliteration": "Sao",
+        "explanation": "เศร้า (Sao) is the adjective for 'sad' or 'sorrowful'.",
+        "example_sentence": "เขา (Khao - 'he/she') ดู (doo - 'looks') เศร้าๆ (sao sao - 'a bit sad') นะ (na - particle) วันนี้ (wan nee - 'today') - He looks a bit sad today.",
+        "slang": "จ๋อย (Joy) for feeling down or despondent. นอย (Noi), from 'annoy', for feeling slightly sad or offended."
+      },
+      {
+        "english": "Beautiful",
+        "thai": "สวย",
+        "transliteration": "Suay",
+        "explanation": "สวย (Suay) is the adjective for 'beautiful', typically used for women, places, or objects.",
+        "example_sentence": "ผู้หญิง (Poo ying - 'woman') คนนั้น (khon nan - 'that') สวย (suay - 'beautiful') มาก (mak - 'very') - That woman is very beautiful.",
+        "slang": "เริ่ด (Lerd) for 'fabulous' or 'excellent'."
+      },
+      {
+        "english": "Handsome",
+        "thai": "หล่อ",
+        "transliteration": "Law",
+        "explanation": "หล่อ (Law) is the adjective for 'handsome', used for men.",
+        "example_sentence": "ดารา (Dara - 'actor/star') คนนี้ (khon nee - 'this') หล่อ (law - 'handsome') จัง (jang - 'so') - This actor is so handsome.",
+        "slang": ""
+      },
+      {
+        "english": "Cute",
+        "thai": "น่ารัก",
+        "transliteration": "Na rak",
+        "explanation": "น่า (Na) is a prefix meaning '-able' or 'worthy of'. รัก (rak) means 'love'. So, 'lovable' or 'cute'.",
+        "example_sentence": "แมว (Maew - 'cat') ตัวนี้ (tua nee - 'this one') น่ารัก (na rak - 'cute') มาก (mak - 'very') - This cat is very cute.",
+        "slang": "ตั้ลล้าก (Tan-laak), a playful, cuter-sounding pronunciation of น่ารัก. ต้าว (Tao), a slang term for something small and adorable."
+      },
+      {
+        "english": "Very",
+        "thai": "มาก",
+        "transliteration": "Mak",
+        "explanation": "มาก (Mak) is an adverb meaning 'very' or 'a lot'. It is placed after the adjective or verb it modifies.",
+        "example_sentence": "อากาศ (A-gaat - 'weather') ร้อน (rorn - 'hot') มาก (mak - 'very') - The weather is very hot.",
+        "slang": "โคตร (Khot) is a very informal, slangy way to say 'very' or 'damn...' (e.g. 'khot rorn' - damn hot)."
+      },
+      {
+        "english": "A little",
+        "thai": "นิดหน่อย",
+        "transliteration": "Nit noi",
+        "explanation": "นิดหน่อย (Nit noi) means 'a little bit' or 'a small amount'.",
+        "example_sentence": "รอ (Ror - 'wait') อีก (eek - 'more') นิดหน่อย (nit noi - 'a little bit') - Wait a little longer.",
+        "slang": ""
+      },
+      {
+        "english": "And",
+        "thai": "และ",
+        "transliteration": "Lae",
+        "explanation": "และ (Lae) is the standard conjunction for 'and'.",
+        "example_sentence": "ฉัน (Chan - 'I') ชอบ (chob - 'like') แมว (maew - 'cats') และ (lae - 'and') หมา (maa - 'dogs') - I like cats and dogs.",
+        "slang": ""
+      },
+      {
+        "english": "With",
+        "thai": "กับ",
+        "transliteration": "Gap",
+        "explanation": "กับ (Gap) means 'with', used to connect people or things.",
+        "example_sentence": "ฉัน (Chan - 'I') ไป (pai - 'go') กับ (gap - 'with') เพื่อน (puen - 'friends') - I go with friends.",
+        "slang": ""
+      },
+      {
+        "english": "For",
+        "thai": "สำหรับ",
+        "transliteration": "Samrap",
+        "explanation": "สำหรับ (Samrap) is the standard preposition for 'for'.",
+        "example_sentence": "นี่ (Nee - 'this') เป็น (pen - 'is') ของขวัญ (khong kwan - 'a gift') สำหรับ (samrap - 'for') คุณ (khun - 'you') - This is a gift for you.",
+        "slang": ""
+      },
+      {
+        "english": "In / At / On",
+        "thai": "ใน / ที่ / บน",
+        "transliteration": "Nai / Tee / Bon",
+        "explanation": "These are three common prepositions. ใน (Nai) means 'in'. ที่ (Tee) means 'at'. บน (Bon) means 'on'.",
+        "example_sentence": "หนังสือ (Nang sue - 'book') อยู่ (yoo - 'is') บน (bon - 'on') โต๊ะ (dto - 'the table') - The book is on the table.",
+        "slang": ""
+      },
+      {
+        "english": "From",
+        "thai": "จาก",
+        "transliteration": "Jak",
+        "explanation": "จาก (Jak) is the standard preposition for 'from'.",
+        "example_sentence": "ฉัน (Chan - 'I') มาจาก (ma jak - 'come from') อเมริกา (America) - I come from America.",
+        "slang": ""
+      },
+      {
+        "english": "To",
+        "thai": "ถึง",
+        "transliteration": "Tueng",
+        "explanation": "ถึง (Tueng) means 'to' or 'to arrive at' a destination.",
+        "example_sentence": "รถบัส (Rot bat - 'bus') คันนี้ (kan nee - 'this one') ไปถึง (pai tueng - 'goes to') เชียงใหม่ (Chiang Mai) ไหม (mai - 'question particle')? - Does this bus go to Chiang Mai?",
+        "slang": ""
+      },
+      {
+        "english": "I am from...",
+        "thai": "ฉันมาจาก...",
+        "transliteration": "Chan ma jak...",
+        "explanation": "ฉัน (Chan) is 'I'. มา (ma) is 'come'. จาก (jak) is 'from'.",
+        "example_sentence": "ฉัน (Chan - 'I') มาจาก (ma jak - 'come from') ประเทศ (pra-tet - 'country') ญี่ปุ่น (yee-pun - 'Japan') - I am from Japan.",
+        "slang": ""
+      },
+      {
+        "english": "I love you",
+        "thai": "ฉันรักคุณ",
+        "transliteration": "Chan rak khun",
+        "explanation": "ฉัน (Chan) is 'I'. รัก (rak) is 'love'. คุณ (khun) is 'you'. Men typically say 'ผมรักคุณ' (Phom rak khun).",
+        "example_sentence": "ผม (Phom - 'I') รัก (rak - 'love') คุณ (khun - 'you') นะ (na - particle) - I love you.",
+        "slang": "รักนะ (Rak na) is a softer, more casual way to express affection."
+      },
+      {
+        "english": "Really?",
+        "thai": "จริงๆเหรอ",
+        "transliteration": "Jing jing lor?",
+        "explanation": "จริงๆ (Jing jing) means 'really' or 'truly'. เหรอ (lor) is an informal question particle expressing surprise.",
+        "example_sentence": "A: เขา (Khao - 'he/she') ชนะ (chana - 'won') ลอตเตอรี่ (lottery). B: จริงๆเหรอ (Jing jing lor - 'really?')? - A: He won the lottery. B: Really?",
+        "slang": "จริงดิ (Jing di) is a more informal version used between friends."
+      },
+      {
+        "english": "What happened?",
+        "thai": "เกิดอะไรขึ้น",
+        "transliteration": "Gerd arai kuen?",
+        "explanation": "เกิด (Gerd) means 'to happen' or 'to be born'. อะไร (arai) is 'what'. ขึ้น (kuen) is a particle often used with 'gerd' to mean 'to happen' or 'to occur'.",
+        "example_sentence": "เกิดอะไรขึ้น (Gerd arai kuen - 'what happened'), ทำไม (tammai - 'why') ทุกคน (tuk khon - 'everyone') เงียบ (ngiap - 'quiet')? - What happened? Why is everyone quiet?",
+        "slang": ""
+      },
+      {
+        "english": "Be careful",
+        "thai": "ระวัง",
+        "transliteration": "Rawang",
+        "explanation": "ระวัง (Rawang) is a command or warning to 'be careful' or 'watch out'.",
+        "example_sentence": "ระวัง (Rawang - 'be careful') รถ (rot - 'cars') ด้วยนะ (duay na - particle) - Watch out for the car.",
+        "slang": ""
+      },
+      {
+        "english": "Slow down",
+        "thai": "ช้าๆหน่อย",
+        "transliteration": "Cha cha noi",
+        "explanation": "ช้าๆ (Cha cha) means 'slowly'. หน่อย (noi) means 'a little' and softens the request.",
+        "example_sentence": "พี่ (Pee - 'driver') ครับ (khrap - polite particle), ขับ (kap - 'drive') ช้าๆหน่อย (cha cha noi - 'a little slower') ครับ (khrap - polite particle) - (To a driver) Please drive a little slower.",
+        "slang": ""
+      },
+      {
+        "english": "Can I have a discount?",
+        "thai": "ลดหน่อยได้ไหม",
+        "transliteration": "Lot noi dai mai?",
+        "explanation": "ลด (Lot) means 'to reduce' or 'discount'. หน่อย (noi) softens the request. ได้ไหม (dai mai) means 'can you?'.",
+        "example_sentence": "เสื้อ (Suea - 'shirt') ตัวนี้ (tua nee - 'this one'), ลดหน่อยได้ไหม (lot noi dai mai - 'can I have a discount') คะ (kha - polite particle)? - This shirt, can you give a discount?",
+        "slang": "ลดได้ไหม (Lot dai mai?) is a slightly more direct version."
+      },
+      {
+        "english": "Too expensive",
+        "thai": "แพงไป",
+        "transliteration": "Paeng pai",
+        "explanation": "แพง (Paeng) means 'expensive'. ไป (pai) in this context means 'too much'.",
+        "example_sentence": "โอ้โห (Oho - 'wow'), แพงไป (paeng pai - 'too expensive'), ลด (lot - 'reduce') อีก (eek - 'more') ได้ไหม (dai mai - 'can you')? - Wow, too expensive. Can you reduce it more?",
+        "slang": ""
+      },
+      {
+        "english": "I'll take this one",
+        "thai": "เอาอันนี้",
+        "transliteration": "Ao an nee",
+        "explanation": "เอา (Ao) is a common verb meaning 'to take' or 'I want'. อันนี้ (an nee) means 'this one'.",
+        "example_sentence": "ผม (Phom - 'I') เอา (ao - 'take') อันนี้ (an nee - 'this one') ครับ (khrap - polite particle) - I'll take this one.",
+        "slang": ""
+      }
+    ]
+  }

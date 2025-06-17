@@ -1,12 +1,14 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
-import 'package:flame/collisions.dart';
+import 'package:babblelon/models/npc_data.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, TapCallbacks, RiverpodComponentMixin {
   // 🔧 COMPONENT IMPLEMENTATION: This handles HOW the portal looks and behaves
@@ -15,6 +17,7 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
   final BossData bossData;
   final double desiredHeight;
   final Vector2 offsetFromBottomRight;
+  bool _hasTriggered = false; // Prevent multiple triggers
 
   PortalComponent({
     super.position,
@@ -49,12 +52,17 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
       );
     }
 
-    // Add a hitbox to ensure tap events are properly detected
-    add(RectangleHitbox());
+    // Portal now has no glow animation
   }
 
   @override
   void onTapDown(TapDownEvent event) {
+    // Fallback: also allow tap to trigger portal
+    _triggerPortalDialog();
+    super.onTapDown(event);
+  }
+
+  void _triggerPortalDialog() {
     // Check if both attack and defense slots have items equipped
     final inventory = ref.read(inventoryProvider);
     final hasAttackItem = inventory['attack'] != null;
@@ -70,9 +78,51 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
         onConfirm: (context) {
           ref.read(popupConfigProvider.notifier).state = null;
           game.overlays.remove('info_popup');
+          
+          // Stop the game background music before transitioning
+          FlameAudio.bgm.stop();
+          
+          // Get items from inventory and create BattleItem objects
+          final inventory = ref.read(inventoryProvider);
+          final attackItem = _createBattleItemFromPath(inventory['attack']!);
+          final defenseItem = _createBattleItemFromPath(inventory['defense']!);
+          
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => BossFightScreen(bossData: bossData),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => BossFightScreen(
+                bossData: bossData,
+                attackItem: attackItem,
+                defenseItem: defenseItem,
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, child) {
+                    // First half: fade to black
+                    if (animation.value < 0.5) {
+                      return Container(
+                        color: Colors.black.withOpacity(animation.value * 2),
+                        child: Opacity(
+                          opacity: 1 - (animation.value * 2),
+                          child: const SizedBox.expand(),
+                        ),
+                      );
+                    }
+                    // Second half: fade in new screen
+                    else {
+                      return Container(
+                        color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                        child: Opacity(
+                          opacity: (animation.value - 0.5) * 2,
+                          child: child,
+                        ),
+                      );
+                    }
+                  },
+                  child: child,
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 1200),
             ),
           );
         },
@@ -86,18 +136,18 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
       game.overlays.add('info_popup');
     } else {
       // Player is missing items in one or both slots
-      String missingItems = '';
+      String message;
       if (!hasAttackItem && !hasDefenseItem) {
-        missingItems = 'attack and defense';
+        message = 'You need to collect items for both your attack and defense slots before entering the portal.\n\nTalk to NPCs around the town to collect items!';
       } else if (!hasAttackItem) {
-        missingItems = 'attack';
+        message = 'You need an attack item before entering the portal.\n\nTalk to NPCs around the town to collect an attack item!';
       } else {
-        missingItems = 'defense';
+        message = 'You need a defense item before entering the portal.\n\nTalk to NPCs around the town to collect a defense item!';
       }
       
       final popupConfig = PopupConfig(
         title: 'Equipment Required',
-        message: 'You must have items equipped in both attack and defense slots before you can proceed. You are missing an item in your $missingItems slot.',
+        message: message,
         confirmText: 'OK',
         onConfirm: (context) {
           ref.read(popupConfigProvider.notifier).state = null;
@@ -107,8 +157,26 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
       ref.read(popupConfigProvider.notifier).state = popupConfig;
       game.overlays.add('info_popup');
     }
-    // Mark the event as handled so it doesn't propagate to other components (like the game for player movement)
-    event.handled = true;
-    super.onTapDown(event);
+  }
+  
+  // Helper function to create BattleItem from asset path
+  BattleItem _createBattleItemFromPath(String assetPath) {
+    // Extract item name from asset path by checking against known items
+    for (var npcData in npcDataMap.values) {
+      if (npcData.regularItemAsset == assetPath) {
+        return BattleItem(name: npcData.regularItemName, assetPath: assetPath, isSpecial: false);
+      }
+      if (npcData.specialItemAsset == assetPath) {
+        return BattleItem(name: npcData.specialItemName, assetPath: assetPath, isSpecial: true);
+      }
+    }
+    
+    // Fallback: extract name from path
+    final fileName = assetPath.split('/').last.split('.').first;
+    final itemName = fileName.replaceAll('_', ' ').split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+    
+    return BattleItem(name: itemName, assetPath: assetPath);
   }
 } 

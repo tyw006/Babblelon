@@ -21,7 +21,7 @@ class MainMenuScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Babble-On',
+                'BabbleOn',
                 style: TextStyle(
                   fontSize: 64,
                   fontWeight: FontWeight.bold,
@@ -40,7 +40,38 @@ class MainMenuScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => GameScreen()),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) {
+                            // First half: fade to black
+                            if (animation.value < 0.5) {
+                              return Container(
+                                color: Colors.black.withOpacity(animation.value * 2),
+                                child: Opacity(
+                                  opacity: 1 - (animation.value * 2),
+                                  child: const SizedBox.expand(),
+                                ),
+                              );
+                            }
+                            // Second half: fade in new screen
+                            else {
+                              return Container(
+                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                                child: Opacity(
+                                  opacity: (animation.value - 0.5) * 2,
+                                  child: child,
+                                ),
+                              );
+                            }
+                          },
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 1200),
+                    ),
                   );
                 },
                 child: const Text('Start Game'),
@@ -57,10 +88,53 @@ class MainMenuScreen extends StatelessWidget {
                     backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
                   );
 
+                  // Create test items for the boss fight
+                  const testAttackItem = BattleItem(
+                    name: 'Test Attack Item',
+                    assetPath: 'assets/images/items/steambun_regular.png',
+                  );
+                  const testDefenseItem = BattleItem(
+                    name: 'Test Defense Item', 
+                    assetPath: 'assets/images/items/porkbelly_regular.png',
+                  );
+                  
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => BossFightScreen(bossData: tuktukBoss),
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => BossFightScreen(
+                        bossData: tuktukBoss,
+                        attackItem: testAttackItem,
+                        defenseItem: testDefenseItem,
+                      ),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) {
+                            // First half: fade to black
+                            if (animation.value < 0.5) {
+                              return Container(
+                                color: Colors.black.withOpacity(animation.value * 2),
+                                child: Opacity(
+                                  opacity: 1 - (animation.value * 2),
+                                  child: const SizedBox.expand(),
+                                ),
+                              );
+                            }
+                            // Second half: fade in new screen
+                            else {
+                              return Container(
+                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                                child: Opacity(
+                                  opacity: (animation.value - 0.5) * 2,
+                                  child: child,
+                                ),
+                              );
+                            }
+                          },
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 1200),
                     ),
                   );
                 },
