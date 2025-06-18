@@ -1,0 +1,328 @@
+{
+  "vocabulary": [
+    {
+      "english": "Hello / Excuse me (to staff)",
+      "thai": "พี่ครับ / พี่คะ",
+      "transliteration": "Pee khrap / Pee kha",
+      "complexity": "Simple",
+      "explanation": "The most practical way to get a waiter's attention. พี่ (Pee) means 'older sibling' and is a common, respectful way to address service staff. Men say ครับ (khrap), women say ค่ะ (kha).",
+      "example_sentence": "พี่ (Pee - 'staff') ครับ (khrap - polite particle), สั่งอาหาร (sang ahaan - 'order food') ได้ไหม (dai mai - 'can I')? - Excuse me, can I order?",
+      "slang": ""
+    },
+    {
+      "english": "Thank you",
+      "thai": "ขอบคุณ",
+      "transliteration": "Khob khun",
+      "complexity": "Simple",
+      "explanation": "The standard polite way to say thank you.",
+      "example_sentence": "ขอบคุณ (Khob khun - 'thank you') ค่ะ (kha - polite particle). - Thank you.",
+      "slang": ""
+    },
+    {
+      "english": "Yes (that's right)",
+      "thai": "ใช่",
+      "transliteration": "Chai",
+      "complexity": "Simple",
+      "explanation": "Use this to confirm something, like when a waiter repeats your order back to you.",
+      "example_sentence": "A: กาแฟเย็น (kafae yen - 'iced coffee') นะครับ (na khrap)? B: ใช่ (Chai - 'yes') ครับ (khrap). - A: Iced coffee, right? B: Yes, that's right.",
+      "slang": ""
+    },
+    {
+      "english": "It's okay / Never mind",
+      "thai": "ไม่เป็นไร",
+      "transliteration": "Mai pen rai",
+      "complexity": "Medium",
+      "explanation": "A culturally essential phrase. Use it if they bring the wrong thing but you don't mind, or to say 'you're welcome'.",
+      "example_sentence": "A: ขอโทษ (Kaw thot - 'sorry'). B: ไม่เป็นไร (Mai pen rai - 'it's okay') ครับ (khrap). - A: Sorry. B: It's okay.",
+      "slang": ""
+    },
+    {
+      "english": "I don't understand",
+      "thai": "ไม่เข้าใจ",
+      "transliteration": "Mai khao jai",
+      "complexity": "Medium",
+      "explanation": "A critical phrase for any beginner. ไม่ (Mai) is 'not'. เข้าใจ (khao jai) means 'to understand' (literally 'enter heart').",
+      "example_sentence": "ขอโทษ (Kaw thot - 'sorry') ครับ (khrap), ผม (phom - 'I') ไม่เข้าใจ (mai khao jai - 'don't understand'). - Sorry, I don't understand.",
+      "slang": ""
+    },
+    {
+      "english": "I'll take... / I want...",
+      "thai": "เอา",
+      "transliteration": "Ao",
+      "complexity": "Simple",
+      "explanation": "The most common verb for ordering. It's direct but standard in this context. Follow it with the item you want.",
+      "example_sentence": "เอา (Ao - 'I'll take') ผัดไทย (pad thai) ครับ (khrap - polite particle). - I'll take the Pad Thai.",
+      "slang": ""
+    },
+    {
+      "english": "May I have...",
+      "thai": "ขอ",
+      "transliteration": "Kaw",
+      "complexity": "Simple",
+      "explanation": "A slightly softer, more polite way to ask for things. Means 'to request' or 'may I have'.",
+      "example_sentence": "ขอ (Kaw - 'may I have') น้ำเปล่า (naam plao - 'water') หนึ่ง (nueng - 'one') ขวด (khuat - 'bottle'). - May I have one bottle of water?",
+      "slang": ""
+    },
+    {
+      "english": "This one",
+      "thai": "อันนี้",
+      "transliteration": "An nee",
+      "complexity": "Simple",
+      "explanation": "Your best friend at a street food stall. Just point at what you want and say this.",
+      "example_sentence": "เอา (Ao - 'I'll take') อันนี้ (an nee - 'this one') ค่ะ (kha - polite particle). - I'll take this one.",
+      "slang": ""
+    },
+    {
+      "english": "Menu, please",
+      "thai": "ขอเมนูหน่อย",
+      "transliteration": "Kaw menu noi",
+      "complexity": "Medium",
+      "explanation": "ขอ (Kaw) is 'may I have', เมนู (menu) is from English, and หน่อย (noi) makes it a polite request.",
+      "example_sentence": "ขอเมนูหน่อย (Kaw menu noi - 'menu, please') ครับ (khrap - polite particle). - May I have the menu, please?",
+      "slang": ""
+    },
+    {
+      "english": "What is this?",
+      "thai": "อันนี้คืออะไร",
+      "transliteration": "An nee kue arai?",
+      "complexity": "Medium",
+      "explanation": "Essential for pointing at food in markets. อันนี้ (An nee) is 'this one', คือ (kue) is 'is', อะไร (arai) is 'what'.",
+      "example_sentence": "อันนี้คืออะไร (An nee kue arai - 'what is this') ครับ (khrap)? - What is this?",
+      "slang": ""
+    },
+    {
+      "english": "What do you recommend?",
+      "thai": "มีอะไรแนะนำไหม",
+      "transliteration": "Mee arai nae nam mai?",
+      "complexity": "Medium",
+      "explanation": "มี (Mee) is 'is there', อะไร (arai) is 'what', แนะนำ (nae nam) is 'recommend', and ไหม (mai) makes it a question.",
+      "example_sentence": "มีอะไรแนะนำไหม (mee arai nae nam mai - 'what do you recommend') ครับ (khrap - polite particle)? - Do you have any recommendations?",
+      "slang": ""
+    },
+    {
+      "english": "Is it spicy?",
+      "thai": "เผ็ดไหม",
+      "transliteration": "Phet mai?",
+      "complexity": "Simple",
+      "explanation": "A simple question to ask before ordering something you're unsure about.",
+      "example_sentence": "แกง (Gaeng - 'curry') นี้ (nee - 'this') เผ็ดไหม (phet mai - 'is it spicy')? - Is this curry spicy?",
+      "slang": ""
+    },
+    {
+      "english": "For here",
+      "thai": "กินที่นี่",
+      "transliteration": "Gin tee nee",
+      "complexity": "Simple",
+      "explanation": "กิน (Gin) is 'eat', ที่นี่ (tee nee) is 'here'.",
+      "example_sentence": "กินที่นี่ (Gin tee nee - 'eat here') ครับ (khrap - polite particle). - For here, please.",
+      "slang": ""
+    },
+    {
+      "english": "Take away / To go",
+      "thai": "กลับบ้าน",
+      "transliteration": "Glap baan",
+      "complexity": "Simple",
+      "explanation": "Literally means 'return home'. This is the standard phrase for a takeaway order.",
+      "example_sentence": "เอา (Ao - 'I'll take') สอง (song - 'two') ชุด (chut - 'sets'), กลับบ้าน (glap baan - 'to go'). - I'll take two sets to go.",
+      "slang": ""
+    },
+    {
+      "english": "Not spicy",
+      "thai": "ไม่เผ็ด",
+      "transliteration": "Mai phet",
+      "complexity": "Simple",
+      "explanation": "The most important phrase for many travelers. ไม่ (Mai) means 'not' and เผ็ด (phet) means 'spicy'.",
+      "example_sentence": "ขอ (Kaw - 'I'd like') ส้มตำ (som tam) ไม่เผ็ด (mai phet - 'not spicy'). - I'd like papaya salad, not spicy.",
+      "slang": ""
+    },
+    {
+      "english": "A little spicy",
+      "thai": "เผ็ดน้อย",
+      "transliteration": "Phet noi",
+      "complexity": "Simple",
+      "explanation": "For when you want some heat, but not the full Thai level. เผ็ด (Phet) is 'spicy', น้อย (noi) is 'a little'.",
+      "example_sentence": "เอา (Ao - 'I'll take') ต้มยำ (tom yum) เผ็ดน้อย (phet noi - 'a little spicy'). - I'll take the Tom Yum, a little spicy.",
+      "slang": ""
+    },
+    {
+      "english": "Less sweet",
+      "thai": "หวานน้อย",
+      "transliteration": "Waan noi",
+      "complexity": "Simple",
+      "explanation": "Crucial for ordering drinks. หวาน (Waan) is 'sweet', น้อย (noi) is 'a little'.",
+      "example_sentence": "เอา (Ao - 'I'll have') ชาไทย (cha thai - 'Thai tea') หวานน้อย (waan noi - 'less sweet'). - I'll have a Thai tea, less sweet.",
+      "slang": ""
+    },
+    {
+      "english": "Don't want... / Without...",
+      "thai": "ไม่เอา",
+      "transliteration": "Mai ao",
+      "complexity": "Simple",
+      "explanation": "A direct way to refuse something. Use this before an ingredient name.",
+      "example_sentence": "ไม่เอา (Mai ao - 'I don't want') ผักชี (pak chee - 'coriander'). - I don't want coriander.",
+      "slang": ""
+    },
+    {
+      "english": "Don't add...",
+      "thai": "ไม่ใส่",
+      "transliteration": "Mai sai",
+      "complexity": "Simple",
+      "explanation": "Means 'don't put in'. It's very useful for specific ingredients.",
+      "example_sentence": "ขอ (Kaw - 'I'd like') ก๋วยเตี๋ยว (guay tiao - 'noodle soup'), ไม่ใส่ (mai sai - 'don't add') ถั่วงอก (tua ngok - 'bean sprouts'). - I'd like noodle soup, don't add bean sprouts.",
+      "slang": ""
+    },
+    {
+      "english": "Extra... / Special...",
+      "thai": "พิเศษ",
+      "transliteration": "Piset",
+      "complexity": "Simple",
+      "explanation": "Means 'special', but in a food context, it means 'extra'. Follow it with the ingredient you want more of.",
+      "example_sentence": "ขอ (Kaw - 'I'd like') ไข่เจียว (kai jiao - 'omelette') พิเศษ (piset - 'extra') หมูสับ (moo sap - 'minced pork'). - I'd like an omelette with extra minced pork.",
+      "slang": ""
+    },
+    {
+      "english": "On top of rice",
+      "thai": "ราดข้าว",
+      "transliteration": "Raat khao",
+      "complexity": "Simple",
+      "explanation": "A fundamental concept for ordering at simple eateries. It means to serve a stir-fried dish over a plate of rice.",
+      "example_sentence": "เอา (Ao - 'I'll have') ผัดกะเพรา (pad krapao) ราดข้าว (raat khao - 'on top of rice'). - I'll have Pad Krapao served on rice.",
+      "slang": ""
+    },
+    {
+      "english": "With a fried egg",
+      "thai": "ไข่ดาวด้วย",
+      "transliteration": "Kai dao duay",
+      "complexity": "Medium",
+      "explanation": "A classic addition to any 'raat khao' dish. ไข่ดาว (Kai dao) is 'fried egg', ด้วย (duay) means 'as well'.",
+      "example_sentence": "กะเพราหมู (Krapao moo) ราดข้าว (raat khao), ไข่ดาวด้วย (kai dao duay - 'with a fried egg') ครับ (khrap). - Pad Krapao with pork on rice, with a fried egg too, please.",
+      "slang": ""
+    },
+    {
+      "english": "I am vegetarian",
+      "thai": "กินมังสวิรัติ",
+      "transliteration": "Gin mangsawirat",
+      "complexity": "Medium",
+      "explanation": "The general term for vegetarianism (may include eggs/dairy).",
+      "example_sentence": "ผม (Phom - 'I') กินมังสวิรัติ (gin mangsawirat - 'am vegetarian'). - I am vegetarian.",
+      "slang": "กินเจ (Gin jay) is a stricter vegan (no garlic/onions) and is also widely understood."
+    },
+    {
+      "english": "I am allergic to...",
+      "thai": "ฉันแพ้",
+      "transliteration": "Chan pae...",
+      "complexity": "Medium",
+      "explanation": "A very important phrase for allergies. ฉัน (Chan) is 'I', แพ้ (pae) is 'to be allergic'. Follow it with the ingredient.",
+      "example_sentence": "ฉัน (Chan - 'I') แพ้ (pae - 'am allergic to') ถั่ว (tua - 'peanuts'). - I am allergic to peanuts.",
+      "slang": ""
+    },
+    {"english": "Pork", "thai": "หมู", "transliteration": "Moo", "complexity": "Simple", "explanation": "Used in 'Moo Bping' (Grilled Pork) or 'Khao Kha Moo' (Braised Pork Leg)."},
+    {"english": "Minced Pork", "thai": "หมูสับ", "transliteration": "Moo sap", "complexity": "Simple", "explanation": "The star of 'Pad Krapao Moo Sap'."},
+    {"english": "Crispy Pork Belly", "thai": "หมูกรอบ", "transliteration": "Moo grob", "complexity": "Simple", "explanation": "Delicious fried pork belly, often eaten in 'Pad Kana Moo Grob'."},
+    {"english": "Chicken", "thai": "ไก่", "transliteration": "Gai", "complexity": "Simple", "explanation": "Used in 'Khao Man Gai' (Chicken Rice) or 'Gai Tort' (Fried Chicken)."},
+    {"english": "Beef", "thai": "เนื้อ", "transliteration": "Nuea", "complexity": "Simple", "explanation": "Used in 'Guay Tiao Nuea' (Beef Noodle Soup)."},
+    {"english": "Duck", "thai": "เป็ด", "transliteration": "Bpet", "complexity": "Simple", "explanation": "Used in 'Khao Na Bpet' (Rice with Roast Duck)."},
+    {"english": "Shrimp", "thai": "กุ้ง", "transliteration": "Goong", "complexity": "Simple", "explanation": "The star of 'Tom Yum Goong'."},
+    {"english": "Fish", "thai": "ปลา", "transliteration": "Bplaa", "complexity": "Simple", "explanation": "Used in 'Pla Pao' (Salt-Crusted Grilled Fish)."},
+    {"english": "Squid", "thai": "ปลาหมึก", "transliteration": "Bplaa meuk", "complexity": "Simple", "explanation": "Literally 'ink fish'."},
+    {"english": "Seafood", "thai": "ทะเล", "transliteration": "Talay", "complexity": "Simple", "explanation": "Literally 'sea', used for mixed seafood in dishes like 'Khao Pad Talay'."},
+    {"english": "Egg", "thai": "ไข่", "transliteration": "Kai", "complexity": "Simple", "explanation": "Used for 'Kai Dao' (fried egg) or 'Kai Jiao' (omelette)."},
+    {"english": "Tofu", "thai": "เต้าหู้", "transliteration": "Dtao hoo", "complexity": "Simple", "explanation": "The main protein for many vegetarian dishes."},
+    {"english": "(Steamed) Rice", "thai": "ข้าวสวย", "transliteration": "Khao suay", "complexity": "Simple", "explanation": "Standard steamed jasmine rice."},
+    {"english": "Sticky Rice", "thai": "ข้าวเหนียว", "transliteration": "Khao niao", "complexity": "Simple", "explanation": "Eaten with hands, common in Isaan/Northern food."},
+    {"english": "Noodles (general)", "thai": "ก๋วยเตี๋ยว", "transliteration": "Guay tiao", "complexity": "Simple", "explanation": "The general term for noodle soup dishes."},
+    {"english": "Thin rice noodles", "thai": "เส้นเล็ก", "transliteration": "Sen lek", "complexity": "Simple", "explanation": "The standard noodle for Pad Thai and boat noodles."},
+    {"english": "Wide rice noodles", "thai": "เส้นใหญ่", "transliteration": "Sen yai", "complexity": "Simple", "explanation": "Used in 'Pad See Ew' and 'Rad Na'."},
+    {"english": "Vegetable", "thai": "ผัก", "transliteration": "Pak", "complexity": "Simple", "explanation": "The general word for vegetable."},
+    {"english": "Coriander / Cilantro", "thai": "ผักชี", "transliteration": "Pak chee", "complexity": "Simple", "explanation": "A common garnish; some people ask for it to be removed."},
+    {"english": "Bean Sprouts", "thai": "ถั่วงอก", "transliteration": "Tua ngok", "complexity": "Simple", "explanation": "Common in noodle soups and Pad Thai."},
+    {"english": "Lime", "thai": "มะนาว", "transliteration": "Manao", "complexity": "Simple", "explanation": "Key ingredient for sourness."},
+    {"english": "Garlic", "thai": "กระเทียม", "transliteration": "Gratiem", "complexity": "Simple", "explanation": "A base flavor for almost everything."},
+    {"english": "Chili", "thai": "พริก", "transliteration": "Prik", "complexity": "Simple", "explanation": "The source of the heat."},
+    {"english": "Holy Basil", "thai": "กะเพรา", "transliteration": "Krapao", "complexity": "Simple", "explanation": "The key herb in 'Pad Krapao'. Peppery and distinct from other basils."},
+    {"english": "Drinking Water", "thai": "น้ำเปล่า", "transliteration": "Naam plao", "complexity": "Simple", "explanation": "Specifies plain drinking water."},
+    {"english": "Ice", "thai": "น้ำแข็ง", "transliteration": "Naam khaeng", "complexity": "Simple", "explanation": "Literally 'hard water'."},
+    {"english": "Coffee", "thai": "กาแฟ", "transliteration": "Gafae", "complexity": "Simple", "explanation": "Can be 'kafae rorn' (hot) or 'kafae yen' (iced)."},
+    {"english": "Beer", "thai": "เบียร์", "transliteration": "Bia", "complexity": "Simple", "explanation": "Common brands are Singha, Leo, and Chang."},
+    {"english": "Orange Juice", "thai": "น้ำส้ม", "transliteration": "Naam som", "complexity": "Simple", "explanation": "Literally 'orange water'."},
+    {"english": "Coconut Water", "thai": "น้ำมะพร้าว", "transliteration": "Naam maprao", "complexity": "Simple", "explanation": "Often served fresh in the coconut."},
+    {"english": "Fruit Smoothie", "thai": "น้ำผลไม้ปั่น", "transliteration": "Naam ponlamai bpan", "complexity": "Medium", "explanation": "'Naam ponlamai' is fruit juice, 'bpan' is blended."},
+    {"english": "Spicy", "thai": "เผ็ด", "transliteration": "Phet", "complexity": "Simple"},
+    {"english": "Sweet", "thai": "หวาน", "transliteration": "Waan", "complexity": "Simple"},
+    {"english": "Sour", "thai": "เปรี้ยว", "transliteration": "Bpriao", "complexity": "Simple"},
+    {"english": "Salty", "thai": "เค็ม", "transliteration": "Kem", "complexity": "Simple"},
+    {"english": "Salt", "thai": "เกลือ", "transliteration": "Gluea", "complexity": "Simple"},
+    {"english": "Stir-fried", "thai": "ผัด", "transliteration": "Pad", "complexity": "Simple", "explanation": "e.g., Pad Thai, Pad See Ew."},
+    {"english": "Boiled / Soup", "thai": "ต้ม", "transliteration": "Dtom", "complexity": "Simple", "explanation": "e.g., Tom Yum, Tom Kha Gai."},
+    {"english": "Grilled", "thai": "ย่าง", "transliteration": "Yaang", "complexity": "Simple", "explanation": "e.g., Gai Yaang (Grilled Chicken)."},
+    {"english": "Fried", "thai": "ทอด", "transliteration": "Tort", "complexity": "Simple", "explanation": "e.g., Gai Tort (Fried Chicken)."},
+    {"english": "Curry", "thai": "แกง", "transliteration": "Gaeng", "complexity": "Simple", "explanation": "e.g., Gaeng Khiao Waan (Green Curry)."},
+    {"english": "Salad (Thai style)", "thai": "ยำ", "transliteration": "Yam", "complexity": "Simple", "explanation": "e.g., Yam Woonsen (Glass Noodle Salad)."},
+    {"english": "Spoon", "thai": "ช้อน", "transliteration": "Chorn", "complexity": "Simple"},
+    {"english": "Fork", "thai": "ส้อม", "transliteration": "Sorm", "complexity": "Simple"},
+    {"english": "Chopsticks", "thai": "ตะเกียบ", "transliteration": "Dta-giap", "complexity": "Simple"},
+    {"english": "Knife", "thai": "มีด", "transliteration": "Meet", "complexity": "Simple", "explanation": "Less common for eating, but useful to know."},
+    {"english": "Plate", "thai": "จาน", "transliteration": "Jaan", "complexity": "Simple"},
+    {"english": "Bowl", "thai": "ชาม", "transliteration": "Chaam", "complexity": "Simple"},
+    {"english": "Glass (for drinking)", "thai": "แก้ว", "transliteration": "Gaew", "complexity": "Simple"},
+    {"english": "Straw", "thai": "หลอด", "transliteration": "Lord", "complexity": "Simple"},
+    {"english": "Tissue / Napkin", "thai": "ทิชชู่", "transliteration": "Tissue", "complexity": "Simple", "explanation": "Borrowed from English."},
+    {"english": "Condiment Caddy", "thai": "เครื่องปรุง", "transliteration": "Khrueang bprung", "complexity": "Simple", "explanation": "Refers to the set of condiments (sugar, chili, etc.) found on most tables."},
+    {"english": "Fish Sauce", "thai": "น้ำปลา", "transliteration": "Nam pla", "complexity": "Simple"},
+    {"english": "Dried Chili Flakes", "thai": "พริกป่น", "transliteration": "Prik bpon", "complexity": "Simple"},
+    {
+      "english": "Check, please",
+      "thai": "คิดเงิน",
+      "transliteration": "Kit ngern",
+      "complexity": "Simple",
+      "explanation": "The most common way to ask for the bill. It means 'calculate money'.",
+      "example_sentence": "พี่ (Pee - 'staff') ครับ (khrap), คิดเงิน (kit ngern - 'check please'). - Excuse me, check please.",
+      "slang": "เช็คบิล (Check bin) and เก็บตังค์ (Geb dtang) are also very common."
+    },
+    {
+      "english": "How much?",
+      "thai": "เท่าไหร่",
+      "transliteration": "Tao rai?",
+      "complexity": "Simple",
+      "explanation": "Essential for street food stalls without listed prices.",
+      "example_sentence": "ทั้งหมด (Tang mot - 'altogether') เท่าไหร่ (tao rai - 'how much') ครับ (khrap)? - How much is it altogether?",
+      "slang": ""
+    },
+    {
+      "english": "Delicious!",
+      "thai": "อร่อยมาก",
+      "transliteration": "Aroy mak",
+      "complexity": "Simple",
+      "explanation": "A great compliment to give when paying. อร่อย (Aroy) is 'delicious', มาก (mak) is 'very'.",
+      "example_sentence": "อร่อยมาก (Aroy mak - 'very delicious') ครับ (khrap), ขอบคุณ (khob khun - 'thank you'). - Very delicious, thank you!",
+      "slang": ""
+    },
+    {
+      "english": "I am full",
+      "thai": "อิ่มแล้ว",
+      "transliteration": "Im laew",
+      "complexity": "Simple",
+      "explanation": "A polite way to indicate you've finished. อิ่ม (Im) is 'full' and แล้ว (laew) means 'already'.",
+      "example_sentence": "อาหาร (Ahaan - 'the food') อร่อย (aroy - 'delicious'), แต่ (dtae - 'but') อิ่มแล้ว (im laew - 'I'm full'). - The food was delicious, but I'm full now.",
+      "slang": ""
+    },
+    {
+      "english": "Keep the change",
+      "thai": "ไม่ต้องทอน",
+      "transliteration": "Mai dtong torn",
+      "complexity": "Medium",
+      "explanation": "A common and appreciated phrase. ไม่ต้อง (Mai dtong) means 'no need to', ทอน (torn) means 'give change'.",
+      "example_sentence": "ไม่ต้องทอน (Mai dtong torn - 'keep the change') ครับ (khrap - polite particle). - Keep the change, thanks.",
+      "slang": ""
+    },
+    {
+      "english": "Receipt, please",
+      "thai": "ขอใบเสร็จด้วย",
+      "transliteration": "Kaw bai-set duay",
+      "complexity": "Medium",
+      "explanation": "For those needing a receipt. ขอ (Kaw) is 'may I have', ใบเสร็จ (bai-set) is 'receipt', ด้วย (duay) makes it polite.",
+      "example_sentence": "ขอใบเสร็จด้วย (Kaw bai-set duay - 'receipt, please') ครับ (khrap). - May I have a receipt, please?",
+      "slang": ""
+    }
+  ]
+}

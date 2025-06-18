@@ -109,7 +109,7 @@ class BabblelonGame extends FlameGame with
       name: "Tuk-Tuk Monster",
       spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
       maxHealth: 500,
-      vocabularyPath: 'assets/data/boss_vocabulary.json',
+      vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
       backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
     );
 

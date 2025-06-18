@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/models/turn.dart';
+import 'package:babblelon/models/game_models.dart';
 import 'package:babblelon/widgets/flashcard.dart';
 import 'package:babblelon/widgets/top_info_bar.dart';
 import 'package:babblelon/screens/main_menu_screen.dart';
@@ -17,6 +18,10 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/models/assessment_model.dart';
+import 'package:babblelon/services/api_service.dart';
+import 'package:babblelon/game/babblelon_game.dart';
+import 'package:provider/provider.dart' as provider;
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -32,6 +37,8 @@ enum RecordingState {
   idle,
   recording,
   reviewing,
+  assessing, // New state for when we're calling the backend
+  results,   // New state for showing assessment results
 }
 
 // --- Animation State Enum ---
@@ -41,23 +48,6 @@ enum AnimationState {
   defending,
   bossAttacking,
   bossProjectileAttacking, // New state for boss projectile attack
-}
-
-// --- Vocabulary Model ---
-class Vocabulary {
-  final String english;
-  final String targetWord;
-  final String transliteration;
-
-  Vocabulary({required this.english, required this.targetWord, required this.transliteration});
-
-  factory Vocabulary.fromJson(Map<String, dynamic> json) {
-    return Vocabulary(
-      english: json['english'],
-      targetWord: json['thai'],
-      transliteration: json['transliteration'],
-    );
-  }
 }
 
 // --- Providers ---
@@ -76,18 +66,21 @@ final usedVocabularyIndicesProvider = StateProvider<Set<int>>((ref) => <int>{});
 final animationStateProvider = StateProvider<AnimationState>((ref) => AnimationState.idle);
 final activeFlashcardsProvider = StateProvider<List<Vocabulary>>((ref) => []);
 final tappedCardProvider = StateProvider<Vocabulary?>((ref) => null);
+final revealedCardsProvider = StateProvider<Set<String>>((ref) => {});
 
 // --- Boss Fight Screen ---
 class BossFightScreen extends ConsumerStatefulWidget {
   final BossData bossData;
   final BattleItem attackItem;
   final BattleItem defenseItem;
+  final BabblelonGame game;
 
   const BossFightScreen({
     super.key, 
     required this.bossData,
     required this.attackItem,
     required this.defenseItem,
+    required this.game,
   });
 
   @override
@@ -102,6 +95,13 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   final Random _random = Random();
   bool _isInitialTurnSet = false; // Ensures initial turn is set only once
   bool _gameInitialized = false; // Ensures game setup happens only once
+  late final ApiService _apiService;
+  bool _isRecording = false;
+  bool _isLoading = false;
+  PronunciationAssessmentResponse? _lastAssessment;
+  
+  // --- State for Practice Assessment in Flashcard Dialog ---
+  final ValueNotifier<PronunciationAssessmentResponse?> _practiceAssessmentResult = ValueNotifier<PronunciationAssessmentResponse?>(null);
 
   // --- Animation Controllers ---
   late AnimationController _projectileController;
@@ -128,6 +128,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     super.initState();
     _calculateSpriteSizes();
     _initializeAnimations();
+    _apiService = ApiService();
   }
 
   void _setInitialTurn() {
@@ -250,10 +251,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _practiceAudioRecorder.dispose();
     _practiceRecordingState.dispose();
     _lastPracticeRecordingPath.dispose();
+    _practiceAssessmentResult.dispose();
     
     // Reset game state when screen is disposed
     _isInitialTurnSet = false;
     _gameInitialized = false;
+    _apiService.dispose();
     
     super.dispose();
   }
@@ -368,7 +371,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     return selectedIndices;
   }
 
-  Future<void> _performAttack() async {
+  Future<void> _performAttack({double attackMultiplier = 20.0}) async {
     ref.read(animationStateProvider.notifier).state = AnimationState.attacking;
     
     // Small delay to let popup close completely before starting animation
@@ -377,9 +380,10 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Start projectile animation
     await _projectileController.forward();
     
-    // Deal damage to boss
+    // Deal damage to boss using the attack multiplier
     final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
-    bossHealth.state = (bossHealth.state - 20).clamp(0, widget.bossData.maxHealth);
+    final damage = attackMultiplier.round();
+    bossHealth.state = (bossHealth.state - damage).clamp(0, widget.bossData.maxHealth);
     
     // Show boss damage effect
     await _performBossDamageAnimation();
@@ -393,7 +397,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _startBossTurn(showSnackbar: true);
   }
 
-  Future<void> _performDefense() async {
+  Future<void> _performDefense({double defenseMultiplier = 1.0}) async {
     // Small delay to let popup close completely
     await Future.delayed(const Duration(milliseconds: 100));
     
@@ -412,9 +416,11 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Wait for the boss attack animation to fully complete.
     await bossAttackFuture;
     
-    // Player takes reduced damage due to defense.
+    // Player takes damage modified by defense multiplier (lower multiplier = better defense)
     final playerHealth = ref.read(playerHealthProvider.notifier);
-    playerHealth.state = (playerHealth.state - 8).clamp(0, 100);
+    const baseDamage = 20.0; // Boss base damage
+    final actualDamage = (baseDamage * defenseMultiplier).round();
+    playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
     
     // Show damage effect on player.
     await _performPlayerDamageAnimation();
@@ -511,6 +517,8 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   void _showFlashcardDialog(Vocabulary card) {
     // Reset practice recording state every time a new card dialog is opened.
     _resetPracticeRecording();
+    // Reset assessment result
+    _practiceAssessmentResult.value = null;
     showDialog(
       context: context,
       barrierDismissible: true, // Allow tapping outside to close
@@ -523,31 +531,105 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
           onPracticeStop: _stopPracticeRecording,
           onPracticeReset: _resetPracticeRecording,
           lastPracticeRecordingPathNotifier: _lastPracticeRecordingPath,
+          practiceAssessmentResultNotifier: _practiceAssessmentResult,
           currentTurn: ref.read(turnProvider),
-          onSend: _handleSendAction, // Add send handler
+          onSend: _handleSendAction, // Triggers assessment
+          onConfirm: _handleConfirmedAction, // Triggers actual game action after assessment
           onReveal: () {
-            // The penalty message is now shown on the card itself.
-            // No longer need to show a snackbar.
+            // When a card is revealed, add it to our state provider
+            // so we can apply the penalty later.
+            final currentRevealed = ref.read(revealedCardsProvider);
+            if (!currentRevealed.contains(card.english)) {
+              ref.read(revealedCardsProvider.notifier).state = {
+                ...currentRevealed,
+                card.english,
+              };
+            }
           },
-          isInitiallyRevealed: false,
+          isInitiallyRevealed: ref.watch(revealedCardsProvider).contains(card.english),
         );
       },
     ).then((_) {
-      // Reset recording when dialog closes
+      // Reset recording and assessment when dialog closes
       _resetPracticeRecording();
+      _practiceAssessmentResult.value = null;
     });
   }
 
-  // Handle send action from flashcard dialog
+  // Handle send action from flashcard dialog (now triggers assessment)
   Future<void> _handleSendAction() async {
     final currentTurn = ref.read(turnProvider);
+    final usedCard = ref.read(tappedCardProvider);
     
+    if (usedCard == null || _lastPracticeRecordingPath.value == null) {
+      print("No card selected or no recording available");
+      return;
+    }
+
+    // Set state to assessing
+    _practiceRecordingState.value = RecordingState.assessing;
+    
+    try {
+      // Read the audio file
+      final audioFile = File(_lastPracticeRecordingPath.value!);
+      final audioBytes = await audioFile.readAsBytes();
+      
+      // Determine turn type and item type
+      final turnType = currentTurn == Turn.player ? 'attack' : 'defense';
+      final itemType = currentTurn == Turn.player 
+          ? (widget.attackItem.isSpecial ? 'special' : 'regular')
+          : (widget.defenseItem.isSpecial ? 'special' : 'regular');
+      
+      // Call the pronunciation service
+      final revealedCards = ref.read(revealedCardsProvider);
+      final wasRevealed = revealedCards.contains(usedCard.english);
+
+      final assessmentResult = await _apiService.assessPronunciation(
+        audioBytes: audioBytes,
+        referenceText: usedCard.targetWord,
+        transliteration: usedCard.transliteration,
+        complexity: "medium", // TODO: Get from vocabulary data if available
+        itemType: itemType,
+        turnType: turnType,
+        wasRevealed: wasRevealed, // Pass the revealed status
+      );
+      
+      // Store the result and switch to results state
+      _practiceAssessmentResult.value = assessmentResult;
+      _practiceRecordingState.value = RecordingState.results;
+      
+    } catch (e) {
+      print("Error during pronunciation assessment: $e");
+      // Reset to reviewing state so user can try again
+      _practiceRecordingState.value = RecordingState.reviewing;
+      
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Assessment failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // New method to handle confirmed action after assessment
+  Future<void> _handleConfirmedAction() async {
+    final currentTurn = ref.read(turnProvider);
+    final assessmentResult = _practiceAssessmentResult.value;
+    
+    if (assessmentResult == null) return;
+    
+    // Apply the assessment results to game mechanics
     if (currentTurn == Turn.player) {
-      // Player's attack turn
-      await _performAttack();
+      // Player's attack turn - use attack multiplier
+      await _performAttack(attackMultiplier: assessmentResult.attackMultiplier);
     } else {
-      // Player's defense turn (defending against boss)
-      await _performDefense();
+      // Player's defense turn - use defense multiplier
+      await _performDefense(defenseMultiplier: assessmentResult.defenseMultiplier);
     }
     
     // After the turn action is complete, replace the used flashcard.
@@ -1018,6 +1100,79 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       ],
     );
   }
+
+  Future<void> _handleRecordButtonPressed() async {
+    if (_isRecording) {
+      setState(() {
+        _isLoading = true;
+        _isRecording = false;
+      });
+
+      // TODO: Replace with actual data from your game state
+      final assessmentResult = await _apiService.stopRecordingAndGetAssessment(
+        referenceText: "ไอ้เหี้ยไอ้สัตว์", // Example
+        transliteration: "ai hia ai sat", // Example
+        complexity: "medium",
+        itemType: "special",
+        turnType: "attack", // Example: determine this from game state
+      );
+      
+      if (mounted) {
+        setState(() {
+          _lastAssessment = assessmentResult;
+          _isLoading = false;
+          // TODO: Add logic to update player/boss health based on assessmentResult
+        });
+        
+        // Show a dialog with the results
+        if (_lastAssessment != null) {
+          _showAssessmentDialog(_lastAssessment!);
+        }
+      }
+
+    } else {
+      await _apiService.startRecording();
+      if(mounted) {
+        setState(() {
+          _isRecording = true;
+        });
+      }
+    }
+  }
+  
+  void _showAssessmentDialog(PronunciationAssessmentResponse result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Assessment: ${result.rating}'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              Text('Overall Score: ${result.pronunciationScore.toStringAsFixed(1)}'),
+              Text('Attack Multiplier: ${result.attackMultiplier.toStringAsFixed(2)}x'),
+              Text('Defense Multiplier: ${result.defenseMultiplier.toStringAsFixed(2)}x'),
+              SizedBox(height: 10),
+              Text('Feedback:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        Text(result.wordFeedback),
+              SizedBox(height: 10),
+              Text('Calculation:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Base Attack: ${result.calculationBreakdown.baseAttack}'),
+              Text('Pronunciation Bonus: ${result.calculationBreakdown.pronunciationMultiplier}x'),
+              Text('Complexity Bonus: ${result.calculationBreakdown.complexityMultiplier}x'),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text('OK'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // --- New Boss Fight Menu Dialog ---
@@ -1268,7 +1423,9 @@ class __InteractiveFlashcardDialog extends ConsumerStatefulWidget {
   final Future<void> Function() onPracticeStop;
   final Future<void> Function() onPracticeReset;
   final ValueNotifier<String?> lastPracticeRecordingPathNotifier;
+  final ValueNotifier<PronunciationAssessmentResponse?> practiceAssessmentResultNotifier;
   final Future<void> Function() onSend;
+  final Future<void> Function() onConfirm;
   final Turn currentTurn;
   final bool isInitiallyRevealed;
 
@@ -1281,7 +1438,9 @@ class __InteractiveFlashcardDialog extends ConsumerStatefulWidget {
     required this.onPracticeStop,
     required this.onPracticeReset,
     required this.lastPracticeRecordingPathNotifier,
+    required this.practiceAssessmentResultNotifier,
     required this.onSend,
+    required this.onConfirm,
     required this.currentTurn,
     this.isInitiallyRevealed = false,
   });
@@ -1292,16 +1451,17 @@ class __InteractiveFlashcardDialog extends ConsumerStatefulWidget {
 
 class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlashcardDialog> with TickerProviderStateMixin {
   String? _penaltyMessage;
-  bool _hasBeenRevealed = false;
+  late bool _hasBeenRevealed; // Changed from final to late bool
   late final AnimationController _micPulseController;
   late final AnimationController _playButtonController;
   late final AnimationController _flipController;
   late final Animation<double> _flipAnimation;
-  final just_audio.AudioPlayer _practiceReviewPlayer = just_audio.AudioPlayer();
 
   @override
   void initState() {
     super.initState();
+    _hasBeenRevealed = widget.isInitiallyRevealed; // Initialize based on parent state
+
     _flipController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -1329,7 +1489,7 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
     _micPulseController.dispose();
     _playButtonController.dispose();
     _flipController.dispose();
-    _practiceReviewPlayer.dispose();
+    // Player is now managed within the play function, no need to dispose here.
     super.dispose();
   }
   
@@ -1352,7 +1512,7 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
       setState(() {
         _penaltyMessage = '$actionType efficiency decreased by 20%!';
       });
-      widget.onReveal();
+      widget.onReveal(); // Notify parent screen
     }
     
     if (_flipController.status == AnimationStatus.completed) {
@@ -1367,6 +1527,12 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isCardFlipped = _flipController.value >= 0.5;
     
+    // If the card is already revealed from a previous action, flip it instantly
+    // without animation when the dialog opens.
+    if (widget.isInitiallyRevealed && !_flipController.isAnimating) {
+      _flipController.value = 1.0;
+    }
+
     final front = _buildCardSide(
       isDarkMode: isDarkMode,
       child: Center(
@@ -1463,8 +1629,8 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
                 ),
               ),
             ),
-            // Penalty notification - now appears below the flashcard
-            if (_penaltyMessage != null) ...[
+            // Penalty notification - show if it has been revealed in this session OR was revealed previously
+            if (_penaltyMessage != null || widget.isInitiallyRevealed) ...[
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1487,7 +1653,8 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        _penaltyMessage!,
+                        // Define actionType here since it's out of the original scope
+                        _penaltyMessage ?? '${widget.currentTurn == Turn.player ? 'attack' : 'defense'} efficiency decreased by 20%!',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14, 
@@ -1548,25 +1715,145 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
             valueListenable: widget.practiceRecordingState,
             builder: (context, state, child) {
               final currentTurn = widget.currentTurn;
-              final actionText = currentTurn == Turn.player ? 'Attack' : 'Defend';
               
-              return ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: state == RecordingState.reviewing 
-                      ? (isDarkMode ? Colors.green.shade700 : Colors.green.shade600)
-                      : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400),
-                  minimumSize: const Size(120, 45),
-                ),
-                onPressed: state == RecordingState.reviewing ? () async {
-                  Navigator.of(context).pop();
-                  // Call the animation handler
-                  await widget.onSend();
-                } : null, // Disabled if not in review state
-                child: Text(
-                  actionText,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              );
+              switch (state) {
+                case RecordingState.reviewing:
+                  final actionText = currentTurn == Turn.player ? 'Attack' : 'Defend';
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.orange.shade600,
+                      minimumSize: const Size(120, 45),
+                    ),
+                    onPressed: () async {
+                      // Don't close dialog, just trigger assessment
+                      await widget.onSend();
+                    },
+                    child: Text(
+                      actionText,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                  
+                case RecordingState.assessing:
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
+                      minimumSize: const Size(120, 45),
+                    ),
+                    onPressed: null, // Disabled during assessment
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Assessing...', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  );
+                  
+                case RecordingState.results:
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Show assessment results
+                      ValueListenableBuilder<PronunciationAssessmentResponse?>(
+                        valueListenable: widget.practiceAssessmentResultNotifier,
+                        builder: (context, assessment, child) {
+                          if (assessment == null) return const SizedBox.shrink();
+                          
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDarkMode ? Colors.white.withOpacity(0.3) : Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Assessment: ${assessment.rating}',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDarkMode ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Score: ${assessment.pronunciationScore.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  currentTurn == Turn.player 
+                                      ? 'Attack Power: ${assessment.attackMultiplier.toStringAsFixed(1)}'
+                                      : 'Damage Reduction: ${(100 * (1 - assessment.defenseMultiplier)).toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: currentTurn == Turn.player ? Colors.red.shade600 : Colors.blue.shade600,
+                                  ),
+                                ),
+                                if (assessment.wordFeedback.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    assessment.wordFeedback,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      // Confirm button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDarkMode ? Colors.green.shade700 : Colors.green.shade600,
+                          minimumSize: const Size(120, 45),
+                        ),
+                        onPressed: () async {
+                          Navigator.of(context).pop(); // Close dialog
+                          await widget.onConfirm(); // Execute game action
+                        },
+                        child: const Text(
+                          'Confirm',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  );
+                  
+                default:
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
+                      minimumSize: const Size(120, 45),
+                    ),
+                    onPressed: null, // Disabled
+                    child: Text(
+                      currentTurn == Turn.player ? 'Attack' : 'Defend',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+              }
             },
           ),
         ),
@@ -1682,22 +1969,50 @@ class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlash
       print("No recording path found to play.");
       return;
     }
+    // Create a new, temporary player instance for each playback.
+    // This is safer and avoids state-related bugs from the `just_audio` plugin.
+    final player = just_audio.AudioPlayer();
     try {
-      await _practiceReviewPlayer.stop();
-      print('Playing from: ${widget.lastPracticeRecordingPathNotifier.value}');
-      final duration = await _practiceReviewPlayer.setAudioSource(just_audio.AudioSource.uri(Uri.file(widget.lastPracticeRecordingPathNotifier.value!)));
-      print('Audio duration: $duration');
+      final duration = await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(widget.lastPracticeRecordingPathNotifier.value!)));
       
       if (duration != null) {
         _playButtonController.duration = duration;
-        _playButtonController.forward().then((_) {
+        _playButtonController.forward().whenComplete(() {
           _playButtonController.reset();
         });
+        
+        await player.play();
+
+        // Listen to the player state. When it completes, dispose of the player
+        // to free up resources.
+        final subscription = player.processingStateStream.listen((state) {
+          if (state == just_audio.ProcessingState.completed) {
+            player.stop().then((_) => player.dispose()).catchError((e) {
+              print("Error disposing audio player: $e");
+            });
+          }
+        });
+
+        // Also dispose after a reasonable timeout to prevent memory leaks
+        Future.delayed(duration + const Duration(seconds: 2), () {
+          subscription.cancel();
+          player.stop().then((_) => player.dispose()).catchError((e) {
+            print("Error disposing audio player on timeout: $e");
+          });
+        });
+      } else {
+        // If loading fails, dispose immediately.
+        await player.dispose();
       }
       
-      await _practiceReviewPlayer.play();
     } catch (e) {
       print("Error playing practice audio: $e");
+      // Ensure disposal on error.
+      try {
+        await player.dispose();
+      } catch (disposeError) {
+        print("Error disposing audio player after error: $disposeError");
+      }
     }
   }
 }

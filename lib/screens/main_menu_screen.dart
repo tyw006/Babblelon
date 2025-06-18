@@ -1,6 +1,7 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
+import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 
 class MainMenuScreen extends StatelessWidget {
@@ -84,7 +85,7 @@ class MainMenuScreen extends StatelessWidget {
                     name: "Tuk-Tuk Monster",
                     spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
                     maxHealth: 500,
-                    vocabularyPath: 'assets/data/boss_vocabulary.json',
+                    vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
                     backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
                   );
 
@@ -105,6 +106,7 @@ class MainMenuScreen extends StatelessWidget {
                         bossData: tuktukBoss,
                         attackItem: testAttackItem,
                         defenseItem: testDefenseItem,
+                        game: BabblelonGame(),
                       ),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return AnimatedBuilder(

@@ -119,4 +119,33 @@ class GameSettings {
       vibrationEnabled: json['vibrationEnabled'] ?? true,
     );
   }
-} 
+}
+
+// Vocabulary model for language learning
+class Vocabulary {
+  final String english;
+  final String targetWord;
+  final String transliteration;
+
+  Vocabulary({
+    required this.english,
+    required this.targetWord,
+    required this.transliteration,
+  });
+
+  factory Vocabulary.fromJson(Map<String, dynamic> json) {
+    return Vocabulary(
+      english: json['english'],
+      targetWord: json['thai'],
+      transliteration: json['transliteration'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'english': english,
+      'thai': targetWord,
+      'transliteration': transliteration,
+    };
+  }
+}

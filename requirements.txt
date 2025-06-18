@@ -1,7 +1,13 @@
 fastapi
-uvicorn[standard]
+uvicorn
 python-dotenv
-openai
+requests
+google-cloud-aiplatform
+google-cloud-translate
+google-cloud-texttospeech
+pydantic
 elevenlabs
 google-generativeai
+openai
 azure-cognitiveservices-speech
+pydub

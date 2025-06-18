@@ -3,6 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart' as provider;
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:babblelon/models/game_models.dart';
 
 part 'game_providers.g.dart';
 
@@ -154,3 +158,35 @@ class PopupConfig {
 }
 
 final popupConfigProvider = StateProvider<PopupConfig?>((ref) => null);
+
+class VocabularyProvider with ChangeNotifier {
+  List<Vocabulary> _vocabulary = [];
+  bool _isLoading = false;
+
+  List<Vocabulary> get vocabulary => _vocabulary;
+  bool get isLoading => _isLoading;
+
+  Future<void> loadVocabulary(String path) async {
+    if (_vocabulary.isNotEmpty) return;
+    
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final String response = await rootBundle.loadString(path);
+      final data = json.decode(response);
+      
+      // Correctly cast the list from json
+      _vocabulary = (data['vocabulary'] as List)
+          .map((item) => Vocabulary.fromJson(item))
+          .toList();
+
+    } catch (e) {
+      // Handle potential errors, e.g., file not found or JSON parsing error
+      debugPrint("Error loading vocabulary: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+}

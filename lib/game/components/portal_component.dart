@@ -93,6 +93,7 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
                 bossData: bossData,
                 attackItem: attackItem,
                 defenseItem: defenseItem,
+                game: game,
               ),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 return AnimatedBuilder(
