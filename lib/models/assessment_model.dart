@@ -8,7 +8,7 @@ class PronunciationAssessmentResponse {
   final double completenessScore;
   final double attackMultiplier;
   final double defenseMultiplier;
-  final List<WordResult> wordResults;
+  final List<WordFeedback> detailedFeedback;
   final String wordFeedback;
   final DamageCalculationBreakdown calculationBreakdown;
 
@@ -20,73 +20,125 @@ class PronunciationAssessmentResponse {
     required this.completenessScore,
     required this.attackMultiplier,
     required this.defenseMultiplier,
-    required this.wordResults,
+    required this.detailedFeedback,
     required this.wordFeedback,
     required this.calculationBreakdown,
   });
 
   factory PronunciationAssessmentResponse.fromJson(Map<String, dynamic> json) {
+    var detailedFeedbackList = (json['detailed_feedback'] as List<dynamic>?)
+        ?.map((wordJson) => WordFeedback.fromJson(wordJson))
+        .toList() ?? [];
+
+    // Fallback for old `word_results` key
+    if (detailedFeedbackList.isEmpty && json.containsKey('word_results')) {
+       detailedFeedbackList = (json['word_results'] as List<dynamic>?)
+          ?.map((wordJson) => WordFeedback.fromOldJson(wordJson))
+          .toList() ?? [];
+    }
+
     return PronunciationAssessmentResponse(
       rating: json['rating'] ?? 'N/A',
       pronunciationScore: (json['pronunciation_score'] ?? 0.0).toDouble(),
       accuracyScore: (json['accuracy_score'] ?? 0.0).toDouble(),
       fluencyScore: (json['fluency_score'] ?? 0.0).toDouble(),
       completenessScore: (json['completeness_score'] ?? 0.0).toDouble(),
-      attackMultiplier: (json['attack_multiplier'] ?? 0.0).toDouble(),
-      defenseMultiplier: (json['defense_multiplier'] ?? 0.0).toDouble(),
-      wordResults: (json['word_results'] as List<dynamic>?)
-          ?.map((wordJson) => WordResult.fromJson(wordJson))
-          .toList() ?? [],
+      attackMultiplier: (json['attack_multiplier'] ?? 1.0).toDouble(),
+      defenseMultiplier: (json['defense_multiplier'] ?? 1.0).toDouble(),
+      detailedFeedback: detailedFeedbackList,
       wordFeedback: json['word_feedback'] ?? '',
       calculationBreakdown: DamageCalculationBreakdown.fromJson(json['calculation_breakdown'] ?? {}),
     );
   }
 }
 
-class WordResult {
+class WordFeedback {
   final String word;
   final double accuracyScore;
   final String errorType;
+  final String transliteration;
 
-  WordResult({
+  WordFeedback({
     required this.word,
     required this.accuracyScore,
     required this.errorType,
+    required this.transliteration,
   });
 
-  factory WordResult.fromJson(Map<String, dynamic> json) {
-    return WordResult(
+  factory WordFeedback.fromJson(Map<String, dynamic> json) {
+    return WordFeedback(
       word: json['word'] ?? 'N/A',
       accuracyScore: (json['accuracy_score'] ?? 0.0).toDouble(),
       errorType: json['error_type'] ?? 'None',
+      transliteration: json['transliteration'] ?? '',
+    );
+  }
+
+  // Factory for old `WordResult` structure
+  factory WordFeedback.fromOldJson(Map<String, dynamic> json) {
+    return WordFeedback(
+      word: json['word'] ?? 'N/A',
+      accuracyScore: (json['accuracy_score'] ?? 0.0).toDouble(),
+      errorType: json['error_type'] ?? 'None',
+      transliteration: '', // Old format didn't have this
     );
   }
 }
 
-
-
 class DamageCalculationBreakdown {
-  final double baseAttack;
+  final double baseValue;
   final double pronunciationMultiplier;
   final double complexityMultiplier;
-  final double finalAttackMultiplier;
-  final double finalDefenseMultiplier;
+  final double itemMultiplier;
+  final double penalty;
+  final String explanation;
+  
+  // New detailed breakdown fields
+  final String? attackExplanation;
+  final String? defenseExplanation;
+  final double? attackPronunciationBonus;
+  final double? attackComplexityBonus;
+  final double? defensePronunciationBonus;
+  final double? defenseComplexityBonus;
+  final double? cardRevealPenalty;
+  final double? finalAttackBonus;
+  final double? finalDefenseReduction;
 
   DamageCalculationBreakdown({
-    required this.baseAttack,
+    required this.baseValue,
     required this.pronunciationMultiplier,
     required this.complexityMultiplier,
-    required this.finalAttackMultiplier,
-    required this.finalDefenseMultiplier,
+    required this.itemMultiplier,
+    required this.penalty,
+    required this.explanation,
+    this.attackExplanation,
+    this.defenseExplanation,
+    this.attackPronunciationBonus,
+    this.attackComplexityBonus,
+    this.defensePronunciationBonus,
+    this.defenseComplexityBonus,
+    this.cardRevealPenalty,
+    this.finalAttackBonus,
+    this.finalDefenseReduction,
   });
 
   factory DamageCalculationBreakdown.fromJson(Map<String, dynamic> json) {
     return DamageCalculationBreakdown(
-      baseAttack: (json['base_attack'] ?? 0.0).toDouble(),
-      pronunciationMultiplier: (json['pronunciation_multiplier'] ?? 0.0).toDouble(),
-      complexityMultiplier: (json['complexity_multiplier'] ?? 0.0).toDouble(),
-      finalAttackMultiplier: (json['final_attack_multiplier'] ?? 0.0).toDouble(),
-      finalDefenseMultiplier: (json['final_defense_multiplier'] ?? 0.0).toDouble(),
+      baseValue: (json['base_value'] ?? 20.0).toDouble(),
+      pronunciationMultiplier: (json['pronunciation_multiplier'] ?? 1.0).toDouble(),
+      complexityMultiplier: (json['complexity_multiplier'] ?? 1.0).toDouble(),
+      itemMultiplier: (json['item_multiplier'] ?? 1.0).toDouble(),
+      penalty: (json['penalty'] ?? 0.0).toDouble(),
+      explanation: json['explanation'] ?? 'No explanation provided.',
+      attackExplanation: json['attack_explanation'],
+      defenseExplanation: json['defense_explanation'],
+      attackPronunciationBonus: json['attack_pronunciation_bonus']?.toDouble(),
+      attackComplexityBonus: json['attack_complexity_bonus']?.toDouble(),
+      defensePronunciationBonus: json['defense_pronunciation_bonus']?.toDouble(),
+      defenseComplexityBonus: json['defense_complexity_bonus']?.toDouble(),
+      cardRevealPenalty: json['card_reveal_penalty']?.toDouble(),
+      finalAttackBonus: json['final_attack_bonus']?.toDouble(),
+      finalDefenseReduction: json['final_defense_reduction']?.toDouble(),
     );
   }
 } 

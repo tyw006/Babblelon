@@ -266,16 +266,23 @@ async def pronunciation_assessment_endpoint(
     audio_file: UploadFile = File(...),
     reference_text: str = Form(...),
     transliteration: str = Form(...),
-    complexity: str = Form(...),
+    complexity: int = Form(...),
     item_type: str = Form(...),
     turn_type: str = Form(...), # 'attack' or 'defense'
     was_revealed: bool = Form(False), # Whether the flashcard was revealed before assessment
+    word_mapping_json: str = Form('[]'), # Receive word mapping as a JSON string
     language: str = Form("th-TH")
 ):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /pronunciation/assess/ received request for text: '{reference_text}' in {language}, revealed: {was_revealed}")
     
     try:
+        # Parse the word_mapping from the JSON string
+        try:
+            word_mapping = json.loads(word_mapping_json)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid format for word_mapping_json.")
+
         audio_bytes = await audio_file.read()
         await audio_file.close()
         if not audio_bytes:
@@ -289,6 +296,7 @@ async def pronunciation_assessment_endpoint(
             item_type=item_type,
             turn_type=turn_type,
             was_revealed=was_revealed,
+            word_mapping=word_mapping, # Pass the parsed list
             language=language
         )
         

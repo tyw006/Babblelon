@@ -22,6 +22,11 @@ import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:provider/provider.dart' as provider;
+import 'package:babblelon/widgets/complexity_rating.dart';
+import 'package:babblelon/widgets/score_progress_bar.dart';
+import 'package:babblelon/widgets/modern_calculation_display.dart';
+import 'package:babblelon/widgets/floating_damage_overlay.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -67,6 +72,7 @@ final animationStateProvider = StateProvider<AnimationState>((ref) => AnimationS
 final activeFlashcardsProvider = StateProvider<List<Vocabulary>>((ref) => []);
 final tappedCardProvider = StateProvider<Vocabulary?>((ref) => null);
 final revealedCardsProvider = StateProvider<Set<String>>((ref) => {});
+final cardsRevealedBeforeAssessmentProvider = StateProvider<Set<String>>((ref) => {});
 
 // --- Boss Fight Screen ---
 class BossFightScreen extends ConsumerStatefulWidget {
@@ -96,6 +102,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   bool _isInitialTurnSet = false; // Ensures initial turn is set only once
   bool _gameInitialized = false; // Ensures game setup happens only once
   late final ApiService _apiService;
+  final GlobalKey<FloatingDamageOverlayState> damageOverlayKey = GlobalKey<FloatingDamageOverlayState>();
   bool _isRecording = false;
   bool _isLoading = false;
   PronunciationAssessmentResponse? _lastAssessment;
@@ -119,7 +126,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   late Animation<double> _bossDamageShakeAnimation; // New animation for boss damage
 
   // --- State for Practice Recording in Flashcard Dialog ---
-  final AudioRecorder _practiceAudioRecorder = AudioRecorder();
+  AudioRecorder _practiceAudioRecorder = AudioRecorder();
   final ValueNotifier<RecordingState> _practiceRecordingState = ValueNotifier<RecordingState>(RecordingState.idle);
   final ValueNotifier<String?> _lastPracticeRecordingPath = ValueNotifier<String?>(null);
 
@@ -333,42 +340,72 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   List<int> _getRandomVocabularyIndices(List<Vocabulary> vocabulary) {
     final usedIndices = ref.read(usedVocabularyIndicesProvider);
     final availableIndices = <int>[];
-    
-    // Find all unused indices
+
     for (int i = 0; i < vocabulary.length; i++) {
       if (!usedIndices.contains(i)) {
         availableIndices.add(i);
       }
     }
-    
+
     // If we've used all vocabulary, reset the used set
     if (availableIndices.length < 4) {
+      usedIndices.clear(); // Reset for next cycle
       availableIndices.clear();
       for (int i = 0; i < vocabulary.length; i++) {
         availableIndices.add(i);
       }
     }
+
+    // Separate indices by complexity
+    final lowComplexityIndices = <int>[];
+    final mediumComplexityIndices = <int>[];
+    final highComplexityIndices = <int>[];
+
+    for (final index in availableIndices) {
+      final complexity = vocabulary[index].complexity;
+      if (complexity <= 2) {
+        lowComplexityIndices.add(index);
+      } else if (complexity == 3) {
+        mediumComplexityIndices.add(index);
+      } else {
+        highComplexityIndices.add(index);
+      }
+    }
+
+    // Shuffle each list
+    lowComplexityIndices.shuffle(_random);
+    mediumComplexityIndices.shuffle(_random);
+    highComplexityIndices.shuffle(_random);
+
+    final selectedIndices = <int>[];
+
+    // Aim for 2 low, 1 medium, 1 high
+    selectedIndices.addAll(lowComplexityIndices.take(2));
+    selectedIndices.addAll(mediumComplexityIndices.take(1));
+    selectedIndices.addAll(highComplexityIndices.take(1));
     
-    // Shuffle and take 4 random indices
-    availableIndices.shuffle(_random);
-    final selectedIndices = availableIndices.take(4).toList();
+    // Fill remaining spots if any category was short
+    int i = 0;
+    final allShuffled = (lowComplexityIndices + mediumComplexityIndices + highComplexityIndices)..shuffle(_random);
     
+    while (selectedIndices.length < 4 && i < allShuffled.length) {
+      if (!selectedIndices.contains(allShuffled[i])) {
+        selectedIndices.add(allShuffled[i]);
+      }
+      i++;
+    }
+
     // Schedule the provider update to happen after the build phase
     Future.microtask(() {
       if (mounted) {
-        // Reset used indices if we had to use all vocabulary
-        if (availableIndices.length >= vocabulary.length) {
-          ref.read(usedVocabularyIndicesProvider.notifier).state = Set<int>.from(selectedIndices);
-        } else {
-          // Mark these indices as used
-          final newUsedIndices = Set<int>.from(usedIndices);
-          newUsedIndices.addAll(selectedIndices);
-          ref.read(usedVocabularyIndicesProvider.notifier).state = newUsedIndices;
-        }
+        // Mark these indices as used
+        final newUsedIndices = Set<int>.from(usedIndices);
+        newUsedIndices.addAll(selectedIndices);
+        ref.read(usedVocabularyIndicesProvider.notifier).state = newUsedIndices;
       }
     });
-    
-    return selectedIndices;
+
+    return selectedIndices.take(4).toList(); // Ensure we only return 4
   }
 
   Future<void> _performAttack({double attackMultiplier = 20.0}) async {
@@ -418,7 +455,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     
     // Player takes damage modified by defense multiplier (lower multiplier = better defense)
     final playerHealth = ref.read(playerHealthProvider.notifier);
-    const baseDamage = 20.0; // Boss base damage
+    const baseDamage = 15.0; // Boss base damage (per rubric)
     final actualDamage = (baseDamage * defenseMultiplier).round();
     playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
     
@@ -515,95 +552,92 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   void _showFlashcardDialog(Vocabulary card) {
-    // Reset practice recording state every time a new card dialog is opened.
-    _resetPracticeRecording();
-    // Reset assessment result
+    // Reset states for the dialog
+    _practiceRecordingState.value = RecordingState.idle;
+    _lastPracticeRecordingPath.value = null;
     _practiceAssessmentResult.value = null;
+
     showDialog(
       context: context,
-      barrierDismissible: true, // Allow tapping outside to close
+      barrierDismissible: true,
       builder: (BuildContext dialogContext) {
-        return __InteractiveFlashcardDialog(
+        return _InteractiveFlashcardDialog(
           card: card,
           bossData: widget.bossData,
-          practiceRecordingState: _practiceRecordingState,
+          practiceRecordingStateNotifier: _practiceRecordingState,
           onPracticeRecord: _startPracticeRecording,
           onPracticeStop: _stopPracticeRecording,
           onPracticeReset: _resetPracticeRecording,
           lastPracticeRecordingPathNotifier: _lastPracticeRecordingPath,
           practiceAssessmentResultNotifier: _practiceAssessmentResult,
-          currentTurn: ref.read(turnProvider),
-          onSend: _handleSendAction, // Triggers assessment
-          onConfirm: _handleConfirmedAction, // Triggers actual game action after assessment
+          onSend: _handleSendAction,
+          onConfirm: _handleConfirmedAction,
           onReveal: () {
-            // When a card is revealed, add it to our state provider
-            // so we can apply the penalty later.
-            final currentRevealed = ref.read(revealedCardsProvider);
-            if (!currentRevealed.contains(card.english)) {
-              ref.read(revealedCardsProvider.notifier).state = {
-                ...currentRevealed,
-                card.english,
-              };
+            final card = ref.read(tappedCardProvider);
+            if (card != null) {
+              // Track overall revealed cards
+              ref.read(revealedCardsProvider.notifier).update((state) => {...state, card.english});
+              // Track cards revealed before this assessment
+              ref.read(cardsRevealedBeforeAssessmentProvider.notifier).update((state) => {...state, card.english});
             }
           },
-          isInitiallyRevealed: ref.watch(revealedCardsProvider).contains(card.english),
+          getRatingColor: _getRatingColor,
+          getRatingText: _getRatingText,
+          buildScoreRowWithTooltip: _buildScoreRowWithTooltip,
         );
       },
     ).then((_) {
-      // Reset recording and assessment when dialog closes
+      // Clean up when the dialog is closed
       _resetPracticeRecording();
       _practiceAssessmentResult.value = null;
     });
   }
 
-  // Handle send action from flashcard dialog (now triggers assessment)
   Future<void> _handleSendAction() async {
     final currentTurn = ref.read(turnProvider);
     final usedCard = ref.read(tappedCardProvider);
     
     if (usedCard == null || _lastPracticeRecordingPath.value == null) {
-      print("No card selected or no recording available");
       return;
     }
 
-    // Set state to assessing
     _practiceRecordingState.value = RecordingState.assessing;
+    // FlameAudio.play('sfx/assessing_1.wav', volume: ref.read(gameStateProvider).soundEffectsEnabled ? 1.0 : 0.0);
     
     try {
-      // Read the audio file
       final audioFile = File(_lastPracticeRecordingPath.value!);
       final audioBytes = await audioFile.readAsBytes();
       
-      // Determine turn type and item type
       final turnType = currentTurn == Turn.player ? 'attack' : 'defense';
       final itemType = currentTurn == Turn.player 
           ? (widget.attackItem.isSpecial ? 'special' : 'regular')
           : (widget.defenseItem.isSpecial ? 'special' : 'regular');
       
-      // Call the pronunciation service
-      final revealedCards = ref.read(revealedCardsProvider);
-      final wasRevealed = revealedCards.contains(usedCard.english);
+      final revealedBeforeAssessment = ref.read(cardsRevealedBeforeAssessmentProvider);
+      final wasRevealedBeforeAssessment = revealedBeforeAssessment.contains(usedCard.english);
 
       final assessmentResult = await _apiService.assessPronunciation(
         audioBytes: audioBytes,
-        referenceText: usedCard.targetWord,
+        referenceText: usedCard.thai,
         transliteration: usedCard.transliteration,
-        complexity: "medium", // TODO: Get from vocabulary data if available
+        wordMapping: usedCard.wordMapping.map((e) => e.toJson()).toList(),
+        complexity: usedCard.complexity,
         itemType: itemType,
         turnType: turnType,
-        wasRevealed: wasRevealed, // Pass the revealed status
+        wasRevealed: wasRevealedBeforeAssessment,
       );
       
-      // Store the result and switch to results state
+      // Clear the cards revealed before assessment tracker
+      ref.read(cardsRevealedBeforeAssessmentProvider.notifier).state = {};
+      
       _practiceAssessmentResult.value = assessmentResult;
       _practiceRecordingState.value = RecordingState.results;
+      // FlameAudio.play('sfx/results_1.wav', volume: ref.read(gameStateProvider).soundEffectsEnabled ? 1.0 : 0.0);
       
     } catch (e) {
       print("Error during pronunciation assessment: $e");
-      // Reset to reviewing state so user can try again
       _practiceRecordingState.value = RecordingState.reviewing;
       
-      // Show error to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -616,23 +650,24 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
   }
 
-  // New method to handle confirmed action after assessment
   Future<void> _handleConfirmedAction() async {
     final currentTurn = ref.read(turnProvider);
     final assessmentResult = _practiceAssessmentResult.value;
     
     if (assessmentResult == null) return;
+
+    // if (assessmentResult.pronunciationScore >= 80) {
+    //   FlameAudio.play('sfx/success_1.wav', volume: ref.read(gameStateProvider).soundEffectsEnabled ? 1.0 : 0.0);
+    // } else if (assessmentResult.pronunciationScore < 60) {
+    //   FlameAudio.play('sfx/failure_1.wav', volume: ref.read(gameStateProvider).soundEffectsEnabled ? 1.0 : 0.0);
+    // }
     
-    // Apply the assessment results to game mechanics
     if (currentTurn == Turn.player) {
-      // Player's attack turn - use attack multiplier
       await _performAttack(attackMultiplier: assessmentResult.attackMultiplier);
     } else {
-      // Player's defense turn - use defense multiplier
       await _performDefense(defenseMultiplier: assessmentResult.defenseMultiplier);
     }
     
-    // After the turn action is complete, replace the used flashcard.
     final usedCard = ref.read(tappedCardProvider);
     if (usedCard != null) {
       final vocabulary = await ref.read(bossVocabularyProvider(widget.bossData.vocabularyPath).future);
@@ -665,7 +700,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
 
     if (availableIndices.isEmpty) {
-      // All words used, reset and get a new one
       ref.read(usedVocabularyIndicesProvider.notifier).state = {};
       for (int i = 0; i < vocabulary.length; i++) {
         availableIndices.add(i);
@@ -675,7 +709,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     availableIndices.shuffle(_random);
     final newIndex = availableIndices.first;
 
-    // Schedule update
     Future.microtask(() {
       if (mounted) {
         final newUsedIndices = Set<int>.from(usedIndices)..add(newIndex);
@@ -691,7 +724,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       context: context,
       builder: (context) => _BossFightMenuDialog(
         onExit: () {
-          Navigator.of(context).pop(); // Close dialog
+          Navigator.of(context).pop();
           Navigator.of(context).pushAndRemoveUntil(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => const MainMenuScreen(),
@@ -699,7 +732,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                 return AnimatedBuilder(
                   animation: animation,
                   builder: (context, child) {
-                    // First half: fade to black
                     if (animation.value < 0.5) {
                       return Container(
                         color: Colors.black.withOpacity(animation.value * 2),
@@ -708,9 +740,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                           child: const SizedBox.expand(),
                         ),
                       );
-                    }
-                    // Second half: fade in new screen
-                    else {
+                    } else {
                       return Container(
                         color: Colors.black.withOpacity(2 - (animation.value * 2)),
                         child: Opacity(
@@ -725,11 +755,56 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
               },
               transitionDuration: const Duration(milliseconds: 1000),
             ),
-            (route) => false, // Remove all previous routes
+            (route) => false,
           );
         },
       ),
     );
+  }
+
+  Future<void> _startPracticeRecording() async {
+    final hasPermission = await _checkPermission();
+    if (!hasPermission) {
+      print("Recording permission not granted.");
+      return;
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/practice_recording.wav';
+      
+      await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      
+      _practiceRecordingState.value = RecordingState.recording;
+      _lastPracticeRecordingPath.value = null;
+    } catch (e) {
+      print("Error starting practice recording: $e");
+    }
+  }
+
+  Future<void> _stopPracticeRecording() async {
+    try {
+      final path = await _practiceAudioRecorder.stop();
+      if (path != null) {
+        _lastPracticeRecordingPath.value = path;
+        _practiceRecordingState.value = RecordingState.reviewing;
+      }
+    } catch (e) {
+      print("Error stopping practice recording: $e");
+      _practiceRecordingState.value = RecordingState.idle;
+    }
+  }
+
+  void _resetPracticeRecording() {
+    _practiceAudioRecorder.dispose();
+    _practiceAudioRecorder = AudioRecorder(); // Re-initialize the recorder
+    _practiceRecordingState.value = RecordingState.idle;
+    _lastPracticeRecordingPath.value = null;
+  }
+
+  Future<bool> _checkPermission() async {
+    final status = await Permission.microphone.request();
+    return status == PermissionStatus.granted;
   }
 
   @override
@@ -741,22 +816,21 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     final vocabularyAsyncValue = ref.watch(bossVocabularyProvider(widget.bossData.vocabularyPath));
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Scaffold(
-      body: Stack(
+    return FloatingDamageOverlay(
+      key: damageOverlayKey,
+      child: Scaffold(
+        body: Stack(
         children: [
           Column(
             children: [
-              // --- Game View Container (Top portion) ---
               Expanded(
                 child: vocabularyAsyncValue.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Center(child: Text('Error: $err')),
                   data: (vocabulary) {
-                    // Set the initial turn once the main data is loaded.
                     if (!_isInitialTurnSet && !_gameInitialized) {
                       _isInitialTurnSet = true;
                       _gameInitialized = true;
-                      // Defer the call to after the build is complete to avoid errors.
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           _setInitialTurn();
@@ -773,7 +847,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
                         return Stack(
                           children: [
-                            // --- Background Image ---
                             Positioned.fill(
                               child: Image.asset(
                                 widget.bossData.backgroundPath,
@@ -781,8 +854,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                 alignment: const Alignment(0.25, 0),
                               ),
                             ),
-
-                            // --- Top Info Bar ---
                             Positioned(
                               top: 0,
                               left: 0,
@@ -796,9 +867,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                 currentTurn: currentTurn,
                               ),
                             ),
-
                             if (_playerSize != null && _capySize != null && _bossSize != null) ...[
-                              // --- Player and Companion with damage animation ---
                               Positioned(
                                 left: playerXPos - _playerSize!.width / 2,
                                 top: spriteYPos - _playerSize!.height,
@@ -806,7 +875,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                   clipBehavior: Clip.none,
                                   alignment: Alignment.center,
                                   children: [
-                                    // Player Sprite with individual damage effects
                                     AnimatedBuilder(
                                       animation: _playerShakeAnimation,
                                       builder: (context, child) {
@@ -828,7 +896,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                         );
                                       },
                                     ),
-                                    // Capybara Sprite (not affected by damage animation)
                                     Positioned(
                                       left: -_capySize!.width * 0.05,
                                       bottom: 0,
@@ -846,15 +913,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                   ],
                                 ),
                               ),
-
-                              // --- Boss with attack and damage animations ---
                               Positioned(
                                 left: bossXPos - _bossSize!.width / 2,
                                 top: spriteYPos - _bossSize!.height,
                                 child: AnimatedBuilder(
                                   animation: _bossDamageShakeAnimation,
                                   builder: (context, child) {
-                                    // Calculate shake offset for damage animation
                                     final damageShakeOffset = _bossDamageController.isAnimating
                                         ? _bossDamageShakeAnimation.value * (Random().nextBool() ? 1 : -1)
                                         : 0.0;
@@ -879,15 +943,11 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                   },
                 ),
               ),
-          
-              // --- Divider to hide the seam and clean up the UI ---
               Divider(
                 height: 1.5,
                 thickness: 1.5,
                 color: Colors.grey.shade900.withOpacity(0.95),
               ),
-
-              // --- Flashcard UI Container (Bottom portion) ---
               vocabularyAsyncValue.when(
                 loading: () => const Center(child: Padding(
                   padding: EdgeInsets.all(32.0),
@@ -895,7 +955,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                 )),
                 error: (err, stack) => Center(child: Text('Error: $err')),
                 data: (vocabulary) {
-                  // Initialize the active flashcards if they are empty.
                   if (ref.read(activeFlashcardsProvider).isEmpty) {
                     Future.microtask(() {
                       final randomIndices = _getRandomVocabularyIndices(vocabulary);
@@ -905,7 +964,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                   }
                   
                   final cards = ref.watch(activeFlashcardsProvider);
-                  // Return a loading indicator while cards are being initialized.
                   if (cards.isEmpty) {
                     return const Center(child: Padding(
                       padding: EdgeInsets.all(32.0),
@@ -931,7 +989,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Use the same text as the turn indicator
                             _buildTurnIndicatorText(currentTurn),
                             const SizedBox(height: 8.0),
                             GridView.builder(
@@ -947,12 +1004,15 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                               physics: const NeverScrollableScrollPhysics(),
                               itemBuilder: (context, index) {
                                 final card = cards[index];
-                                return GestureDetector(
+                                return Flashcard(
+                                  key: ValueKey(card.english),
+                                  vocabulary: card,
+                                  isRevealed: false,
+                                  isFlippable: false,
                                   onTap: () {
                                     ref.read(tappedCardProvider.notifier).state = card;
                                     _showFlashcardDialog(card);
                                   },
-                                  child: Flashcard(word: card.english),
                                 );
                               },
                             ),
@@ -965,21 +1025,17 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
               ),
             ],
           ),
-
-          // --- Animation Overlays ---
-          // Player attack projectile animation overlay
           if (animationState == AnimationState.attacking)
             AnimatedBuilder(
               animation: _projectileAnimation,
               builder: (context, child) {
-                // Calculate rotation based on projectile progress (spinning effect)
                 final rotationAngle = _projectileController.value * 4 * math.pi;
                 
                 return Positioned(
                   left: _projectileAnimation.value.dx,
                   top: MediaQuery.of(context).size.height * 0.6 + _projectileAnimation.value.dy,
                   child: Transform.rotate(
-                    angle: rotationAngle, // Rotate the attack sprite as it flies
+                    angle: rotationAngle,
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
@@ -1001,11 +1057,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                 );
               },
             ),
-
-          // Shield animation overlay (render first so boss projectile appears on top)
           if (_shieldController.isAnimating || _shieldController.isCompleted)
             Positioned(
-              left: _playerActionStartX, // Use the shared start X
+              left: _playerActionStartX,
               top: MediaQuery.of(context).size.height * 0.57,
               child: AnimatedBuilder(
                 animation: _shieldController,
@@ -1013,7 +1067,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                   return Transform.scale(
                     scale: _shieldScaleAnimation.value,
                     child: Transform.rotate(
-                      angle: (-math.pi / 2)+ 10, // Statically rotate 90 degrees counter-clockwise
+                      angle: (-math.pi / 2)+ 10,
                       child: Opacity(
                         opacity: _shieldOpacityAnimation.value,
                         child: Container(
@@ -1039,8 +1093,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                 },
               ),
             ),
-
-          // Boss attack projectile animation overlay (render on top so it passes through shield)
           if (animationState == AnimationState.bossProjectileAttacking)
             AnimatedBuilder(
               animation: _bossProjectileAnimation,
@@ -1058,124 +1110,149 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
             ),
         ],
       ),
+    ),
     );
   }
 
   Widget _buildTurnIndicatorText(Turn currentTurn) {
-    final String itemName;
-    final String itemPath;
-    final String actionText;
-    final Color textColor;
+    final String actionText = currentTurn == Turn.player ? 'attack' : 'defend';
 
-    if (currentTurn == Turn.player) {
-      itemName = widget.attackItem.name;
-      itemPath = widget.attackItem.assetPath;
-      actionText = 'attack';
-      textColor = Colors.white70;
-    } else {
-      itemName = widget.defenseItem.name;
-      itemPath = widget.defenseItem.assetPath;
-      actionText = 'defend';
-      textColor = Colors.red.shade300;
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            'Select word below to $actionText with $itemName:',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Image.asset(itemPath, width: 24, height: 24),
-      ],
-    );
-  }
-
-  Future<void> _handleRecordButtonPressed() async {
-    if (_isRecording) {
-      setState(() {
-        _isLoading = true;
-        _isRecording = false;
-      });
-
-      // TODO: Replace with actual data from your game state
-      final assessmentResult = await _apiService.stopRecordingAndGetAssessment(
-        referenceText: "ไอ้เหี้ยไอ้สัตว์", // Example
-        transliteration: "ai hia ai sat", // Example
-        complexity: "medium",
-        itemType: "special",
-        turnType: "attack", // Example: determine this from game state
-      );
-      
-      if (mounted) {
-        setState(() {
-          _lastAssessment = assessmentResult;
-          _isLoading = false;
-          // TODO: Add logic to update player/boss health based on assessmentResult
-        });
-        
-        // Show a dialog with the results
-        if (_lastAssessment != null) {
-          _showAssessmentDialog(_lastAssessment!);
-        }
-      }
-
-    } else {
-      await _apiService.startRecording();
-      if(mounted) {
-        setState(() {
-          _isRecording = true;
-        });
-      }
-    }
-  }
-  
-  void _showAssessmentDialog(PronunciationAssessmentResponse result) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Assessment: ${result.rating}'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              Text('Overall Score: ${result.pronunciationScore.toStringAsFixed(1)}'),
-              Text('Attack Multiplier: ${result.attackMultiplier.toStringAsFixed(2)}x'),
-              Text('Defense Multiplier: ${result.defenseMultiplier.toStringAsFixed(2)}x'),
-              SizedBox(height: 10),
-              Text('Feedback:', style: TextStyle(fontWeight: FontWeight.bold)),
-                                        Text(result.wordFeedback),
-              SizedBox(height: 10),
-              Text('Calculation:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('Base Attack: ${result.calculationBreakdown.baseAttack}'),
-              Text('Pronunciation Bonus: ${result.calculationBreakdown.pronunciationMultiplier}x'),
-              Text('Complexity Bonus: ${result.calculationBreakdown.complexityMultiplier}x'),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: Text('OK'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
+    return Text(
+      'Select a word below to $actionText:',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1)),
         ],
       ),
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
+  }
+
+  String _getRatingText(String rating) {
+    switch (rating.toLowerCase()) {
+      case 'excellent':
+        return 'Excellent!';
+      case 'good':
+        return 'Good';
+      case 'okay':
+        return 'Okay';
+      case 'poor':
+      default:
+        return 'Needs Improvement';
+    }
+  }
+
+  Color _getRatingColor(String rating) {
+    switch (rating.toLowerCase()) {
+      case 'excellent':
+        return Colors.yellow.shade600; // Gold for the shiny effect
+      case 'good':
+        return Colors.green.shade400;
+      case 'okay':
+        return Colors.orange.shade400;
+      case 'poor':
+      default:
+        return Colors.red.shade400;
+    }
+  }
+
+  Widget _buildScoreRowWithTooltip({
+    required String label,
+    required double score,
+    required String tooltip,
+    required BuildContext context,
+    bool isHeader = false,
+  }) {
+    final tooltipKey = GlobalKey<TooltipState>();
+
+    if (isHeader) {
+      return Column(
+        children: [
+          GestureDetector(
+            onTap: () {
+              tooltipKey.currentState?.ensureTooltipVisible();
+            },
+            child: Tooltip(
+              key: tooltipKey,
+              message: tooltip,
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${(score * 100).toInt()}%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11, // Reduced from 12
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    } else {
+      return GestureDetector(
+        onTap: () {
+          tooltipKey.currentState?.ensureTooltipVisible();
+        },
+        child: Tooltip(
+          key: tooltipKey,
+          message: tooltip,
+          padding: const EdgeInsets.all(8),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+          ),
+          child: ScoreProgressBar(
+            label: label,
+            value: score,
+            score: score * 100,
+            showTooltipIcon: true,
+          ),
+        ),
+      );
+    }
   }
 }
 
-// --- New Boss Fight Menu Dialog ---
 class _BossFightMenuDialog extends ConsumerWidget {
   final VoidCallback onExit;
 
@@ -1203,7 +1280,6 @@ class _BossFightMenuDialog extends ConsumerWidget {
               style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-
             _BossFightMenuButton(
               icon: musicEnabled ? Icons.music_note : Icons.music_off,
               label: musicEnabled ? 'Music On' : 'Music Off',
@@ -1221,110 +1297,38 @@ class _BossFightMenuDialog extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             _BossFightMenuButton(
-              icon: soundEffectsEnabled ? Icons.graphic_eq : Icons.volume_mute,
-              label: soundEffectsEnabled ? 'SFX On' : 'SFX Off',
+              icon: soundEffectsEnabled ? Icons.volume_up : Icons.volume_off,
+              label: soundEffectsEnabled ? 'Sound FX On' : 'Sound FX Off',
               value: soundEffectsEnabled,
               onChanged: (val) {
-                final notifier = ref.read(gameStateProvider.notifier);
-                notifier.setSoundEffectsEnabled(val);
+                ref.read(gameStateProvider.notifier).setSoundEffectsEnabled(val);
               },
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.8),
-                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.red.shade400,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
               ),
-              onPressed: () => _showExitLevelConfirmation(context, onExit),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.exit_to_app, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Exit Level', style: TextStyle(color: Colors.white)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey.withOpacity(0.3),
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close', style: TextStyle(color: Colors.white)),
+              onPressed: onExit,
+              child: const Text('Exit to Main Menu'),
             ),
           ],
         ),
       ),
     );
   }
-
-  static Future<void> _showExitLevelConfirmation(BuildContext context, VoidCallback onConfirm) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.grey.shade900,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-            side: BorderSide(
-              color: Colors.white.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          title: const Text(
-            'Exit Level?',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: const Text(
-            'Are you sure you want to exit the level? You will lose all progress and return to the main menu.',
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white70),
-              ),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.8),
-              ),
-              child: const Text(
-                'Exit Level',
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      onConfirm();
-    }
-  }
 }
 
-// A private styled button for the menu dialog, consistent with the main menu.
 class _BossFightMenuButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool value;
-  final Function(bool) onChanged;
+  final ValueChanged<bool> onChanged;
 
   const _BossFightMenuButton({
     required this.icon,
@@ -1335,105 +1339,47 @@ class _BossFightMenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Icon(icon, color: Colors.white),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white),
-        ),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.green,
-          inactiveThumbColor: Colors.red,
-        ),
-      ],
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeColor: Colors.blueAccent,
+      ),
+      onTap: () => onChanged(!value),
     );
   }
 }
 
-// --- Practice Recording Logic (Adapted from Dialogue Overlay) ---
-extension PracticeRecording on _BossFightScreenState {
-  Future<void> _resetPracticeRecording() async {
-    // Only stop if we are actually recording to prevent errors.
-    if (await _practiceAudioRecorder.isRecording()) {
-      await _practiceAudioRecorder.stop();
-    }
-    
-    if (_lastPracticeRecordingPath.value != null) {
-      final file = File(_lastPracticeRecordingPath.value!);
-      if (await file.exists()) {
-        try {
-          await file.delete();
-        } catch (e) {
-          print("Error deleting previous practice recording: $e");
-        }
-      }
-      _lastPracticeRecordingPath.value = null;
-    }
-    _practiceRecordingState.value = RecordingState.idle;
-  }
+// --- Interactive Flashcard Dialog and its components ---
 
-  Future<void> _startPracticeRecording() async {
-    await _resetPracticeRecording(); // Clear previous recording first
-
-    final status = await Permission.microphone.request();
-    if (status != PermissionStatus.granted) {
-      // Handle permission denied case, maybe show a snackbar
-      print("Microphone permission denied.");
-      return;
-    }
-
-    _practiceRecordingState.value = RecordingState.recording;
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/practice_input_${DateTime.now().millisecondsSinceEpoch}.wav';
-      print("Starting recording. Saving to: $path");
-      await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
-      _lastPracticeRecordingPath.value = path;
-    } catch (e) {
-      print("Error starting practice recording: $e");
-      _practiceRecordingState.value = RecordingState.idle;
-    }
-  }
-
-  Future<void> _stopPracticeRecording() async {
-    if (_practiceRecordingState.value != RecordingState.recording) return;
-    try {
-      final path = await _practiceAudioRecorder.stop();
-      print('Stopped recording. File at: $path');
-      _practiceRecordingState.value = RecordingState.reviewing;
-    } catch (e) {
-      print("Error stopping practice recording: $e");
-      _practiceRecordingState.value = RecordingState.idle;
-    }
-  }
-}
-
-// --- New Interactive Flashcard Dialog Widget ---
-class __InteractiveFlashcardDialog extends ConsumerStatefulWidget {
+class _InteractiveFlashcardDialog extends ConsumerStatefulWidget {
   final Vocabulary card;
   final BossData bossData;
-  final VoidCallback onReveal;
-  final ValueNotifier<RecordingState> practiceRecordingState;
-  final Future<void> Function() onPracticeRecord;
-  final Future<void> Function() onPracticeStop;
-  final Future<void> Function() onPracticeReset;
+  final ValueNotifier<RecordingState> practiceRecordingStateNotifier;
+  final VoidCallback onPracticeRecord;
+  final VoidCallback onPracticeStop;
+  final VoidCallback onPracticeReset;
   final ValueNotifier<String?> lastPracticeRecordingPathNotifier;
   final ValueNotifier<PronunciationAssessmentResponse?> practiceAssessmentResultNotifier;
-  final Future<void> Function() onSend;
-  final Future<void> Function() onConfirm;
-  final Turn currentTurn;
-  final bool isInitiallyRevealed;
+  final VoidCallback onSend;
+  final VoidCallback onConfirm;
+  final VoidCallback onReveal;
+  final Color Function(String) getRatingColor;
+  final String Function(String) getRatingText;
+  final Widget Function({
+    required String label,
+    required double score,
+    required String tooltip,
+    required BuildContext context,
+    bool isHeader,
+  }) buildScoreRowWithTooltip;
 
-  const __InteractiveFlashcardDialog({
+  const _InteractiveFlashcardDialog({
     required this.card,
     required this.bossData,
-    required this.onReveal,
-    required this.practiceRecordingState,
+    required this.practiceRecordingStateNotifier,
     required this.onPracticeRecord,
     required this.onPracticeStop,
     required this.onPracticeReset,
@@ -1441,691 +1387,625 @@ class __InteractiveFlashcardDialog extends ConsumerStatefulWidget {
     required this.practiceAssessmentResultNotifier,
     required this.onSend,
     required this.onConfirm,
-    required this.currentTurn,
-    this.isInitiallyRevealed = false,
+    required this.onReveal,
+    required this.getRatingColor,
+    required this.getRatingText,
+    required this.buildScoreRowWithTooltip,
   });
 
   @override
-  __InteractiveFlashcardDialogState createState() => __InteractiveFlashcardDialogState();
+  ConsumerState<_InteractiveFlashcardDialog> createState() =>
+      _InteractiveFlashcardDialogState();
 }
 
-class __InteractiveFlashcardDialogState extends ConsumerState<__InteractiveFlashcardDialog> with TickerProviderStateMixin {
-  String? _penaltyMessage;
-  late bool _hasBeenRevealed; // Changed from final to late bool
-  late final AnimationController _micPulseController;
-  late final AnimationController _playButtonController;
-  late final AnimationController _flipController;
-  late final Animation<double> _flipAnimation;
+class _InteractiveFlashcardDialogState
+    extends ConsumerState<_InteractiveFlashcardDialog> with TickerProviderStateMixin {
+  bool _isRevealed = false;
+  late final just_audio.AudioPlayer _audioPlayer;
+  late AnimationController _progressController; // For playback progress
 
   @override
   void initState() {
     super.initState();
-    _hasBeenRevealed = widget.isInitiallyRevealed; // Initialize based on parent state
-
-    _flipController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _flipAnimation = Tween<double>(begin: 0, end: math.pi).animate(
-      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
-    );
-
-    _micPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
+    _isRevealed = ref.read(revealedCardsProvider).contains(widget.card.english);
+    _audioPlayer = just_audio.AudioPlayer();
     
-    _playButtonController = AnimationController(
+    _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
+      duration: const Duration(seconds: 1), // Duration will be updated dynamically
+    )..addListener(() {
+        setState(() {}); // Redraw on progress change
+      });
 
-    widget.practiceRecordingState.addListener(_handleRecordingStateChange);
+    // Listen for the results state to auto-flip the card
+    widget.practiceRecordingStateNotifier.addListener(_onRecordingStateChange);
   }
 
   @override
   void dispose() {
-    widget.practiceRecordingState.removeListener(_handleRecordingStateChange);
-    _micPulseController.dispose();
-    _playButtonController.dispose();
-    _flipController.dispose();
-    // Player is now managed within the play function, no need to dispose here.
+    widget.practiceRecordingStateNotifier.removeListener(_onRecordingStateChange);
+    _audioPlayer.dispose();
+    _progressController.dispose();
     super.dispose();
   }
   
-  void _handleRecordingStateChange() {
-    if (!mounted) return; // Add guard
-    if (widget.practiceRecordingState.value == RecordingState.recording) {
-      _micPulseController.repeat(reverse: true);
-    } else {
-      _micPulseController.stop();
-      _micPulseController.value = 1.0; // Reset to full size
+  void _onRecordingStateChange() {
+    if (widget.practiceRecordingStateNotifier.value == RecordingState.results && !_isRevealed) {
+      if (mounted) {
+        setState(() {
+          _isRevealed = true;
+        });
+      }
     }
   }
 
-  Future<void> _flipCard() async {
-    if (!_hasBeenRevealed) {
-      final turn = ref.read(turnProvider);
-      final actionType = turn == Turn.player ? 'attack' : 'defense';
-      _hasBeenRevealed = true; // Mark as revealed once
-      
-      setState(() {
-        _penaltyMessage = '$actionType efficiency decreased by 20%!';
-      });
-      widget.onReveal(); // Notify parent screen
-    }
-    
-    if (_flipController.status == AnimationStatus.completed) {
-      _flipController.reverse();
-    } else if (_flipController.status == AnimationStatus.dismissed) {
-      _flipController.forward();
+  Future<void> _playRecording() async {
+    final path = widget.lastPracticeRecordingPathNotifier.value;
+    if (path != null) {
+      try {
+        final duration = await _audioPlayer.setFilePath(path);
+        if (duration != null) {
+          _progressController.duration = duration;
+          _progressController.forward(from: 0.0);
+        }
+        _audioPlayer.play();
+      } catch (e) {
+        print("Error playing recording: $e");
+        // Optionally show a snackbar
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isCardFlipped = _flipController.value >= 0.5;
-    
-    // If the card is already revealed from a previous action, flip it instantly
-    // without animation when the dialog opens.
-    if (widget.isInitiallyRevealed && !_flipController.isAnimating) {
-      _flipController.value = 1.0;
-    }
-
-    final front = _buildCardSide(
-      isDarkMode: isDarkMode,
-      child: Center(
-        child: Text(
-          widget.card.english,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 28, 
-            fontWeight: FontWeight.bold, 
-            color: isDarkMode ? Colors.white : Colors.black87,
-          ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-      ),
-    );
-
-    final back = _buildCardSide(
-      isDarkMode: isDarkMode,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              widget.card.targetWord,
-              style: TextStyle(
-                fontSize: 32, 
-                fontWeight: FontWeight.bold, 
-                color: isDarkMode ? Colors.teal.shade300 : Colors.teal.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.card.transliteration,
-              style: TextStyle(
-                fontSize: 20, 
-                fontStyle: FontStyle.italic, 
-                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return AlertDialog(
-      backgroundColor: isDarkMode 
-          ? Colors.grey.shade900
-          : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0),
-        side: BorderSide(
-          color: isDarkMode 
-              ? Colors.white.withOpacity(0.3)
-              : Colors.grey.withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      contentPadding: const EdgeInsets.all(16),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              // TODO: Pass in target language from BossData
-              isCardFlipped ? 'Practice your pronunciation:' : 'Speak the Thai for:',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onDoubleTap: _flipCard,
-              child: SizedBox(
-                width: 250,
-                height: 120,
-                child: AnimatedBuilder(
-                  animation: _flipAnimation,
-                  builder: (context, child) {
-                    final isCurrentlyFlipped = _flipController.value >= 0.5;
-                    
-                    return Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..setEntry(3, 2, 0.001) // Perspective effect
-                        ..rotateY(_flipAnimation.value),
-                      child: isCurrentlyFlipped
-                          ? Transform( // Rotate the back content to face forward
-                              alignment: Alignment.center,
-                              transform: Matrix4.rotationY(math.pi),
-                              child: back,
-                            )
-                          : front,
-                    );
-                  },
-                ),
-              ),
-            ),
-            // Penalty notification - show if it has been revealed in this session OR was revealed previously
-            if (_penaltyMessage != null || widget.isInitiallyRevealed) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.red.shade900.withOpacity(0.7) : Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDarkMode ? Colors.red.shade600 : Colors.red.shade400,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: isDarkMode ? Colors.red.shade200 : Colors.red.shade800,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        // Define actionType here since it's out of the original scope
-                        _penaltyMessage ?? '${widget.currentTurn == Turn.player ? 'attack' : 'defense'} efficiency decreased by 20%!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14, 
-                          fontWeight: FontWeight.bold, 
-                          color: isDarkMode ? Colors.red.shade200 : Colors.red.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (!_hasBeenRevealed) ...[
-              // Show hint box only if card hasn't been revealed yet
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.blue.shade900.withOpacity(0.7) : Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDarkMode ? Colors.blue.shade600 : Colors.blue.shade400,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info,
-                      color: isDarkMode ? Colors.blue.shade200 : Colors.blue.shade800,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Double-tap card to reveal answer\n(decreases ${widget.currentTurn == Turn.player ? 'attack' : 'defense'} efficiency)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14, 
-                          fontWeight: FontWeight.bold, 
-                          color: isDarkMode ? Colors.blue.shade200 : Colors.blue.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 24), // Always show spacing
-            _buildPracticeMicControls(), // Always show mic controls
-          ],
-        ),
-      ),
-      actions: [
-        // Center the action button
-        Center(
-          child: ValueListenableBuilder<RecordingState>(
-            valueListenable: widget.practiceRecordingState,
-            builder: (context, state, child) {
-              final currentTurn = widget.currentTurn;
-              
-              switch (state) {
-                case RecordingState.reviewing:
-                  final actionText = currentTurn == Turn.player ? 'Attack' : 'Defend';
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.orange.shade600,
-                      minimumSize: const Size(120, 45),
-                    ),
-                    onPressed: () async {
-                      // Don't close dialog, just trigger assessment
-                      await widget.onSend();
-                    },
-                    child: Text(
-                      actionText,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                  
-                case RecordingState.assessing:
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
-                      minimumSize: const Size(120, 45),
-                    ),
-                    onPressed: null, // Disabled during assessment
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Assessing...', style: TextStyle(color: Colors.white)),
-                      ],
-                    ),
-                  );
-                  
-                case RecordingState.results:
-                  return Column(
+        child: _buildPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Scrollable content area
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Show assessment results
-                      ValueListenableBuilder<PronunciationAssessmentResponse?>(
-                        valueListenable: widget.practiceAssessmentResultNotifier,
-                        builder: (context, assessment, child) {
-                          if (assessment == null) return const SizedBox.shrink();
-                          
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isDarkMode ? Colors.white.withOpacity(0.3) : Colors.grey.withOpacity(0.5),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Assessment: ${assessment.rating}',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDarkMode ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Score: ${assessment.pronunciationScore.toStringAsFixed(1)}%',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  currentTurn == Turn.player 
-                                      ? 'Attack Power: ${assessment.attackMultiplier.toStringAsFixed(1)}'
-                                      : 'Damage Reduction: ${(100 * (1 - assessment.defenseMultiplier)).toStringAsFixed(1)}%',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: currentTurn == Turn.player ? Colors.red.shade600 : Colors.blue.shade600,
-                                  ),
-                                ),
-                                if (assessment.wordFeedback.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    assessment.wordFeedback,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Text(
+                          _getDynamicWarningText(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _isRevealed ? Colors.orange.shade300 : Colors.white70,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                       ),
-                      // Confirm button
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDarkMode ? Colors.green.shade700 : Colors.green.shade600,
-                          minimumSize: const Size(120, 45),
+                      SizedBox(
+                        height: 220, // Increased height for the dialog flashcard
+                        child: Flashcard(
+                          vocabulary: widget.card,
+                          isRevealed: _isRevealed,
+                          isFlippable: true, // Allow flipping in the dialog
+                          onReveal: () {
+                            if (!_isRevealed) {
+                              setState(() => _isRevealed = true);
+                              widget.onReveal();
+                            }
+                          },
+                          revealedChild: _RevealedCardDetails(card: widget.card, bossData: widget.bossData),
                         ),
-                        onPressed: () async {
-                          Navigator.of(context).pop(); // Close dialog
-                          await widget.onConfirm(); // Execute game action
-                        },
-                        child: const Text(
-                          'Confirm',
-                          style: TextStyle(color: Colors.white),
-                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ValueListenableBuilder<RecordingState>(
+                        valueListenable: widget.practiceRecordingStateNotifier,
+                        builder: (context, state, child) {
+                          return _buildContentForState(state);
+                        }
                       ),
                     ],
-                  );
-                  
-                default:
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
-                      minimumSize: const Size(120, 45),
-                    ),
-                    onPressed: null, // Disabled
-                    child: Text(
-                      currentTurn == Turn.player ? 'Attack' : 'Defend',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-              }
-            },
+                  ),
+                ),
+              ),
+              // Fixed confirm button area (only shown in results state)
+              ValueListenableBuilder<RecordingState>(
+                valueListenable: widget.practiceRecordingStateNotifier,
+                builder: (context, state, child) {
+                  if (state == RecordingState.results) {
+                    return ValueListenableBuilder<PronunciationAssessmentResponse?>(
+                      valueListenable: widget.practiceAssessmentResultNotifier,
+                      builder: (context, result, child) {
+                        if (result == null) return const SizedBox.shrink();
+                        
+                        final currentTurn = ref.watch(turnProvider);
+                        final isAttackTurn = currentTurn == Turn.player;
+                        final buttonColor = isAttackTurn ? Colors.red.shade400 : Colors.blue.shade400;
+                        final buttonLabel = isAttackTurn ? "Confirm Attack" : "Confirm Defense";
+
+                        return Container(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: buttonColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              widget.onConfirm();
+                            },
+                            child: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildCardSide({required Widget child, required bool isDarkMode}) {
+  String _getDynamicWarningText() {
+    final card = widget.card;
+    final revealedBeforeAssessment = ref.read(cardsRevealedBeforeAssessmentProvider);
+    final wasRevealedBeforeAssessment = revealedBeforeAssessment.contains(card.english);
+    
+    // Don't show any message after assessment has processed
+    if (widget.practiceRecordingStateNotifier.value == RecordingState.results) {
+      return "";
+    }
+    
+    if (wasRevealedBeforeAssessment) {
+      final turnType = ref.read(turnProvider) == Turn.player ? 'Attack' : 'Defense';
+      return "Card revealed! $turnType power is reduced by 20%.";
+    } else {
+      return "Double-tap the card to reveal the translation.";
+    }
+  }
+
+  Widget _buildContentForState(RecordingState state) {
+    switch (state) {
+      case RecordingState.idle:
+        return _buildIdleUI();
+      case RecordingState.recording:
+        return _buildRecordingUI();
+      case RecordingState.reviewing:
+        return _buildReviewingUI();
+      case RecordingState.assessing:
+        return _buildAssessingUI();
+      case RecordingState.results:
+        return _buildResultsUI();
+    }
+  }
+
+  Widget _buildPanel({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: isDarkMode 
-            ? Border.all(color: Colors.white.withOpacity(0.3), width: 1)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: isDarkMode 
-                ? Colors.black.withOpacity(0.3)
-                : Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
+        color: Colors.grey.shade900.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade700),
       ),
       child: child,
     );
   }
   
-  Widget _buildPracticeMicControls() {
-    return ValueListenableBuilder<RecordingState>(
-      valueListenable: widget.practiceRecordingState,
-      builder: (context, state, child) {
-        switch (state) {
-          case RecordingState.recording:
-            return _AnimatedPressWrapper(
-              onTap: widget.onPracticeStop,
-              child: _buildMicButton(),
-            );
-          case RecordingState.reviewing:
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildReviewButton(icon: Icons.replay, onTap: widget.onPracticeReset),
-                const SizedBox(width: 20),
-                _buildReviewButton(icon: Icons.play_arrow, onAsyncTap: _playPracticeRecording),
-              ],
-            );
-          case RecordingState.idle:
-          default:
-            return _AnimatedPressWrapper(
-              onTap: widget.onPracticeRecord,
-              child: _buildMicButton(),
-            );
-        }
-      },
-    );
-  }
-
-  Widget _buildMicButton() {
-    return ScaleTransition(
-      scale: Tween<double>(begin: 0.8, end: 1.2).animate(
-        CurvedAnimation(parent: _micPulseController, curve: Curves.easeInOut),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: widget.practiceRecordingState.value == RecordingState.recording ? Colors.red.withOpacity(0.8) : Colors.black.withOpacity(0.6),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
+  Widget _buildIdleUI() {
+    return Column(
+      children: [
+        const Text("Ready to record?", style: TextStyle(color: Colors.white70)),
+        const SizedBox(height: 16),
+        _RecordButton(
+          isRecording: false,
+          onTap: widget.onPracticeRecord,
         ),
-        child: const Icon(Icons.mic, color: Colors.white, size: 40),
-      ),
+      ],
     );
   }
 
-   Widget _buildReviewButton({required IconData icon, VoidCallback? onTap, Future<void> Function()? onAsyncTap}) {
-    final isPlayButton = icon == Icons.play_arrow;
-    
-    final buttonContent = AnimatedBuilder(
-      animation: _playButtonController,
-      builder: (context, child) {
-        final baseButton = Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white70),
-          ),
-          child: Icon(icon, color: Colors.white, size: 28),
-        );
+  Widget _buildRecordingUI() {
+    return Column(
+      children: [
+        const Text("Recording...", style: TextStyle(color: Colors.redAccent)),
+         const SizedBox(height: 16),
+        _RecordButton(
+          isRecording: true,
+          onTap: widget.onPracticeStop,
+        ),
+      ],
+    );
+  }
 
-        if (isPlayButton) {
-          return CustomPaint(
-            painter: _RedLinePainter(_playButtonController.value),
-            child: baseButton,
-          );
+  Widget _buildReviewingUI() {
+    return Column(
+      children: [
+         const Text("Review your recording", style: TextStyle(color: Colors.white70)),
+         const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.replay, color: Colors.white, size: 30),
+              onPressed: widget.onPracticeReset,
+              tooltip: 'Record Again',
+            ),
+            _PlaybackButton(
+              progress: _progressController.value,
+              onTap: _playRecording,
+            ),
+            IconButton(
+              icon: const Icon(Icons.send_rounded, color: Colors.greenAccent, size: 30),
+              onPressed: widget.onSend,
+              tooltip: 'Send for Assessment',
+            ),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildAssessingUI() {
+    return const Column(
+      children: [
+        SizedBox(
+            width: 30, height: 30, child: CircularProgressIndicator()),
+        SizedBox(height: 16),
+        Text("Assessing...", style: TextStyle(color: Colors.white70)),
+      ],
+    );
+  }
+
+  Widget _buildResultsUI() {
+    return ValueListenableBuilder<PronunciationAssessmentResponse?>(
+      valueListenable: widget.practiceAssessmentResultNotifier,
+      builder: (context, result, child) {
+        if (result == null) {
+          return const Text("Error: No assessment result.", style: TextStyle(color: Colors.red));
         }
-        return baseButton;
+
+        final isAttackTurn = ref.read(turnProvider) == Turn.player;
+        final String label;
+        final double value;
+        final String unit;
+        final bool isPercentage;
+
+        if (isAttackTurn) {
+          label = 'Attack Damage';
+          value = result.attackMultiplier;
+          unit = '';
+          isPercentage = false;
+        } else {
+          label = 'Damage Reduction';
+          value = (1 - result.defenseMultiplier) * 100;
+          unit = '%';
+          isPercentage = true;
+        }
+
+        return Column(
+          children: [
+            // Expandable Attack/Defense Calculation Section
+            _ExpandableSection(
+              title: isAttackTurn ? 'Attack Bonus Details' : 'Defense Reduction Bonus Details',
+              isExpanded: false, // Collapsed by default
+              headerContent: Column(
+                children: [
+                  Text(
+                    isAttackTurn ? 'Attack Bonus' : 'Defense Bonus',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${(isAttackTurn ? ((value - 40) / 40 * 100) : value).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                      shadows: [
+                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+                                expandedContent: ModernCalculationDisplay(
+                    explanation: result.calculationBreakdown.explanation,
+                    isDefenseCalculation: ref.watch(turnProvider) == Turn.boss,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Pronunciation Score Section
+            Column(
+              children: [
+                const Text(
+                  "Pronunciation Score",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _AnimatedNumberDisplay(
+                  number: result.pronunciationScore,
+                  unit: '',
+                  isPercentage: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                widget.getRatingText(result.rating),
+                style: TextStyle(
+                  color: widget.getRatingColor(result.rating),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 3,
+                      offset: const Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Expandable Detailed Scores Section
+            _ExpandableSection(
+              title: "Detailed Analysis",
+              isExpanded: false, // Collapsed by default
+              headerContent: const SizedBox.shrink(),
+              expandedContent: _DetailedScoresWidget(
+                result: result,
+                card: widget.card,
+                buildScoreRowWithTooltip: widget.buildScoreRowWithTooltip,
+              ),
+            ),
+          ],
+        );
       },
     );
-
-    return _AnimatedPressWrapper(
-      onTap: onTap,
-      onAsyncTap: onAsyncTap,
-      child: buttonContent,
-    );
-  }
-
-  Future<void> _playPracticeRecording() async {
-    if (widget.lastPracticeRecordingPathNotifier.value == null) {
-      print("No recording path found to play.");
-      return;
-    }
-    // Create a new, temporary player instance for each playback.
-    // This is safer and avoids state-related bugs from the `just_audio` plugin.
-    final player = just_audio.AudioPlayer();
-    try {
-      final duration = await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(widget.lastPracticeRecordingPathNotifier.value!)));
-      
-      if (duration != null) {
-        _playButtonController.duration = duration;
-        _playButtonController.forward().whenComplete(() {
-          _playButtonController.reset();
-        });
-        
-        await player.play();
-
-        // Listen to the player state. When it completes, dispose of the player
-        // to free up resources.
-        final subscription = player.processingStateStream.listen((state) {
-          if (state == just_audio.ProcessingState.completed) {
-            player.stop().then((_) => player.dispose()).catchError((e) {
-              print("Error disposing audio player: $e");
-            });
-          }
-        });
-
-        // Also dispose after a reasonable timeout to prevent memory leaks
-        Future.delayed(duration + const Duration(seconds: 2), () {
-          subscription.cancel();
-          player.stop().then((_) => player.dispose()).catchError((e) {
-            print("Error disposing audio player on timeout: $e");
-          });
-        });
-      } else {
-        // If loading fails, dispose immediately.
-        await player.dispose();
-      }
-      
-    } catch (e) {
-      print("Error playing practice audio: $e");
-      // Ensure disposal on error.
-      try {
-        await player.dispose();
-      } catch (disposeError) {
-        print("Error disposing audio player after error: $disposeError");
-      }
-    }
   }
 }
 
-// --- Animated Press Wrapper (for button feedback) ---
-class _AnimatedPressWrapper extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-  final Future<void> Function()? onAsyncTap;
+class _ExpandableSection extends StatefulWidget {
+  final String title;
+  final bool isExpanded;
+  final Widget headerContent;
+  final Widget expandedContent;
 
-  const _AnimatedPressWrapper({required this.child, this.onTap, this.onAsyncTap});
+  const _ExpandableSection({
+    required this.title,
+    required this.isExpanded,
+    required this.headerContent,
+    required this.expandedContent,
+  });
 
   @override
-  _AnimatedPressWrapperState createState() => _AnimatedPressWrapperState();
+  _ExpandableSectionState createState() => _ExpandableSectionState();
 }
 
-class _AnimatedPressWrapperState extends State<_AnimatedPressWrapper> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _scaleAnimation;
+class _ExpandableSectionState extends State<_ExpandableSection> {
+  bool _isExpanded = false;
+  final GlobalKey _sectionKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-      reverseDuration: const Duration(milliseconds: 100),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.90).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _isExpanded = widget.isExpanded;
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _scrollToSection() {
+    final context = _sectionKey.currentContext;
+    if (context != null) {
+      // Delay to ensure the expansion animation has started
+      Future.delayed(const Duration(milliseconds: 150), () {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          alignment: 1.0, // Scroll to bottom of the widget
+        );
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) async {
-        await _controller.reverse();
-        if (widget.onTap != null) {
-          widget.onTap!();
-        }
-        if (widget.onAsyncTap != null) {
-          await widget.onAsyncTap!();
-        }
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
+    return Column(
+      key: _sectionKey,
+      children: [
+        // Always show the header content
+        widget.headerContent,
+        const SizedBox(height: 8),
+        // Expandable button
+        GestureDetector(
+          onTap: () {
+            setState(() => _isExpanded = !_isExpanded);
+            if (_isExpanded) {
+              _scrollToSection();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade800.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade600.withOpacity(0.5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isExpanded ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.cyanAccent,
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _isExpanded ? 'Hide Details' : 'Show Details',
+                  style: const TextStyle(color: Colors.cyanAccent, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Expandable content
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: _isExpanded 
+            ? Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: widget.expandedContent,
+              )
+            : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailedScoresWidget extends StatelessWidget {
+  final PronunciationAssessmentResponse result;
+  final Vocabulary card;
+  final Widget Function({
+    required String label,
+    required double score,
+    required String tooltip,
+    required BuildContext context,
+    bool isHeader,
+  }) buildScoreRowWithTooltip;
+
+  const _DetailedScoresWidget({
+    required this.result,
+    required this.card,
+    required this.buildScoreRowWithTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Create a map for easy lookup of feedback by Thai word
+    final feedbackMap = {for (var fb in result.detailedFeedback) fb.word: fb};
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildScoreRowWithTooltip(
+            label: "Accuracy",
+            score: result.accuracyScore,
+            tooltip: "How closely your pronunciation matches a native speaker's.",
+            context: context,
+            isHeader: false,
+          ),
+          const SizedBox(height: 4),
+          buildScoreRowWithTooltip(
+            label: "Fluency",
+            score: result.fluencyScore,
+            tooltip: "Measures the naturalness of speech through silent breaks. Note: Less relevant for 1-3 word phrases.",
+            context: context,
+          ),
+          const SizedBox(height: 4),
+          buildScoreRowWithTooltip(
+            label: "Completeness",
+            score: result.completenessScore,
+            tooltip: "The percentage of words you pronounced correctly from the text.",
+            context: context,
+          ),
+          const SizedBox(height: 12),
+          // Word-by-word analysis
+          Text('Word-by-Word Accuracy',
+            style: GoogleFonts.lato(
+              color: Colors.cyan.shade200,
+              fontWeight: FontWeight.bold,
+              fontSize: 16
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (card.wordMapping.isNotEmpty)
+            ...card.wordMapping.map((mapping) {
+              final feedback = feedbackMap[mapping.thai];
+              return _WordAnalysisRow(
+                mapping: mapping,
+                score: feedback?.accuracyScore,
+              );
+            }),
+        ],
       ),
     );
   }
 }
 
-// --- Floating Health Bar Widget ---
-class FloatingHealthBar extends StatelessWidget {
-  final int currentHealth;
-  final int maxHealth;
-  final String name;
-  final double barWidth;
+class _WordAnalysisRow extends StatelessWidget {
+  final WordMapping mapping;
+  final double? score;
 
-  const FloatingHealthBar({
-    super.key,
-    required this.currentHealth,
-    required this.maxHealth,
-    required this.name,
-    required this.barWidth,
-  });
+  const _WordAnalysisRow({required this.mapping, this.score});
 
   @override
   Widget build(BuildContext context) {
-    double healthPercentage = (currentHealth / maxHealth).clamp(0.0, 1.0);
+    final effectiveScore = score ?? 0.0;
 
-    return Container(
-      width: barWidth,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
         children: [
-          Text(name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Stack(
-            children: [
-              Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              FractionallySizedBox(
-                widthFactor: healthPercentage,
-                child: Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: healthPercentage > 0.5 ? Colors.green.shade400 : (healthPercentage > 0.2 ? Colors.orange.shade400 : Colors.red.shade400),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-              ),
-            ],
+          // Word information
+          SizedBox(
+            width: 110, // Fixed width for alignment
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(mapping.thai,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                if (mapping.transliteration.isNotEmpty)
+                  Text(mapping.transliteration,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.7), fontSize: 10)),
+                if (mapping.translation.isNotEmpty)
+                  Text('"${mapping.translation}"',
+                      style: TextStyle(
+                          color: Colors.cyan.shade200.withOpacity(0.8),
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Progress bar
+          Expanded(
+            child: ScoreProgressBar(
+              label: '', // Remove "Accuracy" label to give more space to bar
+              value: effectiveScore / 100.0,
+              score: effectiveScore,
+              height: 8,
+            ),
           ),
         ],
       ),
@@ -2133,16 +2013,18 @@ class FloatingHealthBar extends StatelessWidget {
   }
 }
 
-// --- New Bouncing Turn Indicator Widget ---
-/*
-class BouncingTurnIndicator extends StatefulWidget {
-  const BouncingTurnIndicator({super.key});
+class _AnimatedScoreBar extends StatefulWidget {
+  final double score;
+  final Color color;
+
+  const _AnimatedScoreBar({required this.score, required this.color});
 
   @override
-  _BouncingTurnIndicatorState createState() => _BouncingTurnIndicatorState();
+  _AnimatedScoreBarState createState() => _AnimatedScoreBarState();
 }
 
-class _BouncingTurnIndicatorState extends State<BouncingTurnIndicator> with SingleTickerProviderStateMixin {
+class _AnimatedScoreBarState extends State<_AnimatedScoreBar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -2150,13 +2032,27 @@ class _BouncingTurnIndicatorState extends State<BouncingTurnIndicator> with Sing
   void initState() {
     super.initState();
     _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
-
-    _animation = Tween<double>(begin: 0.0, end: 10.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
+    _animation =
+        Tween<double>(begin: 0, end: widget.score).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _controller.forward();
+  }
+  
+  @override
+  void didUpdateWidget(covariant _AnimatedScoreBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.score != widget.score) {
+      _animation = Tween<double>(begin: 0, end: widget.score).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+      _controller.forward(from: 0);
+    }
   }
 
   @override
@@ -2170,73 +2066,193 @@ class _BouncingTurnIndicatorState extends State<BouncingTurnIndicator> with Sing
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _animation.value),
-          child: child,
+        return Container(
+          height: 10,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade700,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: FractionallySizedBox(
+            widthFactor: _animation.value / 100,
+            alignment: Alignment.centerLeft,
+            child: Container(
+              decoration: BoxDecoration(
+                color: widget.color,
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+          ),
         );
       },
-      child: CustomPaint(
-        painter: _TrianglePainter(),
-        size: const Size(20, 10),
+    );
+  }
+}
+
+class _RevealedCardDetails extends StatelessWidget {
+  final Vocabulary card;
+  final BossData bossData;
+
+  const _RevealedCardDetails({required this.card, required this.bossData});
+
+  @override
+  Widget build(BuildContext context) {
+    // Debug output for complexity
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Complexity section
+          Row(
+            children: [
+              const Text(
+                'Complexity:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              ComplexityRating(complexity: card.complexity, size: 16),
+            ],
+          ),
+          const Divider(color: Colors.white24, height: 20, thickness: 0.5),
+
+          // Thai text and transliteration
+          Text(card.thai,
+              style:
+                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 4),
+          Text('(${card.transliteration})',
+              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.white70)),
+          const SizedBox(height: 16),
+
+          // Details section (formerly Example)
+          if (card.details != null && card.details!.isNotEmpty) ...[
+            const Text('Details:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text(
+              card.details!,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Slang section
+          if (card.slang != null && card.slang!.isNotEmpty) ...[
+            Text('Slang / Common Use',
+                style: GoogleFonts.lato(
+                    color: Colors.cyan.shade200,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(
+              card.slang!,
+              style: GoogleFonts.lato(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _TrianglePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.yellow.shade600
-      ..style = PaintingStyle.fill;
-    
-    final path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    path.lineTo(size.width / 2, size.height);
-    path.close();
+class _RecordButton extends StatelessWidget {
+  final bool isRecording;
+  final VoidCallback onTap;
 
-    canvas.drawPath(path, paint);
-  }
+  const _RecordButton({required this.isRecording, required this.onTap});
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-*/ 
-
-// --- Red Line Painter for Play Button Animation ---
-class _RedLinePainter extends CustomPainter {
-  final double progress;
-  
-  _RedLinePainter(this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress == 0.0) return;
-    
-    final paint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) + 8; // Slightly larger than the button
-    
-    // Draw a red line that grows around the circle
-    final sweepAngle = 2 * math.pi * progress;
-    
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2, // Start from top
-      sweepAngle,
-      false,
-      paint,
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: isRecording ? Colors.redAccent.withOpacity(0.8) : Colors.red,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+        ),
+        child: Center(
+          child: Icon(
+            isRecording ? Icons.stop_rounded : Icons.mic_none,
+            color: Colors.white,
+            size: 30,
+          ),
+        ),
+      ),
     );
   }
+}
+
+// Custom widget for the playback button with progress animation
+class _PlaybackButton extends StatelessWidget {
+  final double progress;
+  final VoidCallback onTap;
+
+  const _PlaybackButton({required this.progress, required this.onTap});
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate is _RedLinePainter && oldDelegate.progress != progress;
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 50,
+            height: 50,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.redAccent),
+              backgroundColor: Colors.white.withOpacity(0.3),
+            ),
+          ),
+          const Icon(Icons.play_circle_fill, color: Colors.cyan, size: 40),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedNumberDisplay extends StatelessWidget {
+  final double number;
+  final String unit;
+  final bool isPercentage;
+
+  const _AnimatedNumberDisplay({
+    required this.number,
+    required this.unit,
+    this.isPercentage = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: number),
+      duration: const Duration(milliseconds: 1200),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Text(
+          '${isPercentage ? value.toStringAsFixed(0) : value.toStringAsFixed(2)}$unit',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 28,
+            shadows: [
+              Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1)),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

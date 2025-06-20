@@ -84,7 +84,7 @@ class MainMenuScreen extends StatelessWidget {
                   const tuktukBoss = BossData(
                     name: "Tuk-Tuk Monster",
                     spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
-                    maxHealth: 500,
+                    maxHealth: 600,
                     vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
                     backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
                   );

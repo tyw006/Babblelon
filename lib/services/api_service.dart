@@ -44,7 +44,7 @@ class ApiService {
   Future<PronunciationAssessmentResponse?> stopRecordingAndGetAssessment({
     required String referenceText,
     required String transliteration,
-    required String complexity,
+    required int complexity,
     required String itemType,
     required String turnType,
   }) async {
@@ -66,7 +66,7 @@ class ApiService {
     final request = http.MultipartRequest('POST', uri)
       ..fields['reference_text'] = referenceText
       ..fields['transliteration'] = transliteration
-      ..fields['complexity'] = complexity
+      ..fields['complexity'] = complexity.toString()
       ..fields['item_type'] = itemType
       ..fields['turn_type'] = turnType
       ..fields['language'] = 'th-TH';
@@ -102,20 +102,22 @@ class ApiService {
     required List<int> audioBytes,
     required String referenceText,
     required String transliteration,
-    required String complexity,
+    required int complexity,
     required String itemType,
     required String turnType,
     required bool wasRevealed,
+    required List<Map<String, dynamic>> wordMapping,
     String language = 'th-TH',
   }) async {
     final uri = Uri.parse("$_baseUrl/pronunciation/assess/");
     final request = http.MultipartRequest('POST', uri)
       ..fields['reference_text'] = referenceText
       ..fields['transliteration'] = transliteration
-      ..fields['complexity'] = complexity
+      ..fields['complexity'] = complexity.toString()
       ..fields['item_type'] = itemType
       ..fields['turn_type'] = turnType
       ..fields['was_revealed'] = wasRevealed.toString()
+      ..fields['word_mapping_json'] = jsonEncode(wordMapping)
       ..fields['language'] = language;
 
     // Add the audio bytes as a multipart file

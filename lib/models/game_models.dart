@@ -121,31 +121,82 @@ class GameSettings {
   }
 }
 
+class WordMapping {
+  final String thai;
+  final String transliteration;
+  final String translation;
+
+  WordMapping({
+    required this.thai,
+    required this.transliteration,
+    required this.translation,
+  });
+
+  factory WordMapping.fromJson(Map<String, dynamic> json) {
+    return WordMapping(
+      thai: json['thai'],
+      transliteration: json['transliteration'],
+      translation: json['translation'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'thai': thai,
+      'transliteration': transliteration,
+      'translation': translation,
+    };
+  }
+}
+
 // Vocabulary model for language learning
 class Vocabulary {
   final String english;
-  final String targetWord;
+  final String thai;
   final String transliteration;
+  final List<WordMapping> wordMapping;
+  final int complexity;
+  final String foodCategory;
+  final String? details;
+  final String? slang;
 
   Vocabulary({
     required this.english,
-    required this.targetWord,
+    required this.thai,
     required this.transliteration,
+    required this.wordMapping,
+    required this.complexity,
+    required this.foodCategory,
+    this.details,
+    this.slang,
   });
 
   factory Vocabulary.fromJson(Map<String, dynamic> json) {
+    var wordMappingList = json['word_mapping'] as List;
+    List<WordMapping> mappings = wordMappingList.map((i) => WordMapping.fromJson(i)).toList();
+
     return Vocabulary(
       english: json['english'],
-      targetWord: json['thai'],
+      thai: json['thai'],
       transliteration: json['transliteration'],
+      wordMapping: mappings,
+      complexity: json['complexity'],
+      foodCategory: json['food_category'] ?? '',
+      details: json['details'],
+      slang: json['slang'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'english': english,
-      'thai': targetWord,
+      'thai': thai,
       'transliteration': transliteration,
+      'word_mapping': wordMapping.map((item) => item.toJson()).toList(),
+      'complexity': complexity,
+      'food_category': foodCategory,
+      'details': details,
+      'slang': slang,
     };
   }
 }

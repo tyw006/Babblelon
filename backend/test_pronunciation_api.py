@@ -28,7 +28,7 @@ except NameError:
 test_data = {
     "reference_text": "ไอ้เหี้ยไอ้สัตว์มึงหุบปากสักทีได้ป่ะพูดอยู่นั่นแหละอีควายปากหมาฉิบหายเลยโอเค",
     "transliteration": "ai hia ai sat meung hub pak sak tee dai pa plod yoo nan lae ee kwai pak ma chib hai loey o ke",
-    "complexity": "medium",
+    "complexity": 5,
     "item_type": "special",
     "turn_type": "defense",
     "language": "th-TH"
@@ -84,11 +84,11 @@ def test_pronunciation_assessment_endpoint():
             assert 'pronunciation_score' in response_json
             assert 'attack_multiplier' in response_json
             assert 'defense_multiplier' in response_json
-            assert 'word_results' in response_json
+            assert 'detailed_feedback' in response_json, "Response missing 'detailed_feedback' key."
             assert 'word_feedback' in response_json
             assert 'calculation_breakdown' in response_json
-            assert 'base_attack' in response_json['calculation_breakdown']
-            assert len(response_json['word_results']) > 0
+            assert 'explanation' in response_json['calculation_breakdown'], "Breakdown missing 'explanation' key."
+            assert len(response_json['detailed_feedback']) > 0, "Detailed feedback should not be empty."
             
             print(f"\n✅ Test Passed: Successfully received a valid assessment.")
             print(f"   - Rating: {response_json['rating']}")
@@ -104,6 +104,9 @@ def test_pronunciation_assessment_endpoint():
         print(f"   Error: {e}")
         if e.response is not None:
             print(f"   Response Body: {e.response.text}")
+    except AssertionError as e:
+        print(f"\n❌ Test Failed: The response JSON did not match the expected format.")
+        print(f"   Assertion Error: {e}")
     except Exception as e:
         print(f"\n❌ Test Failed: An unexpected error occurred.")
         print(f"   Error: {e}")
