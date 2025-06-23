@@ -10,7 +10,26 @@ import tempfile
 from dotenv import load_dotenv
 import wave
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
 load_dotenv()
+
+# --- Transliteration Helper ---
+
+def get_transliteration(thai_text: str, static_mapping: Dict[str, str]) -> str:
+    """
+    Get transliteration for Thai text using static mapping from vocabulary file.
+    This replaces the previous pythainlp integration for better consistency.
+    """
+    print(f"\n🔤 TRANSLITERATION REQUEST for: '{thai_text}'")
+    
+    # Use static mapping from vocabulary file's word_mapping
+    static_result = static_mapping.get(thai_text, thai_text)
+    print(f"📚 STATIC MAPPING: '{thai_text}' -> '{static_result}'")
+    return static_result
+
+
 
 # --- Pydantic Models ---
 
@@ -157,39 +176,92 @@ async def assess_pronunciation(
         # --- Detailed Word Analysis ---
         detailed_feedback_list = []
         translit_map = {word['thai']: word['transliteration'] for word in word_mapping}
+        
+        print(f"\n📝 WORD-BY-WORD ANALYSIS:")
+        print(f"Static mapping available: {list(translit_map.keys())}")
 
         if 'NBest' in json_result and len(json_result['NBest']) > 0:
             words_data = json_result['NBest'][0].get('Words', [])
+            print(f"Azure detected {len(words_data)} words: {[w.get('Word', 'N/A') for w in words_data]}")
+            
             for word_info in words_data:
                 word_text = word_info.get('Word', 'N/A')
+                print(f"\nProcessing word: '{word_text}'")
+                
+                # Use the new transliteration function with fallback to static mapping
+                transliteration = get_transliteration(word_text, translit_map)
+                
+                # Determine error type based on Azure's analysis
+                error_type = word_info.get('PronunciationAssessment', {}).get('ErrorType', 'None')
+                word_accuracy = word_info.get('PronunciationAssessment', {}).get('AccuracyScore', 0)
+                
+                # If accuracy is very low but no specific error type, classify as mispronunciation
+                if error_type == 'None' and word_accuracy < 60:
+                    error_type = 'Mispronunciation'
+                
+                print(f"  Word accuracy: {word_accuracy}, Error type: {error_type}")
+                
                 w_res = WordFeedback(
                     word=word_text,
                     accuracy_score=word_info.get('PronunciationAssessment', {}).get('AccuracyScore', 0),
-                    error_type=word_info.get('PronunciationAssessment', {}).get('ErrorType', 'None'),
-                    transliteration=translit_map.get(word_text, '')
+                    error_type=error_type,
+                    transliteration=transliteration,
                 )
                 detailed_feedback_list.append(w_res)
+                print(f"Final result: '{word_text}' -> '{transliteration}' (score: {w_res.accuracy_score})")
+        else:
+            print("⚠️  No word-level data found in Azure response")
 
         # --- Generate Actionable Word-Level Feedback ---
-        detailed_feedback_list.sort(key=lambda x: x.accuracy_score)
-        worst_words = [w for w in detailed_feedback_list if w.accuracy_score < 80][:3]
+        # Create a sorted copy for feedback generation without affecting the original order
+        sorted_feedback_list = sorted(detailed_feedback_list, key=lambda x: x.accuracy_score)
+        worst_words = [w for w in sorted_feedback_list if w.accuracy_score < 80][:3]
         
         feedback_lines = []
         if worst_words:
-            feedback_lines.append("To improve, focus on these words:")
+            # Generate specific improvement tips based on score range and errors
+            if pronunciation_score >= 75:
+                feedback_lines.append("Almost there! Fine-tune these sounds:")
+            elif pronunciation_score >= 60:
+                feedback_lines.append("Good foundation! Focus on these challenging words:")
+            else:
+                feedback_lines.append("Let's work on pronunciation basics with these words:")
+            
             for word in worst_words:
                 feedback_entry = f"- '{word.word}'"
                 if word.transliteration:
                     feedback_entry += f" ({word.transliteration})"
-                feedback_entry += f" - accuracy: {word.accuracy_score:.0f}%"
+                
+                # Add specific tips based on error type and score
+                if word.accuracy_score < 50:
+                    feedback_entry += " - Break this into syllables and practice slowly"
+                elif word.accuracy_score < 70:
+                    feedback_entry += " - Focus on tone and vowel sounds"
+                else:
+                    feedback_entry += " - Almost perfect! Polish the final sounds"
+                    
                 feedback_lines.append(feedback_entry)
 
+            # Add technique-specific advice based on overall score
+            if pronunciation_score < 60:
+                feedback_lines.append("\nTechnique tip: Listen to native speakers and repeat slowly, focusing on mouth position.")
+            elif pronunciation_score < 75:
+                feedback_lines.append("\nTechnique tip: Practice tonal patterns - Thai has 5 tones that change word meaning.")
+            else:
+                feedback_lines.append("\nTechnique tip: Work on natural rhythm and stress patterns for fluency.")
+
             if len(worst_words) < len(detailed_feedback_list):
-                best_word = max(detailed_feedback_list, key=lambda x: x.accuracy_score)
+                best_word = max(sorted_feedback_list, key=lambda x: x.accuracy_score)
                 best_word_text = f"'{best_word.word}'"
                 if best_word.transliteration:
                     best_word_text += f" ({best_word.transliteration})"
-                feedback_lines.append(f"You nailed {best_word_text} - great job!")
+                feedback_lines.append(f"\n✨ You nailed {best_word_text} - excellent pronunciation!")
+        else:
+            # All words scored well
+            if pronunciation_score >= 90:
+                feedback_lines.append("Outstanding! Your pronunciation is near-native level. Keep practicing to maintain this excellence!")
+            else:
+                feedback_lines.append("Great job! All words pronounced well. Focus on natural rhythm and flow for even better results.")
         
         word_feedback = "\n".join(feedback_lines) if feedback_lines else "Great job! Your pronunciation is solid."
         
@@ -209,6 +281,49 @@ async def assess_pronunciation(
             word_feedback=word_feedback,
             calculation_breakdown=calculation_breakdown,
         )
+        
+        # --- DETAILED BACKEND LOGGING (Similar to test_STT.ipynb format) ---
+        print("\n" + "="*60)
+        print("PRONUNCIATION ASSESSMENT RESULT")
+        print("="*60)
+        print(f"Reference Text: {reference_text}")
+        print(f"Transliteration: {transliteration}")
+        print(f"Turn Type: {turn_type.upper()}")
+        print(f"Item Type: {item_type.capitalize()}")
+        print(f"Card Revealed: {'YES' if was_revealed else 'NO'}")
+        print(f"Complexity Level: {complexity}")
+        print("-" * 40)
+        print("SCORES:")
+        print(f"  Overall Pronunciation: {pronunciation_score:.1f}% ({response.rating})")
+        print(f"  Accuracy: {pron_result.accuracy_score:.1f}%")
+        print(f"  Fluency: {pron_result.fluency_score:.1f}%")
+        print(f"  Completeness: {pron_result.completeness_score:.1f}%")
+        print("-" * 40)
+        print("GAME IMPACT:")
+        if turn_type == 'attack':
+            print(f"  Final Attack Damage: {attack_damage:.1f}")
+            print(f"  Base Damage: 40 (Regular) / 50 (Special)")
+            print(f"  Attack Multiplier: {attack_damage / (50.0 if item_type == 'special' else 40.0):.2f}x")
+        else:
+            print(f"  Defense Multiplier: {defense_multiplier:.2f}")
+            print(f"  Damage Taken: {15.0 * defense_multiplier:.1f} HP (from 15 base)")
+            print(f"  Damage Reduction: {(1 - defense_multiplier) * 100:.1f}%")
+        print("-" * 40)
+        print("CALCULATION BREAKDOWN:")
+        print(calculation_breakdown_dict["explanation" if turn_type == "attack" else "defense_explanation"])
+        
+        if detailed_feedback_list:
+            print("-" * 40)
+            print("WORD-LEVEL ANALYSIS:")
+            for word_info in detailed_feedback_list:
+                error_indicator = f" [{word_info.error_type}]" if word_info.error_type != 'None' else ""
+                translit_display = f" ({word_info.transliteration})" if word_info.transliteration else ""
+                print(f"  '{word_info.word}'{translit_display}: {word_info.accuracy_score:.1f}%{error_indicator}")
+        
+        print("-" * 40)
+        print("FEEDBACK:")
+        print(f"  {word_feedback}")
+        print("="*60)
         
         processing_end_time = time.time()
         logging.info(f"Total processing time: {processing_end_time - start_time:.2f} seconds.")
@@ -279,8 +394,19 @@ def calculate_multipliers(pronunciation_score, complexity, item_type, was_reveal
         complexity_bonus_defense = 0.0
     
     # Determine reveal penalty
-    reveal_penalty_attack = -0.2 if was_revealed else 0.0  # Reduces attack effectiveness
-    reveal_penalty_defense = 0.2 if was_revealed else 0.0  # Reduces defense effectiveness
+    reveal_penalty_attack = -0.2 if was_revealed else 0.0
+    
+    # New defense reveal penalty logic
+    reveal_penalty_defense = 0.0
+    if was_revealed:
+        # Penalty negates bonuses, capped at 0.2 (20%).
+        # Bonuses are negative, so we take their absolute value for the sum.
+        total_bonus_reduction = abs(pronunciation_bonus_defense) + abs(complexity_bonus_defense)
+        reveal_penalty_defense = min(total_bonus_reduction, 0.2)
+
+    # Always use the original bonuses for calculation; the penalty will counteract them if revealed.
+    final_pronunciation_bonus_defense = pronunciation_bonus_defense
+    final_complexity_bonus_defense = complexity_bonus_defense
     
     # Calculate Attack Damage
     base_damage = 50.0 if item_type == 'special' else 40.0
@@ -288,22 +414,28 @@ def calculate_multipliers(pronunciation_score, complexity, item_type, was_reveal
     final_attack_damage = base_damage * attack_multiplier
     
     # Calculate Defense Multiplier (how much damage player takes)
-    defense_multiplier_raw = 1.0 + pronunciation_bonus_defense + complexity_bonus_defense + reveal_penalty_defense
+    defense_multiplier_raw = 1.0 + final_pronunciation_bonus_defense + final_complexity_bonus_defense + reveal_penalty_defense
     final_defense_multiplier = max(0.1, min(1.0, defense_multiplier_raw))  # Clamp between 0.1 and 1.0
     
     # Create breakdown explanations
     attack_explanation = f"""Base Damage: {int(base_damage)}
-Pronunciation Bonus ({pronunciation_rating}): {'+' if pronunciation_bonus_attack >= 0 else ''}{pronunciation_bonus_attack*100:.0f}%
-Complexity Bonus (Level {complexity}): {'+' if complexity_bonus_attack >= 0 else ''}{complexity_bonus_attack*100:.0f}%
-Card Reveal Penalty: {'+' if reveal_penalty_attack >= 0 else ''}{reveal_penalty_attack*100:.0f}%
-Final Attack Multiplier: 1.0 + ({'+' if pronunciation_bonus_attack >= 0 else ''}{pronunciation_bonus_attack*100:.0f}% + {'+' if complexity_bonus_attack >= 0 else ''}{complexity_bonus_attack*100:.0f}% + {'+' if reveal_penalty_attack >= 0 else ''}{reveal_penalty_attack*100:.0f}%) = {attack_multiplier:.2f}
+Pronunciation Bonus ({pronunciation_rating}): {pronunciation_bonus_attack*100:+.0f}%
+Complexity Bonus (Level {complexity}): {complexity_bonus_attack*100:+.0f}%
+Card Reveal Penalty: {reveal_penalty_attack*100:.0f}%
+Final Attack Multiplier: 1.0 + ({pronunciation_bonus_attack*100:.0f}% {complexity_bonus_attack*100:+.0f}% {reveal_penalty_attack*100:+.0f}%) = {attack_multiplier:.2f}
 Final Attack Damage: {int(base_damage)} × {attack_multiplier:.2f} = {final_attack_damage:.1f}"""
     
     defense_item_type = "Special" if item_type == 'special' else "Regular"
-    defense_explanation = f"""Pronunciation Bonus ({pronunciation_rating}, {defense_item_type}): {pronunciation_bonus_defense*100:.0f}%
-Complexity Bonus (Level {complexity}): {complexity_bonus_defense*100:.0f}%
-Card Reveal Penalty: {'+' if reveal_penalty_defense >= 0 else ''}{reveal_penalty_defense*100:.0f}%
-Raw Defense Multiplier: 1.0 + ({pronunciation_bonus_defense*100:.0f}% + {complexity_bonus_defense*100:.0f}% + {'+' if reveal_penalty_defense >= 0 else ''}{reveal_penalty_defense*100:.0f}%) = {defense_multiplier_raw:.2f}
+    
+    # Correctly formatted f-string for defense explanation
+    p_bonus_str = f"{final_pronunciation_bonus_defense*100:.0f}%"
+    c_bonus_str = f"{final_complexity_bonus_defense*100:.0f}%"
+    r_penalty_str = f"{reveal_penalty_defense*100:+.0f}%"
+
+    defense_explanation = f"""Pronunciation Bonus ({pronunciation_rating}, {defense_item_type}): {p_bonus_str}
+Complexity Bonus (Level {complexity}): {c_bonus_str}
+Card Reveal Penalty: {r_penalty_str}
+Raw Defense Multiplier: 1.0 + ({p_bonus_str} + {c_bonus_str} + {r_penalty_str}) = {defense_multiplier_raw:.2f}
 Final Defense Multiplier: clamp({defense_multiplier_raw:.2f}, 0.1, 1.0) = {final_defense_multiplier:.2f}"""
     
     calculation_breakdown = {
@@ -316,9 +448,10 @@ Final Defense Multiplier: clamp({defense_multiplier_raw:.2f}, 0.1, 1.0) = {final
         "defense_explanation": defense_explanation,
         "attack_pronunciation_bonus": pronunciation_bonus_attack,
         "attack_complexity_bonus": complexity_bonus_attack,
-        "defense_pronunciation_bonus": pronunciation_bonus_defense,
-        "defense_complexity_bonus": complexity_bonus_defense,
-        "card_reveal_penalty": reveal_penalty_attack,
+        "defense_pronunciation_bonus": final_pronunciation_bonus_defense,
+        "defense_complexity_bonus": final_complexity_bonus_defense,
+        "attack_reveal_penalty": reveal_penalty_attack,
+        "defense_reveal_penalty": reveal_penalty_defense,
         "final_attack_bonus": attack_multiplier,
         "final_defense_reduction": final_defense_multiplier
     }

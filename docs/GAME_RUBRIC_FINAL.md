@@ -39,7 +39,7 @@
 - **Penalty:** -0.2
 
 **Defense Turn:**
-- **Penalty:** All pronunciation and complexity bonuses are negated (set to 0.0) when card is revealed during defense turn
+- **Penalty:** Negates pronunciation and complexity bonuses up to a maximum of 20% (adds up to +0.2 to the multiplier). If total bonuses are -15%, the penalty is +15%. If total bonuses are -40%, the penalty is capped at +20%.
 
 ### Attack Calculation
 ```
@@ -74,14 +74,16 @@ Final Damage = Base Attack × (1.0 + Pronunciation Bonus + Gated Complexity Bonu
 | 5 (Hardest) | -0.2 |
 
 ### Card Reveal Penalty (Defense Turn Only)
-- **Penalty:** If card is revealed during defense turn, all pronunciation and complexity bonuses are completely negated (set to 0.0)
-- **Result:** Defense becomes ineffective, player takes full damage (100% damage multiplier)
+- **Penalty:** If the card is revealed during a defense turn, a penalty is applied. This penalty negates the player's pronunciation and complexity bonuses, but the negation is capped at 20% (a +0.2 adjustment).
+- **Result:** High defense bonuses are reduced but not completely eliminated, making defense less effective but not entirely useless.
 
 ### Defense Calculation
 ```
 IF card revealed during defense turn:
-  1. All bonuses = 0.0 (bonuses are negated)
-  2. Final Damage Taken = Boss Base Attack × 1.0
+  1. Reveal Penalty = min(-(Pronunciation Bonus + Gated Complexity Bonus), 0.2)
+  2. Multiplier = 1.0 + Pronunciation Bonus + Gated Complexity Bonus + Reveal Penalty
+  3. FinalMultiplier = clamp(Multiplier, 0.1, 1.0)
+  4. Final Damage Taken = Boss Base Attack × FinalMultiplier
 ELSE:
   1. Multiplier = 1.0 + Pronunciation Bonus + Gated Complexity Bonus
   2. FinalMultiplier = clamp(Multiplier, 0.1, 1.0)
@@ -89,9 +91,10 @@ ELSE:
 ```
 
 ### Defense Examples
-- **Card Revealed (New Logic):** Any pronunciation/complexity with card revealed = 1.0 → takes 15 HP damage (full damage)
-- **Best Case:** Special Excellent + Level 5 + Not Revealed = clamp(1.0 - 0.7 - 0.2 + 0.0, 0.1, 1.0) = 0.1 → takes 1.5 HP damage
-- **Example:** "Okay" regular defense on Level 3 = clamp(1.0 - 0.1 - 0.1, 0.1, 1.0) = 0.8 → takes 12 HP damage
+- **Card Revealed (Capped):** "Excellent" regular defense (-0.5) + Level 5 complexity (-0.2). Bonuses total -0.7. Penalty = min(0.7, 0.2) = +0.2. Multiplier = clamp(1.0 - 0.5 - 0.2 + 0.2, 0.1, 1.0) = 0.5. Damage = 15 * 0.5 = 7.5 HP.
+- **Card Revealed (Full Negation):** "Okay" regular defense (-0.1) + Level 3 complexity (-0.1). Bonuses total -0.2. Penalty = min(0.2, 0.2) = +0.2. Multiplier = clamp(1.0 - 0.1 - 0.1 + 0.2, 0.1, 1.0) = 1.0. Damage = 15 * 1.0 = 15 HP.
+- **Best Case (Not Revealed):** Special Excellent (-0.7) + Level 5 (-0.2). Multiplier = clamp(1.0 - 0.7 - 0.2, 0.1, 1.0) = 0.1. Damage = 15 * 0.1 = 1.5 HP.
+- **Example (Not Revealed):** "Okay" regular defense (-0.1) on Level 3 (-0.1). Multiplier = clamp(1.0 - 0.1 - 0.1, 0.1, 1.0) = 0.8. Damage = 15 * 0.8 = 12 HP.
 
 ## Key Principles
 

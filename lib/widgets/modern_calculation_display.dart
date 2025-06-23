@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:animated_flip_counter/animated_flip_counter.dart';
 
 class ModernCalculationDisplay extends StatefulWidget {
   final String explanation;
@@ -54,70 +55,66 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
       curve: Curves.easeOut,
     ));
     
-    _parseExplanation();
+    // Start with zero values for the animation
+    _parseExplanation(useZeroValues: true); 
+    
+    // Start animations and then update to real values
     _startAnimations();
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Use a post-frame callback to update to the real values after the initial build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _parseExplanation(useZeroValues: false);
+        });
+      }
+    });
+  }
   
-  void _parseExplanation() {
+  void _parseExplanation({bool useZeroValues = false}) {
     final lines = widget.explanation.split('\n');
     _steps = [];
     
-    // Initialize all possible bonuses with zero values
     double pronunciationBonus = 0.0;
     double complexityBonus = 0.0;
-    double cardRevealPenaltyValue = 0.0; // The value from the explanation
-    bool isDefenseTurn = false;
-    
-    // Determine if the card was actually revealed from the explanation content
-    // Look for specific patterns that indicate actual penalty application
-    final bool wasActuallyRevealed = widget.explanation.contains('Card Reveal Penalty: -20%') || 
-                                     widget.explanation.contains('Card revealed before assessment');
+    double cardRevealPenalty = 0.0;
 
-    // Parse actual values from explanation
+    // Parse actual values directly from the explanation string provided by the backend.
     for (String line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.isEmpty) continue;
       
-      // Check if this is a defense turn for penalty logic
-      if (trimmedLine.contains('Defense') || trimmedLine.contains('defense')) {
-        isDefenseTurn = true;
-      }
-      
-      if (trimmedLine.contains('Pronunciation Bonus')) {
-        final regex = RegExp(r'([+-]?\d+(?:\.\d+)?)%');
-        final match = regex.firstMatch(trimmedLine);
-        if (match != null) {
-          pronunciationBonus = double.tryParse(match.group(1)!) ?? 0.0;
-        }
-      } else if (trimmedLine.contains('Complexity Bonus')) {
-        final regex = RegExp(r'([+-]?\d+(?:\.\d+)?)%');
-        final match = regex.firstMatch(trimmedLine);
-        if (match != null) {
-          complexityBonus = double.tryParse(match.group(1)!) ?? 0.0;
-        }
-      } else if (trimmedLine.contains('Card Reveal Penalty')) {
-        final regex = RegExp(r'([+-]?\d+(?:\.\d+)?)%');
-        final match = regex.firstMatch(trimmedLine);
-        if (match != null) {
-          cardRevealPenaltyValue = double.tryParse(match.group(1)!) ?? 0.0;
-        }
+      // Regex to find signed percentage values like "+15%" or "-20.5%"
+      final regex = RegExp(r'([+-]?\d+(?:\.\d+)?)%');
+      final match = regex.firstMatch(trimmedLine);
+      final value = match != null ? double.tryParse(match.group(1)!) : null;
+
+      if (value == null) continue;
+
+      if (trimmedLine.startsWith('Pronunciation Bonus')) {
+        pronunciationBonus = useZeroValues ? 0.0 : value;
+      } else if (trimmedLine.startsWith('Complexity Bonus')) {
+        complexityBonus = useZeroValues ? 0.0 : value;
+      } else if (trimmedLine.startsWith('Card Reveal Penalty')) {
+        cardRevealPenalty = useZeroValues ? 0.0 : value;
       }
     }
     
-    // Determine the actual card reveal penalty to display
-    double displayCardRevealPenalty = 0.0;
-    if (wasActuallyRevealed) {
-      if (isDefenseTurn) {
-        // For defense turns, penalty equals the sum of all other bonuses to negate them
-        displayCardRevealPenalty = -(pronunciationBonus + complexityBonus);
-      } else {
-        // For attack turns, it's a fixed -20% penalty
-        displayCardRevealPenalty = -20.0;
-      }
+    // For defense calculations, flip the signs to show user-friendly values
+    // Backend sends negative values for defense bonuses (because they reduce damage)
+    // But we want to show them as positive to the user (because they're beneficial)
+    if (widget.isDefenseCalculation) {
+      pronunciationBonus = -pronunciationBonus; // Convert -50% to +50%
+      complexityBonus = -complexityBonus;       // Convert -10% to +10%
+      // Card reveal penalty should be negative for defense (it's bad for the player)
+      cardRevealPenalty = -cardRevealPenalty;   // Convert +20% to -20%
     }
     
     // Build the calculation steps for display
-    // Always show Pronunciation Bonus
     _steps.add(CalculationStep(
       label: 'Pronunciation Bonus',
       value: pronunciationBonus,
@@ -125,7 +122,6 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
       tooltip: _getTooltipForStep('Pronunciation Bonus'),
     ));
     
-    // Always show Complexity Bonus
     _steps.add(CalculationStep(
       label: 'Complexity Bonus', 
       value: complexityBonus,
@@ -133,32 +129,43 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
       tooltip: _getTooltipForStep('Complexity Bonus'),
     ));
     
-    // Always show Card Reveal Penalty (even when 0)
+    // For card reveal penalty, it should be negative (bad) for defense, positive (bad) for attack
+    // But the backend sends it correctly, so we just need to make sure display is right
     _steps.add(CalculationStep(
       label: 'Card Reveal Penalty',
-      value: displayCardRevealPenalty,
-      isBonus: displayCardRevealPenalty >= 0,
+      value: widget.isDefenseCalculation ? cardRevealPenalty : cardRevealPenalty,
+      isBonus: false, // Penalties are never bonuses
       tooltip: _getTooltipForStep('Card Reveal Penalty'),
     ));
     
-    // Calculate bonus total for display
-    _bonusTotal = pronunciationBonus + complexityBonus + displayCardRevealPenalty;
+    // Calculate bonus total for display (using the user-friendly values)
+    _bonusTotal = pronunciationBonus + complexityBonus + cardRevealPenalty;
   }
   
   String _getTooltipForStep(String label) {
     switch (label) {
       case 'Pronunciation Bonus':
-        return 'Based on pronunciation accuracy, fluency, and completeness scores. Higher scores give better bonuses.';
+        if (widget.isDefenseCalculation) {
+          return 'Defense Pronunciation Reduction Bonus:\n• Excellent (80-100): 50% (Regular) / 70% (Special)\n• Good (60-79): 30% (Regular) / 50% (Special)\n• Okay (40-59): 10% (Regular) / 25% (Special)\n• Needs Improvement (0-39): 0%\n\nReduces incoming damage by the percentage shown.';
+        } else {
+          return 'Attack Pronunciation Bonus:\n• Excellent (80-100): +60%\n• Good (60-79): +30%\n• Okay (40-59): +10%\n• Needs Improvement (0-39): 0%\n\nIncreases attack damage by the percentage shown.';
+        }
       case 'Complexity Bonus':
-        return 'Bonus for attempting more complex vocabulary. Higher difficulty levels give larger bonuses when mastered.';
+        if (widget.isDefenseCalculation) {
+          return 'Defense Complexity Reduction Bonus (requires pronunciation score ≥ 60):\n• Level 1: 0%\n• Level 2: 5%\n• Level 3: 10%\n• Level 4: 15%\n• Level 5: 20%\n\nReduces incoming damage by the percentage shown.';
+        } else {
+          return 'Attack Complexity Bonus (requires pronunciation score ≥ 60):\n• Level 1: 0%\n• Level 2: +15%\n• Level 3: +30%\n• Level 4: +45%\n• Level 5: +60%\n\nIncreases attack damage by the percentage shown.';
+        }
       case 'Card Reveal Penalty':
-        // Determine if this is a defense turn by checking the explanation
-        final isDefenseTurn = widget.explanation.contains('Defense') || widget.explanation.contains('defense');
-        if (isDefenseTurn) {
-          return 'Defense turn penalty: Revealing the card completely negates all pronunciation and complexity bonuses, making defense ineffective.';
+        if (widget.isDefenseCalculation) {
+          return 'Defense turn penalty: Revealing the card negates your pronunciation and complexity bonuses, capped at 20%. High bonuses still provide some damage reduction.';
         } else {
           return 'Attack turn penalty: Revealing the card reduces your base attack damage by a fixed 20%.';
         }
+      case 'Attack Bonus':
+        return 'Attack Bonus: The combined percentage increase to your base attack damage from pronunciation quality and card complexity. Higher pronunciation scores and more complex cards yield greater bonuses.';
+      case 'Defense Bonus':
+        return 'Defense Bonus: The combined percentage reduction in incoming damage from pronunciation quality and card complexity. Higher pronunciation scores and more complex cards provide better protection.';
       default:
         return '';
     }
@@ -273,10 +280,14 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
                     ),
                   ),
                   
-                  // Value
-                  Text(
-                    step.formattedValue,
-                    style: TextStyle(
+                  // Value with animated counting
+                  AnimatedFlipCounter(
+                    value: step.value,
+                    duration: Duration(milliseconds: 1200 + (index * 400)),
+                    curve: Curves.easeOutCubic,
+                    prefix: step.value >= 0 ? "+" : "",
+                    suffix: "%",
+                    textStyle: TextStyle(
                       color: step.color,
                       fontSize: step.isFinal ? 14 : 13,
                       fontWeight: FontWeight.bold,

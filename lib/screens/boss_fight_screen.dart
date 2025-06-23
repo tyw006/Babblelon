@@ -27,6 +27,7 @@ import 'package:babblelon/widgets/score_progress_bar.dart';
 import 'package:babblelon/widgets/modern_calculation_display.dart';
 import 'package:babblelon/widgets/floating_damage_overlay.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:animated_flip_counter/animated_flip_counter.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -44,6 +45,7 @@ enum RecordingState {
   reviewing,
   assessing, // New state for when we're calling the backend
   results,   // New state for showing assessment results
+  damageCalculation, // New state for damage calculation phase
 }
 
 // --- Animation State Enum ---
@@ -1404,6 +1406,9 @@ class _InteractiveFlashcardDialogState
   late final just_audio.AudioPlayer _audioPlayer;
   late AnimationController _progressController; // For playback progress
 
+  double _animatedPronunciationScore = 0;
+  double _animatedBonusPercentage = 0;
+
   @override
   void initState() {
     super.initState();
@@ -1430,10 +1435,40 @@ class _InteractiveFlashcardDialogState
   }
   
   void _onRecordingStateChange() {
-    if (widget.practiceRecordingStateNotifier.value == RecordingState.results && !_isRevealed) {
-      if (mounted) {
+    if (widget.practiceRecordingStateNotifier.value == RecordingState.results) {
+      // Trigger the card flip if it hasn't been revealed yet
+      if (mounted && !_isRevealed) {
         setState(() {
           _isRevealed = true;
+        });
+      }
+      // Animate the scores after a short delay
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && widget.practiceAssessmentResultNotifier.value != null) {
+          setState(() {
+            _animatedPronunciationScore = widget.practiceAssessmentResultNotifier.value!.pronunciationScore;
+          });
+        }
+      });
+    } else if (widget.practiceRecordingStateNotifier.value == RecordingState.damageCalculation) {
+      // Animate the bonus percentage
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && widget.practiceAssessmentResultNotifier.value != null) {
+          final result = widget.practiceAssessmentResultNotifier.value!;
+          final isAttackTurn = ref.read(turnProvider) == Turn.player;
+          setState(() {
+            _animatedBonusPercentage = isAttackTurn 
+              ? ((result.attackMultiplier - 40) / 40 * 100)
+              : (1 - result.defenseMultiplier) * 100;
+          });
+        }
+      });
+    } else {
+      // Reset scores when leaving results/damage states
+      if (mounted) {
+        setState(() {
+          _animatedPronunciationScore = 0;
+          _animatedBonusPercentage = 0;
         });
       }
     }
@@ -1476,75 +1511,88 @@ class _InteractiveFlashcardDialogState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          _getDynamicWarningText(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _isRevealed ? Colors.orange.shade300 : Colors.white70,
-                            fontSize: 13,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 220, // Increased height for the dialog flashcard
-                        child: Flashcard(
-                          vocabulary: widget.card,
-                          isRevealed: _isRevealed,
-                          isFlippable: true, // Allow flipping in the dialog
-                          onReveal: () {
-                            if (!_isRevealed) {
-                              setState(() => _isRevealed = true);
-                              widget.onReveal();
-                            }
-                          },
-                          revealedChild: _RevealedCardDetails(card: widget.card, bossData: widget.bossData),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       ValueListenableBuilder<RecordingState>(
                         valueListenable: widget.practiceRecordingStateNotifier,
                         builder: (context, state, child) {
-                          return _buildContentForState(state);
+                          // Only show flashcard for non-damage calculation states
+                          if (state != RecordingState.damageCalculation) {
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Text(
+                                    _getDynamicWarningText(),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: _isRevealed ? Colors.orange.shade300 : Colors.white70,
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: 220, // Increased height for the dialog flashcard
+                                  child: Flashcard(
+                                    vocabulary: widget.card,
+                                    isRevealed: _isRevealed,
+                                    isFlippable: true, // Allow flipping in the dialog
+                                    onReveal: () {
+                                      if (!_isRevealed) {
+                                        setState(() => _isRevealed = true);
+                                        widget.onReveal();
+                                      }
+                                    },
+                                    revealedChild: _RevealedCardDetails(card: widget.card, bossData: widget.bossData),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _buildContentForState(state),
+                              ],
+                            );
+                          } else {
+                            return _buildContentForState(state);
+                          }
                         }
                       ),
                     ],
                   ),
                 ),
               ),
-              // Fixed confirm button area (only shown in results state)
+              // Fixed continue button area (only shown in results state)
               ValueListenableBuilder<RecordingState>(
                 valueListenable: widget.practiceRecordingStateNotifier,
                 builder: (context, state, child) {
                   if (state == RecordingState.results) {
-                    return ValueListenableBuilder<PronunciationAssessmentResponse?>(
-                      valueListenable: widget.practiceAssessmentResultNotifier,
-                      builder: (context, result, child) {
-                        if (result == null) return const SizedBox.shrink();
-                        
-                        final currentTurn = ref.watch(turnProvider);
-                        final isAttackTurn = currentTurn == Turn.player;
-                        final buttonColor = isAttackTurn ? Colors.red.shade400 : Colors.blue.shade400;
-                        final buttonLabel = isAttackTurn ? "Confirm Attack" : "Confirm Defense";
-
-                        return Container(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: buttonColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                            ),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              widget.onConfirm();
-                            },
-                            child: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    return Container(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.greenAccent,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      },
+                          elevation: 8,
+                        ),
+                        onPressed: () {
+                          widget.practiceRecordingStateNotifier.value = RecordingState.damageCalculation;
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "Continue",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward),
+                          ],
+                        ),
+                      ),
                     );
                   }
                   return const SizedBox.shrink();
@@ -1587,6 +1635,8 @@ class _InteractiveFlashcardDialogState
         return _buildAssessingUI();
       case RecordingState.results:
         return _buildResultsUI();
+      case RecordingState.damageCalculation:
+        return _buildDamageCalculationUI();
     }
   }
 
@@ -1675,114 +1725,228 @@ class _InteractiveFlashcardDialogState
           return const Text("Error: No assessment result.", style: TextStyle(color: Colors.red));
         }
 
-        final isAttackTurn = ref.read(turnProvider) == Turn.player;
-        final String label;
-        final double value;
-        final String unit;
-        final bool isPercentage;
-
-        if (isAttackTurn) {
-          label = 'Attack Damage';
-          value = result.attackMultiplier;
-          unit = '';
-          isPercentage = false;
-        } else {
-          label = 'Damage Reduction';
-          value = (1 - result.defenseMultiplier) * 100;
-          unit = '%';
-          isPercentage = true;
-        }
-
         return Column(
           children: [
-            // Expandable Attack/Defense Calculation Section
-            _ExpandableSection(
-              title: isAttackTurn ? 'Attack Bonus Details' : 'Defense Reduction Bonus Details',
-              isExpanded: false, // Collapsed by default
-              headerContent: Column(
-                children: [
-                  Text(
-                    isAttackTurn ? 'Attack Bonus' : 'Defense Bonus',
-                    style: const TextStyle(
-                      color: Colors.white,
+            // Phase 1: Pronunciation Assessment Results
+            const Text(
+              "Pronunciation Assessment",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Enhanced Pronunciation Score with "out of 100"
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedFlipCounter(
+                      value: _animatedPronunciationScore,
+                      duration: const Duration(milliseconds: 1500),
+                      textStyle: TextStyle(
+                        color: Colors.cyanAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 36,
+                        shadows: [
+                          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                          Shadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                          Shadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+                        ],
+                      ),
+                      fractionDigits: 0,
+                    ),
+                    _FancyAnimatedTextDisplay(
+                      text: " / 100",
+                      color: Colors.cyanAccent,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    widget.getRatingText(result.rating),
+                    style: TextStyle(
+                      color: widget.getRatingColor(result.rating),
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.5),
+                          blurRadius: 3,
+                          offset: const Offset(1, 1),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${(isAttackTurn ? ((value - 40) / 40 * 100) : value).toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      color: Colors.white,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Detailed Pronunciation Analysis (always visible)
+            _DetailedPronunciationScores(
+              result: result,
+              card: widget.card,
+              buildScoreRowWithTooltip: widget.buildScoreRowWithTooltip,
+            ),
+            const SizedBox(height: 24),
+            
+            // Azure API Insights
+                                  _AzurePronunciationTips(result: result, vocabulary: widget.card),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDamageCalculationUI() {
+    return ValueListenableBuilder<PronunciationAssessmentResponse?>(
+      valueListenable: widget.practiceAssessmentResultNotifier,
+      builder: (context, result, child) {
+        if (result == null) {
+          return const Text("Error: No assessment result.", style: TextStyle(color: Colors.red));
+        }
+
+        final isAttackTurn = ref.read(turnProvider) == Turn.player;
+        final double bonusPercentage;
+        final IconData actionIcon;
+        final Color actionColor;
+        final String actionText;
+
+        if (isAttackTurn) {
+          bonusPercentage = ((result.attackMultiplier - 40) / 40 * 100);
+          actionIcon = Icons.flash_on;
+          actionColor = Colors.redAccent;
+          actionText = "Attack!";
+        } else {
+          bonusPercentage = (1 - result.defenseMultiplier) * 100;
+          actionIcon = Icons.shield;
+          actionColor = Colors.blueAccent;
+          actionText = "Defend!";
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                isAttackTurn ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                Colors.transparent,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Back Button
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      widget.practiceRecordingStateNotifier.value = RecordingState.results;
+                    },
+                    icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                    tooltip: 'Back to Assessment',
+                  ),
+                  const Spacer(),
+                ],
+              ),
+              
+              // Attack/Defense Icon
+              Icon(
+                actionIcon,
+                size: 60,
+                color: actionColor,
+              ),
+              const SizedBox(height: 16),
+              
+              // Bonus Percentage with Enhanced Animation
+              Text(
+                isAttackTurn ? "Attack Bonus" : "Defense Bonus",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedFlipCounter(
+                    value: _animatedBonusPercentage,
+                    duration: const Duration(milliseconds: 1800),
+                    textStyle: TextStyle(
+                      color: actionColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 28,
+                      fontSize: 40,
                       shadows: [
-                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1)),
+                        Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                        Shadow(color: actionColor.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                        Shadow(color: actionColor.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
                       ],
+                    ),
+                    fractionDigits: 0,
+                  ),
+                  const Text(
+                    "%",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-                                expandedContent: ModernCalculationDisplay(
-                    explanation: result.calculationBreakdown.explanation,
-                    isDefenseCalculation: ref.watch(turnProvider) == Turn.boss,
+              const SizedBox(height: 24),
+              
+              // Calculation Breakdown (always visible)
+              ModernCalculationDisplay(
+                explanation: result.calculationBreakdown.explanation,
+                isDefenseCalculation: ref.watch(turnProvider) == Turn.boss,
+              ),
+              const SizedBox(height: 32),
+              
+              // Final Action Button
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  widget.onConfirm();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: actionColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Pronunciation Score Section
-            Column(
-              children: [
-                const Text(
-                  "Pronunciation Score",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+                  elevation: 12,
                 ),
-                const SizedBox(height: 4),
-                _AnimatedNumberDisplay(
-                  number: result.pronunciationScore,
-                  unit: '',
-                  isPercentage: false,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                widget.getRatingText(result.rating),
-                style: TextStyle(
-                  color: widget.getRatingColor(result.rating),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 3,
-                      offset: const Offset(1, 1),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(actionIcon, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      actionText,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Expandable Detailed Scores Section
-            _ExpandableSection(
-              title: "Detailed Analysis",
-              isExpanded: false, // Collapsed by default
-              headerContent: const SizedBox.shrink(),
-              expandedContent: _DetailedScoresWidget(
-                result: result,
-                card: widget.card,
-                buildScoreRowWithTooltip: widget.buildScoreRowWithTooltip,
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -1936,8 +2100,8 @@ class _DetailedScoresWidget extends StatelessWidget {
             context: context,
           ),
           const SizedBox(height: 12),
-          // Word-by-word analysis
-          Text('Word-by-Word Accuracy',
+          // Word analysis
+          Text('Word Accuracy',
             style: GoogleFonts.lato(
               color: Colors.cyan.shade200,
               fontWeight: FontWeight.bold,
@@ -2118,14 +2282,77 @@ class _RevealedCardDetails extends StatelessWidget {
           ),
           const Divider(color: Colors.white24, height: 20, thickness: 0.5),
 
-          // Thai text and transliteration
-          Text(card.thai,
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          // Thai text and transliteration - responsive sizing
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(card.thai,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
           const SizedBox(height: 4),
-          Text('(${card.transliteration})',
-              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.white70)),
-          const SizedBox(height: 16),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('(${card.transliteration})',
+                style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.white70)),
+          ),
+          const SizedBox(height: 12),
+
+          // Word breakdown section - compact layout with responsive text sizing
+          if (card.wordMapping.isNotEmpty) ...[
+            const Text('Word Breakdown:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 4),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calculate total text length to determine font size
+                  int totalTextLength = card.wordMapping.fold(0, (sum, mapping) => 
+                      sum + mapping.thai.length + mapping.transliteration.length + mapping.translation.length);
+                  
+                  // Adjust font size based on content density
+                  double baseFontSize = totalTextLength > 100 ? 13.0 : 
+                                       totalTextLength > 60 ? 14.0 : 15.0;
+                  double transliterationSize = baseFontSize - 1;
+                  double translationSize = baseFontSize - 1;
+                  
+                  return Column(
+                    children: card.wordMapping.map((mapping) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          // Thai word
+                          Text(
+                            mapping.thai,
+                            style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold, color: Colors.cyan),
+                          ),
+                          const SizedBox(width: 4),
+                          // Transliteration in parentheses
+                          Text(
+                            '(${mapping.transliteration})',
+                            style: TextStyle(fontSize: transliterationSize, fontStyle: FontStyle.italic, color: Colors.white70),
+                          ),
+                          const SizedBox(width: 6),
+                          // Arrow and translation
+                          Expanded(
+                            child: Text(
+                              '→ ${mapping.translation}',
+                              style: TextStyle(fontSize: translationSize, color: Colors.white60),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )).toList(),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Details section (formerly Example)
           if (card.details != null && card.details!.isNotEmpty) ...[
@@ -2254,5 +2481,614 @@ class _AnimatedNumberDisplay extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _FancyAnimatedNumberDisplay extends StatelessWidget {
+  final double number;
+  final Color color;
+
+  const _FancyAnimatedNumberDisplay({
+    required this.number,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedFlipCounter(
+      value: number,
+      duration: const Duration(milliseconds: 1500),
+      textStyle: TextStyle(
+        color: color,
+        fontWeight: FontWeight.bold,
+        fontSize: 36,
+        shadows: [
+          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
+          Shadow(color: color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
+          Shadow(color: color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+        ],
+      ),
+      fractionDigits: 0,
+    );
+  }
+}
+
+class _FancyAnimatedPercentageDisplay extends StatelessWidget {
+  final double percentage;
+  final Color color;
+
+  const _FancyAnimatedPercentageDisplay({
+    required this.percentage,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedFlipCounter(
+      value: percentage,
+      duration: const Duration(milliseconds: 1500),
+      textStyle: TextStyle(
+        color: color,
+        fontWeight: FontWeight.bold,
+        fontSize: 40,
+        shadows: [
+          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
+          Shadow(color: color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
+          Shadow(color: color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+        ],
+      ),
+      fractionDigits: 0,
+    );
+  }
+}
+
+class _FancyAnimatedTextDisplay extends StatefulWidget {
+  final String text;
+  final Color color;
+
+  const _FancyAnimatedTextDisplay({
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  _FancyAnimatedTextDisplayState createState() => _FancyAnimatedTextDisplayState();
+}
+
+class _FancyAnimatedTextDisplayState extends State<_FancyAnimatedTextDisplay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              color: widget.color,
+              fontSize: 36,
+              fontWeight: FontWeight.w500,
+              shadows: [
+                Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                Shadow(color: widget.color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                Shadow(color: widget.color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DetailedPronunciationScores extends StatelessWidget {
+  final PronunciationAssessmentResponse result;
+  final Vocabulary card;
+  final Widget Function({
+    required BuildContext context,
+    bool isHeader,
+    required String label,
+    required double score,
+    required String tooltip,
+  }) buildScoreRowWithTooltip;
+
+  const _DetailedPronunciationScores({
+    required this.result,
+    required this.card,
+    required this.buildScoreRowWithTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Create a map for easy lookup of feedback by Thai word
+    final feedbackMap = {for (var fb in result.detailedFeedback) fb.word: fb};
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Detailed Breakdown',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          buildScoreRowWithTooltip(
+            context: context,
+            label: 'Accuracy',
+            score: result.accuracyScore / 100.0,
+            tooltip: 'How correctly you pronounced the word',
+          ),
+          buildScoreRowWithTooltip(
+            context: context,
+            label: 'Fluency',
+            score: result.fluencyScore / 100.0,
+            tooltip: 'How smooth and natural your pronunciation sounds',
+          ),
+          buildScoreRowWithTooltip(
+            context: context,
+            label: 'Completeness',
+            score: result.completenessScore / 100.0,
+            tooltip: 'How much of the word you pronounced',
+          ),
+          const SizedBox(height: 16),
+          // Word analysis
+          Text('Word Accuracy',
+            style: GoogleFonts.lato(
+              color: Colors.cyan.shade200,
+              fontWeight: FontWeight.bold,
+              fontSize: 16
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (card.wordMapping.isNotEmpty)
+            ...card.wordMapping.map((mapping) {
+              final feedback = feedbackMap[mapping.thai];
+              return _WordAnalysisRow(
+                mapping: mapping,
+                score: feedback?.accuracyScore,
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
+
+class _AzurePronunciationTips extends StatelessWidget {
+  final PronunciationAssessmentResponse result;
+  final Vocabulary vocabulary;
+
+  const _AzurePronunciationTips({
+    required this.result,
+    required this.vocabulary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tipSections = _generateTipSections(result);
+    
+    if (tipSections.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.blue.withOpacity(0.2),
+            Colors.purple.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.amber, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Pronunciation Tips',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...tipSections.expand((section) => [
+            Text(
+              section['title']!,
+              style: const TextStyle(
+                color: Colors.cyan,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...section['tips']!.map((tip) => Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• ', style: TextStyle(color: Colors.amber)),
+                  Expanded(
+                    child: Text(
+                      tip,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+            const SizedBox(height: 12),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _generateTipSections(PronunciationAssessmentResponse result) {
+    List<Map<String, dynamic>> sections = [];
+
+    // Section 1: Word-Specific Issues
+    final wordIssues = <String>[];
+    final characterGuidance = <String>[];
+    final generalAdvice = <String>[];
+
+    // Analyze each word for specific issues
+    final problematicWords = result.detailedFeedback
+        .where((feedback) => feedback.accuracyScore < 80 || feedback.errorType != 'None')
+        .toList();
+
+    for (final feedback in problematicWords.take(3)) { // Limit to 3 worst words
+      final transliteration = feedback.transliteration.isNotEmpty 
+          ? feedback.transliteration 
+          : vocabulary.wordMapping
+              .where((mapping) => mapping.thai == feedback.word)
+              .map((mapping) => mapping.transliteration)
+              .firstOrNull ?? vocabulary.transliteration;
+      
+      switch (feedback.errorType) {
+        case 'Omission':
+          wordIssues.add('You missed "${feedback.word}" ($transliteration) - make sure to pronounce every word');
+          break;
+        case 'Insertion':
+          wordIssues.add('Extra sounds added near "${feedback.word}" ($transliteration) - stick to the written text');
+          break;
+        case 'Mispronunciation':
+          if (feedback.accuracyScore < 40) {
+            wordIssues.add('"${feedback.word}" ($transliteration) needs significant work - practice slowly and repeatedly');
+          } else if (feedback.accuracyScore < 60) {
+            wordIssues.add('"${feedback.word}" ($transliteration) needs improvement - focus on clear articulation');
+          } else {
+            wordIssues.add('"${feedback.word}" ($transliteration) is close - just needs fine-tuning');
+          }
+          break;
+        default:
+          if (feedback.accuracyScore < 80) {
+            wordIssues.add('Practice "${feedback.word}" ($transliteration) more (${feedback.accuracyScore.toInt()}% accuracy)');
+          }
+          break;
+      }
+
+      // Add character-specific guidance for this word
+      final wordCharacterTips = _getWordSpecificCharacterGuidance(feedback.word, transliteration, feedback.errorType);
+      characterGuidance.addAll(wordCharacterTips);
+    }
+
+    // Section 2: Overall Performance Advice
+    if (result.pronunciationScore < 60) {
+      generalAdvice.add('Start by practicing each syllable separately');
+      generalAdvice.add('Use a mirror to watch your mouth position');
+      generalAdvice.add('Listen to Thai audio repeatedly for reference');
+    } else if (result.pronunciationScore < 75) {
+      generalAdvice.add('Focus on distinguishing similar consonants');
+      generalAdvice.add('Pay attention to tone pronunciation');
+      generalAdvice.add('Don\'t drop final consonants');
+    } else if (result.pronunciationScore < 85) {
+      generalAdvice.add('Work on vowel length (short vs long)');
+      generalAdvice.add('Practice tone precision');
+      generalAdvice.add('Focus on natural rhythm');
+    } else if (result.pronunciationScore < 95) {
+      generalAdvice.add('Fine-tune subtle tone variations');
+      generalAdvice.add('Work on natural speech flow');
+      generalAdvice.add('Practice for consistency');
+    } else {
+      generalAdvice.add('Excellent pronunciation! You sound nearly native');
+      generalAdvice.add('Keep practicing to maintain this level');
+      generalAdvice.add('Try challenging yourself with longer phrases');
+    }
+
+    // Organize tips by category into sections
+    if (wordIssues.isNotEmpty) {
+      sections.add({
+        'title': 'Word Issues',
+        'tips': wordIssues,
+      });
+    }
+
+    if (characterGuidance.isNotEmpty) {
+      sections.add({
+        'title': 'Character Pronunciation',
+        'tips': characterGuidance.take(4).toList(),
+      });
+    }
+
+    if (generalAdvice.isNotEmpty) {
+      sections.add({
+        'title': 'General Advice',
+        'tips': generalAdvice.take(3).toList(),
+      });
+    }
+
+    return sections;
+  }
+
+  List<String> _getWordSpecificCharacterGuidance(String thaiWord, String transliteration, String errorType) {
+    List<String> guidance = [];
+    
+    // Analyze each character in the Thai word
+    for (int i = 0; i < thaiWord.length; i++) {
+      final char = thaiWord[i];
+      final tip = _getCharacterTip(char);
+      if (tip.isNotEmpty) {
+        guidance.add('In "$thaiWord" ($transliteration): $tip');
+      }
+    }
+    
+    // Add transliteration-based guidance for common sound patterns
+    if (transliteration.contains('th')) {
+      guidance.add('For "th" sounds in "$thaiWord" ($transliteration): Keep tongue tip touching upper teeth, breathe out gently');
+    }
+    if (transliteration.contains('ph')) {
+      guidance.add('For "ph" sounds in "$thaiWord" ($transliteration): Like "p" + puff of air, not "f" sound');
+    }
+    if (transliteration.contains('ng')) {
+      guidance.add('For "ng" sounds in "$thaiWord" ($transliteration): Like end of "sing", but can start syllables in Thai');
+    }
+    if (transliteration.contains('r')) {
+      guidance.add('For "r" sounds in "$thaiWord" ($transliteration): Roll your tongue tip lightly');
+    }
+    
+    return guidance.take(2).toList(); // Limit to 2 most relevant tips per word
+  }
+
+  String _getCharacterTip(String char) {
+    // Comprehensive character-specific guidance based on web research
+    final tips = {
+      // Aspirated vs Unaspirated pairs
+      'ก': 'Make a "g" sound without puffing air',
+      'ค': 'Like "k" + puff of air',
+      'ป': 'Like "b" without voice, no air puff',
+      'พ': 'Like "p" + strong puff of air',
+      'ต': 'Like "d" but unvoiced, tongue tip to teeth',
+      'ท': 'Like "t" + puff of air, tongue tip to teeth',
+      'บ': 'Like "b" but unvoiced',
+      'ภ': 'Like "ph" with strong aspiration',
+      
+      // Difficult consonants
+      'ร': 'Roll tongue tip lightly, like Spanish "rr" but shorter',
+      'ล': 'Lateral "l" - tongue sides down, tip touches roof',
+      'ง': 'Like "ng" in "sing" - can start Thai syllables',
+      'ญ': 'Soft "ny" sound, tongue touches soft palate',
+      'ว': 'Like "w" but lips closer together',
+      'ย': 'Like "y" in "yes"',
+      
+      // Retroflex consonants
+      'ฏ': 'Tongue tip curled back to touch roof of mouth',
+      'ฐ': 'Like ฏ but with aspiration',
+      'ฎ': 'Retroflex "d" - tongue tip curled back',
+      'ฑ': 'Like ฎ but with aspiration',
+      
+      // Sibilants
+      'ส': 'Regular "s" sound',
+      'ศ': 'Like "s" but tongue higher',
+      'ษ': 'Retroflex "s" - tongue tip curled back',
+      
+      // Tone marks
+      '่': 'Low tone - like disappointed "oh"',
+      '้': 'Falling tone - start high, drop down',
+      '๊': 'High tone - like surprised "eh?"',
+      '๋': 'Rising tone - like questioning "hmm?"',
+      
+      // Vowels with unique sounds
+      'ึ': 'Like "eu" in French "peu" - rounded lips, high tongue',
+      'ื': 'Like "ue" - similar to ึ but longer',
+      'ำ': 'Like "am" - quick "a" + "m"',
+      'เ': 'Like "ay" in "say"',
+      'แ': 'Like "ae" in "cat" but longer',
+      'โ': 'Like "oh" but pure, no glide',
+      'ใ': 'Like "ai" in "Thai"',
+      'ไ': 'Like "ai" in "Thai"',
+      
+      // Final consonants (often silent or changed)
+      'ด': 'At word end: stop abruptly, no release',
+      'ส': 'At word end: becomes "t" sound',
+      'จ': 'At word end: becomes "t" sound',
+      'ซ': 'At word end: becomes "t" sound',
+    };
+    
+    return tips[char] ?? '';
+  }
+
+  void _addCharacterSpecificGuidance(List<String> tips, String thaiWord, String transliteration, String context) {
+    // Character-specific pronunciation guidance based on research
+    final characterTips = <String>[];
+
+    // Analyze each character in the Thai word for specific pronunciation guidance
+    final chars = thaiWord.split('');
+    
+    for (int i = 0; i < chars.length; i++) {
+      final char = chars[i];
+      final guidance = _getCharacterPronunciationGuidance(char, context);
+      if (guidance.isNotEmpty) {
+        characterTips.add(guidance);
+      }
+    }
+
+    // Add clustered consonant guidance
+    if (thaiWord.contains(RegExp(r'[กขค][รลว]|[ปผพ][รลว]|[ตท][ร]'))) {
+      characterTips.add('Consonant clusters: Both consonants contribute to the sound - don\'t drop either one');
+    }
+
+    // Add tone guidance based on word structure
+    if (context == 'mispronunciation' && transliteration.isNotEmpty) {
+      final toneGuidance = _getToneGuidance(thaiWord, transliteration);
+      if (toneGuidance.isNotEmpty) {
+        characterTips.add(toneGuidance);
+      }
+    }
+
+    // Add up to 2 character-specific tips
+    for (final tip in characterTips.take(2)) {
+      tips.add(tip);
+    }
+  }
+
+  String _getCharacterPronunciationGuidance(String char, String context) {
+    // Comprehensive character guidance based on web research
+    switch (char) {
+      // Difficult consonants for English speakers
+      case 'ร':
+        return 'ร: Roll your tongue against the gum ridge behind your teeth - like Spanish "rr"';
+      case 'ล':
+        return 'ล: Touch tongue tip to gum ridge - different from ร (rolled R)';
+      case 'จ':
+        return 'จ: Unaspirated "ch" - like "j" in "John" but softer';
+      case 'ช':
+        return 'ช: Aspirated "ch" - with a puff of air, like "ch" in "church"';
+      case 'ฉ':
+        return 'ฉ: Softer aspirated "ch" - gentler than ช';
+      case 'ง':
+        return 'ง: "ng" sound - like "sing" but can start words in Thai';
+      case 'ผ':
+        return 'ผ: Soft aspirated "p" - gentler puff of air than พ';
+      case 'พ':
+        return 'พ: Strong aspirated "p" - like "p" in "pot" with air burst';
+      case 'ป':
+        return 'ป: Unaspirated "p" - like "p" in "spot" (no air puff)';
+      case 'ท':
+        return 'ท: Aspirated "t" - tongue against gum ridge with air';
+      case 'ต':
+        return 'ต: Unaspirated "t" - like "t" in "stop" (no air puff)';
+      case 'ค':
+        return 'ค: Aspirated "k" - like "k" in "kite" with air burst';
+      case 'ก':
+        return 'ก: Unaspirated "k" - like "g" in "go" but harder';
+      
+      // Tone marks
+      case '่':
+        return 'Low tone (่): Start slightly below normal pitch';
+      case '้':
+        return 'Falling tone (้): Start high, fall to low pitch';
+      case '๊':
+        return 'High tone (๊): Higher than normal pitch throughout';
+      case '๋':
+        return 'Rising tone (๋): Start low, rise above normal pitch';
+        
+      // Difficult vowels
+      case 'ึ':
+        return 'ึ: Unrounded central vowel - no English equivalent, practice with native audio';
+      case 'ื':
+        return 'ื: Long version of ึ - hold the unusual sound longer';
+      case 'ำ':
+        return 'ำ: Combined "am" sound - like "come" but with Thai "a"';
+        
+      // Final consonants (often dropped by learners)
+      case 'บ':
+      case 'ป':
+      case 'พ':
+      case 'ภ':
+      case 'ฟ':
+      case 'ผ':
+        if (context == 'omission') {
+          return 'Final consonant: Don\'t drop the final sound - unreleased but audible';
+        }
+        break;
+        
+      case 'ด':
+      case 'ต':
+      case 'ท':
+      case 'ธ':
+      case 'ฏ':
+      case 'ฐ':
+      case 'ฑ':
+      case 'ฒ':
+        if (context == 'omission') {
+          return 'Final consonant: Stop airflow completely but don\'t release - like stopping mid-sound';
+        }
+        break;
+        
+      case 'ก':
+      case 'ข':
+      case 'ค':
+      case 'ฆ':
+        if (context == 'omission') {
+          return 'Final consonant: Cut off airflow sharply - like a glottal stop';
+        }
+        break;
+    }
+    
+    return '';
+  }
+
+  String _getToneGuidance(String thaiWord, String transliteration) {
+    // Detect tone from transliteration marks
+    if (transliteration.contains('่')) {
+      return 'Low tone: Speak in a lower, flat pitch - like being bored';
+    } else if (transliteration.contains('้')) {
+      return 'Falling tone: Start high and drop - like "Oh no!"';
+    } else if (transliteration.contains('๊')) {
+      return 'High tone: Higher pitch throughout - like asking a question';
+    } else if (transliteration.contains('๋')) {
+      return 'Rising tone: Start low and rise - like "Really?"';
+    } else {
+      return 'Mid tone: Normal speaking pitch - neutral and relaxed';
+    }
   }
 }

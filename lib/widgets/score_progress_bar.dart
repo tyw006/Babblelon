@@ -113,17 +113,20 @@ class _ScoreProgressBarState extends State<ScoreProgressBar>
             SizedBox(
               width: 100,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Flexible(
-                    child: Text(
-                      widget.label,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    child: Center(
+                      child: Text(
+                        widget.label,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (widget.showTooltipIcon)
@@ -164,56 +167,58 @@ class _ScoreProgressBarState extends State<ScoreProgressBar>
                       final currentProgress = _progressAnimation.value.clamp(0.0, 1.0);
                       return Align(
                         alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: MediaQuery.of(context).size.width *
-                              (widget.label.isNotEmpty ? 0.35 : 0.6) * 
-                              math.max(currentProgress, 0.02), // Reduced from 0.05 to 0.02 for more subtle effect
-                          height: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            gradient: LinearGradient(
-                              colors: [
-                                scoreColor.withOpacity(0.3), // More subtle at low values
-                                scoreColor.withOpacity(0.8),
-                                scoreColor.withOpacity(0.9),
-                              ],
-                              stops: const [0.0, 0.7, 1.0],
+                        child: FractionallySizedBox(
+                          widthFactor: math.max(currentProgress, 0.02), // Minimum visible progress
+                          child: Container(
+                            height: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              gradient: LinearGradient(
+                                colors: [
+                                  scoreColor.withOpacity(0.3), // More subtle at low values
+                                  scoreColor.withOpacity(0.8),
+                                  scoreColor.withOpacity(0.9),
+                                ],
+                                stops: const [0.0, 0.7, 1.0],
+                              ),
                             ),
-                          ),
-                          child: AnimatedBuilder(
-                            animation: _shimmerAnimation,
-                            builder: (context, child) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  gradient: LinearGradient(
-                                    begin: Alignment(-1.0 + 2.0 * _shimmerAnimation.value, 0),
-                                    end: Alignment(1.0 + 2.0 * _shimmerAnimation.value, 0),
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.white.withOpacity(currentProgress > 0.1 ? 0.2 : 0.1), // More subtle shimmer at low values
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 0.5, 1.0],
+                            child: AnimatedBuilder(
+                              animation: _shimmerAnimation,
+                              builder: (context, child) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    gradient: LinearGradient(
+                                      begin: Alignment(-1.0 + 2.0 * _shimmerAnimation.value, 0),
+                                      end: Alignment(1.0 + 2.0 * _shimmerAnimation.value, 0),
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.white.withOpacity(currentProgress > 0.1 ? 0.2 : 0.1), // More subtle shimmer at low values
+                                        Colors.transparent,
+                                      ],
+                                      stops: const [0.0, 0.5, 1.0],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                         ),
                       );
                     },
                   ),
                   // Score Text
-                  Text(
-                    '${widget.score.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(color: Colors.black, blurRadius: 1),
-                      ],
+                  Center(
+                    child: Text(
+                      '${widget.score.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 1),
+                        ],
+                      ),
                     ),
                   ),
                 ],

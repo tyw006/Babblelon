@@ -3,6 +3,7 @@ import 'package:babblelon/models/game_models.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:animated_flip_counter/animated_flip_counter.dart';
 
 class Flashcard extends StatefulWidget {
   final Vocabulary vocabulary;
