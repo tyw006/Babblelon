@@ -4,6 +4,7 @@ import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class Flashcard extends StatefulWidget {
   final Vocabulary vocabulary;
@@ -131,16 +132,17 @@ class _FlashcardState extends State<Flashcard>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // For cards on the main screen, onTap triggers the dialog.
-        // It does not handle flipping.
         if (widget.onTap != null) {
           widget.onTap!();
           return;
         }
+        FlameAudio.play('soundeffects/soundeffect_button.mp3');
       },
       onDoubleTap: () {
         // Handle flipping animation for dialog cards with a double tap
         if (widget.isFlippable) {
+          // Play reveal sound effect on every flip (front <-> back)
+          FlameAudio.play('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
           if (_controller.isCompleted) {
             _controller.reverse();
           } else {

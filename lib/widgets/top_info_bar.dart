@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/animated_health_bar.dart';
 import 'package:babblelon/widgets/turn_indicator.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class TopInfoBar extends ConsumerWidget {
   final VoidCallback onMenuPressed;
@@ -48,7 +49,10 @@ class TopInfoBar extends ConsumerWidget {
           children: [
             // Menu Button
             IconButton(
-              onPressed: onMenuPressed,
+              onPressed: () {
+                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                onMenuPressed();
+              },
               icon: const Icon(
                 Icons.menu,
                 color: Colors.white,

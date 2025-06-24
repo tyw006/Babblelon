@@ -3,6 +3,7 @@ import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -39,6 +40,7 @@ class MainMenuScreen extends StatelessWidget {
               const SizedBox(height: 50),
               ElevatedButton(
                 onPressed: () {
+                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -99,6 +101,7 @@ class MainMenuScreen extends StatelessWidget {
                     assetPath: 'assets/images/items/porkbelly_regular.png',
                   );
                   
+                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
                   Navigator.push(
                     context,
                     PageRouteBuilder(

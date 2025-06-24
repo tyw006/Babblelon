@@ -53,3 +53,5 @@ alwaysApply: true
   - Use uv to manage environment packages
   - Use consistent formatting across rules 
   - Before generating any new files, first scan the codebase to make sure that no existing file for this logic exists. If the existing file has room for this new logic, then add it to the existing file. If the logic belongs in its own file, then move over all of the logic from the existing file to the new file. 
+  - Do not change logic for other files/code that is not relevant to the request. ONLY change the code that is specific to the request.
+  - Run "flutter build" or "flutter analyze" to verify your changes did not create other errors.

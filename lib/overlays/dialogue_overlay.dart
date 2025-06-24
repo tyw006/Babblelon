@@ -10,6 +10,8 @@ import 'dart:convert'; // Added for json encoding/decoding
 import 'package:flutter/services.dart'; // Added for DefaultAssetBundle
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flame/flame.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 import '../game/babblelon_game.dart';
 import '../models/npc_data.dart'; // Using the new unified NPC data model
@@ -277,6 +279,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   @override
   void initState() {
     super.initState();
+    _preRequestMicPermission();
     _audioRecorder = AudioRecorder();
     _replayPlayer = ref.read(dialogueReplayPlayerProvider);
 
@@ -351,6 +354,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         _scrollToBottom(_mainDialogueScrollController);
       }
     });
+  }
+
+  Future<void> _preRequestMicPermission() async {
+    await Permission.microphone.request();
   }
 
   Future<void> _loadInitialGreetingData() async {
@@ -866,7 +873,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   Widget _buildControlButton({required IconData icon, required VoidCallback onTap, double size = 28, double padding = 12}) {
     return _AnimatedPressWrapper(
-      onTap: onTap,
+      onTap: () {
+        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        onTap();
+      },
       child: Container(
         padding: EdgeInsets.all(padding),
         decoration: BoxDecoration(
@@ -898,24 +908,39 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     switch (_recordingState) {
       case RecordingState.recording:
         return _AnimatedPressWrapper(
-          onTap: _stopRecordingAndReview,
+          onTap: () {
+            FlameAudio.play('soundeffects/soundeffect_button.mp3');
+            _stopRecordingAndReview();
+          },
           child: _buildMicButton(),
         );
       case RecordingState.reviewing:
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildControlButton(icon: Icons.replay, onTap: _reRecord, padding: 16),
+            _buildControlButton(icon: Icons.replay, onTap: () {
+              FlameAudio.play('soundeffects/soundeffect_button.mp3');
+              _reRecord();
+            }, padding: 16),
             const SizedBox(width: 20),
-            _buildControlButton(icon: Icons.play_arrow, onTap: _playLastRecording, padding: 16),
+            _buildControlButton(icon: Icons.play_arrow, onTap: () {
+              FlameAudio.play('soundeffects/soundeffect_button.mp3');
+              _playLastRecording();
+            }, padding: 16),
             const SizedBox(width: 20),
-            _buildControlButton(icon: Icons.send, onTap: _sendApprovedRecording, padding: 16),
+            _buildControlButton(icon: Icons.send, onTap: () {
+              FlameAudio.play('soundeffects/soundeffect_button.mp3');
+              _sendApprovedRecording();
+            }, padding: 16),
           ],
         );
       case RecordingState.idle:
       default:
         return _AnimatedPressWrapper(
-          onTap: _startRecording,
+          onTap: () {
+            FlameAudio.play('soundeffects/soundeffect_button.mp3');
+            _startRecording();
+          },
           child: _buildMicButton(),
         );
     }
@@ -1647,11 +1672,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           case RecordingState.idle:
             return Center(
               child: GestureDetector(
-                onTap: _startPracticeRecording,
+                onTap: () {
+                  _startPracticeRecording();
+                },
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -1662,7 +1688,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           case RecordingState.recording:
             return Center(
               child: GestureDetector(
-                onTap: _stopPracticeRecording,
+                onTap: () {
+                  _stopPracticeRecording();
+                },
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -1674,23 +1702,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 ),
               ),
             );
-          case RecordingState.reviewing:
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildReviewButton(icon: Icons.refresh, onTap: _resetPracticeRecording),
-                  _buildReviewButton(icon: Icons.play_arrow, onTap: _playPracticeRecording),
-                  _buildReviewButton(icon: Icons.send, onTap: () {
-                    if (_lastPracticeRecordingPath.value != null) {
-                      _sendAudioToBackend(_lastPracticeRecordingPath.value!);
-                      Navigator.of(context).pop(); // Close the translation dialog
-                    }
-                  }),
-                ],
-              ),
-            );
+          default:
+            return const SizedBox.shrink();
         }
       },
     );

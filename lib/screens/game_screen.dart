@@ -10,6 +10,7 @@ import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -303,7 +304,10 @@ class MainMenu extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(15.0),
                     ),
                   ),
-                  onPressed: () => _showExitLevelConfirmation(context),
+                  onPressed: () {
+                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                    _showExitLevelConfirmation(context);
+                  },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
@@ -322,7 +326,10 @@ class MainMenu extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(15.0),
                     ),
                   ),
-                  onPressed: onClose,
+                  onPressed: () {
+                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                    onClose();
+                  },
                   child: const Text('Close', style: TextStyle(color: Colors.white)),
                 ),
               ],
@@ -363,7 +370,10 @@ class MainMenu extends ConsumerWidget {
                 'Cancel',
                 style: TextStyle(color: Colors.white70),
               ),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () {
+                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                Navigator.of(dialogContext).pop(false);
+              },
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -373,7 +383,10 @@ class MainMenu extends ConsumerWidget {
                 'Exit Level',
                 style: TextStyle(color: Colors.white),
               ),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              onPressed: () {
+                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                Navigator.of(dialogContext).pop(true);
+              },
             ),
           ],
         );
@@ -531,22 +544,21 @@ class _MenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Icon(icon, color: Colors.white),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white),
-        ),
-        Switch(
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      trailing: Switch(
           value: value,
-          onChanged: onChanged,
-          activeColor: Colors.green,
-          inactiveThumbColor: Colors.red,
-        ),
-      ],
+        onChanged: (val) {
+          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+          onChanged(val);
+        },
+        activeColor: Colors.blueAccent,
+      ),
+      onTap: () {
+        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        onChanged(!value);
+      },
     );
   }
 } 

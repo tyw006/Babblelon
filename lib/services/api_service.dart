@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
+import 'dart:async';
 
 class ApiService {
   // Base URL is determined by the platform at runtime.
@@ -151,5 +153,82 @@ class ApiService {
 
   Future<void> dispose() async {
     _audioRecorder.dispose();
+  }
+}
+
+/// Service for creating echo effects on audio playback
+class EchoAudioService {
+  static final EchoAudioService _instance = EchoAudioService._internal();
+  factory EchoAudioService() => _instance;
+  EchoAudioService._internal();
+
+  final List<just_audio.AudioPlayer> _activePlayers = [];
+
+  /// Plays audio with echo effect - multiple delayed copies with decreasing volume
+  Future<void> playWithEcho({
+    required String assetPath,
+    int echoCount = 3,
+    Duration echoDelay = const Duration(milliseconds: 300),
+    double volumeDecay = 0.6,
+    double initialVolume = 1.0,
+  }) async {
+    try {
+      // Clean up any existing players
+      await stopAllEchoPlayers();
+
+      for (int i = 0; i <= echoCount; i++) {
+        // Calculate volume for this echo (each echo is quieter)
+        double volume = initialVolume * (volumeDecay * i).clamp(0.0, 1.0);
+        if (i == 0) volume = initialVolume; // First play at full volume
+        
+        // Calculate delay for this echo
+        Duration delay = Duration(milliseconds: echoDelay.inMilliseconds * i);
+
+        // Schedule the echo
+        Timer(delay, () async {
+          if (volume > 0.05) { // Only play if volume is audible
+            final player = just_audio.AudioPlayer();
+            _activePlayers.add(player);
+            
+            try {
+              await player.setAsset('assets/audio/$assetPath');
+              await player.setVolume(volume);
+              await player.play();
+              
+              // Clean up player when audio finishes
+              player.playerStateStream.listen((state) {
+                if (state.processingState == just_audio.ProcessingState.completed) {
+                  _activePlayers.remove(player);
+                  player.dispose();
+                }
+              });
+            } catch (e) {
+              _activePlayers.remove(player);
+              player.dispose();
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('Error playing echo audio: $e');
+    }
+  }
+
+  /// Stops all active echo players
+  Future<void> stopAllEchoPlayers() async {
+    for (final player in _activePlayers) {
+      try {
+        await player.stop();
+        player.dispose();
+      } catch (e) {
+        // Ignore disposal errors
+      }
+    }
+    _activePlayers.clear();
+  }
+
+  /// Dispose of the service
+  Future<void> dispose() async {
+    await stopAllEchoPlayers();
   }
 } 

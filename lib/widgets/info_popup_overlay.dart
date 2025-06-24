@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class InfoPopupOverlay extends StatelessWidget {
   final String title;
@@ -51,14 +52,20 @@ class InfoPopupOverlay extends StatelessWidget {
                 children: [
                   if (cancelText != null && onCancel != null)
                     ElevatedButton(
-                      onPressed: () => onCancel!(context),
+                      onPressed: () {
+                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                        onCancel!(context);
+                      },
                       child: Text(cancelText!),
                     ),
                   if (cancelText != null && onCancel != null && confirmText != null && onConfirm != null)
                     const SizedBox(width: 16),
                   if (confirmText != null && onConfirm != null)
                     ElevatedButton(
-                      onPressed: () => onConfirm!(context),
+                      onPressed: () {
+                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                        onConfirm!(context);
+                      },
                       child: Text(confirmText!),
                     ),
                 ],

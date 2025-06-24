@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class ModernCalculationDisplay extends StatefulWidget {
   final String explanation;
@@ -299,6 +300,7 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
+                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
                         tooltipKey.currentState?.ensureTooltipVisible();
                       },
                       child: Tooltip(

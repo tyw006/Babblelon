@@ -175,8 +175,9 @@ class _DamageIndicatorState extends State<DamageIndicator>
               fontSize: fontSize,
               fontWeight: FontWeight.w900,
               color: damageColor,
-              fontFamily: 'monospace',
+              fontFamily: 'Roboto',
               letterSpacing: 2.0,
+              decoration: TextDecoration.none,
               shadows: [
                 // Strong black outline for readability
                 Shadow(
@@ -263,6 +264,7 @@ class _DamageIndicatorState extends State<DamageIndicator>
           fontWeight: FontWeight.w900,
           color: Colors.white,
           letterSpacing: 1.0,
+          decoration: TextDecoration.none,
           shadows: [
             Shadow(
               color: Colors.black.withOpacity(0.8),
@@ -321,6 +323,7 @@ class _DamageIndicatorState extends State<DamageIndicator>
           fontWeight: FontWeight.w900,
           color: Colors.white,
           letterSpacing: 1.0,
+          decoration: TextDecoration.none,
           shadows: [
             Shadow(
               color: Colors.black.withOpacity(0.8),

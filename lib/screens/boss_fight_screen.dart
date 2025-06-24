@@ -28,6 +28,12 @@ import 'package:babblelon/widgets/modern_calculation_display.dart';
 import 'package:babblelon/widgets/floating_damage_overlay.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:async';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -104,9 +110,11 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   bool _isInitialTurnSet = false; // Ensures initial turn is set only once
   bool _gameInitialized = false; // Ensures game setup happens only once
   late final ApiService _apiService;
+  late final EchoAudioService _echoAudioService;
   final GlobalKey<FloatingDamageOverlayState> damageOverlayKey = GlobalKey<FloatingDamageOverlayState>();
   bool _isRecording = false;
   bool _isLoading = false;
+  bool _showProjectile = false;
   PronunciationAssessmentResponse? _lastAssessment;
   
   // --- State for Practice Assessment in Flashcard Dialog ---
@@ -131,6 +139,10 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   AudioRecorder _practiceAudioRecorder = AudioRecorder();
   final ValueNotifier<RecordingState> _practiceRecordingState = ValueNotifier<RecordingState>(RecordingState.idle);
   final ValueNotifier<String?> _lastPracticeRecordingPath = ValueNotifier<String?>(null);
+  
+  // --- Audio Players for Sound Effects ---
+  just_audio.AudioPlayer? _pronunciationSoundPlayer;
+  just_audio.AudioPlayer? _bonusSoundPlayer;
 
   @override
   void initState() {
@@ -138,6 +150,13 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _calculateSpriteSizes();
     _initializeAnimations();
     _apiService = ApiService();
+    _echoAudioService = EchoAudioService();
+    
+    // Initialize and start boss fight background music
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlameAudio.bgm.stop(); // Stop any previous music
+      FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
+    });
   }
 
   void _setInitialTurn() {
@@ -261,11 +280,17 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _practiceRecordingState.dispose();
     _lastPracticeRecordingPath.dispose();
     _practiceAssessmentResult.dispose();
+    _pronunciationSoundPlayer?.dispose();
+    _bonusSoundPlayer?.dispose();
+    
+    // Stop boss fight music and restore main game music
+    FlameAudio.bgm.stop();
     
     // Reset game state when screen is disposed
     _isInitialTurnSet = false;
     _gameInitialized = false;
     _apiService.dispose();
+    _echoAudioService.dispose();
     
     super.dispose();
   }
@@ -411,7 +436,8 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   Future<void> _performAttack({double attackMultiplier = 20.0}) async {
-    ref.read(animationStateProvider.notifier).state = AnimationState.attacking;
+    // Play attack start sound effect
+    FlameAudio.play('soundeffects/soundeffect_dimsum.mp3');
     
     // Small delay to let popup close completely before starting animation
     await Future.delayed(const Duration(milliseconds: 200));
@@ -423,36 +449,45 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Consistent positioning for all boss damage indicators - further left to fit on screen
     final bossPosition = Offset(screenWidth * 0.60, MediaQuery.of(context).size.height * 0.35);
     
-    // Start projectile animation and show damage indicator when it hits
-    final projectileFuture = _projectileController.forward();
-    
-    // Show damage indicator 80% through the projectile animation (when it visually hits)
-    Future.delayed(Duration(milliseconds: (_projectileController.duration!.inMilliseconds * 0.8).round()), () {
-      if (mounted) {
-        damageOverlayKey.currentState?.showDamageIndicator(
-          damage: damage.toDouble(),
-          position: bossPosition,
-          isHealing: false,
-          isDefense: false,
-          isCritical: isCritical,
-          isGreatDefense: false,
-          attackBonus: damage > 20 ? (damage - 20).toDouble() : 0.0,
-          defenseBonus: 0.0,
-          isMonster: true,
-        );
-      }
-    });
-    
-    await projectileFuture;
-    
-    // Apply damage to boss after projectile hits
-    final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
-    bossHealth.state = (bossHealth.state - damage).clamp(0, widget.bossData.maxHealth);
-    
-    // Show boss damage effect
-    await _performBossDamageAnimation();
-    
-    // Reset projectile and hide it
+          // Set animation state to show projectile
+      ref.read(animationStateProvider.notifier).state = AnimationState.attacking;
+      
+      // Start projectile animation 
+      final projectileFuture = _projectileController.forward();
+      
+      // Wait for projectile to reach target (70% of animation duration for contact)
+      await Future.delayed(Duration(milliseconds: (_projectileController.duration!.inMilliseconds * 0.7).round()));
+      
+      // Stop the attacking animation state to hide projectile immediately upon contact
+      ref.read(animationStateProvider.notifier).state = AnimationState.idle;
+      
+      // Apply damage to boss after projectile hits
+      final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
+      bossHealth.state = (bossHealth.state - damage).clamp(0, widget.bossData.maxHealth);
+      
+      // Show boss damage effect, sound, and damage indicator together
+      _performBossDamageAnimation();
+      
+      // Play attack strike sound effect when damage animation starts
+      FlameAudio.play('soundeffects/soundeffect_dimsum_strike.mp3');
+      
+      // Show damage indicator when damage animation starts
+      damageOverlayKey.currentState?.showDamageIndicator(
+        damage: damage.toDouble(),
+        position: bossPosition,
+        isHealing: false,
+        isDefense: false,
+        isCritical: isCritical,
+        isGreatDefense: false,
+        attackBonus: damage > 20 ? (damage - 20).toDouble() : 0.0,
+        defenseBonus: 0.0,
+        isMonster: true,
+      );
+      
+      // Wait for damage animation to complete
+      await Future.delayed(const Duration(milliseconds: 600));
+      
+      // Reset projectile controller and ensure it's hidden
     _projectileController.reset();
     ref.read(animationStateProvider.notifier).state = AnimationState.idle;
     
@@ -470,12 +505,24 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Start boss attack, but don't wait for it to finish yet.
     final bossAttackFuture = _bossProjectileController.forward();
     
-    // Wait for the boss projectile to get close before showing the shield.
-    // Adjust this delay to time the block.
-    await Future.delayed(const Duration(milliseconds: 5));
+    // Play tuktuk fenrir sound with echo effect during monster sprite attack animation
+    _echoAudioService.playWithEcho(
+      assetPath: 'soundeffects/soundeffect_tuktuk_fenrir.wav',
+      echoCount: 4,
+      echoDelay: const Duration(milliseconds: 200),
+      volumeDecay: 0.7,
+      initialVolume: 0.8,
+    );
+    
+    // Wait for the boss projectile to get closer before showing the shield.
+    // Timing this to match when the monster attack sprite collides with defense
+    await Future.delayed(const Duration(milliseconds: 5)); // Reset to original timing for shield sync
     
     // Activate shield animation to block the attack. It will render based on its controller.
     _shieldController.forward();
+    
+    // Play defense sound effect when shield activates
+    FlameAudio.play('soundeffects/soundeffect_crispyporkbelly.mp3');
     
     // Calculate damage and position info before animation completes
     const baseDamage = 15.0; // Boss base damage (per rubric)
@@ -488,30 +535,34 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Position the indicator at the top of the player sprite (matching monster positioning approach)
     final playerDamagePosition = Offset(playerXPos - 75, screenHeight * 0.35);
     
-    // Schedule damage to appear when the projectile visually hits
-    Future.delayed(Duration(milliseconds: (_bossProjectileController.duration!.inMilliseconds * 0.85).round()), () {
-      if (!mounted) return;
+    // Wait for the full animation to complete before applying damage effects
+    await bossAttackFuture;
+    
+    // Play laser sound effect exactly when damage is applied
+    FlameAudio.play('soundeffects/soundeffect_tuktuk_laser.mp3');
+    
+    // Apply damage to player
+    final playerHealth = ref.read(playerHealthProvider.notifier);
+    playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
 
-      // Apply damage to player
-      final playerHealth = ref.read(playerHealthProvider.notifier);
-      playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
+    // Trigger player damage animation, sound, and damage indicator together
+    _performPlayerDamageAnimation();
+    
+    // Play boss attack hit sound effect when damage animation starts
+    // FlameAudio.play('soundeffects/soundeffect_tuktuk_strike.mp3');
 
-      // Show a single damage indicator that includes "Great Defense" text if applicable
-      damageOverlayKey.currentState?.showDamageIndicator(
-        damage: actualDamage.toDouble(),
-        position: playerDamagePosition,
-        isHealing: false,
-        isDefense: true,
-        isCritical: false,
-        isGreatDefense: isGreatDefense,
-        attackBonus: 0.0,
-        defenseBonus: 0.0,
-        isMonster: false,
-      );
-      
-      // Trigger player damage animation
-      _performPlayerDamageAnimation();
-    });
+    // Show damage indicator when damage animation starts
+    damageOverlayKey.currentState?.showDamageIndicator(
+      damage: actualDamage.toDouble(),
+      position: playerDamagePosition,
+      isHealing: false,
+      isDefense: true,
+      isCritical: false,
+      isGreatDefense: isGreatDefense,
+      attackBonus: 0.0,
+      defenseBonus: 0.0,
+      isMonster: false,
+    );
 
     // Wait for the full animation to complete before proceeding
     await bossAttackFuture;
@@ -596,8 +647,8 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       );
     }
     
-    // Wait for boss attack duration
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Wait for boss attack duration (sped up by 50% from 1500ms to 750ms)
+    await Future.delayed(const Duration(milliseconds: 750));
     
     if (!mounted) return; // Guard after await
     ref.read(animationStateProvider.notifier).state = AnimationState.idle;
@@ -610,6 +661,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _practiceRecordingState.value = RecordingState.idle;
     _lastPracticeRecordingPath.value = null;
     _practiceAssessmentResult.value = null;
+
+    // Pause background music when flashcard dialog opens
+    FlameAudio.bgm.pause();
 
     showDialog(
       context: context,
@@ -638,12 +692,21 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
           getRatingColor: _getRatingColor,
           getRatingText: _getRatingText,
           buildScoreRowWithTooltip: _buildScoreRowWithTooltip,
+          onStopAllSounds: () {
+            _echoAudioService.stopAllEchoPlayers();
+          },
         );
       },
     ).then((_) {
       // Clean up when the dialog is closed
       _resetPracticeRecording();
       _practiceAssessmentResult.value = null;
+      
+      // Resume background music when flashcard dialog closes if music is enabled
+      final musicEnabled = ref.read(gameStateProvider).musicEnabled;
+      if (musicEnabled) {
+        FlameAudio.bgm.resume();
+      }
     });
   }
 
@@ -774,6 +837,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   void _showMenuDialog() {
+    // Pause music when menu opens
+    FlameAudio.bgm.pause();
+    
     showDialog(
       context: context,
       builder: (context) => _BossFightMenuDialog(
@@ -812,6 +878,14 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
             (route) => false,
           );
         },
+        onClose: () {
+          Navigator.of(context).pop();
+          // Resume music when menu closes if music is enabled
+          final musicEnabled = ref.read(gameStateProvider).musicEnabled;
+          if (musicEnabled) {
+            FlameAudio.bgm.resume();
+          }
+        },
       ),
     );
   }
@@ -849,9 +923,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
   }
 
-  void _resetPracticeRecording() {
-    _practiceAudioRecorder.dispose();
-    _practiceAudioRecorder = AudioRecorder(); // Re-initialize the recorder
+  Future<void> _resetPracticeRecording() async {
+    // Do not dispose and recreate the recorder to prevent initialization lag.
+    // Instead, just ensure it's stopped and reset the state.
+    if (await _practiceAudioRecorder.isRecording()) {
+      await _practiceAudioRecorder.stop();
+    }
     _practiceRecordingState.value = RecordingState.idle;
     _lastPracticeRecordingPath.value = null;
   }
@@ -1064,6 +1141,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                   isRevealed: false,
                                   isFlippable: false,
                                   onTap: () {
+                                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
                                     ref.read(tappedCardProvider.notifier).state = card;
                                     _showFlashcardDialog(card);
                                   },
@@ -1309,8 +1387,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
 class _BossFightMenuDialog extends ConsumerWidget {
   final VoidCallback onExit;
+  final VoidCallback? onClose;
 
-  const _BossFightMenuDialog({required this.onExit});
+  const _BossFightMenuDialog({required this.onExit, this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1343,7 +1422,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
                 notifier.setMusicEnabled(val);
 
                 if (val) {
-                  FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
+                  FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
                 } else {
                   FlameAudio.bgm.stop();
                 }
@@ -1361,15 +1440,39 @@ class _BossFightMenuDialog extends ConsumerWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade400,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.redAccent.withOpacity(0.8),
+                minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(15.0),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
               ),
-              onPressed: onExit,
-              child: const Text('Exit to Main Menu'),
+              onPressed: () {
+                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                onExit();
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.exit_to_app, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Exit to Main Menu', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey.withOpacity(0.3),
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+              ),
+              onPressed: () {
+                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                if (onClose != null) onClose!();
+              },
+              child: const Text('Close', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -1398,10 +1501,16 @@ class _BossFightMenuButton extends StatelessWidget {
       title: Text(label, style: const TextStyle(color: Colors.white)),
       trailing: Switch(
         value: value,
-        onChanged: onChanged,
+        onChanged: (val) {
+          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+          onChanged(val);
+        },
         activeColor: Colors.blueAccent,
       ),
-      onTap: () => onChanged(!value),
+      onTap: () {
+        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        onChanged(!value);
+      },
     );
   }
 }
@@ -1429,6 +1538,7 @@ class _InteractiveFlashcardDialog extends ConsumerStatefulWidget {
     required BuildContext context,
     bool isHeader,
   }) buildScoreRowWithTooltip;
+  final VoidCallback onStopAllSounds;
 
   const _InteractiveFlashcardDialog({
     required this.card,
@@ -1445,6 +1555,7 @@ class _InteractiveFlashcardDialog extends ConsumerStatefulWidget {
     required this.getRatingColor,
     required this.getRatingText,
     required this.buildScoreRowWithTooltip,
+    required this.onStopAllSounds,
   });
 
   @override
@@ -1456,16 +1567,19 @@ class _InteractiveFlashcardDialogState
     extends ConsumerState<_InteractiveFlashcardDialog> with TickerProviderStateMixin {
   bool _isRevealed = false;
   late final just_audio.AudioPlayer _audioPlayer;
+  late final just_audio.AudioPlayer _soundEffectsPlayer; // Single reusable player for sound effects
   late AnimationController _progressController; // For playback progress
 
   double _animatedPronunciationScore = 0;
   double _animatedBonusPercentage = 0;
+  Timer? _soundEffectTimer; // Timer to control sound duration
 
   @override
   void initState() {
     super.initState();
     _isRevealed = ref.read(revealedCardsProvider).contains(widget.card.english);
     _audioPlayer = just_audio.AudioPlayer();
+    _soundEffectsPlayer = just_audio.AudioPlayer(); // Initialize once
     
     _progressController = AnimationController(
       vsync: this,
@@ -1482,6 +1596,8 @@ class _InteractiveFlashcardDialogState
   void dispose() {
     widget.practiceRecordingStateNotifier.removeListener(_onRecordingStateChange);
     _audioPlayer.dispose();
+    _soundEffectsPlayer.dispose(); // Dispose the reusable player
+    _soundEffectTimer?.cancel(); // Cancel any active timer
     _progressController.dispose();
     super.dispose();
   }
@@ -1495,8 +1611,25 @@ class _InteractiveFlashcardDialogState
         });
       }
       // Animate the scores after a short delay
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 100), () async {
         if (mounted && widget.practiceAssessmentResultNotifier.value != null) {
+          final score = widget.practiceAssessmentResultNotifier.value!.pronunciationScore;
+          final duration = score == 0 ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1500);
+
+          // Play counting animation sound effect with a specific duration
+          try {
+            await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+            _soundEffectsPlayer.play();
+            
+            // Stop the audio after the specified duration
+            _soundEffectTimer?.cancel(); // Cancel any existing timer
+            _soundEffectTimer = Timer(duration, () {
+              _soundEffectsPlayer.stop();
+            });
+          } catch (e) {
+            print("Error playing pronunciation sound: $e");
+          }
+          
           setState(() {
             _animatedPronunciationScore = widget.practiceAssessmentResultNotifier.value!.pronunciationScore;
           });
@@ -1504,10 +1637,30 @@ class _InteractiveFlashcardDialogState
       });
     } else if (widget.practiceRecordingStateNotifier.value == RecordingState.damageCalculation) {
       // Animate the bonus percentage
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 100), () async {
         if (mounted && widget.practiceAssessmentResultNotifier.value != null) {
           final result = widget.practiceAssessmentResultNotifier.value!;
           final isAttackTurn = ref.read(turnProvider) == Turn.player;
+          
+          final bonusPercentage = isAttackTurn 
+            ? ((result.calculationBreakdown.finalAttackBonus ?? 1.0) - 1.0) * 100
+            : (1 - result.defenseMultiplier) * 100;
+
+          final duration = bonusPercentage == 0 ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1800);
+
+          // Play counting animation sound effect with a specific duration
+          try {
+            await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+            _soundEffectsPlayer.play();
+            
+            // Stop the audio after the specified duration
+            _soundEffectTimer?.cancel(); // Cancel any existing timer
+            _soundEffectTimer = Timer(duration, () {
+              _soundEffectsPlayer.stop();
+            });
+          } catch (e) {
+            print("Error playing pronunciation sound: $e");
+          }
           
           setState(() {
             if (isAttackTurn) {
@@ -1633,6 +1786,14 @@ class _InteractiveFlashcardDialogState
                           elevation: 8,
                         ),
                         onPressed: () {
+                          // Play sound effect on continue
+                          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                          
+                          // Stop any playing sound effects when Continue is pressed
+                          _soundEffectTimer?.cancel();
+                          _soundEffectsPlayer.stop();
+                          widget.onStopAllSounds();
+                          
                           widget.practiceRecordingStateNotifier.value = RecordingState.damageCalculation;
                         },
                         child: const Row(
@@ -1972,6 +2133,10 @@ class _InteractiveFlashcardDialogState
               // Final Action Button
               ElevatedButton(
                 onPressed: () {
+                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                  _soundEffectTimer?.cancel();
+                  _soundEffectsPlayer.stop();
+                  widget.onStopAllSounds();
                   Navigator.of(context).pop();
                   widget.onConfirm();
                 },
