@@ -2,15 +2,20 @@
 
 **Created:** December 19, 2024 at 3:47 PM PST  
 **Status:** FINAL - Implementation Complete  
-**Version:** 2.0
+**Version:** 2.1
 
 ## Core Game Balance
 
 - **Player HP:** 100
-- **Boss HP:** 700
+- **Boss HP:** 500
 - **Boss Base Attack:** 15
-- **Regular Attack Item Base:** 40
-- **Special Attack Item Base:** 50
+- **Regular Attack Item Base:** 50
+- **Special Attack Item Base:** 60
+
+## Critical Hit & Great Defense Thresholds
+
+- **Critical Hit:** Total attack bonus >= 50% (1.5x multiplier or higher)
+- **Great Defense:** Total defense bonus >= 30% (30% damage reduction or more)
 
 ## ATTACK Rubric
 
@@ -47,9 +52,10 @@ Final Damage = Base Attack × (1.0 + Pronunciation Bonus + Gated Complexity Bonu
 ```
 
 ### Attack Examples
-- **Worst Case:** Needs Improvement + Complex + Revealed = 40 × (1.0 + 0.0 + 0.0 - 0.2) = 32 damage
-- **Best Case:** Excellent + Level 5 + Not Revealed = 40 × (1.0 + 0.6 + 0.6 - 0.0) = 88 damage
-- **Example:** "Okay" pronunciation on Level 3 complexity = 40 × (1.0 + 0.1 + 0.3) = 56 damage
+- **Worst Case:** Needs Improvement + Complex + Revealed = 50 × (1.0 + 0.0 + 0.0 - 0.2) = 40 damage
+- **Best Case:** Excellent + Level 5 + Not Revealed = 50 × (1.0 + 0.6 + 0.6 - 0.0) = 110 damage
+- **Critical Hit Example:** "Good" pronunciation on Level 5 complexity = 50 × (1.0 + 0.3 + 0.6) = 95 damage (90% bonus >= 50% threshold)
+- **Example:** "Okay" pronunciation on Level 3 complexity = 50 × (1.0 + 0.1 + 0.3) = 70 damage
 
 ## DEFENSE Rubric
 
@@ -94,6 +100,7 @@ ELSE:
 - **Card Revealed (Capped):** "Excellent" regular defense (-0.5) + Level 5 complexity (-0.2). Bonuses total -0.7. Penalty = min(0.7, 0.2) = +0.2. Multiplier = clamp(1.0 - 0.5 - 0.2 + 0.2, 0.1, 1.0) = 0.5. Damage = 15 * 0.5 = 7.5 HP.
 - **Card Revealed (Full Negation):** "Okay" regular defense (-0.1) + Level 3 complexity (-0.1). Bonuses total -0.2. Penalty = min(0.2, 0.2) = +0.2. Multiplier = clamp(1.0 - 0.1 - 0.1 + 0.2, 0.1, 1.0) = 1.0. Damage = 15 * 1.0 = 15 HP.
 - **Best Case (Not Revealed):** Special Excellent (-0.7) + Level 5 (-0.2). Multiplier = clamp(1.0 - 0.7 - 0.2, 0.1, 1.0) = 0.1. Damage = 15 * 0.1 = 1.5 HP.
+- **Great Defense Example:** "Good" special defense (-0.5) + Level 3 (-0.1). Total reduction = 60%. Multiplier = clamp(1.0 - 0.5 - 0.1, 0.1, 1.0) = 0.4. Damage = 15 * 0.4 = 6 HP (60% reduction >= 30% threshold)
 - **Example (Not Revealed):** "Okay" regular defense (-0.1) on Level 3 (-0.1). Multiplier = clamp(1.0 - 0.1 - 0.1, 0.1, 1.0) = 0.8. Damage = 15 * 0.8 = 12 HP.
 
 ## Key Principles
@@ -103,6 +110,8 @@ ELSE:
 3. **Defense Clamp:** Final defense multiplier is clamped between 0.1 (10% damage) and 1.0 (100% damage)
 4. **No Extra Damage:** Players never take more than 100% of boss base damage
 5. **Item Type Matters:** Special items provide better defense bonuses than regular items
+6. **Critical Hit Threshold:** Attack bonus >= 50% triggers critical hit animation
+7. **Great Defense Threshold:** Defense bonus >= 30% triggers great defense animation
 
 ## Implementation Notes
 

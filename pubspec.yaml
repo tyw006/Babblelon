@@ -60,4 +60,5 @@ flutter:
     - assets/audio/soundeffects/
     - assets/images/bosses/tuktuk/
     - assets/data/
+    - assets/lottie/
     - .env 

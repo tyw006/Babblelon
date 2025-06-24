@@ -416,12 +416,37 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Small delay to let popup close completely before starting animation
     await Future.delayed(const Duration(milliseconds: 200));
     
-    // Start projectile animation
-    await _projectileController.forward();
-    
-    // Deal damage to boss using the attack multiplier
-    final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
+    // Calculate damage before animation
     final damage = attackMultiplier.round();
+    final isCritical = damage >= 75; // Updated: 50% bonus threshold (50 base * 1.5 = 75)
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Consistent positioning for all boss damage indicators - further left to fit on screen
+    final bossPosition = Offset(screenWidth * 0.60, MediaQuery.of(context).size.height * 0.35);
+    
+    // Start projectile animation and show damage indicator when it hits
+    final projectileFuture = _projectileController.forward();
+    
+    // Show damage indicator 80% through the projectile animation (when it visually hits)
+    Future.delayed(Duration(milliseconds: (_projectileController.duration!.inMilliseconds * 0.8).round()), () {
+      if (mounted) {
+        damageOverlayKey.currentState?.showDamageIndicator(
+          damage: damage.toDouble(),
+          position: bossPosition,
+          isHealing: false,
+          isDefense: false,
+          isCritical: isCritical,
+          isGreatDefense: false,
+          attackBonus: damage > 20 ? (damage - 20).toDouble() : 0.0,
+          defenseBonus: 0.0,
+          isMonster: true,
+        );
+      }
+    });
+    
+    await projectileFuture;
+    
+    // Apply damage to boss after projectile hits
+    final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
     bossHealth.state = (bossHealth.state - damage).clamp(0, widget.bossData.maxHealth);
     
     // Show boss damage effect
@@ -452,17 +477,44 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Activate shield animation to block the attack. It will render based on its controller.
     _shieldController.forward();
     
-    // Wait for the boss attack animation to fully complete.
-    await bossAttackFuture;
-    
-    // Player takes damage modified by defense multiplier (lower multiplier = better defense)
-    final playerHealth = ref.read(playerHealthProvider.notifier);
+    // Calculate damage and position info before animation completes
     const baseDamage = 15.0; // Boss base damage (per rubric)
     final actualDamage = (baseDamage * defenseMultiplier).round();
-    playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
+    final isGreatDefense = defenseMultiplier <= 0.7; // Great defense threshold (30% damage reduction)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final playerXPos = screenWidth * 0.2;
     
-    // Show damage effect on player.
-    await _performPlayerDamageAnimation();
+    // Position the indicator at the top of the player sprite (matching monster positioning approach)
+    final playerDamagePosition = Offset(playerXPos - 75, screenHeight * 0.35);
+    
+    // Schedule damage to appear when the projectile visually hits
+    Future.delayed(Duration(milliseconds: (_bossProjectileController.duration!.inMilliseconds * 0.85).round()), () {
+      if (!mounted) return;
+
+      // Apply damage to player
+      final playerHealth = ref.read(playerHealthProvider.notifier);
+      playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
+
+      // Show a single damage indicator that includes "Great Defense" text if applicable
+      damageOverlayKey.currentState?.showDamageIndicator(
+        damage: actualDamage.toDouble(),
+        position: playerDamagePosition,
+        isHealing: false,
+        isDefense: true,
+        isCritical: false,
+        isGreatDefense: isGreatDefense,
+        attackBonus: 0.0,
+        defenseBonus: 0.0,
+        isMonster: false,
+      );
+      
+      // Trigger player damage animation
+      _performPlayerDamageAnimation();
+    });
+
+    // Wait for the full animation to complete before proceeding
+    await bossAttackFuture;
     
     // Reset animations and state.
     await Future.delayed(const Duration(milliseconds: 300));
@@ -1456,10 +1508,15 @@ class _InteractiveFlashcardDialogState
         if (mounted && widget.practiceAssessmentResultNotifier.value != null) {
           final result = widget.practiceAssessmentResultNotifier.value!;
           final isAttackTurn = ref.read(turnProvider) == Turn.player;
+          
           setState(() {
-            _animatedBonusPercentage = isAttackTurn 
-              ? ((result.attackMultiplier - 40) / 40 * 100)
-              : (1 - result.defenseMultiplier) * 100;
+            if (isAttackTurn) {
+              final breakdown = result.calculationBreakdown;
+              final attackMultiplier = breakdown.finalAttackBonus ?? 1.0;
+              _animatedBonusPercentage = (attackMultiplier - 1.0) * 100;
+            } else {
+              _animatedBonusPercentage = (1 - result.defenseMultiplier) * 100;
+            }
           });
         }
       });
@@ -1813,18 +1870,15 @@ class _InteractiveFlashcardDialogState
         }
 
         final isAttackTurn = ref.read(turnProvider) == Turn.player;
-        final double bonusPercentage;
         final IconData actionIcon;
         final Color actionColor;
         final String actionText;
 
         if (isAttackTurn) {
-          bonusPercentage = ((result.attackMultiplier - 40) / 40 * 100);
           actionIcon = Icons.flash_on;
           actionColor = Colors.redAccent;
           actionText = "Attack!";
         } else {
-          bonusPercentage = (1 - result.defenseMultiplier) * 100;
           actionIcon = Icons.shield;
           actionColor = Colors.blueAccent;
           actionText = "Defend!";
@@ -2168,6 +2222,57 @@ class _WordAnalysisRow extends StatelessWidget {
               label: '', // Remove "Accuracy" label to give more space to bar
               value: effectiveScore / 100.0,
               score: effectiveScore,
+              height: 8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BackendWordAnalysisRow extends StatelessWidget {
+  final WordFeedback feedback;
+
+  const _BackendWordAnalysisRow({required this.feedback});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          // Word information from backend
+          SizedBox(
+            width: 110, // Fixed width for alignment
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(feedback.word,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                if (feedback.transliteration.isNotEmpty)
+                  Text(feedback.transliteration,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.7), fontSize: 10)),
+                if (feedback.errorType != 'None')
+                  Text(feedback.errorType,
+                      style: TextStyle(
+                          color: Colors.orange.shade300,
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Progress bar
+          Expanded(
+            child: ScoreProgressBar(
+              label: '', // Remove "Accuracy" label to give more space to bar
+              value: feedback.accuracyScore / 100.0,
+              score: feedback.accuracyScore,
               height: 8,
             ),
           ),
@@ -2665,23 +2770,22 @@ class _DetailedPronunciationScores extends StatelessWidget {
             tooltip: 'How much of the word you pronounced',
           ),
           const SizedBox(height: 16),
-          // Word analysis
-          Text('Word Accuracy',
-            style: GoogleFonts.lato(
-              color: Colors.cyan.shade200,
-              fontWeight: FontWeight.bold,
-              fontSize: 16
+          // Word analysis - use backend detailed feedback directly
+          if (result.detailedFeedback.isNotEmpty) ...[
+            Text('Word Accuracy',
+              style: GoogleFonts.lato(
+                color: Colors.cyan.shade200,
+                fontWeight: FontWeight.bold,
+                fontSize: 16
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          if (card.wordMapping.isNotEmpty)
-            ...card.wordMapping.map((mapping) {
-              final feedback = feedbackMap[mapping.thai];
-              return _WordAnalysisRow(
-                mapping: mapping,
-                score: feedback?.accuracyScore,
+            const SizedBox(height: 8),
+            ...result.detailedFeedback.map((feedback) {
+              return _BackendWordAnalysisRow(
+                feedback: feedback,
               );
             }),
+          ],
         ],
       ),
     );

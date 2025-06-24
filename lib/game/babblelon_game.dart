@@ -108,7 +108,7 @@ class BabblelonGame extends FlameGame with
     const tuktukBoss = BossData(
       name: "Tuk-Tuk Monster",
       spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
-      maxHealth: 600,
+      maxHealth: 500,
       vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
       backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
       languageName: 'Thai',

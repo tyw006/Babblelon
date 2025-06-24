@@ -22,6 +22,7 @@ class FloatingDamageOverlayState extends State<FloatingDamageOverlay> {
     bool isGreatDefense = false,
     double attackBonus = 0.0,
     double defenseBonus = 0.0,
+    bool isMonster = false,
   }) {
     if (!mounted) return;
 
@@ -34,6 +35,7 @@ class FloatingDamageOverlayState extends State<FloatingDamageOverlay> {
       isGreatDefense: isGreatDefense,
       attackBonus: attackBonus,
       defenseBonus: defenseBonus,
+      isMonster: isMonster,
       key: GlobalKey(),
     );
 
@@ -57,9 +59,10 @@ class FloatingDamageOverlayState extends State<FloatingDamageOverlay> {
       children: [
         widget.child,
         ..._activeIndicators.map((indicator) {
+          final topOffset = indicator.isMonster ? -20.0 : -60.0;
           return Positioned(
             left: indicator.position.dx - 80,
-            top: indicator.position.dy - 60,
+            top: indicator.position.dy + topOffset,
             child: DamageIndicator(
               key: indicator.key,
               damage: indicator.damage,
@@ -79,7 +82,7 @@ class FloatingDamageOverlayState extends State<FloatingDamageOverlay> {
               },
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -94,6 +97,7 @@ class DamageIndicatorData {
   final bool isGreatDefense;
   final double attackBonus;
   final double defenseBonus;
+  final bool isMonster;
   final GlobalKey key;
 
   DamageIndicatorData({
@@ -105,6 +109,7 @@ class DamageIndicatorData {
     required this.isGreatDefense,
     required this.attackBonus,
     required this.defenseBonus,
+    required this.isMonster,
     required this.key,
   });
 } 

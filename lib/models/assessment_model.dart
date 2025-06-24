@@ -85,8 +85,6 @@ class WordFeedback {
   }
 }
 
-
-
 class DamageCalculationBreakdown {
   final double baseValue;
   final double pronunciationMultiplier;
@@ -102,7 +100,8 @@ class DamageCalculationBreakdown {
   final double? attackComplexityBonus;
   final double? defensePronunciationBonus;
   final double? defenseComplexityBonus;
-  final double? cardRevealPenalty;
+  final double? attackRevealPenalty;
+  final double? defenseRevealPenalty;
   final double? finalAttackBonus;
   final double? finalDefenseReduction;
 
@@ -119,7 +118,8 @@ class DamageCalculationBreakdown {
     this.attackComplexityBonus,
     this.defensePronunciationBonus,
     this.defenseComplexityBonus,
-    this.cardRevealPenalty,
+    this.attackRevealPenalty,
+    this.defenseRevealPenalty,
     this.finalAttackBonus,
     this.finalDefenseReduction,
   });
@@ -138,7 +138,8 @@ class DamageCalculationBreakdown {
       attackComplexityBonus: json['attack_complexity_bonus']?.toDouble(),
       defensePronunciationBonus: json['defense_pronunciation_bonus']?.toDouble(),
       defenseComplexityBonus: json['defense_complexity_bonus']?.toDouble(),
-      cardRevealPenalty: json['card_reveal_penalty']?.toDouble(),
+      attackRevealPenalty: json['attack_reveal_penalty']?.toDouble(),
+      defenseRevealPenalty: json['defense_reveal_penalty']?.toDouble(),
       finalAttackBonus: json['final_attack_bonus']?.toDouble(),
       finalDefenseReduction: json['final_defense_reduction']?.toDouble(),
     );

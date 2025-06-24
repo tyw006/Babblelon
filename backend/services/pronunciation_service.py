@@ -54,6 +54,8 @@ class DamageCalculationBreakdown(BaseModel):
     complexity_multiplier: float
     penalty: float
     explanation: str
+    final_attack_bonus: float
+    final_defense_reduction: float
 
 class PronunciationAssessmentResponse(BaseModel):
     rating: str
@@ -302,8 +304,8 @@ async def assess_pronunciation(
         print("GAME IMPACT:")
         if turn_type == 'attack':
             print(f"  Final Attack Damage: {attack_damage:.1f}")
-            print(f"  Base Damage: 40 (Regular) / 50 (Special)")
-            print(f"  Attack Multiplier: {attack_damage / (50.0 if item_type == 'special' else 40.0):.2f}x")
+            print(f"  Base Damage: 50 (Regular) / 60 (Special)")
+            print(f"  Attack Multiplier: {attack_damage / (60.0 if item_type == 'special' else 50.0):.2f}x")
         else:
             print(f"  Defense Multiplier: {defense_multiplier:.2f}")
             print(f"  Damage Taken: {15.0 * defense_multiplier:.1f} HP (from 15 base)")
@@ -338,7 +340,7 @@ async def assess_pronunciation(
 
 def get_pronunciation_rating(score):
     """Converts a numerical score to a qualitative rating."""
-    if score > 90:
+    if score >= 90:
         return 'Excellent'
     elif score >= 75:
         return 'Good'
@@ -409,7 +411,7 @@ def calculate_multipliers(pronunciation_score, complexity, item_type, was_reveal
     final_complexity_bonus_defense = complexity_bonus_defense
     
     # Calculate Attack Damage
-    base_damage = 50.0 if item_type == 'special' else 40.0
+    base_damage = 60.0 if item_type == 'special' else 50.0
     attack_multiplier = 1.0 + pronunciation_bonus_attack + complexity_bonus_attack + reveal_penalty_attack
     final_attack_damage = base_damage * attack_multiplier
     
