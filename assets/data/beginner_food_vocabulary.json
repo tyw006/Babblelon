@@ -2259,7 +2259,8 @@
                 }
             ],
             "complexity": 3,
-            "details": "A polite way to ask before taking a seat, especially if you are joining someone or choosing your own table."
+            "details": "A polite way to ask before taking a seat, especially if you are joining someone or choosing your own table.",
+            "word_mapping_verified": true
         }
     ]
 }
