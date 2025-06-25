@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/animated_health_bar.dart';
 import 'package:babblelon/widgets/turn_indicator.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
 class TopInfoBar extends ConsumerWidget {
   final VoidCallback onMenuPressed;
@@ -25,6 +26,7 @@ class TopInfoBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
     return SafeArea(
       bottom: false,
       child: Container(
@@ -50,7 +52,7 @@ class TopInfoBar extends ConsumerWidget {
             // Menu Button
             IconButton(
               onPressed: () {
-                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                ref.playButtonSound();
                 onMenuPressed();
               },
               icon: const Icon(

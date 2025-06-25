@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
-class InfoPopupOverlay extends StatelessWidget {
+class InfoPopupOverlay extends ConsumerWidget {
   final String title;
   final String message;
   final String? confirmText;
@@ -20,7 +22,8 @@ class InfoPopupOverlay extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    
     return Center(
       child: Card(
         color: Colors.black.withOpacity(0.8),
@@ -53,7 +56,7 @@ class InfoPopupOverlay extends StatelessWidget {
                   if (cancelText != null && onCancel != null)
                     ElevatedButton(
                       onPressed: () {
-                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                        ref.playButtonSound();
                         onCancel!(context);
                       },
                       child: Text(cancelText!),
@@ -63,7 +66,7 @@ class InfoPopupOverlay extends StatelessWidget {
                   if (confirmText != null && onConfirm != null)
                     ElevatedButton(
                       onPressed: () {
-                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                        ref.playButtonSound();
                         onConfirm!(context);
                       },
                       child: Text(confirmText!),

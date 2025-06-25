@@ -4,12 +4,16 @@ import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
-class MainMenuScreen extends StatelessWidget {
+class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -39,8 +43,8 @@ class MainMenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 50),
               ElevatedButton(
-                onPressed: () {
-                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                              onPressed: () {
+                ref.playButtonSound();
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -101,7 +105,7 @@ class MainMenuScreen extends StatelessWidget {
                     assetPath: 'assets/images/items/porkbelly_regular.png',
                   );
                   
-                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                  ref.playButtonSound();
                   Navigator.push(
                     context,
                     PageRouteBuilder(

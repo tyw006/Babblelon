@@ -874,7 +874,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   Widget _buildControlButton({required IconData icon, required VoidCallback onTap, double size = 28, double padding = 12}) {
     return _AnimatedPressWrapper(
       onTap: () {
-        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        ref.playButtonSound();
         onTap();
       },
       child: Container(
@@ -909,7 +909,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       case RecordingState.recording:
         return _AnimatedPressWrapper(
           onTap: () {
-            FlameAudio.play('soundeffects/soundeffect_button.mp3');
+            ref.playButtonSound();
             _stopRecordingAndReview();
           },
           child: _buildMicButton(),
@@ -919,17 +919,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildControlButton(icon: Icons.replay, onTap: () {
-              FlameAudio.play('soundeffects/soundeffect_button.mp3');
               _reRecord();
             }, padding: 16),
             const SizedBox(width: 20),
             _buildControlButton(icon: Icons.play_arrow, onTap: () {
-              FlameAudio.play('soundeffects/soundeffect_button.mp3');
               _playLastRecording();
             }, padding: 16),
             const SizedBox(width: 20),
             _buildControlButton(icon: Icons.send, onTap: () {
-              FlameAudio.play('soundeffects/soundeffect_button.mp3');
               _sendApprovedRecording();
             }, padding: 16),
           ],
@@ -938,7 +935,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       default:
         return _AnimatedPressWrapper(
           onTap: () {
-            FlameAudio.play('soundeffects/soundeffect_button.mp3');
+            ref.playButtonSound();
             _startRecording();
           },
           child: _buildMicButton(),

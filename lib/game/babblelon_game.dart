@@ -51,7 +51,10 @@ class BabblelonGame extends FlameGame with
   just_audio.AudioPlayer? _portalSoundPlayer;
 
   void toggleMenu(BuildContext context, WidgetRef ref) {
-    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    if (soundEffectsEnabled) {
+      FlameAudio.play('soundeffects/soundeffect_button.mp3');
+    }
     final isPaused = ref.read(gameStateProvider).isPaused;
     if (overlays.isActive('main_menu')) {
       overlays.remove('main_menu');
@@ -154,7 +157,7 @@ class BabblelonGame extends FlameGame with
 
     // --- Pre-load portal sound ---
     _portalSoundPlayer = just_audio.AudioPlayer();
-    await _portalSoundPlayer?.setAsset('assets/audio/soundeffects/soundeffect_portal_v2.mp3');
+    await _portalSoundPlayer?.setAsset('assets/audio/bg/soundeffect_portal_v2.mp3');
     await _portalSoundPlayer?.setLoopMode(just_audio.LoopMode.one);
     // --- End pre-load ---
   }

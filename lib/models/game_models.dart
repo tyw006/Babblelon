@@ -159,6 +159,7 @@ class Vocabulary {
   final String foodCategory;
   final String? details;
   final String? slang;
+  final String? audioPath;
 
   Vocabulary({
     required this.english,
@@ -169,6 +170,7 @@ class Vocabulary {
     required this.foodCategory,
     this.details,
     this.slang,
+    this.audioPath,
   });
 
   factory Vocabulary.fromJson(Map<String, dynamic> json) {
@@ -184,6 +186,7 @@ class Vocabulary {
       foodCategory: json['food_category'] ?? '',
       details: json['details'],
       slang: json['slang'],
+      audioPath: json['audio_path'],
     );
   }
 
@@ -197,6 +200,7 @@ class Vocabulary {
       'food_category': foodCategory,
       'details': details,
       'slang': slang,
+      'audioPath': audioPath,
     };
   }
 }

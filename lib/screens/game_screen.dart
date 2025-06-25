@@ -305,8 +305,8 @@ class MainMenu extends ConsumerWidget {
                     ),
                   ),
                   onPressed: () {
-                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
-                    _showExitLevelConfirmation(context);
+                    ref.playButtonSound();
+                    _showExitLevelConfirmation(context, ref);
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -327,7 +327,7 @@ class MainMenu extends ConsumerWidget {
                     ),
                   ),
                   onPressed: () {
-                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                    ref.playButtonSound();
                     onClose();
                   },
                   child: const Text('Close', style: TextStyle(color: Colors.white)),
@@ -340,7 +340,7 @@ class MainMenu extends ConsumerWidget {
     );
   }
 
-  static Future<void> _showExitLevelConfirmation(BuildContext context) async {
+  static Future<void> _showExitLevelConfirmation(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -371,7 +371,7 @@ class MainMenu extends ConsumerWidget {
                 style: TextStyle(color: Colors.white70),
               ),
               onPressed: () {
-                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                ref.playButtonSound();
                 Navigator.of(dialogContext).pop(false);
               },
             ),
@@ -384,7 +384,7 @@ class MainMenu extends ConsumerWidget {
                 style: TextStyle(color: Colors.white),
               ),
               onPressed: () {
-                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                ref.playButtonSound();
                 Navigator.of(dialogContext).pop(true);
               },
             ),
@@ -529,7 +529,7 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _MenuButton extends StatelessWidget {
+class _MenuButton extends ConsumerWidget {
   final IconData icon;
   final String label;
   final bool value;
@@ -543,20 +543,20 @@ class _MenuButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListTile(
       leading: Icon(icon, color: Colors.white),
       title: Text(label, style: const TextStyle(color: Colors.white)),
       trailing: Switch(
           value: value,
         onChanged: (val) {
-          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+          ref.playButtonSound();
           onChanged(val);
         },
         activeColor: Colors.blueAccent,
       ),
       onTap: () {
-        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        ref.playButtonSound();
         onChanged(!value);
       },
     );

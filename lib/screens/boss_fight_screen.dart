@@ -139,10 +139,19 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   AudioRecorder _practiceAudioRecorder = AudioRecorder();
   final ValueNotifier<RecordingState> _practiceRecordingState = ValueNotifier<RecordingState>(RecordingState.idle);
   final ValueNotifier<String?> _lastPracticeRecordingPath = ValueNotifier<String?>(null);
+  bool _isRecorderInitialized = false;
   
   // --- Audio Players for Sound Effects ---
   just_audio.AudioPlayer? _pronunciationSoundPlayer;
   just_audio.AudioPlayer? _bonusSoundPlayer;
+
+  // --- Audio Helper Method ---
+  void _playSoundEffect(String path, {double volume = 1.0}) {
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    if (soundEffectsEnabled) {
+      FlameAudio.play(path, volume: volume);
+    }
+  }
 
   @override
   void initState() {
@@ -437,7 +446,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
   Future<void> _performAttack({double attackMultiplier = 20.0}) async {
     // Play attack start sound effect
-    FlameAudio.play('soundeffects/soundeffect_dimsum.mp3');
+    _playSoundEffect('soundeffects/soundeffect_dimsum.mp3');
     
     // Small delay to let popup close completely before starting animation
     await Future.delayed(const Duration(milliseconds: 200));
@@ -469,7 +478,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       _performBossDamageAnimation();
       
       // Play attack strike sound effect when damage animation starts
-      FlameAudio.play('soundeffects/soundeffect_dimsum_strike.mp3');
+      _playSoundEffect('soundeffects/soundeffect_dimsum_strike.mp3');
       
       // Show damage indicator when damage animation starts
       damageOverlayKey.currentState?.showDamageIndicator(
@@ -506,13 +515,16 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     final bossAttackFuture = _bossProjectileController.forward();
     
     // Play tuktuk fenrir sound with echo effect during monster sprite attack animation
-    _echoAudioService.playWithEcho(
-      assetPath: 'soundeffects/soundeffect_tuktuk_fenrir.wav',
-      echoCount: 4,
-      echoDelay: const Duration(milliseconds: 200),
-      volumeDecay: 0.7,
-      initialVolume: 0.8,
-    );
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    if (soundEffectsEnabled) {
+      _echoAudioService.playWithEcho(
+        assetPath: 'soundeffects/soundeffect_tuktuk_fenrir.wav',
+        echoCount: 4,
+        echoDelay: const Duration(milliseconds: 200),
+        volumeDecay: 0.7,
+        initialVolume: 0.8,
+      );
+    }
     
     // Wait for the boss projectile to get closer before showing the shield.
     // Timing this to match when the monster attack sprite collides with defense
@@ -522,7 +534,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _shieldController.forward();
     
     // Play defense sound effect when shield activates
-    FlameAudio.play('soundeffects/soundeffect_crispyporkbelly.mp3');
+    _playSoundEffect('soundeffects/soundeffect_crispyporkbelly.mp3');
     
     // Calculate damage and position info before animation completes
     const baseDamage = 15.0; // Boss base damage (per rubric)
@@ -539,7 +551,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     await bossAttackFuture;
     
     // Play laser sound effect exactly when damage is applied
-    FlameAudio.play('soundeffects/soundeffect_tuktuk_laser.mp3');
+    _playSoundEffect('soundeffects/soundeffect_tuktuk_laser.mp3');
     
     // Apply damage to player
     final playerHealth = ref.read(playerHealthProvider.notifier);
@@ -661,6 +673,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _practiceRecordingState.value = RecordingState.idle;
     _lastPracticeRecordingPath.value = null;
     _practiceAssessmentResult.value = null;
+
+    // Initialize recorder in background to reduce button lag
+    _initializeRecorder();
 
     // Pause background music when flashcard dialog opens
     FlameAudio.bgm.pause();
@@ -890,11 +905,25 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     );
   }
 
+  Future<void> _initializeRecorder() async {
+    if (_isRecorderInitialized) return;
+    
+    try {
+      final hasPermission = await _checkPermission();
+      if (!hasPermission) {
+        print("Recording permission not granted.");
+        return;
+      }
+      _isRecorderInitialized = true;
+    } catch (e) {
+      print("Error initializing recorder: $e");
+    }
+  }
+
   Future<void> _startPracticeRecording() async {
-    final hasPermission = await _checkPermission();
-    if (!hasPermission) {
-      print("Recording permission not granted.");
-      return;
+    if (!_isRecorderInitialized) {
+      await _initializeRecorder();
+      if (!_isRecorderInitialized) return;
     }
 
     try {
@@ -1135,15 +1164,25 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                               physics: const NeverScrollableScrollPhysics(),
                               itemBuilder: (context, index) {
                                 final card = cards[index];
+                                final revealedCards = ref.watch(revealedCardsProvider);
+                                final isRevealed = revealedCards.contains(card.english);
                                 return Flashcard(
                                   key: ValueKey(card.english),
                                   vocabulary: card,
-                                  isRevealed: false,
-                                  isFlippable: false,
+                                  isRevealed: isRevealed,
+                                  isFlippable: false, // Prevent revealing from grid
+                                  showAudioButton: false,
                                   onTap: () {
-                                    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                                    ref.playButtonSound();
                                     ref.read(tappedCardProvider.notifier).state = card;
                                     _showFlashcardDialog(card);
+                                  },
+                                  onReveal: () {
+                                    ref.read(revealedCardsProvider.notifier).update((state) {
+                                      final newState = Set<String>.from(state);
+                                      newState.add(card.english);
+                                      return newState;
+                                    });
                                   },
                                 );
                               },
@@ -1447,7 +1486,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
                 ),
               ),
               onPressed: () {
-                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                ref.playButtonSound();
                 onExit();
               },
               child: Row(
@@ -1469,7 +1508,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
                 ),
               ),
               onPressed: () {
-                FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                ref.playButtonSound();
                 if (onClose != null) onClose!();
               },
               child: const Text('Close', style: TextStyle(color: Colors.white)),
@@ -1481,7 +1520,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
   }
 }
 
-class _BossFightMenuButton extends StatelessWidget {
+class _BossFightMenuButton extends ConsumerWidget {
   final IconData icon;
   final String label;
   final bool value;
@@ -1495,20 +1534,22 @@ class _BossFightMenuButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final soundEffectsEnabled = ref.watch(gameStateProvider.select((state) => state.soundEffectsEnabled));
+    
     return ListTile(
       leading: Icon(icon, color: Colors.white),
       title: Text(label, style: const TextStyle(color: Colors.white)),
       trailing: Switch(
         value: value,
         onChanged: (val) {
-          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+          ref.playButtonSound();
           onChanged(val);
         },
         activeColor: Colors.blueAccent,
       ),
       onTap: () {
-        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        ref.playButtonSound();
         onChanged(!value);
       },
     );
@@ -1617,17 +1658,20 @@ class _InteractiveFlashcardDialogState
           final duration = score == 0 ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1500);
 
           // Play counting animation sound effect with a specific duration
-          try {
-            await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
-            _soundEffectsPlayer.play();
-            
-            // Stop the audio after the specified duration
-            _soundEffectTimer?.cancel(); // Cancel any existing timer
-            _soundEffectTimer = Timer(duration, () {
-              _soundEffectsPlayer.stop();
-            });
-          } catch (e) {
-            print("Error playing pronunciation sound: $e");
+          final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+          if (soundEffectsEnabled) {
+            try {
+              await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+              _soundEffectsPlayer.play();
+              
+              // Stop the audio after the specified duration
+              _soundEffectTimer?.cancel(); // Cancel any existing timer
+              _soundEffectTimer = Timer(duration, () {
+                _soundEffectsPlayer.stop();
+              });
+            } catch (e) {
+              print("Error playing pronunciation sound: $e");
+            }
           }
           
           setState(() {
@@ -1649,17 +1693,20 @@ class _InteractiveFlashcardDialogState
           final duration = bonusPercentage == 0 ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1800);
 
           // Play counting animation sound effect with a specific duration
-          try {
-            await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
-            _soundEffectsPlayer.play();
-            
-            // Stop the audio after the specified duration
-            _soundEffectTimer?.cancel(); // Cancel any existing timer
-            _soundEffectTimer = Timer(duration, () {
-              _soundEffectsPlayer.stop();
-            });
-          } catch (e) {
-            print("Error playing pronunciation sound: $e");
+          final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+          if (soundEffectsEnabled) {
+            try {
+              await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+              _soundEffectsPlayer.play();
+              
+              // Stop the audio after the specified duration
+              _soundEffectTimer?.cancel(); // Cancel any existing timer
+              _soundEffectTimer = Timer(duration, () {
+                _soundEffectsPlayer.stop();
+              });
+            } catch (e) {
+              print("Error playing pronunciation sound: $e");
+            }
           }
           
           setState(() {
@@ -1746,6 +1793,7 @@ class _InteractiveFlashcardDialogState
                                     vocabulary: widget.card,
                                     isRevealed: _isRevealed,
                                     isFlippable: true, // Allow flipping in the dialog
+                                    showAudioButton: true, // <-- Ensure audio icon appears in dialog
                                     onReveal: () {
                                       if (!_isRevealed) {
                                         setState(() => _isRevealed = true);
@@ -1787,7 +1835,7 @@ class _InteractiveFlashcardDialogState
                         ),
                         onPressed: () {
                           // Play sound effect on continue
-                          FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                          ref.playButtonSound();
                           
                           // Stop any playing sound effects when Continue is pressed
                           _soundEffectTimer?.cancel();
@@ -2133,7 +2181,7 @@ class _InteractiveFlashcardDialogState
               // Final Action Button
               ElevatedButton(
                 onPressed: () {
-                  FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                  ref.playButtonSound();
                   _soundEffectTimer?.cancel();
                   _soundEffectsPlayer.stop();
                   widget.onStopAllSounds();
@@ -2552,11 +2600,43 @@ class _RevealedCardDetails extends StatelessWidget {
           ),
           const Divider(color: Colors.white24, height: 20, thickness: 0.5),
 
-          // Thai text and transliteration - responsive sizing
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(card.thai,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          // Thai text and transliteration - responsive sizing with audio button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  card.thai,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+              if (card.audioPath != null && card.audioPath!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.volume_up, color: Colors.white),
+                    onPressed: () async {
+                      try {
+                        // Create a new audio player for this specific use
+                        final audioPlayer = just_audio.AudioPlayer();
+                        await audioPlayer.setAsset(card.audioPath!);
+                        audioPlayer.play();
+                        // Dispose the player after playing
+                        audioPlayer.playerStateStream.listen((state) {
+                          if (state.processingState ==
+                              just_audio.ProcessingState.completed) {
+                            audioPlayer.dispose();
+                          }
+                        });
+                      } catch (e) {
+                        print("Error playing audio: $e");
+                      }
+                    },
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           FittedBox(
@@ -2611,7 +2691,8 @@ class _RevealedCardDetails extends StatelessWidget {
                             child: Text(
                               '→ ${mapping.translation}',
                               style: TextStyle(fontSize: translationSize, color: Colors.white60),
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              overflow: TextOverflow.visible,
                             ),
                           ),
                         ],

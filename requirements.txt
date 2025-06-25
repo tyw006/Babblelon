@@ -11,3 +11,5 @@ google-generativeai
 openai
 azure-cognitiveservices-speech
 pydub
+pythainlp
+tqdm

@@ -1,1225 +1,2265 @@
 {
-  "vocabulary": [
-      {
-          "english": "Hello / Excuse me (to staff)",
-          "thai": "พี่",
-          "transliteration": "Pee",
-          "word_mapping": [
-              {"thai": "พี่", "transliteration": "Pee", "translation": "older sibling (used to address staff)"}
-          ],
-          "complexity": 1,
-          "details": "This is the most common way to get a server's attention. To be polite, men add ครับ (khrap) and women add ค่ะ (kha). Example: 'พี่ครับ' (Pee khrap). For much older staff, you can use 'ป้า' (bpaa - 'aunt') or 'ลุง' (lung - 'uncle')."
-      },
-      {
-          "english": "Can I have the menu?",
-          "thai": "ขอเมนูหน่อย",
-          "transliteration": "Khaw menu noi",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "เมนู", "transliteration": "menu", "translation": "menu"},
-              {"thai": "หน่อย", "transliteration": "noi", "translation": "(softening particle)"}
-          ],
-          "complexity": 2,
-          "details": "A casual and polite way to ask for the menu. The word 'หน่อย' (noi) softens the request. For an English menu, ask 'ขอเมนูภาษาอังกฤษหน่อย' (khaw menu phaa-saa ang-grit noi), where ภาษาอังกฤษ (phaa-saa ang-grit) means 'English language'."
-      },
-      {
-          "english": "Can I order?",
-          "thai": "สั่งอาหารได้ไหม",
-          "transliteration": "Sang ahaan dai mai",
-          "word_mapping": [
-              {"thai": "สั่ง", "transliteration": "Sang", "translation": "to order"},
-              {"thai": "อาหาร", "transliteration": "ahaan", "translation": "food"},
-              {"thai": "ได้", "transliteration": "dai", "translation": "can"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 2,
-          "details": "Use this when you are ready to order. An even more casual way is just to say 'สั่งได้เลย' (sang dai loei), which means 'Ready to order now'."
-      },
-      {
-          "english": "What do you recommend?",
-          "thai": "มีอะไรแนะนำไหม",
-          "transliteration": "Mee arai nae-nam mai",
-          "word_mapping": [
-              {"thai": "มี", "transliteration": "Mee", "translation": "to have"},
-              {"thai": "อะไร", "transliteration": "arai", "translation": "what"},
-              {"thai": "แนะนำ", "transliteration": "nae-nam", "translation": "to recommend"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 4,
-          "details": "A great way to find a restaurant's best dishes. A simpler, very common alternative is 'อะไรอร่อย' (arai aroi?), meaning 'What's delicious?'."
-      },
-      {
-          "english": "Check, please",
-          "thai": "เก็บตังค์",
-          "transliteration": "Gep dtang",
-          "word_mapping": [
-              {"thai": "เก็บ", "transliteration": "Gep", "translation": "to collect"},
-              {"thai": "ตังค์", "transliteration": "dtang", "translation": "money (colloquial)"}
-          ],
-          "complexity": 1,
-          "details": "This is the most common, local way to ask for the bill. It literally means 'collect money'. Another very common phrase, borrowed from English, is 'เช็คบิล' (chek bin)."
-      },
-      {
-          "english": "I'll take...",
-          "thai": "เอา...",
-          "transliteration": "Ao...",
-          "word_mapping": [
-              {"thai": "เอา", "transliteration": "Ao", "translation": "to take / to want"}
-          ],
-          "complexity": 1,
-          "details": "The most common and direct way to order. Example: 'เอาผัดไทย' (ao phat thai - 'I'll take Pad Thai'). It's not rude. A slightly more polite version is 'ขอ...' (khaw...), meaning 'Can I have...'. Example: 'ขอผัดไทย' (khaw phat thai)."
-      },
-      {
-          "english": "Eat here",
-          "thai": "กินที่นี่",
-          "transliteration": "Gin tee nee",
-          "word_mapping": [
-              {"thai": "กิน", "transliteration": "Gin", "translation": "to eat (casual)"},
-              {"thai": "ที่นี่", "transliteration": "tee nee", "translation": "here"}
-          ],
-          "complexity": 2,
-          "details": "This is the common, everyday way to say 'eat here'. Staff will often ask 'กินที่นี่หรือกลับบ้าน' (gin tee nee reu glap baan?) - 'Eat here or take away?'. The more formal/polite word for 'to eat' is 'ทาน' (taan), so 'ทานที่นี่' (taan tee nee) is also correct and polite."
-      },
-      {
-          "english": "Take away",
-          "thai": "กลับบ้าน",
-          "transliteration": "Glap baan",
-          "word_mapping": [
-              {"thai": "กลับ", "transliteration": "Glap", "translation": "to return"},
-              {"thai": "บ้าน", "transliteration": "baan", "translation": "home"}
-          ],
-          "complexity": 2,
-          "details": "Literally 'return home', this is the standard phrase for a to-go order. Another common phrase is 'ห่อกลับบ้าน' (haw glap baan), which means 'wrap to take home'."
-      },
-      {
-          "english": "One glass of water",
-          "thai": "ขอน้ำเปล่าแก้วนึง",
-          "transliteration": "Khaw nam bplao gaew neung",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "น้ำเปล่า", "transliteration": "nam bplao", "translation": "plain water"},
-              {"thai": "แก้ว", "transliteration": "gaew", "translation": "glass/cup"},
-              {"thai": "นึง", "transliteration": "neung", "translation": "one (colloquial)"}
-          ],
-          "complexity": 3,
-          "details": "A very common way to ask for water. 'แก้วนึง' (gaew neung) is a casual shortening of 'หนึ่งแก้ว' (neung gaew). For a bottle, use 'ขวด' (khuat)."
-      },
-      {
-          "english": "Not spicy",
-          "thai": "ไม่เผ็ด",
-          "transliteration": "Mai phet",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "เผ็ด", "transliteration": "phet", "translation": "spicy"}
-          ],
-          "complexity": 1,
-          "details": "An essential phrase. You can also specify 'เผ็ดน้อย' (phet noi) for 'a little spicy' or 'เผ็ดมาก' (phet maak) for 'very spicy'."
-      },
-      {
-          "english": "Less sweet",
-          "thai": "หวานน้อย",
-          "transliteration": "Waan noi",
-          "word_mapping": [
-              {"thai": "หวาน", "transliteration": "waan", "translation": "sweet"},
-              {"thai": "น้อย", "transliteration": "noi", "translation": "a little / less"}
-          ],
-          "complexity": 2,
-          "details": "Crucial for coffee and tea. For no sweetness, say 'ไม่หวาน' (mai waan - 'not sweet') or 'ไม่ใส่น้ำตาล' (mai sai nam-dtaan - 'don't add sugar')."
-      },
-      {
-          "english": "Don't add...",
-          "thai": "ไม่ใส่...",
-          "transliteration": "Mai sai...",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "ใส่", "transliteration": "sai", "translation": "to add"}
-          ],
-          "complexity": 3,
-          "details": "Very useful for omitting ingredients. Example: 'ไม่ใส่ผักชี' (mai sai phak chi) for 'don't add cilantro'. To add something, just say 'ใส่...' (sai...)."
-      },
-      {
-          "english": "What is this?",
-          "thai": "อันนี้อะไร",
-          "transliteration": "An nee arai",
-          "word_mapping": [
-              {"thai": "อัน", "transliteration": "An", "translation": "(classifier for items)"},
-              {"thai": "นี้", "transliteration": "nee", "translation": "this"},
-              {"thai": "อะไร", "transliteration": "arai", "translation": "what"}
-          ],
-          "complexity": 2,
-          "details": "Perfect for night markets. Simply point and ask. The slightly more formal version is 'นี่คืออะไร' (Nee kheu arai)."
-      },
-      {
-          "english": "Delicious!",
-          "thai": "อร่อย!",
-          "transliteration": "Aroi!",
-          "word_mapping": [
-              {"thai": "อร่อย", "transliteration": "Aroi", "translation": "delicious"}
-          ],
-          "complexity": 1,
-          "details": "A simple and appreciated compliment. To emphasize, say 'อร่อยมาก' (aroi maak - 'very delicious')."
-      },
-      {
-          "english": "Keep the change",
-          "thai": "ไม่ต้องทอน",
-          "transliteration": "Mai tong thon",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "ต้อง", "transliteration": "tong", "translation": "to have to"},
-              {"thai": "ทอน", "transliteration": "thon", "translation": "to give change"}
-          ],
-          "complexity": 4,
-          "details": "Used when paying cash to leave a tip. Tipping is not mandatory but is common for good service."
-      },
-      {
-          "english": "Thank you",
-          "thai": "ขอบคุณ",
-          "transliteration": "Khop khun",
-          "word_mapping": [
-              {"thai": "ขอบคุณ", "transliteration": "Khop khun", "translation": "thank you"}
-          ],
-          "complexity": 1,
-          "details": "The standard polite way to say thank you. Remember to add ครับ (khrap) for males and ค่ะ (kha) for females."
-      },
-      {
-          "english": "How much?",
-          "thai": "เท่าไหร่",
-          "transliteration": "Tao rai",
-          "word_mapping": [
-              {"thai": "เท่าไหร่", "transliteration": "Tao rai", "translation": "how much"}
-          ],
-          "complexity": 2,
-          "details": "Essential for asking the price. Point and say 'อันนี้เท่าไหร่' (an nee tao rai - 'How much is this one?')."
-      },
-      {
-          "english": "Can I have spoon and fork?",
-          "thai": "ขอช้อนส้อมหน่อย",
-          "transliteration": "Khaw chawn som noi",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "ช้อน", "transliteration": "chawn", "translation": "spoon"},
-              {"thai": "ส้อม", "transliteration": "som", "translation": "fork"},
-              {"thai": "หน่อย", "transliteration": "noi", "translation": "(softening particle)"}
-          ],
-          "complexity": 3,
-          "details": "The standard cutlery in Thailand is a spoon and fork. Spoon is for eating, fork is for pushing."
-      },
-      {
-          "english": "Can I have chopsticks?",
-          "thai": "ขอตะเกียบหน่อย",
-          "transliteration": "Khaw dta-giap noi",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "ตะเกียบ", "transliteration": "dta-giap", "translation": "chopsticks"},
-              {"thai": "หน่อย", "transliteration": "noi", "translation": "(softening particle)"}
-          ],
-          "complexity": 3,
-          "details": "Useful for noodle dishes or at Chinese/Japanese style restaurants."
-      },
-      {
-          "english": "Can I have a napkin?",
-          "thai": "ขอทิชชู่หน่อย",
-          "transliteration": "Khaw tissue noi",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "ทิชชู่", "transliteration": "tissue", "translation": "tissue/napkin"},
-              {"thai": "หน่อย", "transliteration": "noi", "translation": "(softening particle)"}
-          ],
-          "complexity": 2,
-          "details": "The English word 'tissue' is commonly used. The formal Thai word is 'กระดาษชำระ' (gra-daat cham-ra)."
-      },
-      {
-          "english": "I'm vegetarian",
-          "thai": "กินเจ",
-          "transliteration": "Gin jay",
-          "word_mapping": [
-              {"thai": "กิน", "transliteration": "Gin", "translation": "to eat"},
-              {"thai": "เจ", "transliteration": "jay", "translation": "vegetarian (often vegan)"}
-          ],
-          "complexity": 3,
-          "details": "The most common way to express a strict vegetarian/vegan diet (no animal products, garlic, or strong herbs). For a broader ovo-lacto vegetarian diet, the word is 'มังสวิรัติ' (mangsawirat)."
-      },
-      {
-          "english": "I'm allergic to shrimp",
-          "thai": "แพ้กุ้ง",
-          "transliteration": "Phae goong",
-          "word_mapping": [
-              {"thai": "แพ้", "transliteration": "Phae", "translation": "to be allergic"},
-              {"thai": "กุ้ง", "transliteration": "goong", "translation": "shrimp"}
-          ],
-          "complexity": 3,
-          "details": "Crucial for allergies. Replace 'กุ้ง' (goong) with any other allergen, such as 'ถั่ว' (tua - 'nuts')."
-      },
-      {
-          "english": "Not too oily",
-          "thai": "ไม่มัน",
-          "transliteration": "Mai man",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "มัน", "transliteration": "man", "translation": "oily"}
-          ],
-          "complexity": 2,
-          "details": "Useful for stir-fried dishes. You can also say 'ขอน้ำมันน้อยๆ' (khaw nam-man noi-noi) for 'a little oil, please'."
-      },
-      {
-          "english": "Hot (temperature)",
-          "thai": "ร้อน",
-          "transliteration": "Rawn",
-          "word_mapping": [
-              {"thai": "ร้อน", "transliteration": "Rawn", "translation": "hot"}
-          ],
-          "complexity": 1,
-          "details": "Use for drinks or soup. Example: 'เอากาแฟร้อน' (ao ga-fae rawn - 'I'll have a hot coffee')."
-      },
-      {
-          "english": "Cold / Iced",
-          "thai": "เย็น",
-          "transliteration": "Yen",
-          "word_mapping": [
-              {"thai": "เย็น", "transliteration": "Yen", "translation": "cold/iced"}
-          ],
-          "complexity": 1,
-          "details": "The default for most drinks. Example: 'เอาชาเย็น' (ao chaa yen - 'I'll take an iced tea')."
-      },
-      {
-          "english": "Fruit Smoothie",
-          "thai": "น้ำผลไม้ปั่น",
-          "transliteration": "Nam phon-la-mai bpan",
-          "word_mapping": [
-              {"thai": "น้ำ", "transliteration": "Nam", "translation": "water/juice"},
-              {"thai": "ผลไม้", "transliteration": "phon-la-mai", "translation": "fruit"},
-              {"thai": "ปั่น", "transliteration": "bpan", "translation": "to blend"}
-          ],
-          "complexity": 3,
-          "details": "A popular drink. Specify the fruit, e.g., 'น้ำมะม่วงปั่น' (nam ma-muang bpan - 'mango smoothie')."
-      },
-      {
-          "english": "One more bottle of beer",
-          "thai": "ขอเบียร์อีกขวด",
-          "transliteration": "Khaw bia eek khuat",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "เบียร์", "transliteration": "bia", "translation": "beer"},
-              {"thai": "อีก", "transliteration": "eek", "translation": "more/another"},
-              {"thai": "ขวด", "transliteration": "khuat", "translation": "bottle"}
-          ],
-          "complexity": 3,
-          "details": "A simple way to order another round. 'อีก' (eek) means 'another' or 'more'."
-      },
-      {
-          "english": "Separate bills",
-          "thai": "แยกบิล",
-          "transliteration": "Yaek bin",
-          "word_mapping": [
-              {"thai": "แยก", "transliteration": "Yaek", "translation": "to separate"},
-              {"thai": "บิล", "transliteration": "bin", "translation": "bill"}
-          ],
-          "complexity": 2,
-          "details": "Use this when you want to pay separately. The opposite is 'รวมบิล' (ruam bin - 'combine bill')."
-      },
-      {
-          "english": "Can I pay by card?",
-          "thai": "รับบัตรไหม",
-          "transliteration": "Rap bat mai",
-          "word_mapping": [
-              {"thai": "รับ", "transliteration": "Rap", "translation": "to accept"},
-              {"thai": "บัตร", "transliteration": "bat", "translation": "card"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 3,
-          "details": "A shortened, common way to ask. The full phrase is 'รับบัตรเครดิตไหม' (rap bat credit mai). Good to ask, as many smaller places are cash only."
-      },
-      {
-          "english": "No ice",
-          "thai": "ไม่ใส่น้ำแข็ง",
-          "transliteration": "Mai sai nam khaeng",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "ใส่", "transliteration": "sai", "translation": "to add"},
-              {"thai": "น้ำแข็ง", "transliteration": "nam khaeng", "translation": "ice"}
-          ],
-          "complexity": 3,
-          "details": "Useful for drinks. 'น้ำ' (nam) is 'water' and 'แข็ง' (khaeng) is 'hard'."
-      },
-      {
-          "english": "Pork",
-          "thai": "หมู",
-          "transliteration": "Moo",
-          "word_mapping": [
-              {"thai": "หมู", "transliteration": "Moo", "translation": "pork"}
-          ],
-          "complexity": 1,
-          "details": "A very common protein. Example: 'เอาผัดกะเพราหมู' (ao phat ga-prao moo - 'I'll have stir-fried holy basil with pork')."
-      },
-      {
-          "english": "Chicken",
-          "thai": "ไก่",
-          "transliteration": "Gai",
-          "word_mapping": [
-              {"thai": "ไก่", "transliteration": "Gai", "translation": "chicken"}
-          ],
-          "complexity": 1,
-          "details": "Another common protein. Example: 'ข้าวมันไก่' (khao man gai - 'Hainanese chicken rice')."
-      },
-      {
-          "english": "Beef",
-          "thai": "เนื้อ",
-          "transliteration": "Neua",
-          "word_mapping": [
-              {"thai": "เนื้อ", "transliteration": "Neua", "translation": "beef"}
-          ],
-          "complexity": 1,
-          "details": "Refers to beef, but can also mean 'meat' in general. To be specific, say 'เนื้อวัว' (neua wua). Example: 'ก๋วยเตี๋ยวเนื้อ' (guay-dtiao neua - 'beef noodle soup')."
-      },
-      {
-          "english": "Seafood",
-          "thai": "ทะเล",
-          "transliteration": "Tha-leh",
-          "word_mapping": [
-              {"thai": "ทะเล", "transliteration": "Tha-leh", "translation": "sea / seafood"}
-          ],
-          "complexity": 1,
-          "details": "Literally 'sea'. Used for mixed seafood dishes. Example: 'ข้าวผัดทะเล' (khao phat tha-leh - 'seafood fried rice')."
-      },
-      {
-          "english": "Egg",
-          "thai": "ไข่",
-          "transliteration": "Khai",
-          "word_mapping": [
-              {"thai": "ไข่", "transliteration": "Khai", "translation": "egg"}
-          ],
-          "complexity": 1,
-          "details": "A common addition. See also 'ไข่ดาว' (khai dao - 'fried egg') and 'ไข่เจียว' (khai jiao - 'omelette')."
-      },
-      {
-          "english": "Fried egg",
-          "thai": "ไข่ดาว",
-          "transliteration": "Khai dao",
-          "word_mapping": [
-              {"thai": "ไข่", "transliteration": "Khai", "translation": "egg"},
-              {"thai": "ดาว", "transliteration": "dao", "translation": "star"}
-          ],
-          "complexity": 2,
-          "details": "A popular topping. Request it by saying 'เพิ่มไข่ดาว' (perm khai dao - 'add a fried egg')."
-      },
-      {
-          "english": "Omelette",
-          "thai": "ไข่เจียว",
-          "transliteration": "Khai jiao",
-          "word_mapping": [
-              {"thai": "ไข่", "transliteration": "Khai", "translation": "egg"},
-              {"thai": "เจียว", "transliteration": "jiao", "translation": "to fry in this context"}
-          ],
-          "complexity": 2,
-          "details": "A Thai-style omelette, often served over rice. 'ข้าวไข่เจียว' (khao khai jiao) is a simple, popular meal."
-      },
-      {
-          "english": "Rice",
-          "thai": "ข้าว",
-          "transliteration": "Khao",
-          "word_mapping": [
-              {"thai": "ข้าว", "transliteration": "Khao", "translation": "rice"}
-          ],
-          "complexity": 1,
-          "details": "The staple food. For plain steamed rice, ask for 'ข้าวสวย' (khao suay - 'beautiful rice'). For sticky rice, ask for 'ข้าวเหนียว' (khao niao)."
-      },
-      {
-          "english": "Noodles",
-          "thai": "ก๋วยเตี๋ยว",
-          "transliteration": "Guay dtiao",
-          "word_mapping": [
-              {"thai": "ก๋วยเตี๋ยว", "transliteration": "Guay dtiao", "translation": "noodles"}
-          ],
-          "complexity": 1,
-          "details": "A general term for noodle dishes. There are many types, like 'เส้นใหญ่' (sen yai - 'wide rice noodles') and 'เส้นเล็ก' (sen lek - 'thin rice noodles')."
-      },
-      {
-          "english": "Vegetables",
-          "thai": "ผัก",
-          "transliteration": "Phak",
-          "word_mapping": [
-              {"thai": "ผัก", "transliteration": "Phak", "translation": "vegetables"}
-          ],
-          "complexity": 1,
-          "details": "Useful for ordering vegetable dishes. Example: 'ผัดผักรวม' (phat phak ruam - 'stir-fried mixed vegetables')."
-      },
-      {
-          "english": "Salty",
-          "thai": "เค็ม",
-          "transliteration": "Khem",
-          "word_mapping": [
-              {"thai": "เค็ม", "transliteration": "Khem", "translation": "salty"}
-          ],
-          "complexity": 2,
-          "details": "A core flavor. If a dish is too salty, you can say 'เค็มไป' (khem bpai - 'too salty')."
-      },
-      {
-          "english": "Sour",
-          "thai": "เปรี้ยว",
-          "transliteration": "Bpriao",
-          "word_mapping": [
-              {"thai": "เปรี้ยว", "transliteration": "Bpriao", "translation": "sour"}
-          ],
-          "complexity": 2,
-          "details": "Another core flavor. If you like sour flavors, you can request 'เปรี้ยวๆ' (bpriao bpriao)."
-      },
-      {
-          "english": "Spicy Basil Stir Fry",
-          "thai": "ผัดกะเพรา",
-          "transliteration": "Phat ga-prao",
-          "word_mapping": [
-              {"thai": "ผัด", "transliteration": "Phat", "translation": "to stir-fry"},
-              {"thai": "กะเพรา", "transliteration": "ga-prao", "translation": "holy basil"}
-          ],
-          "complexity": 2,
-          "details": "A hugely popular dish. Specify the meat, e.g., 'ผัดกะเพราไก่' (phat ga-prao gai). Often served on rice 'ราดข้าว' (raat khao)."
-      },
-      {
-          "english": "Fried Rice",
-          "thai": "ข้าวผัด",
-          "transliteration": "Khao phat",
-          "word_mapping": [
-              {"thai": "ข้าว", "transliteration": "Khao", "translation": "rice"},
-              {"thai": "ผัด", "transliteration": "phat", "translation": "to stir-fry"}
-          ],
-          "complexity": 2,
-          "details": "A classic one-plate meal. Specify the protein, such as 'ข้าวผัดกุ้ง' (khao phat goong - 'shrimp fried rice')."
-      },
-      {
-          "english": "Stir-fried Noodles",
-          "thai": "ผัดไทย",
-          "transliteration": "Phat thai",
-          "word_mapping": [
-              {"thai": "ผัด", "transliteration": "Phat", "translation": "to stir-fry"},
-              {"thai": "ไทย", "transliteration": "thai", "translation": "Thai"}
-          ],
-          "complexity": 2,
-          "details": "Thailand's famous stir-fried noodle dish. Usually comes with shrimp 'กุ้ง' (goong) or tofu 'เต้าหู้' (dtao-hoo)."
-      },
-      {
-          "english": "Green Curry",
-          "thai": "แกงเขียวหวาน",
-          "transliteration": "Gaeng khiao waan",
-          "word_mapping": [
-              {"thai": "แกง", "transliteration": "Gaeng", "translation": "curry"},
-              {"thai": "เขียว", "transliteration": "khiao", "translation": "green"},
-              {"thai": "หวาน", "transliteration": "waan", "translation": "sweet"}
-          ],
-          "complexity": 3,
-          "details": "A famous Thai curry. The name means 'sweet green curry', but it can be very spicy. Usually made with chicken 'ไก่' (gai)."
-      },
-      {
-          "english": "Spicy Papaya Salad",
-          "thai": "ส้มตำ",
-          "transliteration": "Som tam",
-          "word_mapping": [
-              {"thai": "ส้ม", "transliteration": "Som", "translation": "sour (in this context)"},
-              {"thai": "ตำ", "transliteration": "tam", "translation": "to pound"}
-          ],
-          "complexity": 2,
-          "details": "A classic northeastern dish. There are many versions, like 'ส้มตำไทย' (som tam thai - with peanuts) and 'ส้มตำปูปลาร้า' (som tam bpoo bplaa-raa - with crab and fermented fish sauce)."
-      },
-      {
-          "english": "Spicy Shrimp Soup",
-          "thai": "ต้มยำกุ้ง",
-          "transliteration": "Tom yam goong",
-          "word_mapping": [
-              {"thai": "ต้ม", "transliteration": "Tom", "translation": "to boil"},
-              {"thai": "ยำ", "transliteration": "yam", "translation": "to mix/salad"},
-              {"thai": "กุ้ง", "transliteration": "goong", "translation": "shrimp"}
-          ],
-          "complexity": 3,
-          "details": "One of Thailand's most famous soups. 'ต้มยำ' (tom yam) is the general name for hot and sour soups."
-      },
-      {
-          "english": "Chicken Coconut Soup",
-          "thai": "ต้มข่าไก่",
-          "transliteration": "Tom kha gai",
-          "word_mapping": [
-              {"thai": "ต้ม", "transliteration": "Tom", "translation": "to boil"},
-              {"thai": "ข่า", "transliteration": "kha", "translation": "galangal"},
-              {"thai": "ไก่", "transliteration": "gai", "translation": "chicken"}
-          ],
-          "complexity": 3,
-          "details": "A milder, creamy coconut soup with galangal as the dominant flavor."
-      },
-      {
-          "english": "This one",
-          "thai": "อันนี้",
-          "transliteration": "An nee",
-          "word_mapping": [
-              {"thai": "อัน", "transliteration": "An", "translation": "(classifier for items)"},
-              {"thai": "นี้", "transliteration": "nee", "translation": "this"}
-          ],
-          "complexity": 1,
-          "details": "Extremely useful for pointing. Example: 'เอาอันนี้' (ao an nee - 'I'll take this one')."
-      },
-      {
-          "english": "That one",
-          "thai": "อันนั้น",
-          "transliteration": "An nan",
-          "word_mapping": [
-              {"thai": "อัน", "transliteration": "An", "translation": "(classifier for items)"},
-              {"thai": "นั้น", "transliteration": "nan", "translation": "that"}
-          ],
-          "complexity": 1,
-          "details": "Used for pointing at something a little further away. Example: 'อันนั้นอะไร' (an nan arai - 'What is that one?')."
-      },
-      {
-          "english": "Table",
-          "thai": "โต๊ะ",
-          "transliteration": "Dto",
-          "word_mapping": [
-              {"thai": "โต๊ะ", "transliteration": "Dto", "translation": "table"}
-          ],
-          "complexity": 1,
-          "details": "Useful for getting a table. Example: 'โต๊ะสำหรับสองคน' (dto sam-rap song khon - 'A table for two people')."
-      },
-      {
-          "english": "Chair",
-          "thai": "เก้าอี้",
-          "transliteration": "Gao-ee",
-          "word_mapping": [
-              {"thai": "เก้าอี้", "transliteration": "Gao-ee", "translation": "chair"}
-          ],
-          "complexity": 1,
-          "details": "Helpful if you need an extra chair. Example: 'ขอเก้าอี้อีกตัว' (khaw gao-ee eek dtua - 'Can I have another chair?')."
-      },
-      {
-          "english": "Plate",
-          "thai": "จาน",
-          "transliteration": "Jaan",
-          "word_mapping": [
-              {"thai": "จาน", "transliteration": "Jaan", "translation": "plate"}
-          ],
-          "complexity": 1,
-          "details": "Also used as a classifier for dishes. Example: 'ขอจานเปล่า' (khaw jaan bplao - 'Can I have an empty plate?')."
-      },
-      {
-          "english": "Bowl",
-          "thai": "ชาม",
-          "transliteration": "Chaam",
-          "word_mapping": [
-              {"thai": "ชาม", "transliteration": "Chaam", "translation": "bowl"}
-          ],
-          "complexity": 1,
-          "details": "Mainly used for soups and noodle dishes. Example: 'ก๋วยเตี๋ยวชามนี้' (guay-dtiao chaam nee - 'This bowl of noodles')."
-      },
-      {
-          "english": "Glass / Cup",
-          "thai": "แก้ว",
-          "transliteration": "Gaew",
-          "word_mapping": [
-              {"thai": "แก้ว", "transliteration": "Gaew", "translation": "glass/cup"}
-          ],
-          "complexity": 1,
-          "details": "The classifier for drinks in a cup/glass. Example: 'เบียร์สองแก้ว' (bia song gaew - 'two glasses of beer')."
-      },
-      {
-          "english": "Bottle",
-          "thai": "ขวด",
-          "transliteration": "Khuat",
-          "word_mapping": [
-              {"thai": "ขวด", "transliteration": "Khuat", "translation": "bottle"}
-          ],
-          "complexity": 1,
-          "details": "The classifier for bottled drinks. Example: 'น้ำขวดหนึ่ง' (nam khuat neung - 'one bottle of water')."
-      },
-      {
-          "english": "Can (container)",
-          "thai": "กระป๋อง",
-          "transliteration": "Gra-bpong",
-          "word_mapping": [
-              {"thai": "กระป๋อง", "transliteration": "Gra-bpong", "translation": "can"}
-          ],
-          "complexity": 2,
-          "details": "The classifier for canned drinks. Example: 'โค้กกระป๋อง' (coke gra-bpong - 'a can of coke')."
-      },
-      {
-          "english": "Coffee",
-          "thai": "กาแฟ",
-          "transliteration": "Ga-fae",
-          "word_mapping": [
-              {"thai": "กาแฟ", "transliteration": "Ga-fae", "translation": "coffee"}
-          ],
-          "complexity": 1,
-          "details": "When ordering, specify hot 'ร้อน' (rawn) or iced 'เย็น' (yen). Example: 'กาแฟเย็นหวานน้อย' (ga-fae yen waan noi - 'iced coffee, less sweet')."
-      },
-      {
-          "english": "Tea",
-          "thai": "ชา",
-          "transliteration": "Chaa",
-          "word_mapping": [
-              {"thai": "ชา", "transliteration": "Chaa", "translation": "tea"}
-          ],
-          "complexity": 1,
-          "details": "The famous Thai iced tea is 'ชาไทยเย็น' (chaa thai yen). For Chinese tea, ask for 'ชาร้อน' (chaa rawn)."
-      },
-      {
-          "english": "Milk",
-          "thai": "นม",
-          "transliteration": "Nom",
-          "word_mapping": [
-              {"thai": "นม", "transliteration": "Nom", "translation": "milk"}
-          ],
-          "complexity": 1,
-          "details": "Used in many drinks. Pink milk, 'นมเย็น' (nom yen), is a popular sweet drink."
-      },
-      {
-          "english": "Orange Juice",
-          "thai": "น้ำส้ม",
-          "transliteration": "Nam som",
-          "word_mapping": [
-              {"thai": "น้ำ", "transliteration": "Nam", "translation": "water/juice"},
-              {"thai": "ส้ม", "transliteration": "som", "translation": "orange"}
-          ],
-          "complexity": 2,
-          "details": "Widely available, often freshly squeezed."
-      },
-      {
-          "english": "Coconut Water",
-          "thai": "น้ำมะพร้าว",
-          "transliteration": "Nam ma-phrao",
-          "word_mapping": [
-              {"thai": "น้ำ", "transliteration": "Nam", "translation": "water/juice"},
-              {"thai": "มะพร้าว", "transliteration": "ma-phrao", "translation": "coconut"}
-          ],
-          "complexity": 2,
-          "details": "A refreshing drink, often served directly in the coconut."
-      },
-      {
-          "english": "Dessert",
-          "thai": "ของหวาน",
-          "transliteration": "Khong waan",
-          "word_mapping": [
-              {"thai": "ของ", "transliteration": "Khong", "translation": "thing"},
-              {"thai": "หวาน", "transliteration": "waan", "translation": "sweet"}
-          ],
-          "complexity": 2,
-          "details": "Literally 'sweet things'. Ask 'มีของหวานอะไรบ้าง' (mee khong waan arai baang?) - 'What desserts do you have?'."
-      },
-      {
-          "english": "Mango Sticky Rice",
-          "thai": "ข้าวเหนียวมะม่วง",
-          "transliteration": "Khao niao ma-muang",
-          "word_mapping": [
-              {"thai": "ข้าวเหนียว", "transliteration": "khao niao", "translation": "sticky rice"},
-              {"thai": "มะม่วง", "transliteration": "ma-muang", "translation": "mango"}
-          ],
-          "complexity": 3,
-          "details": "The most famous Thai dessert, especially when mangoes are in season."
-      },
-      {
-          "english": "Hungry",
-          "thai": "หิว",
-          "transliteration": "Hio",
-          "word_mapping": [
-              {"thai": "หิว", "transliteration": "Hio", "translation": "hungry"}
-          ],
-          "complexity": 1,
-          "details": "A very common way to say you're hungry is 'หิวข้าว' (hio khao - 'hungry for rice'), which implies wanting a meal."
-      },
-      {
-          "english": "Full (from eating)",
-          "thai": "อิ่มแล้ว",
-          "transliteration": "Im laew",
-          "word_mapping": [
-              {"thai": "อิ่ม", "transliteration": "Im", "translation": "full/satiated"},
-              {"thai": "แล้ว", "transliteration": "laew", "translation": "already"}
-          ],
-          "complexity": 2,
-          "details": "A polite way to decline more food. 'อิ่ม' (Im) on its own means 'full'."
-      },
-      {
-          "english": "Just a moment",
-          "thai": "แป๊บนึง",
-          "transliteration": "Bpaep neung",
-          "word_mapping": [
-              {"thai": "แป๊บ", "transliteration": "Bpaep", "translation": "a moment"},
-              {"thai": "นึง", "transliteration": "neung", "translation": "one (colloquial)"}
-          ],
-          "complexity": 2,
-          "details": "A very common colloquial phrase. Use this if a waiter approaches but you haven't decided yet. A more formal way is 'สักครู่' (sak khruu)."
-      },
-      {
-          "english": "With rice (as a single dish)",
-          "thai": "ราดข้าว",
-          "transliteration": "Raat khao",
-          "word_mapping": [
-              {"thai": "ราด", "transliteration": "Raat", "translation": "to pour on top"},
-              {"thai": "ข้าว", "transliteration": "khao", "translation": "rice"}
-          ],
-          "complexity": 3,
-          "details": "Specifies that you want a dish served over a plate of rice. Example: 'กะเพราหมูราดข้าว' (ga-prao moo raat khao)."
-      },
-      {
-          "english": "As a separate dish (for sharing)",
-          "thai": "เป็นกับข้าว",
-          "transliteration": "Bpen gap khao",
-          "word_mapping": [
-              {"thai": "เป็น", "transliteration": "Bpen", "translation": "to be"},
-              {"thai": "กับข้าว", "transliteration": "gap khao", "translation": "dishes eaten with rice"}
-          ],
-          "complexity": 4,
-          "details": "Use this when ordering several dishes to be shared. 'กับข้าว' (gap khao) refers to main dishes eaten alongside rice."
-      },
-      {
-          "english": "Extra portion",
-          "thai": "พิเศษ",
-          "transliteration": "Pi-set",
-          "word_mapping": [
-              {"thai": "พิเศษ", "transliteration": "Pi-set", "translation": "special"}
-          ],
-          "complexity": 3,
-          "details": "Say this after a dish name to request a larger portion (for a higher price). Example: 'ผัดไทยพิเศษ' (phat thai pi-set)."
-      },
-      {
-          "english": "Crispy Pork",
-          "thai": "หมูกรอบ",
-          "transliteration": "Moo grop",
-          "word_mapping": [
-              {"thai": "หมู", "transliteration": "Moo", "translation": "pork"},
-              {"thai": "กรอบ", "transliteration": "grop", "translation": "crispy"}
-          ],
-          "complexity": 2,
-          "details": "A popular choice for many dishes, especially 'ผัดกะเพราหมูกรอบ' (phat ga-prao moo grop)."
-      },
-      {
-          "english": "Grilled Pork Skewers",
-          "thai": "หมูปิ้ง",
-          "transliteration": "Moo bping",
-          "word_mapping": [
-              {"thai": "หมู", "transliteration": "Moo", "translation": "pork"},
-              {"thai": "ปิ้ง", "transliteration": "bping", "translation": "to grill"}
-          ],
-          "complexity": 2,
-          "details": "A quintessential street food, often eaten with sticky rice 'ข้าวเหนียว' (khao niao)."
-      },
-      {
-          "english": "Boat Noodles",
-          "thai": "ก๋วยเตี๋ยวเรือ",
-          "transliteration": "Guay dtiao reua",
-          "word_mapping": [
-              {"thai": "ก๋วยเตี๋ยว", "transliteration": "Guay dtiao", "translation": "noodles"},
-              {"thai": "เรือ", "transliteration": "reua", "translation": "boat"}
-          ],
-          "complexity": 3,
-          "details": "A famous type of noodle soup with a rich, dark broth, traditionally sold from boats."
-      },
-      {
-          "english": "Stir-fried wide noodles",
-          "thai": "ผัดซีอิ๊ว",
-          "transliteration": "Phat see-ew",
-          "word_mapping": [
-              {"thai": "ผัด", "transliteration": "Phat", "translation": "to stir-fry"},
-              {"thai": "ซีอิ๊ว", "transliteration": "see-ew", "translation": "soy sauce"}
-          ],
-          "complexity": 2,
-          "details": "A popular comfort noodle dish made with wide rice noodles 'เส้นใหญ่' (sen yai) and dark soy sauce."
-      },
-      {
-          "english": "Where is the restroom?",
-          "thai": "ห้องน้ำอยู่ไหน",
-          "transliteration": "Hong nam yoo nai",
-          "word_mapping": [
-              {"thai": "ห้องน้ำ", "transliteration": "hong nam", "translation": "restroom"},
-              {"thai": "อยู่", "transliteration": "yoo", "translation": "is located"},
-              {"thai": "ไหน", "transliteration": "nai", "translation": "where"}
-          ],
-          "complexity": 3,
-          "details": "An essential question. 'ห้อง' (hong) means 'room' and 'น้ำ' (nam) means 'water'."
-      },
-      {
-          "english": "I don't understand",
-          "thai": "ไม่เข้าใจ",
-          "transliteration": "Mai khao jai",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "เข้าใจ", "transliteration": "khao jai", "translation": "understand"}
-          ],
-          "complexity": 2,
-          "details": "A useful phrase when communication gets difficult."
-      },
-      {
-          "english": "Can you speak English?",
-          "thai": "พูดอังกฤษได้ไหม",
-          "transliteration": "Phuut ang-grit dai mai",
-          "word_mapping": [
-              {"thai": "พูด", "transliteration": "Phuut", "translation": "to speak"},
-              {"thai": "อังกฤษ", "transliteration": "ang-grit", "translation": "English"},
-              {"thai": "ได้", "transliteration": "dai", "translation": "can"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 4,
-          "details": "The common, shortened version. The full phrase is 'พูดภาษาอังกฤษได้ไหม' (phuut phaa-saa ang-grit dai mai), where ภาษา (phaa-saa) means 'language'."
-      },
-      {
-          "english": "No sugar",
-          "thai": "ไม่ใส่น้ำตาล",
-          "transliteration": "Mai sai nam-dtaan",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "ใส่", "transliteration": "sai", "translation": "to add"},
-              {"thai": "น้ำตาล", "transliteration": "nam-dtaan", "translation": "sugar"}
-          ],
-          "complexity": 3,
-          "details": "More specific than 'ไม่หวาน' (mai waan - 'not sweet'). Guarantees no sugar is added."
-      },
-      {
-          "english": "Fish sauce with chili",
-          "thai": "พริกน้ำปลา",
-          "transliteration": "Phrik nam-bplaa",
-          "word_mapping": [
-              {"thai": "พริก", "transliteration": "Phrik", "translation": "chili"},
-              {"thai": "น้ำปลา", "transliteration": "nam-bplaa", "translation": "fish sauce"}
-          ],
-          "complexity": 2,
-          "details": "The quintessential Thai table condiment. Ask for it by saying 'ขอพริกน้ำปลา' (khaw phrik nam-bplaa)."
-      },
-      {
-          "english": "Is this seat taken?",
-          "thai": "ที่นี่มีคนนั่งไหม",
-          "transliteration": "Tee nee mee khon nang mai",
-          "word_mapping": [
-              {"thai": "ที่นี่", "transliteration": "Tee nee", "translation": "here"},
-              {"thai": "มี", "transliteration": "mee", "translation": "to have"},
-              {"thai": "คน", "transliteration": "khon", "translation": "person"},
-              {"thai": "นั่ง", "transliteration": "nang", "translation": "to sit"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 4,
-          "details": "Useful in crowded food courts. A simpler way is to just point and ask 'ว่างไหม' (waang mai?) - 'Is it free?'."
-      },
-      {
-          "english": "I'll have the same",
-          "thai": "เอาเหมือนกัน",
-          "transliteration": "Ao meuan gan",
-          "word_mapping": [
-              {"thai": "เอา", "transliteration": "Ao", "translation": "to take"},
-              {"thai": "เหมือน", "transliteration": "meuan", "translation": "same"},
-              {"thai": "กัน", "transliteration": "gan", "translation": "together/each other"}
-          ],
-          "complexity": 3,
-          "details": "Use this when your friend orders something and you want the exact same thing."
-      },
-      {
-          "english": "Just looking",
-          "thai": "ดูเฉยๆ",
-          "transliteration": "Doo choei-choei",
-          "word_mapping": [
-              {"thai": "ดู", "transliteration": "Doo", "translation": "to look"},
-              {"thai": "เฉยๆ", "transliteration": "choei-choei", "translation": "just / only / passively"}
-          ],
-          "complexity": 3,
-          "details": "A polite way to say you're just browsing at a market stall when a vendor approaches you."
-      },
-      {
-          "english": "I'll be right back",
-          "thai": "เดี๋ยวมา",
-          "transliteration": "Diao maa",
-          "word_mapping": [
-              {"thai": "เดี๋ยว", "transliteration": "Diao", "translation": "in a moment"},
-              {"thai": "มา", "transliteration": "maa", "translation": "to come"}
-          ],
-          "complexity": 2,
-          "details": "A very common phrase for leaving the table for a moment (e.g., to go to the restroom)."
-      },
-      {
-          "english": "How many people?",
-          "thai": "กี่คน",
-          "transliteration": "Gee khon",
-          "word_mapping": [
-              {"thai": "กี่", "transliteration": "Gee", "translation": "how many"},
-              {"thai": "คน", "transliteration": "khon", "translation": "person"}
-          ],
-          "complexity": 2,
-          "details": "The staff will likely ask you this. The more formal version is 'กี่ท่าน' (gee thân)."
-      },
-      {
-          "english": "Two people",
-          "thai": "สองคน",
-          "transliteration": "Song khon",
-          "word_mapping": [
-              {"thai": "สอง", "transliteration": "Song", "translation": "two"},
-              {"thai": "คน", "transliteration": "khon", "translation": "person"}
-          ],
-          "complexity": 2,
-          "details": "A common response to 'กี่คน' (Gee khon). Just change the number as needed."
-      },
-      {
-          "english": "No cilantro",
-          "thai": "ไม่เอาผักชี",
-          "transliteration": "Mai ao phak-chi",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "เอา", "transliteration": "ao", "translation": "to take"},
-              {"thai": "ผักชี", "transliteration": "phak-chi", "translation": "cilantro"}
-          ],
-          "complexity": 3,
-          "details": "A more assertive way to say it than 'ไม่ใส่' (mai sai). It means 'I don't want cilantro'. A lifesaver for those who dislike it."
-      },
-      {
-          "english": "No MSG",
-          "thai": "ไม่ใส่ผงชูรส",
-          "transliteration": "Mai sai phong-chu-rot",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "ใส่", "transliteration": "sai", "translation": "to add"},
-              {"thai": "ผงชูรส", "transliteration": "phong-chu-rot", "translation": "MSG"}
-          ],
-          "complexity": 4,
-          "details": "Useful for those with sensitivities. 'ผง' (phong) means 'powder' and 'ชูรส' (chu-rot) means 'to enhance flavor'."
-      },
-      {
-          "english": "I can't eat spicy food",
-          "thai": "กินเผ็ดไม่ได้",
-          "transliteration": "Gin phet mai dai",
-          "word_mapping": [
-              {"thai": "กิน", "transliteration": "Gin", "translation": "to eat"},
-              {"thai": "เผ็ด", "transliteration": "phet", "translation": "spicy"},
-              {"thai": "ไม่", "transliteration": "mai", "translation": "not"},
-              {"thai": "ได้", "transliteration": "dai", "translation": "can"}
-          ],
-          "complexity": 3,
-          "details": "A more emphatic way to state your preference. The formal version uses 'ทาน' (taan) instead of 'กิน' (gin)."
-      },
-      {
-          "english": "Is this spicy?",
-          "thai": "อันนี้เผ็ดไหม",
-          "transliteration": "An nee phet mai",
-          "word_mapping": [
-              {"thai": "อัน", "transliteration": "An", "translation": "(classifier)"},
-              {"thai": "นี้", "transliteration": "nee", "translation": "this"},
-              {"thai": "เผ็ด", "transliteration": "phet", "translation": "spicy"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 2,
-          "details": "A good question to ask before ordering a new dish. Point at the menu item and ask this."
-      },
-      {
-          "english": "Cheers!",
-          "thai": "ชนแก้ว",
-          "transliteration": "Chon gaew",
-          "word_mapping": [
-              {"thai": "ชน", "transliteration": "Chon", "translation": "to collide/hit"},
-              {"thai": "แก้ว", "transliteration": "gaew", "translation": "glass"}
-          ],
-          "complexity": 2,
-          "details": "The universal way to say 'cheers' in Thailand when clinking glasses with friends. A more formal toast might use 'ไชโย' (chai-yo)."
-      },
-      {
-          "english": "I'm thirsty",
-          "thai": "หิวน้ำ",
-          "transliteration": "Hio nam",
-          "word_mapping": [
-              {"thai": "หิว", "transliteration": "Hio", "translation": "hungry"},
-              {"thai": "น้ำ", "transliteration": "nam", "translation": "water"}
-          ],
-          "complexity": 2,
-          "details": "Literally 'hungry for water', this is the standard way to say you are thirsty."
-      },
-      {
-          "english": "Add a fried egg",
-          "thai": "เพิ่มไข่ดาว",
-          "transliteration": "Perm khai dao",
-          "word_mapping": [
-              {"thai": "เพิ่ม", "transliteration": "Perm", "translation": "to add/increase"},
-              {"thai": "ไข่ดาว", "transliteration": "khai dao", "translation": "fried egg"}
-          ],
-          "complexity": 3,
-          "details": "A very common request for dishes like 'ผัดกะเพรา' (phat ga-prao). You can also just say 'ไข่ดาวด้วย' (khai dao duay) - 'with a fried egg too'."
-      },
-      {
-          "english": "Thin Rice Noodles",
-          "thai": "เส้นเล็ก",
-          "transliteration": "Sen lek",
-          "word_mapping": [
-              {"thai": "เส้น", "transliteration": "Sen", "translation": "noodle/line"},
-              {"thai": "เล็ก", "transliteration": "lek", "translation": "small"}
-          ],
-          "complexity": 2,
-          "details": "The standard noodle used in Pad Thai and many noodle soups."
-      },
-      {
-          "english": "Wide Rice Noodles",
-          "thai": "เส้นใหญ่",
-          "transliteration": "Sen yai",
-          "word_mapping": [
-              {"thai": "เส้น", "transliteration": "Sen", "translation": "noodle/line"},
-              {"thai": "ใหญ่", "transliteration": "yai", "translation": "big"}
-          ],
-          "complexity": 2,
-          "details": "The flat, wide noodles used in 'ผัดซีอิ๊ว' (phat see-ew) and 'ราดหน้า' (raat naa)."
-      },
-      {
-          "english": "Egg Noodles",
-          "thai": "บะหมี่",
-          "transliteration": "Ba-mee",
-          "word_mapping": [
-              {"thai": "บะหมี่", "transliteration": "Ba-mee", "translation": "egg noodles"}
-          ],
-          "complexity": 2,
-          "details": "Yellow, wheat-based egg noodles. Often served 'แห้ง' (haeng - 'dry') or 'น้ำ' (nam - 'in soup')."
-      },
-      {
-          "english": "Glass Noodles",
-          "thai": "วุ้นเส้น",
-          "transliteration": "Woon-sen",
-          "word_mapping": [
-              {"thai": "วุ้น", "transliteration": "Woon", "translation": "jelly"},
-              {"thai": "เส้น", "transliteration": "sen", "translation": "noodle/line"}
-          ],
-          "complexity": 2,
-          "details": "Translucent noodles made from mung bean starch, used in salads 'ยำวุ้นเส้น' (yam woon-sen) or stir-fries."
-      },
-      {
-          "english": "Sauce on the side",
-          "thai": "แยกน้ำจิ้ม",
-          "transliteration": "Yaek nam-jim",
-          "word_mapping": [
-              {"thai": "แยก", "transliteration": "Yaek", "translation": "to separate"},
-              {"thai": "น้ำจิ้ม", "transliteration": "nam-jim", "translation": "dipping sauce"}
-          ],
-          "complexity": 4,
-          "details": "Useful if you want to control the amount of sauce. 'น้ำจิ้ม' (nam-jim) is a general term for any dipping sauce."
-      },
-      {
-          "english": "Too sweet",
-          "thai": "หวานไป",
-          "transliteration": "Waan bpai",
-          "word_mapping": [
-              {"thai": "หวาน", "transliteration": "Waan", "translation": "sweet"},
-              {"thai": "ไป", "transliteration": "bpai", "translation": "to go (used here as 'too much')"}
-          ],
-          "complexity": 3,
-          "details": "A polite way to comment that a dish or drink is sweeter than you'd like. The same structure works for other tastes: 'เค็มไป' (khem bpai - 'too salty'), 'เปรี้ยวไป' (bpriao bpai - 'too sour')."
-      },
-      {
-          "english": "Sticky Rice",
-          "thai": "ข้าวเหนียว",
-          "transliteration": "Khao niao",
-          "word_mapping": [
-              {"thai": "ข้าว", "transliteration": "Khao", "translation": "rice"},
-              {"thai": "เหนียว", "transliteration": "niao", "translation": "sticky"}
-          ],
-          "complexity": 2,
-          "details": "A staple in Northern and Northeastern Thai cuisine, often eaten with grilled meats or papaya salad."
-      },
-      {
-          "english": "Minced Pork",
-          "thai": "หมูสับ",
-          "transliteration": "Moo sap",
-          "word_mapping": [
-              {"thai": "หมู", "transliteration": "Moo", "translation": "pork"},
-              {"thai": "สับ", "transliteration": "sap", "translation": "to mince/chop"}
-          ],
-          "complexity": 2,
-          "details": "The standard meat preparation for dishes like 'ผัดกะเพรา' (phat ga-prao)."
-      },
-      {
-          "english": "Is service charge included?",
-          "thai": "รวมเซอร์วิสชาร์จยัง",
-          "transliteration": "Ruam service charge yang",
-          "word_mapping": [
-              {"thai": "รวม", "transliteration": "Ruam", "translation": "to include"},
-              {"thai": "เซอร์วิสชาร์จ", "transliteration": "service charge", "translation": "service charge"},
-              {"thai": "ยัง", "transliteration": "yang", "translation": "yet? (colloquial question)"}
-          ],
-          "complexity": 4,
-          "details": "Good to know for tipping. 'ยัง' (yang) at the end of a sentence is a casual way to ask '... yet?'. The formal version is 'หรือยัง' (reu yang)."
-      },
-      {
-          "english": "No straw, please",
-          "thai": "ไม่เอาหลอด",
-          "transliteration": "Mai ao lawt",
-          "word_mapping": [
-              {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
-              {"thai": "เอา", "transliteration": "ao", "translation": "to take"},
-              {"thai": "หลอด", "transliteration": "lawt", "translation": "straw"}
-          ],
-          "complexity": 3,
-          "details": "A useful phrase for those trying to reduce plastic waste."
-      },
-      {
-          "english": "Tofu",
-          "thai": "เต้าหู้",
-          "transliteration": "Dtao-hoo",
-          "word_mapping": [
-              {"thai": "เต้าหู้", "transliteration": "Dtao-hoo", "translation": "tofu"}
-          ],
-          "complexity": 2,
-          "details": "An essential word for vegetarians. You can ask for dishes like 'ผัดไทยเต้าหู้' (phat thai dtao-hoo) or 'แกงเขียวหวานเต้าหู้' (gaeng khiao waan dtao-hoo)."
-      },
-      {
-          "english": "Do you have WiFi?",
-          "thai": "มีไวไฟไหม",
-          "transliteration": "Mee WiFi mai",
-          "word_mapping": [
-              {"thai": "มี", "transliteration": "Mee", "translation": "to have"},
-              {"thai": "ไวไฟ", "transliteration": "WiFi", "translation": "WiFi"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 2,
-          "details": "A very common and useful question in cafes and restaurants."
-      },
-      {
-          "english": "Can I have the WiFi password?",
-          "thai": "ขอรหัสไวไฟหน่อย",
-          "transliteration": "Khaw ra-hat WiFi noi",
-          "word_mapping": [
-              {"thai": "ขอ", "transliteration": "Khaw", "translation": "to ask for"},
-              {"thai": "รหัส", "transliteration": "ra-hat", "translation": "password/code"},
-              {"thai": "ไวไฟ", "transliteration": "WiFi", "translation": "WiFi"},
-              {"thai": "หน่อย", "transliteration": "noi", "translation": "(softening particle)"}
-          ],
-          "complexity": 4,
-          "details": "The next logical question after confirming they have WiFi."
-      },
-      {
-          "english": "The bill is wrong",
-          "thai": "คิดเงินผิด",
-          "transliteration": "Khit ngern phit",
-          "word_mapping": [
-              {"thai": "คิด", "transliteration": "Khit", "translation": "to calculate"},
-              {"thai": "เงิน", "transliteration": "ngern", "translation": "money"},
-              {"thai": "ผิด", "transliteration": "phit", "translation": "wrong/mistake"}
-          ],
-          "complexity": 4,
-          "details": "A polite but direct way to point out a mistake on the bill. Use 'คิดเงินผิดหรือเปล่า' (khit ngern phit reu bplao - 'Did you perhaps calculate the money wrong?') to be even more gentle."
-      },
-      {
-          "english": "Well done (for meat)",
-          "thai": "สุกๆ",
-          "transliteration": "Suk-suk",
-          "word_mapping": [
-              {"thai": "สุก", "transliteration": "Suk", "translation": "cooked/ripe"}
-          ],
-          "complexity": 3,
-          "details": "When ordering steak or grilled meat, repeating the word 'สุก' (suk) implies 'very well cooked'. For medium-rare, you can try 'มีเดียมแรร์' (medium-rare) as the English term is often understood."
-      },
-      {
-          "english": "High chair for a baby",
-          "thai": "เก้าอี้เด็ก",
-          "transliteration": "Gao-ee dek",
-          "word_mapping": [
-              {"thai": "เก้าอี้", "transliteration": "Gao-ee", "translation": "chair"},
-              {"thai": "เด็ก", "transliteration": "dek", "translation": "child"}
-          ],
-          "complexity": 3,
-          "details": "A useful phrase for families dining out. You can ask 'มีเก้าอี้เด็กไหม' (mee gao-ee dek mai?) - 'Do you have a child's chair?'."
-      },
-      {
-          "english": "Can I sit here?",
-          "thai": "นั่งตรงนี้ได้ไหม",
-          "transliteration": "Nang dtrong nee dai mai",
-          "word_mapping": [
-              {"thai": "นั่ง", "transliteration": "Nang", "translation": "to sit"},
-              {"thai": "ตรงนี้", "transliteration": "dtrong nee", "translation": "right here"},
-              {"thai": "ได้", "transliteration": "dai", "translation": "can"},
-              {"thai": "ไหม", "transliteration": "mai", "translation": "(question particle)"}
-          ],
-          "complexity": 3,
-          "details": "A polite way to ask before taking a seat, especially if you are joining someone or choosing your own table."
-      }
-  ]
-  }
+    "vocabulary": [
+        {
+            "english": "Hello / Excuse me (to staff)",
+            "thai": "พี่",
+            "transliteration": "Pee",
+            "word_mapping": [
+                {
+                    "thai": "พี่",
+                    "transliteration": "pîi",
+                    "translation": "older sibling; older (person); Mr./Ms. (as a respectful title)"
+                }
+            ],
+            "complexity": 1,
+            "details": "This is the most common way to get a server's attention. To be polite, men add ครับ (khrap) and women add ค่ะ (kha). Example: 'พี่ครับ' (Pee khrap). For much older staff, you can use 'ป้า' (bpaa - 'aunt') or 'ลุง' (lung - 'uncle').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Can I have the menu?",
+            "thai": "ขอเมนูหน่อย",
+            "transliteration": "Khaw menu noi",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "Khaw",
+                    "translation": "to ask for"
+                },
+                {
+                    "thai": "เมนู",
+                    "transliteration": "menu",
+                    "translation": "menu"
+                },
+                {
+                    "thai": "หน่อย",
+                    "transliteration": "noi",
+                    "translation": "(softening particle)"
+                }
+            ],
+            "complexity": 2,
+            "details": "A casual and polite way to ask for the menu. The word 'หน่อย' (noi) softens the request. For an English menu, ask 'ขอเมนูภาษาอังกฤษหน่อย' (khaw menu phaa-saa ang-grit noi), where ภาษาอังกฤษ (phaa-saa ang-grit) means 'English language'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_have_the_menu.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Can I order?",
+            "thai": "สั่งอาหารได้ไหม",
+            "transliteration": "Sang ahaan dai mai",
+            "word_mapping": [
+                {
+                    "thai": "สั่งอาหาร",
+                    "transliteration": "sang ahaan",
+                    "translation": "to order food"
+                },
+                {
+                    "thai": "ได้",
+                    "transliteration": "dai",
+                    "translation": "to get"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mǎi",
+                    "translation": "silk"
+                }
+            ],
+            "complexity": 2,
+            "details": "Use this when you are ready to order. An even more casual way is just to say 'สั่งได้เลย' (sang dai loei), which means 'Ready to order now'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_order.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "What do you recommend?",
+            "thai": "มีอะไรแนะนำไหม",
+            "transliteration": "Mee arai nae-nam mai",
+            "word_mapping": [
+                {
+                    "thai": "มี",
+                    "transliteration": "Mee",
+                    "translation": "to have"
+                },
+                {
+                    "thai": "อะไร",
+                    "transliteration": "arai",
+                    "translation": "what"
+                },
+                {
+                    "thai": "แนะนำ",
+                    "transliteration": "nae-nam",
+                    "translation": "to recommend"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 4,
+            "details": "A great way to find a restaurant's best dishes. A simpler, very common alternative is 'อะไรอร่อย' (arai aroi?), meaning 'What's delicious?'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/what_do_you_recommend.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Check, please",
+            "thai": "เก็บตังค์",
+            "transliteration": "Gep dtang",
+            "word_mapping": [
+                {
+                    "thai": "เก็บ",
+                    "transliteration": "Gep",
+                    "translation": "to collect"
+                },
+                {
+                    "thai": "ตังค์",
+                    "transliteration": "dtang",
+                    "translation": "money (colloquial)"
+                }
+            ],
+            "complexity": 1,
+            "details": "This is the most common, local way to ask for the bill. It literally means 'collect money'. Another very common phrase, borrowed from English, is 'เช็คบิล' (chek bin).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/check,_please.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "I'll take...",
+            "thai": "เอา...",
+            "transliteration": "Ao...",
+            "word_mapping": [
+                {
+                    "thai": "เอา",
+                    "transliteration": "ao",
+                    "translation": "to take; to want"
+                }
+            ],
+            "complexity": 1,
+            "details": "The most common and direct way to order. Example: 'เอาผัดไทย' (ao phat thai - 'I'll take Pad Thai'). It's not rude. A slightly more polite version is 'ขอ...' (khaw...), meaning 'Can I have...'. Example: 'ขอผัดไทย' (khaw phat thai).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Eat here",
+            "thai": "กินที่นี่",
+            "transliteration": "Gin tee nee",
+            "word_mapping": [
+                {
+                    "thai": "กิน",
+                    "transliteration": "Gin",
+                    "translation": "to eat (casual)"
+                },
+                {
+                    "thai": "ที่นี่",
+                    "transliteration": "tee nee",
+                    "translation": "here"
+                }
+            ],
+            "complexity": 2,
+            "details": "This is the common, everyday way to say 'eat here'. Staff will often ask 'กินที่นี่หรือกลับบ้าน' (gin tee nee reu glap baan?) - 'Eat here or take away?'. The more formal/polite word for 'to eat' is 'ทาน' (taan), so 'ทานที่นี่' (taan tee nee) is also correct and polite.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/eat_here.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Take away",
+            "thai": "กลับบ้าน",
+            "transliteration": "Glap baan",
+            "word_mapping": [
+                {
+                    "thai": "กลับ",
+                    "transliteration": "Glap",
+                    "translation": "to return"
+                },
+                {
+                    "thai": "บ้าน",
+                    "transliteration": "baan",
+                    "translation": "home"
+                }
+            ],
+            "complexity": 2,
+            "details": "Literally 'return home', this is the standard phrase for a to-go order. Another common phrase is 'ห่อกลับบ้าน' (haw glap baan), which means 'wrap to take home'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/take_away.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "One glass of water",
+            "thai": "ขอน้ำเปล่าแก้วนึง",
+            "transliteration": "Khaw nam bplao gaew neung",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "Khaw",
+                    "translation": "to ask for"
+                },
+                {
+                    "thai": "น้ำเปล่า",
+                    "transliteration": "nam bplao",
+                    "translation": "plain water"
+                },
+                {
+                    "thai": "แก้ว",
+                    "transliteration": "gaew",
+                    "translation": "glass/cup"
+                },
+                {
+                    "thai": "นึง",
+                    "transliteration": "neung",
+                    "translation": "one (colloquial)"
+                }
+            ],
+            "complexity": 3,
+            "details": "A very common way to ask for water. 'แก้วนึง' (gaew neung) is a casual shortening of 'หนึ่งแก้ว' (neung gaew). For a bottle, use 'ขวด' (khuat).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/one_glass_of_water.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Not spicy",
+            "thai": "ไม่เผ็ด",
+            "transliteration": "Mai phet",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "phet",
+                    "translation": "spicy"
+                }
+            ],
+            "complexity": 1,
+            "details": "An essential phrase. You can also specify 'เผ็ดน้อย' (phet noi) for 'a little spicy' or 'เผ็ดมาก' (phet maak) for 'very spicy'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/not_spicy.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Less sweet",
+            "thai": "หวานน้อย",
+            "transliteration": "Waan noi",
+            "word_mapping": [
+                {
+                    "thai": "หวาน",
+                    "transliteration": "waan",
+                    "translation": "sweet"
+                },
+                {
+                    "thai": "น้อย",
+                    "transliteration": "noi",
+                    "translation": "a little / less"
+                }
+            ],
+            "complexity": 2,
+            "details": "Crucial for coffee and tea. For no sweetness, say 'ไม่หวาน' (mai waan - 'not sweet') or 'ไม่ใส่น้ำตาล' (mai sai nam-dtaan - 'don't add sugar').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/less_sweet.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Don't add...",
+            "thai": "ไม่ใส่...",
+            "transliteration": "Mai sai...",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mâi",
+                    "translation": "no, not"
+                },
+                {
+                    "thai": "ใส่",
+                    "transliteration": "sài",
+                    "translation": "to put in, to wear"
+                },
+                {
+                    "thai": "...",
+                    "transliteration": "",
+                    "translation": ""
+                }
+            ],
+            "complexity": 3,
+            "details": "Very useful for omitting ingredients. Example: 'ไม่ใส่ผักชี' (mai sai phak chi) for 'don't add cilantro'. To add something, just say 'ใส่...' (sai...).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "What is this?",
+            "thai": "อันนี้อะไร",
+            "transliteration": "An nee arai",
+            "word_mapping": [
+                {
+                    "thai": "อัน",
+                    "transliteration": "An",
+                    "translation": "(classifier for items)"
+                },
+                {
+                    "thai": "นี้",
+                    "transliteration": "nee",
+                    "translation": "this"
+                },
+                {
+                    "thai": "อะไร",
+                    "transliteration": "arai",
+                    "translation": "what"
+                }
+            ],
+            "complexity": 2,
+            "details": "Perfect for night markets. Simply point and ask. The slightly more formal version is 'นี่คืออะไร' (Nee kheu arai).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/what_is_this.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Delicious!",
+            "thai": "อร่อย!",
+            "transliteration": "Aroi!",
+            "word_mapping": [
+                {
+                    "thai": "อร่อย",
+                    "transliteration": "a-roi",
+                    "translation": "delicious"
+                },
+                {
+                    "thai": "!",
+                    "transliteration": "!",
+                    "translation": "exclamation mark"
+                }
+            ],
+            "complexity": 1,
+            "details": "A simple and appreciated compliment. To emphasize, say 'อร่อยมาก' (aroi maak - 'very delicious').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Keep the change",
+            "thai": "ไม่ต้องทอน",
+            "transliteration": "Mai tong thon",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "ต้อง",
+                    "transliteration": "tong",
+                    "translation": "to have to"
+                },
+                {
+                    "thai": "ทอน",
+                    "transliteration": "thon",
+                    "translation": "to give change"
+                }
+            ],
+            "complexity": 4,
+            "details": "Used when paying cash to leave a tip. Tipping is not mandatory but is common for good service.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/keep_the_change.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Thank you",
+            "thai": "ขอบคุณ",
+            "transliteration": "Khop khun",
+            "word_mapping": [
+                {
+                    "thai": "ขอบคุณ",
+                    "transliteration": "khop khun",
+                    "translation": "Thank you"
+                }
+            ],
+            "complexity": 1,
+            "details": "The standard polite way to say thank you. Remember to add ครับ (khrap) for males and ค่ะ (kha) for females.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/thank_you.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "How much?",
+            "thai": "เท่าไหร่",
+            "transliteration": "Tao rai",
+            "word_mapping": [
+                {
+                    "thai": "เท่าไหร่",
+                    "transliteration": "thao-rai",
+                    "translation": "how much; how many"
+                }
+            ],
+            "complexity": 2,
+            "details": "Essential for asking the price. Point and say 'อันนี้เท่าไหร่' (an nee tao rai - 'How much is this one?').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/how_much.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Can I have spoon and fork?",
+            "thai": "ขอช้อนส้อมหน่อย",
+            "transliteration": "Khaw chawn som noi",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "khɔ̌ɔ",
+                    "translation": "ask for; request"
+                },
+                {
+                    "thai": "ช้อนส้อม",
+                    "transliteration": "chɔ́ɔn-sɔ̂m",
+                    "translation": "fork and spoon; cutlery"
+                },
+                {
+                    "thai": "หน่อย",
+                    "transliteration": "nɔ̀y",
+                    "translation": "a little; a bit; (softening particle for requests)"
+                }
+            ],
+            "complexity": 3,
+            "details": "The standard cutlery in Thailand is a spoon and fork. Spoon is for eating, fork is for pushing.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_have_spoon_and_fork.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Can I have chopsticks?",
+            "thai": "ขอตะเกียบหน่อย",
+            "transliteration": "Khaw dta-giap noi",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "kăw",
+                    "translation": "to ask for; to request"
+                },
+                {
+                    "thai": "ตะเกียบ",
+                    "transliteration": "dtà-gìap",
+                    "translation": "chopsticks"
+                },
+                {
+                    "thai": "หน่อย",
+                    "transliteration": "nòy",
+                    "translation": "a little; a bit; (particle indicating mild request/suggestion)"
+                }
+            ],
+            "complexity": 3,
+            "details": "Useful for noodle dishes or at Chinese/Japanese style restaurants.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_have_chopsticks.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Can I have a napkin?",
+            "thai": "ขอทิชชู่หน่อย",
+            "transliteration": "Khaw tissue noi",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "kǒr",
+                    "translation": "to ask for; to request"
+                },
+                {
+                    "thai": "ทิช",
+                    "transliteration": "tít",
+                    "translation": "(part of) tissue"
+                },
+                {
+                    "thai": "ชู่",
+                    "transliteration": "chûu",
+                    "translation": "(part of) tissue"
+                },
+                {
+                    "thai": "หน่อย",
+                    "transliteration": "nòy",
+                    "translation": "a little; a bit; please (polite particle)"
+                }
+            ],
+            "complexity": 2,
+            "details": "The English word 'tissue' is commonly used. The formal Thai word is 'กระดาษชำระ' (gra-daat cham-ra).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_have_a_napkin.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "I'm vegetarian",
+            "thai": "กินเจ",
+            "transliteration": "Gin jay",
+            "word_mapping": [
+                {
+                    "thai": "กินเจ",
+                    "transliteration": "gin-jae",
+                    "translation": "to eat vegetarian food (especially during the Vegetarian Festival)"
+                }
+            ],
+            "complexity": 3,
+            "details": "The most common way to express a strict vegetarian/vegan diet (no animal products, garlic, or strong herbs). For a broader ovo-lacto vegetarian diet, the word is 'มังสวิรัติ' (mangsawirat).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "I'm allergic to shrimp",
+            "thai": "แพ้กุ้ง",
+            "transliteration": "Phae goong",
+            "word_mapping": [
+                {
+                    "thai": "แพ้",
+                    "transliteration": "Phae",
+                    "translation": "to lose; to be allergic to"
+                },
+                {
+                    "thai": "กุ้ง",
+                    "transliteration": "Gung",
+                    "translation": "shrimp"
+                }
+            ],
+            "complexity": 3,
+            "details": "Crucial for allergies. Replace 'กุ้ง' (goong) with any other allergen, such as 'ถั่ว' (tua - 'nuts').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/i'm_allergic_to_shrimp.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Not too oily",
+            "thai": "ไม่มัน",
+            "transliteration": "Mai man",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mâi",
+                    "translation": "no; not"
+                },
+                {
+                    "thai": "มัน",
+                    "transliteration": "man",
+                    "translation": "it; fat; oily"
+                }
+            ],
+            "complexity": 2,
+            "details": "Useful for stir-fried dishes. You can also say 'ขอน้ำมันน้อยๆ' (khaw nam-man noi-noi) for 'a little oil, please'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/not_too_oily.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Hot (temperature)",
+            "thai": "ร้อน",
+            "transliteration": "Rawn",
+            "word_mapping": [
+                {
+                    "thai": "ร้อน",
+                    "transliteration": "ráawn",
+                    "translation": "hot"
+                }
+            ],
+            "complexity": 1,
+            "details": "Use for drinks or soup. Example: 'เอากาแฟร้อน' (ao ga-fae rawn - 'I'll have a hot coffee').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/hot_(temperature).wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Cold / Iced",
+            "thai": "เย็น",
+            "transliteration": "Yen",
+            "word_mapping": [
+                {
+                    "thai": "เย็น",
+                    "transliteration": "yen",
+                    "translation": "cold; cool; evening"
+                }
+            ],
+            "complexity": 1,
+            "details": "The default for most drinks. Example: 'เอาชาเย็น' (ao chaa yen - 'I'll take an iced tea').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Fruit Smoothie",
+            "thai": "น้ำผลไม้ปั่น",
+            "transliteration": "Nam phon-la-mai bpan",
+            "word_mapping": [
+                {
+                    "thai": "น้ำผลไม้",
+                    "transliteration": "nam-pon-la-mai",
+                    "translation": "fruit juice"
+                },
+                {
+                    "thai": "ปั่น",
+                    "transliteration": "pan",
+                    "translation": "to blend"
+                }
+            ],
+            "complexity": 3,
+            "details": "A popular drink. Specify the fruit, e.g., 'น้ำมะม่วงปั่น' (nam ma-muang bpan - 'mango smoothie').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/fruit_smoothie.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "One more bottle of beer",
+            "thai": "ขอเบียร์อีกขวด",
+            "transliteration": "Khaw bia eek khuat",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "kɔ̌ɔ",
+                    "translation": "to ask for, to request"
+                },
+                {
+                    "thai": "เบียร์",
+                    "transliteration": "bia",
+                    "translation": "beer"
+                },
+                {
+                    "thai": "อีก",
+                    "transliteration": "ìik",
+                    "translation": "more, again, another"
+                },
+                {
+                    "thai": "ขวด",
+                    "transliteration": "khuàt",
+                    "translation": "bottle"
+                }
+            ],
+            "complexity": 3,
+            "details": "A simple way to order another round. 'อีก' (eek) means 'another' or 'more'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/one_more_bottle_of_beer.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Separate bills",
+            "thai": "แยกบิล",
+            "transliteration": "Yaek bin",
+            "word_mapping": [
+                {
+                    "thai": "แยก",
+                    "transliteration": "yâek",
+                    "translation": "to separate, to divide"
+                },
+                {
+                    "thai": "บิล",
+                    "transliteration": "bin",
+                    "translation": "bill"
+                }
+            ],
+            "complexity": 2,
+            "details": "Use this when you want to pay separately. The opposite is 'รวมบิล' (ruam bin - 'combine bill').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Can I pay by card?",
+            "thai": "รับบัตรไหม",
+            "transliteration": "Rap bat mai",
+            "word_mapping": [
+                {
+                    "thai": "รับ",
+                    "transliteration": "rap",
+                    "translation": "to receive; to accept"
+                },
+                {
+                    "thai": "บัตร",
+                    "transliteration": "bat",
+                    "translation": "card; ticket"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 3,
+            "details": "A shortened, common way to ask. The full phrase is 'รับบัตรเครดิตไหม' (rap bat credit mai). Good to ask, as many smaller places are cash only.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_i_pay_by_card.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "No ice",
+            "thai": "ไม่ใส่น้ำแข็ง",
+            "transliteration": "Mai sai nam khaeng",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mâi",
+                    "translation": "no; not"
+                },
+                {
+                    "thai": "ใส่",
+                    "transliteration": "sài",
+                    "translation": "to put in; to wear"
+                },
+                {
+                    "thai": "น้ำแข็ง",
+                    "transliteration": "nám-kɛ̌ng",
+                    "translation": "ice"
+                }
+            ],
+            "complexity": 3,
+            "details": "Useful for drinks. 'น้ำ' (nam) is 'water' and 'แข็ง' (khaeng) is 'hard'.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/no_ice.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Pork",
+            "thai": "หมู",
+            "transliteration": "Moo",
+            "word_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "muu",
+                    "translation": "pig; pork"
+                }
+            ],
+            "complexity": 1,
+            "details": "A very common protein. Example: 'เอาผัดกะเพราหมู' (ao phat ga-prao moo - 'I'll have stir-fried holy basil with pork').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/pork.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Chicken",
+            "thai": "ไก่",
+            "transliteration": "Gai",
+            "word_mapping": [
+                {
+                    "thai": "ไก่",
+                    "transliteration": "kài",
+                    "translation": "chicken"
+                }
+            ],
+            "complexity": 1,
+            "details": "Another common protein. Example: 'ข้าวมันไก่' (khao man gai - 'Hainanese chicken rice').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/chicken.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Beef",
+            "thai": "เนื้อ",
+            "transliteration": "Neua",
+            "word_mapping": [
+                {
+                    "thai": "เนื้อ",
+                    "transliteration": "neua",
+                    "translation": "meat; flesh; content"
+                }
+            ],
+            "complexity": 1,
+            "details": "Refers to beef, but can also mean 'meat' in general. To be specific, say 'เนื้อวัว' (neua wua). Example: 'ก๋วยเตี๋ยวเนื้อ' (guay-dtiao neua - 'beef noodle soup').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Seafood",
+            "thai": "ทะเล",
+            "transliteration": "Tha-leh",
+            "word_mapping": [
+                {
+                    "thai": "ทะเล",
+                    "transliteration": "ta-lay",
+                    "translation": "sea; ocean"
+                }
+            ],
+            "complexity": 1,
+            "details": "Literally 'sea'. Used for mixed seafood dishes. Example: 'ข้าวผัดทะเล' (khao phat tha-leh - 'seafood fried rice').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Egg",
+            "thai": "ไข่",
+            "transliteration": "Khai",
+            "word_mapping": [
+                {
+                    "thai": "ไข่",
+                    "transliteration": "khai",
+                    "translation": "egg"
+                }
+            ],
+            "complexity": 1,
+            "details": "A common addition. See also 'ไข่ดาว' (khai dao - 'fried egg') and 'ไข่เจียว' (khai jiao - 'omelette').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Fried egg",
+            "thai": "ไข่ดาว",
+            "transliteration": "Khai dao",
+            "word_mapping": [
+                {
+                    "thai": "ไข่ดาว",
+                    "transliteration": "khai dao",
+                    "translation": "fried egg"
+                }
+            ],
+            "complexity": 2,
+            "details": "A popular topping. Request it by saying 'เพิ่มไข่ดาว' (perm khai dao - 'add a fried egg').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/fried_egg.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Omelette",
+            "thai": "ไข่เจียว",
+            "transliteration": "Khai jiao",
+            "word_mapping": [
+                {
+                    "thai": "ไข่เจียว",
+                    "transliteration": "kài jiaao",
+                    "translation": "Thai-style omelet"
+                }
+            ],
+            "complexity": 2,
+            "details": "A Thai-style omelette, often served over rice. 'ข้าวไข่เจียว' (khao khai jiao) is a simple, popular meal.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Rice",
+            "thai": "ข้าว",
+            "transliteration": "Khao",
+            "word_mapping": [
+                {
+                    "thai": "ข้าว",
+                    "transliteration": "khao",
+                    "translation": "rice"
+                }
+            ],
+            "complexity": 1,
+            "details": "The staple food. For plain steamed rice, ask for 'ข้าวสวย' (khao suay - 'beautiful rice'). For sticky rice, ask for 'ข้าวเหนียว' (khao niao).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Noodles",
+            "thai": "ก๋วยเตี๋ยว",
+            "transliteration": "Guay dtiao",
+            "word_mapping": [
+                {
+                    "thai": "ก๋วยเตี๋ยว",
+                    "transliteration": "kuai-tiao",
+                    "translation": "noodles"
+                }
+            ],
+            "complexity": 1,
+            "details": "A general term for noodle dishes. There are many types, like 'เส้นใหญ่' (sen yai - 'wide rice noodles') and 'เส้นเล็ก' (sen lek - 'thin rice noodles').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/noodles.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Vegetables",
+            "thai": "ผัก",
+            "transliteration": "Phak",
+            "word_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "phak",
+                    "translation": "vegetable"
+                }
+            ],
+            "complexity": 1,
+            "details": "Useful for ordering vegetable dishes. Example: 'ผัดผักรวม' (phat phak ruam - 'stir-fried mixed vegetables').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Salty",
+            "thai": "เค็ม",
+            "transliteration": "Khem",
+            "word_mapping": [
+                {
+                    "thai": "เค็ม",
+                    "transliteration": "khem",
+                    "translation": "salty"
+                }
+            ],
+            "complexity": 2,
+            "details": "A core flavor. If a dish is too salty, you can say 'เค็มไป' (khem bpai - 'too salty').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/salty.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Sour",
+            "thai": "เปรี้ยว",
+            "transliteration": "Bpriao",
+            "word_mapping": [
+                {
+                    "thai": "เปรี้ยว",
+                    "transliteration": "priao",
+                    "translation": "sour"
+                }
+            ],
+            "complexity": 2,
+            "details": "Another core flavor. If you like sour flavors, you can request 'เปรี้ยวๆ' (bpriao bpriao).",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/sour.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Spicy Basil Stir Fry",
+            "thai": "ผัดกะเพรา",
+            "transliteration": "Phat ga-prao",
+            "word_mapping": [
+                {
+                    "thai": "ผัดกะเพรา",
+                    "transliteration": "phat ka-phrao",
+                    "translation": "Holy basil stir-fry"
+                }
+            ],
+            "complexity": 2,
+            "details": "A hugely popular dish. Specify the meat, e.g., 'ผัดกะเพราไก่' (phat ga-prao gai). Often served on rice 'ราดข้าว' (raat khao).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/spicy_basil_stir_fry.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Fried Rice",
+            "thai": "ข้าวผัด",
+            "transliteration": "Khao phat",
+            "word_mapping": [
+                {
+                    "thai": "ข้าวผัด",
+                    "transliteration": "kâao-phàt",
+                    "translation": "fried rice"
+                }
+            ],
+            "complexity": 2,
+            "details": "A classic one-plate meal. Specify the protein, such as 'ข้าวผัดกุ้ง' (khao phat goong - 'shrimp fried rice').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Stir-fried Noodles",
+            "thai": "ผัดไทย",
+            "transliteration": "Phat thai",
+            "word_mapping": [
+                {
+                    "thai": "ผัดไทย",
+                    "transliteration": "phat thai",
+                    "translation": "Pad Thai"
+                }
+            ],
+            "complexity": 2,
+            "details": "Thailand's famous stir-fried noodle dish. Usually comes with shrimp 'กุ้ง' (goong) or tofu 'เต้าหู้' (dtao-hoo).",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/stir-fried_noodles.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Green Curry",
+            "thai": "แกงเขียวหวาน",
+            "transliteration": "Gaeng khiao waan",
+            "word_mapping": [
+                {
+                    "thai": "แกงเขียวหวาน",
+                    "transliteration": "Gaeng Keow Wan",
+                    "translation": "Green Curry"
+                }
+            ],
+            "complexity": 3,
+            "details": "A famous Thai curry. The name means 'sweet green curry', but it can be very spicy. Usually made with chicken 'ไก่' (gai).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/green_curry.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Spicy Papaya Salad",
+            "thai": "ส้มตำ",
+            "transliteration": "Som tam",
+            "word_mapping": [
+                {
+                    "thai": "ส้มตำ",
+                    "transliteration": "Som Tum",
+                    "translation": "Papaya Salad"
+                }
+            ],
+            "complexity": 2,
+            "details": "A classic northeastern dish. There are many versions, like 'ส้มตำไทย' (som tam thai - with peanuts) and 'ส้มตำปูปลาร้า' (som tam bpoo bplaa-raa - with crab and fermented fish sauce).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/spicy_papaya_salad.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Spicy Shrimp Soup",
+            "thai": "ต้มยำกุ้ง",
+            "transliteration": "Tom yam goong",
+            "word_mapping": [
+                {
+                    "thai": "ต้มยำกุ้ง",
+                    "transliteration": "dtôm-yam-gûng",
+                    "translation": "Tom Yum Goong (spicy shrimp soup)"
+                }
+            ],
+            "complexity": 3,
+            "details": "One of Thailand's most famous soups. 'ต้มยำ' (tom yam) is the general name for hot and sour soups.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/spicy_shrimp_soup.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Chicken Coconut Soup",
+            "thai": "ต้มข่าไก่",
+            "transliteration": "Tom kha gai",
+            "word_mapping": [
+                {
+                    "thai": "ต้มข่า",
+                    "transliteration": "dtôm khàa",
+                    "translation": "Tom Kha (Thai coconut soup with galangal)"
+                },
+                {
+                    "thai": "ไก่",
+                    "transliteration": "gài",
+                    "translation": "chicken"
+                }
+            ],
+            "complexity": 3,
+            "details": "A milder, creamy coconut soup with galangal as the dominant flavor.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/chicken_coconut_soup.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "This one",
+            "thai": "อันนี้",
+            "transliteration": "An nee",
+            "word_mapping": [
+                {
+                    "thai": "อันนี้",
+                    "transliteration": "an-níi",
+                    "translation": "this one"
+                }
+            ],
+            "complexity": 1,
+            "details": "Extremely useful for pointing. Example: 'เอาอันนี้' (ao an nee - 'I'll take this one').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "That one",
+            "thai": "อันนั้น",
+            "transliteration": "An nan",
+            "word_mapping": [
+                {
+                    "thai": "อันนั้น",
+                    "transliteration": "an nan",
+                    "translation": "that one"
+                }
+            ],
+            "complexity": 1,
+            "details": "Used for pointing at something a little further away. Example: 'อันนั้นอะไร' (an nan arai - 'What is that one?').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/that_one.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Table",
+            "thai": "โต๊ะ",
+            "transliteration": "Dto",
+            "word_mapping": [
+                {
+                    "thai": "โต๊ะ",
+                    "transliteration": "dtô",
+                    "translation": "table; desk"
+                }
+            ],
+            "complexity": 1,
+            "details": "Useful for getting a table. Example: 'โต๊ะสำหรับสองคน' (dto sam-rap song khon - 'A table for two people').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Chair",
+            "thai": "เก้าอี้",
+            "transliteration": "Gao-ee",
+            "word_mapping": [
+                {
+                    "thai": "เก้าอี้",
+                    "transliteration": "gâo-êe",
+                    "translation": "chair"
+                }
+            ],
+            "complexity": 1,
+            "details": "Helpful if you need an extra chair. Example: 'ขอเก้าอี้อีกตัว' (khaw gao-ee eek dtua - 'Can I have another chair?').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Plate",
+            "thai": "จาน",
+            "transliteration": "Jaan",
+            "word_mapping": [
+                {
+                    "thai": "จาน",
+                    "transliteration": "jaan",
+                    "translation": "plate"
+                }
+            ],
+            "complexity": 1,
+            "details": "Also used as a classifier for dishes. Example: 'ขอจานเปล่า' (khaw jaan bplao - 'Can I have an empty plate?').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/plate.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Bowl",
+            "thai": "ชาม",
+            "transliteration": "Chaam",
+            "word_mapping": [
+                {
+                    "thai": "ชาม",
+                    "transliteration": "chaam",
+                    "translation": "bowl"
+                }
+            ],
+            "complexity": 1,
+            "details": "Mainly used for soups and noodle dishes. Example: 'ก๋วยเตี๋ยวชามนี้' (guay-dtiao chaam nee - 'This bowl of noodles').",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/bowl.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Glass / Cup",
+            "thai": "แก้ว",
+            "transliteration": "Gaew",
+            "word_mapping": [
+                {
+                    "thai": "แก้ว",
+                    "transliteration": "gâew",
+                    "translation": "glass; cup; crystal; gem"
+                }
+            ],
+            "complexity": 1,
+            "details": "The classifier for drinks in a cup/glass. Example: 'เบียร์สองแก้ว' (bia song gaew - 'two glasses of beer').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Bottle",
+            "thai": "ขวด",
+            "transliteration": "Khuat",
+            "word_mapping": [
+                {
+                    "thai": "ขวด",
+                    "transliteration": "khuat",
+                    "translation": "bottle"
+                }
+            ],
+            "complexity": 1,
+            "details": "The classifier for bottled drinks. Example: 'น้ำขวดหนึ่ง' (nam khuat neung - 'one bottle of water').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Can (container)",
+            "thai": "กระป๋อง",
+            "transliteration": "Gra-bpong",
+            "word_mapping": [
+                {
+                    "thai": "กระป๋อง",
+                    "transliteration": "gra-bpong",
+                    "translation": "can (container)"
+                }
+            ],
+            "complexity": 2,
+            "details": "The classifier for canned drinks. Example: 'โค้กกระป๋อง' (coke gra-bpong - 'a can of coke').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/can_(container).wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Coffee",
+            "thai": "กาแฟ",
+            "transliteration": "Ga-fae",
+            "word_mapping": [
+                {
+                    "thai": "กาแฟ",
+                    "transliteration": "gaa-faae",
+                    "translation": "coffee"
+                }
+            ],
+            "complexity": 1,
+            "details": "When ordering, specify hot 'ร้อน' (rawn) or iced 'เย็น' (yen). Example: 'กาแฟเย็นหวานน้อย' (ga-fae yen waan noi - 'iced coffee, less sweet').",
+            "audio_path": "assets/audio/beginner_food_vocabulary/coffee.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Tea",
+            "thai": "ชา",
+            "transliteration": "Chaa",
+            "word_mapping": [
+                {
+                    "thai": "ชา",
+                    "transliteration": "chaa",
+                    "translation": "tea"
+                }
+            ],
+            "complexity": 1,
+            "details": "The famous Thai iced tea is 'ชาไทยเย็น' (chaa thai yen). For Chinese tea, ask for 'ชาร้อน' (chaa rawn).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Milk",
+            "thai": "นม",
+            "transliteration": "Nom",
+            "word_mapping": [
+                {
+                    "thai": "นม",
+                    "transliteration": "nom",
+                    "translation": "milk"
+                }
+            ],
+            "complexity": 1,
+            "details": "Used in many drinks. Pink milk, 'นมเย็น' (nom yen), is a popular sweet drink.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/milk.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Orange Juice",
+            "thai": "น้ำส้ม",
+            "transliteration": "Nam som",
+            "word_mapping": [
+                {
+                    "thai": "น้ำส้ม",
+                    "transliteration": "nam som",
+                    "translation": "orange juice"
+                }
+            ],
+            "complexity": 2,
+            "details": "Widely available, often freshly squeezed.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/orange_juice.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Coconut Water",
+            "thai": "น้ำมะพร้าว",
+            "transliteration": "Nam ma-phrao",
+            "word_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nam",
+                    "translation": "water"
+                },
+                {
+                    "thai": "มะพร้าว",
+                    "transliteration": "maphrao",
+                    "translation": "coconut"
+                }
+            ],
+            "complexity": 2,
+            "details": "A refreshing drink, often served directly in the coconut.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Dessert",
+            "thai": "ของหวาน",
+            "transliteration": "Khong waan",
+            "word_mapping": [
+                {
+                    "thai": "ของหวาน",
+                    "transliteration": "khǒng wǎan",
+                    "translation": "dessert"
+                }
+            ],
+            "complexity": 2,
+            "details": "Literally 'sweet things'. Ask 'มีของหวานอะไรบ้าง' (mee khong waan arai baang?) - 'What desserts do you have?'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/dessert.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Mango Sticky Rice",
+            "thai": "ข้าวเหนียวมะม่วง",
+            "transliteration": "Khao niao ma-muang",
+            "word_mapping": [
+                {
+                    "thai": "ข้าวเหนียว",
+                    "transliteration": "kâao nǐaw",
+                    "translation": "sticky rice"
+                },
+                {
+                    "thai": "มะม่วง",
+                    "transliteration": "má-mûang",
+                    "translation": "mango"
+                }
+            ],
+            "complexity": 3,
+            "details": "The most famous Thai dessert, especially when mangoes are in season.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Hungry",
+            "thai": "หิว",
+            "transliteration": "Hio",
+            "word_mapping": [
+                {
+                    "thai": "หิว",
+                    "transliteration": "hǐw",
+                    "translation": "hungry"
+                }
+            ],
+            "complexity": 1,
+            "details": "A very common way to say you're hungry is 'หิวข้าว' (hio khao - 'hungry for rice'), which implies wanting a meal.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/hungry.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Full (from eating)",
+            "thai": "อิ่มแล้ว",
+            "transliteration": "Im laew",
+            "word_mapping": [
+                {
+                    "thai": "อิ่ม",
+                    "transliteration": "im",
+                    "translation": "full (from eating)"
+                },
+                {
+                    "thai": "แล้ว",
+                    "transliteration": "laeo",
+                    "translation": "already; finished; then"
+                }
+            ],
+            "complexity": 2,
+            "details": "A polite way to decline more food. 'อิ่ม' (Im) on its own means 'full'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/full_(from_eating).wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Just a moment",
+            "thai": "แป๊บนึง",
+            "transliteration": "Bpaep neung",
+            "word_mapping": [
+                {
+                    "thai": "แป๊บ",
+                    "transliteration": "bpâep",
+                    "translation": "a moment; a short while; a bit"
+                },
+                {
+                    "thai": "นึง",
+                    "transliteration": "neung",
+                    "translation": "one (colloquial); a; a certain"
+                }
+            ],
+            "complexity": 2,
+            "details": "A very common colloquial phrase. Use this if a waiter approaches but you haven't decided yet. A more formal way is 'สักครู่' (sak khruu).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/just_a_moment.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "With rice (as a single dish)",
+            "thai": "ราดข้าว",
+            "transliteration": "Raat khao",
+            "word_mapping": [
+                {
+                    "thai": "ราด",
+                    "transliteration": "râat",
+                    "translation": "to pour, to sprinkle, to top (e.g., sauce on food)"
+                },
+                {
+                    "thai": "ข้าว",
+                    "transliteration": "khâao",
+                    "translation": "rice, food"
+                }
+            ],
+            "complexity": 3,
+            "details": "Specifies that you want a dish served over a plate of rice. Example: 'กะเพราหมูราดข้าว' (ga-prao moo raat khao).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "As a separate dish (for sharing)",
+            "thai": "เป็นกับข้าว",
+            "transliteration": "Bpen gap khao",
+            "word_mapping": [
+                {
+                    "thai": "เป็น",
+                    "transliteration": "bpen",
+                    "translation": "to be; is/am/are/was/were; to be able to"
+                },
+                {
+                    "thai": "กับข้าว",
+                    "transliteration": "gàp-kâao",
+                    "translation": "food (eaten with rice); side dish"
+                }
+            ],
+            "complexity": 4,
+            "details": "Use this when ordering several dishes to be shared. 'กับข้าว' (gap khao) refers to main dishes eaten alongside rice.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/as_a_separate_dish_(for_sharing).wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Extra portion",
+            "thai": "พิเศษ",
+            "transliteration": "Pi-set",
+            "word_mapping": [
+                {
+                    "thai": "พิเศษ",
+                    "transliteration": "Pi-set",
+                    "translation": "special"
+                }
+            ],
+            "complexity": 3,
+            "details": "Say this after a dish name to request a larger portion (for a higher price). Example: 'ผัดไทยพิเศษ' (phat thai pi-set).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/extra_portion.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Crispy Pork",
+            "thai": "หมูกรอบ",
+            "transliteration": "Moo grop",
+            "word_mapping": [
+                {
+                    "thai": "หมูกรอบ",
+                    "transliteration": "mǔu krɔ̀ɔp",
+                    "translation": "crispy pork"
+                }
+            ],
+            "complexity": 2,
+            "details": "A popular choice for many dishes, especially 'ผัดกะเพราหมูกรอบ' (phat ga-prao moo grop).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/crispy_pork.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Grilled Pork Skewers",
+            "thai": "หมูปิ้ง",
+            "transliteration": "Moo bping",
+            "word_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "Moo",
+                    "translation": "pork"
+                },
+                {
+                    "thai": "ปิ้ง",
+                    "transliteration": "bping",
+                    "translation": "to grill"
+                }
+            ],
+            "complexity": 2,
+            "details": "A quintessential street food, often eaten with sticky rice 'ข้าวเหนียว' (khao niao).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/grilled_pork_skewers.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Boat Noodles",
+            "thai": "ก๋วยเตี๋ยวเรือ",
+            "transliteration": "Guay dtiao reua",
+            "word_mapping": [
+                {
+                    "thai": "ก๋วยเตี๋ยว",
+                    "transliteration": "Guay dtiao",
+                    "translation": "noodles"
+                },
+                {
+                    "thai": "เรือ",
+                    "transliteration": "reua",
+                    "translation": "boat"
+                }
+            ],
+            "complexity": 3,
+            "details": "A famous type of noodle soup with a rich, dark broth, traditionally sold from boats.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/boat_noodles.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Stir-fried wide noodles",
+            "thai": "ผัดซีอิ๊ว",
+            "transliteration": "Phat see-ew",
+            "word_mapping": [
+                {
+                    "thai": "ผัด",
+                    "transliteration": "Phat",
+                    "translation": "to stir-fry"
+                },
+                {
+                    "thai": "ซีอิ๊ว",
+                    "transliteration": "see-ew",
+                    "translation": "soy sauce"
+                }
+            ],
+            "complexity": 2,
+            "details": "A popular comfort noodle dish made with wide rice noodles 'เส้นใหญ่' (sen yai) and dark soy sauce.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Where is the restroom?",
+            "thai": "ห้องน้ำอยู่ไหน",
+            "transliteration": "Hong nam yoo nai",
+            "word_mapping": [
+                {
+                    "thai": "ห้องน้ำ",
+                    "transliteration": "hong nam",
+                    "translation": "restroom"
+                },
+                {
+                    "thai": "อยู่",
+                    "transliteration": "yoo",
+                    "translation": "is located"
+                },
+                {
+                    "thai": "ไหน",
+                    "transliteration": "nai",
+                    "translation": "where"
+                }
+            ],
+            "complexity": 3,
+            "details": "An essential question. 'ห้อง' (hong) means 'room' and 'น้ำ' (nam) means 'water'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/where_is_the_restroom.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "I don't understand",
+            "thai": "ไม่เข้าใจ",
+            "transliteration": "Mai khao jai",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "เข้าใจ",
+                    "transliteration": "khao jai",
+                    "translation": "understand"
+                }
+            ],
+            "complexity": 2,
+            "details": "A useful phrase when communication gets difficult.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/i_don't_understand.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Can you speak English?",
+            "thai": "พูดอังกฤษได้ไหม",
+            "transliteration": "Phuut ang-grit dai mai",
+            "word_mapping": [
+                {
+                    "thai": "พูด",
+                    "transliteration": "Phuut",
+                    "translation": "to speak"
+                },
+                {
+                    "thai": "อังกฤษ",
+                    "transliteration": "ang-grit",
+                    "translation": "English"
+                },
+                {
+                    "thai": "ได้",
+                    "transliteration": "dai",
+                    "translation": "can"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 4,
+            "details": "The common, shortened version. The full phrase is 'พูดภาษาอังกฤษได้ไหม' (phuut phaa-saa ang-grit dai mai), where ภาษา (phaa-saa) means 'language'.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "No sugar",
+            "thai": "ไม่ใส่น้ำตาล",
+            "transliteration": "Mai sai nam-dtaan",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "ใส่",
+                    "transliteration": "sai",
+                    "translation": "to add"
+                },
+                {
+                    "thai": "น้ำตาล",
+                    "transliteration": "nam-dtaan",
+                    "translation": "sugar"
+                }
+            ],
+            "complexity": 3,
+            "details": "More specific than 'ไม่หวาน' (mai waan - 'not sweet'). Guarantees no sugar is added.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/no_sugar.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Fish sauce with chili",
+            "thai": "พริกน้ำปลา",
+            "transliteration": "Phrik nam-bplaa",
+            "word_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "Phrik",
+                    "translation": "chili"
+                },
+                {
+                    "thai": "น้ำปลา",
+                    "transliteration": "nam-bplaa",
+                    "translation": "fish sauce"
+                }
+            ],
+            "complexity": 2,
+            "details": "The quintessential Thai table condiment. Ask for it by saying 'ขอพริกน้ำปลา' (khaw phrik nam-bplaa).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/fish_sauce_with_chili.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Is this seat taken?",
+            "thai": "ที่นี่มีคนนั่งไหม",
+            "transliteration": "Tee nee mee khon nang mai",
+            "word_mapping": [
+                {
+                    "thai": "ที่นี่",
+                    "transliteration": "Tee nee",
+                    "translation": "here"
+                },
+                {
+                    "thai": "มี",
+                    "transliteration": "mee",
+                    "translation": "to have"
+                },
+                {
+                    "thai": "คน",
+                    "transliteration": "khon",
+                    "translation": "person"
+                },
+                {
+                    "thai": "นั่ง",
+                    "transliteration": "nang",
+                    "translation": "to sit"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 4,
+            "details": "Useful in crowded food courts. A simpler way is to just point and ask 'ว่างไหม' (waang mai?) - 'Is it free?'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/is_this_seat_taken.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "I'll have the same",
+            "thai": "เอาเหมือนกัน",
+            "transliteration": "Ao meuan gan",
+            "word_mapping": [
+                {
+                    "thai": "เอา",
+                    "transliteration": "ao",
+                    "translation": "to take; to get; to want"
+                },
+                {
+                    "thai": "เหมือนกัน",
+                    "transliteration": "muean-kan",
+                    "translation": "also; too; same; alike"
+                }
+            ],
+            "complexity": 3,
+            "details": "Use this when your friend orders something and you want the exact same thing.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/i'll_have_the_same.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "Just looking",
+            "thai": "ดูเฉยๆ",
+            "transliteration": "Doo choei-choei",
+            "word_mapping": [
+                {
+                    "thai": "ดู",
+                    "transliteration": "duu",
+                    "translation": "to look, to watch"
+                },
+                {
+                    "thai": "เฉย",
+                    "transliteration": "choei",
+                    "translation": "still, indifferent, calm"
+                },
+                {
+                    "thai": "ๆ",
+                    "transliteration": "(repetition mark)",
+                    "translation": "repetition mark (indicates repetition of preceding word/phrase)"
+                }
+            ],
+            "complexity": 3,
+            "details": "A polite way to say you're just browsing at a market stall when a vendor approaches you.",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/just_looking.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "I'll be right back",
+            "thai": "เดี๋ยวมา",
+            "transliteration": "Diao maa",
+            "word_mapping": [
+                {
+                    "thai": "เดี๋ยว",
+                    "transliteration": "Diao",
+                    "translation": "in a moment"
+                },
+                {
+                    "thai": "มา",
+                    "transliteration": "maa",
+                    "translation": "to come"
+                }
+            ],
+            "complexity": 2,
+            "details": "A very common phrase for leaving the table for a moment (e.g., to go to the restroom).",
+            "word_mapping_verified": true,
+            "audio_path": "assets/audio/beginner_food_vocabulary/i'll_be_right_back.wav",
+            "audio_generated": true
+        },
+        {
+            "english": "How many people?",
+            "thai": "กี่คน",
+            "transliteration": "Gee khon",
+            "word_mapping": [
+                {
+                    "thai": "กี่",
+                    "transliteration": "Gee",
+                    "translation": "how many"
+                },
+                {
+                    "thai": "คน",
+                    "transliteration": "khon",
+                    "translation": "person"
+                }
+            ],
+            "complexity": 2,
+            "details": "The staff will likely ask you this. The more formal version is 'กี่ท่าน' (gee thân).",
+            "audio_path": "assets/audio/beginner_food_vocabulary/how_many_people.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Two people",
+            "thai": "สองคน",
+            "transliteration": "Song khon",
+            "word_mapping": [
+                {
+                    "thai": "สอง",
+                    "transliteration": "Song",
+                    "translation": "two"
+                },
+                {
+                    "thai": "คน",
+                    "transliteration": "khon",
+                    "translation": "person"
+                }
+            ],
+            "complexity": 2,
+            "details": "A common response to 'กี่คน' (Gee khon). Just change the number as needed.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "No cilantro",
+            "thai": "ไม่เอาผักชี",
+            "transliteration": "Mai ao phak-chi",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "เอา",
+                    "transliteration": "ao",
+                    "translation": "to take"
+                },
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "phak-chi",
+                    "translation": "cilantro"
+                }
+            ],
+            "complexity": 3,
+            "details": "A more assertive way to say it than 'ไม่ใส่' (mai sai). It means 'I don't want cilantro'. A lifesaver for those who dislike it.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/no_cilantro.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "No MSG",
+            "thai": "ไม่ใส่ผงชูรส",
+            "transliteration": "Mai sai phong-chu-rot",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "ใส่",
+                    "transliteration": "sai",
+                    "translation": "to add"
+                },
+                {
+                    "thai": "ผงชูรส",
+                    "transliteration": "phong-chu-rot",
+                    "translation": "MSG"
+                }
+            ],
+            "complexity": 4,
+            "details": "Useful for those with sensitivities. 'ผง' (phong) means 'powder' and 'ชูรส' (chu-rot) means 'to enhance flavor'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/no_msg.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "I can't eat spicy food",
+            "thai": "กินเผ็ดไม่ได้",
+            "transliteration": "Gin phet mai dai",
+            "word_mapping": [
+                {
+                    "thai": "กิน",
+                    "transliteration": "Gin",
+                    "translation": "to eat"
+                },
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "phet",
+                    "translation": "spicy"
+                },
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "ได้",
+                    "transliteration": "dai",
+                    "translation": "can"
+                }
+            ],
+            "complexity": 3,
+            "details": "A more emphatic way to state your preference. The formal version uses 'ทาน' (taan) instead of 'กิน' (gin).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Is this spicy?",
+            "thai": "อันนี้เผ็ดไหม",
+            "transliteration": "An nee phet mai",
+            "word_mapping": [
+                {
+                    "thai": "อันนี้",
+                    "transliteration": "an-níi",
+                    "translation": "this one"
+                },
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mǎi",
+                    "translation": "question particle"
+                }
+            ],
+            "complexity": 2,
+            "details": "A good question to ask before ordering a new dish. Point at the menu item and ask this.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/is_this_spicy.wav",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Cheers!",
+            "thai": "ชนแก้ว",
+            "transliteration": "Chon gaew",
+            "word_mapping": [
+                {
+                    "thai": "ชนแก้ว",
+                    "transliteration": "chon gâew",
+                    "translation": "cheers; toast"
+                }
+            ],
+            "complexity": 2,
+            "details": "The universal way to say 'cheers' in Thailand when clinking glasses with friends. A more formal toast might use 'ไชโย' (chai-yo).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "I'm thirsty",
+            "thai": "หิวน้ำ",
+            "transliteration": "Hio nam",
+            "word_mapping": [
+                {
+                    "thai": "หิว",
+                    "transliteration": "Hio",
+                    "translation": "hungry"
+                },
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nam",
+                    "translation": "water"
+                }
+            ],
+            "complexity": 2,
+            "details": "Literally 'hungry for water', this is the standard way to say you are thirsty.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Add a fried egg",
+            "thai": "เพิ่มไข่ดาว",
+            "transliteration": "Perm khai dao",
+            "word_mapping": [
+                {
+                    "thai": "เพิ่ม",
+                    "transliteration": "Perm",
+                    "translation": "to add/increase"
+                },
+                {
+                    "thai": "ไข่ดาว",
+                    "transliteration": "khai dao",
+                    "translation": "fried egg"
+                }
+            ],
+            "complexity": 3,
+            "details": "A very common request for dishes like 'ผัดกะเพรา' (phat ga-prao). You can also just say 'ไข่ดาวด้วย' (khai dao duay) - 'with a fried egg too'.",
+            "audio_path": "assets/audio/beginner_food_vocabulary/add_a_fried_egg.wav",
+            "word_mapping_verified": true,
+            "audio_generated": true
+        },
+        {
+            "english": "Thin Rice Noodles",
+            "thai": "เส้นเล็ก",
+            "transliteration": "Sen lek",
+            "word_mapping": [
+                {
+                    "thai": "เส้น",
+                    "transliteration": "Sen",
+                    "translation": "noodle/line"
+                },
+                {
+                    "thai": "เล็ก",
+                    "transliteration": "lek",
+                    "translation": "small"
+                }
+            ],
+            "complexity": 2,
+            "details": "The standard noodle used in Pad Thai and many noodle soups.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Wide Rice Noodles",
+            "thai": "เส้นใหญ่",
+            "transliteration": "Sen yai",
+            "word_mapping": [
+                {
+                    "thai": "เส้นใหญ่",
+                    "transliteration": "sen yai",
+                    "translation": "wide rice noodles"
+                }
+            ],
+            "complexity": 2,
+            "details": "The flat, wide noodles used in 'ผัดซีอิ๊ว' (phat see-ew) and 'ราดหน้า' (raat naa).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Egg Noodles",
+            "thai": "บะหมี่",
+            "transliteration": "Ba-mee",
+            "word_mapping": [
+                {
+                    "thai": "บะหมี่",
+                    "transliteration": "Ba-mee",
+                    "translation": "egg noodles"
+                }
+            ],
+            "complexity": 2,
+            "details": "Yellow, wheat-based egg noodles. Often served 'แห้ง' (haeng - 'dry') or 'น้ำ' (nam - 'in soup').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Glass Noodles",
+            "thai": "วุ้นเส้น",
+            "transliteration": "Woon-sen",
+            "word_mapping": [
+                {
+                    "thai": "วุ้นเส้น",
+                    "transliteration": "wun-sen",
+                    "translation": "glass noodles"
+                }
+            ],
+            "complexity": 2,
+            "details": "Translucent noodles made from mung bean starch, used in salads 'ยำวุ้นเส้น' (yam woon-sen) or stir-fries.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Sauce on the side",
+            "thai": "แยกน้ำจิ้ม",
+            "transliteration": "Yaek nam-jim",
+            "word_mapping": [
+                {
+                    "thai": "แยก",
+                    "transliteration": "Yaek",
+                    "translation": "to separate"
+                },
+                {
+                    "thai": "น้ำจิ้ม",
+                    "transliteration": "nam-jim",
+                    "translation": "dipping sauce"
+                }
+            ],
+            "complexity": 4,
+            "details": "Useful if you want to control the amount of sauce. 'น้ำจิ้ม' (nam-jim) is a general term for any dipping sauce.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Too sweet",
+            "thai": "หวานไป",
+            "transliteration": "Waan bpai",
+            "word_mapping": [
+                {
+                    "thai": "หวาน",
+                    "transliteration": "Waan",
+                    "translation": "sweet"
+                },
+                {
+                    "thai": "ไป",
+                    "transliteration": "bpai",
+                    "translation": "to go (used here as 'too much')"
+                }
+            ],
+            "complexity": 3,
+            "details": "A polite way to comment that a dish or drink is sweeter than you'd like. The same structure works for other tastes: 'เค็มไป' (khem bpai - 'too salty'), 'เปรี้ยวไป' (bpriao bpai - 'too sour').",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Sticky Rice",
+            "thai": "ข้าวเหนียว",
+            "transliteration": "Khao niao",
+            "word_mapping": [
+                {
+                    "thai": "ข้าวเหนียว",
+                    "transliteration": "kâao-nǐeow",
+                    "translation": "sticky rice"
+                }
+            ],
+            "complexity": 2,
+            "details": "A staple in Northern and Northeastern Thai cuisine, often eaten with grilled meats or papaya salad.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Minced Pork",
+            "thai": "หมูสับ",
+            "transliteration": "Moo sap",
+            "word_mapping": [
+                {
+                    "thai": "หมูสับ",
+                    "transliteration": "moo-sap",
+                    "translation": "minced pork"
+                }
+            ],
+            "complexity": 2,
+            "details": "The standard meat preparation for dishes like 'ผัดกะเพรา' (phat ga-prao).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Is service charge included?",
+            "thai": "รวมเซอร์วิสชาร์จยัง",
+            "transliteration": "Ruam service charge yang",
+            "word_mapping": [
+                {
+                    "thai": "รวม",
+                    "transliteration": "ruam",
+                    "translation": "to include; to combine; total"
+                },
+                {
+                    "thai": "เซอร์วิส",
+                    "transliteration": "soeur-wit",
+                    "translation": "service (loanword)"
+                },
+                {
+                    "thai": "ชาร์จ",
+                    "transliteration": "chaat",
+                    "translation": "charge (loanword)"
+                },
+                {
+                    "thai": "ยัง",
+                    "transliteration": "yang",
+                    "translation": "still; yet"
+                }
+            ],
+            "complexity": 4,
+            "details": "Good to know for tipping. 'ยัง' (yang) at the end of a sentence is a casual way to ask '... yet?'. The formal version is 'หรือยัง' (reu yang).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "No straw, please",
+            "thai": "ไม่เอาหลอด",
+            "transliteration": "Mai ao lawt",
+            "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "Mai",
+                    "translation": "not"
+                },
+                {
+                    "thai": "เอา",
+                    "transliteration": "ao",
+                    "translation": "to take"
+                },
+                {
+                    "thai": "หลอด",
+                    "transliteration": "lawt",
+                    "translation": "straw"
+                }
+            ],
+            "complexity": 3,
+            "details": "A useful phrase for those trying to reduce plastic waste.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Tofu",
+            "thai": "เต้าหู้",
+            "transliteration": "Dtao-hoo",
+            "word_mapping": [
+                {
+                    "thai": "เต้าหู้",
+                    "transliteration": "Dtao-hoo",
+                    "translation": "tofu"
+                }
+            ],
+            "complexity": 2,
+            "details": "An essential word for vegetarians. You can ask for dishes like 'ผัดไทยเต้าหู้' (phat thai dtao-hoo) or 'แกงเขียวหวานเต้าหู้' (gaeng khiao waan dtao-hoo).",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Do you have WiFi?",
+            "thai": "มีไวไฟไหม",
+            "transliteration": "Mee WiFi mai",
+            "word_mapping": [
+                {
+                    "thai": "มี",
+                    "transliteration": "Mee",
+                    "translation": "to have"
+                },
+                {
+                    "thai": "ไวไฟ",
+                    "transliteration": "WiFi",
+                    "translation": "WiFi"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 2,
+            "details": "A very common and useful question in cafes and restaurants.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Can I have the WiFi password?",
+            "thai": "ขอรหัสไวไฟหน่อย",
+            "transliteration": "Khaw ra-hat WiFi noi",
+            "word_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "Khaw",
+                    "translation": "to ask for"
+                },
+                {
+                    "thai": "รหัส",
+                    "transliteration": "ra-hat",
+                    "translation": "password/code"
+                },
+                {
+                    "thai": "ไวไฟ",
+                    "transliteration": "WiFi",
+                    "translation": "WiFi"
+                },
+                {
+                    "thai": "หน่อย",
+                    "transliteration": "noi",
+                    "translation": "(softening particle)"
+                }
+            ],
+            "complexity": 4,
+            "details": "The next logical question after confirming they have WiFi.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "The bill is wrong",
+            "thai": "คิดเงินผิด",
+            "transliteration": "Khit ngern phit",
+            "word_mapping": [
+                {
+                    "thai": "คิดเงิน",
+                    "transliteration": "kít ngern",
+                    "translation": "to calculate the bill; to charge (money)"
+                },
+                {
+                    "thai": "ผิด",
+                    "transliteration": "pìt",
+                    "translation": "wrong; incorrect; mistaken; to be wrong; to make a mistake"
+                }
+            ],
+            "complexity": 4,
+            "details": "A polite but direct way to point out a mistake on the bill. Use 'คิดเงินผิดหรือเปล่า' (khit ngern phit reu bplao - 'Did you perhaps calculate the money wrong?') to be even more gentle.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Well done (for meat)",
+            "thai": "สุกๆ",
+            "transliteration": "Suk-suk",
+            "word_mapping": [
+                {
+                    "thai": "สุก",
+                    "transliteration": "suk",
+                    "translation": "cooked; ripe"
+                },
+                {
+                    "thai": "ๆ",
+                    "transliteration": "mai yamok",
+                    "translation": "repetition mark (indicates repetition of the preceding word or phrase)"
+                }
+            ],
+            "complexity": 3,
+            "details": "When ordering steak or grilled meat, repeating the word 'สุก' (suk) implies 'very well cooked'. For medium-rare, you can try 'มีเดียมแรร์' (medium-rare) as the English term is often understood.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "High chair for a baby",
+            "thai": "เก้าอี้เด็ก",
+            "transliteration": "Gao-ee dek",
+            "word_mapping": [
+                {
+                    "thai": "เก้าอี้",
+                    "transliteration": "Gao-ee",
+                    "translation": "chair"
+                },
+                {
+                    "thai": "เด็ก",
+                    "transliteration": "dek",
+                    "translation": "child"
+                }
+            ],
+            "complexity": 3,
+            "details": "A useful phrase for families dining out. You can ask 'มีเก้าอี้เด็กไหม' (mee gao-ee dek mai?) - 'Do you have a child's chair?'.",
+            "word_mapping_verified": true
+        },
+        {
+            "english": "Can I sit here?",
+            "thai": "นั่งตรงนี้ได้ไหม",
+            "transliteration": "Nang dtrong nee dai mai",
+            "word_mapping": [
+                {
+                    "thai": "นั่ง",
+                    "transliteration": "Nang",
+                    "translation": "to sit"
+                },
+                {
+                    "thai": "ตรงนี้",
+                    "transliteration": "dtrong nee",
+                    "translation": "right here"
+                },
+                {
+                    "thai": "ได้",
+                    "transliteration": "dai",
+                    "translation": "can"
+                },
+                {
+                    "thai": "ไหม",
+                    "transliteration": "mai",
+                    "translation": "(question particle)"
+                }
+            ],
+            "complexity": 3,
+            "details": "A polite way to ask before taking a seat, especially if you are joining someone or choosing your own table."
+        }
+    ]
+}

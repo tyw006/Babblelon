@@ -5,30 +5,35 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
-class Flashcard extends StatefulWidget {
+class Flashcard extends ConsumerStatefulWidget {
   final Vocabulary vocabulary;
-  final bool isRevealed;
   final bool isFlippable;
-  final VoidCallback? onReveal;
   final VoidCallback? onTap;
+  final VoidCallback? onReveal;
+  final bool isRevealed;
   final Widget? revealedChild;
+  final bool showAudioButton;
 
   const Flashcard({
     super.key,
     required this.vocabulary,
-    this.isRevealed = false,
     this.isFlippable = true,
-    this.onReveal,
     this.onTap,
+    this.onReveal,
+    this.isRevealed = false,
     this.revealedChild,
+    this.showAudioButton = true,
   });
 
   @override
-  State<Flashcard> createState() => _FlashcardState();
+  ConsumerState<Flashcard> createState() => _FlashcardState();
 }
 
-class _FlashcardState extends State<Flashcard>
+class _FlashcardState extends ConsumerState<Flashcard>
     with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final AnimationController _bounceController;
@@ -36,6 +41,7 @@ class _FlashcardState extends State<Flashcard>
   final ScrollController _scrollController = ScrollController();
   bool _hasScrolledToEnd = false;
   bool _showScrollIndicator = false;
+  final just_audio.AudioPlayer _audioPlayer = just_audio.AudioPlayer();
 
   @override
   void initState() {
@@ -125,24 +131,29 @@ class _FlashcardState extends State<Flashcard>
     _controller.dispose();
     _bounceController.dispose();
     _scrollController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    
     return GestureDetector(
       onTap: () {
         if (widget.onTap != null) {
           widget.onTap!();
           return;
         }
-        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+        ref.playButtonSound();
       },
       onDoubleTap: () {
         // Handle flipping animation for dialog cards with a double tap
         if (widget.isFlippable) {
           // Play reveal sound effect on every flip (front <-> back)
-          FlameAudio.play('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
+          if (soundEffectsEnabled) {
+            FlameAudio.play('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
+          }
           if (_controller.isCompleted) {
             _controller.reverse();
           } else {
@@ -234,13 +245,39 @@ class _FlashcardState extends State<Flashcard>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          widget.vocabulary.thai,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.vocabulary.thai,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            if (widget.showAudioButton && widget.vocabulary.audioPath != null && widget.vocabulary.audioPath!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: IconButton(
+                                  icon: const Icon(Icons.volume_up, color: Colors.white),
+                                  onPressed: () async {
+                                    try {
+                                      // Use the specific audio path from the vocabulary
+                                      await _audioPlayer.setAsset(widget.vocabulary.audioPath!);
+                                      _audioPlayer.play();
+                                    } catch (e) {
+                                      // Handle potential errors, e.g., file not found
+                                      print("Error playing audio: $e");
+                                    }
+                                  },
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(

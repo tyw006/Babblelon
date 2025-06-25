@@ -57,8 +57,8 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
 
   @override
   void onTapDown(TapDownEvent event) {
-    // Play button sound effect on portal tap
-    FlameAudio.play('soundeffects/soundeffect_button.mp3');
+    // Play button sound effect on portal tap with proper toggle check using extension method
+    ref.playSound('soundeffects/soundeffect_button.mp3');
     // Fallback: also allow tap to trigger portal
     _triggerPortalDialog();
     super.onTapDown(event);

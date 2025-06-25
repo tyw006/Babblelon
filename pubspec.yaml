@@ -58,6 +58,7 @@ flutter:
     - assets/audio/npc/
     - assets/audio/bg/
     - assets/audio/soundeffects/
+    - assets/audio/beginner_food_vocabulary/
     - assets/images/bosses/tuktuk/
     - assets/data/
     - assets/lottie/

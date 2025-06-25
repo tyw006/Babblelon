@@ -7,6 +7,8 @@ import 'package:provider/provider.dart' as provider;
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:babblelon/models/game_models.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 part 'game_providers.g.dart';
 
@@ -187,6 +189,28 @@ class VocabularyProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+}
+
+// Helper function to play sound effects that respects the toggle
+void playSoundEffect(String path, WidgetRef ref, {double volume = 1.0}) {
+  final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+  if (soundEffectsEnabled) {
+    FlameAudio.play(path, volume: volume);
+  }
+}
+
+// Extension on WidgetRef for convenient sound effect playing
+extension WidgetRefSoundEffects on WidgetRef {
+  void playButtonSound() {
+    playSound('soundeffects/soundeffect_button.mp3');
+  }
+  
+  void playSound(String path, {double volume = 1.0}) {
+    final soundEffectsEnabled = read(gameStateProvider).soundEffectsEnabled;
+    if (soundEffectsEnabled) {
+      FlameAudio.play(path, volume: volume);
     }
   }
 }

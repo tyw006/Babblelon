@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/game_providers.dart';
 
-class ModernCalculationDisplay extends StatefulWidget {
+class ModernCalculationDisplay extends ConsumerStatefulWidget {
   final String explanation;
   final bool isDefenseCalculation;
 
@@ -13,10 +15,10 @@ class ModernCalculationDisplay extends StatefulWidget {
   });
 
   @override
-  State<ModernCalculationDisplay> createState() => _ModernCalculationDisplayState();
+  ConsumerState<ModernCalculationDisplay> createState() => _ModernCalculationDisplayState();
 }
 
-class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
+class _ModernCalculationDisplayState extends ConsumerState<ModernCalculationDisplay>
     with TickerProviderStateMixin {
   late AnimationController _slideController;
   late AnimationController _fadeController;
@@ -300,7 +302,7 @@ class _ModernCalculationDisplayState extends State<ModernCalculationDisplay>
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
-                        FlameAudio.play('soundeffects/soundeffect_button.mp3');
+                        ref.playButtonSound();
                         tooltipKey.currentState?.ensureTooltipVisible();
                       },
                       child: Tooltip(
