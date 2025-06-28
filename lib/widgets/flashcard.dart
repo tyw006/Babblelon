@@ -3,11 +3,11 @@ import 'package:babblelon/models/game_models.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/widgets/shared/app_styles.dart';
 
 class Flashcard extends ConsumerStatefulWidget {
   final Vocabulary vocabulary;
@@ -39,7 +39,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
   late final AnimationController _bounceController;
   late final Animation<double> _bounceAnimation;
   final ScrollController _scrollController = ScrollController();
-  bool _hasScrolledToEnd = false;
   bool _showScrollIndicator = false;
   final just_audio.AudioPlayer _audioPlayer = just_audio.AudioPlayer();
 
@@ -75,7 +74,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
       
       if (maxScroll > 0 && currentScroll >= maxScroll - 20) {
         setState(() {
-          _hasScrolledToEnd = true;
           _showScrollIndicator = false;
         });
         _bounceController.stop();
@@ -91,7 +89,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
         if (isScrollable != _showScrollIndicator) {
           setState(() {
             _showScrollIndicator = isScrollable;
-            _hasScrolledToEnd = false;
           });
           if (_showScrollIndicator) {
             _bounceController.repeat(reverse: true);
@@ -119,7 +116,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
         _controller.reverse();
         setState(() {
           _showScrollIndicator = false;
-          _hasScrolledToEnd = false;
         });
         _bounceController.stop();
       }
@@ -193,7 +189,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildFront() {
     return Container(
-      decoration: _buildCardDecoration(isFront: true),
+      decoration: AppStyles.flashcardDecoration,
       child: Stack(
         children: [
           Center(
@@ -204,11 +200,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
-                style: GoogleFonts.lato(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppStyles.subtitleTextStyle,
                 softWrap: true,
               ),
             ),
@@ -232,7 +224,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildBack() {
     return Container(
-      decoration: _buildCardDecoration(isFront: false),
+      decoration: AppStyles.flashcardDecoration,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -253,18 +245,14 @@ class _FlashcardState extends ConsumerState<Flashcard>
                               child: Text(
                                 widget.vocabulary.thai,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                                style: AppStyles.flashcardThaiTextStyle,
                               ),
                             ),
                             if (widget.showAudioButton && widget.vocabulary.audioPath != null && widget.vocabulary.audioPath!.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8.0),
                                 child: IconButton(
-                                  icon: const Icon(Icons.volume_up, color: Colors.white),
+                                  icon: const Icon(Icons.volume_up, color: AppStyles.textColor),
                                   onPressed: () async {
                                     try {
                                       // Use the specific audio path from the vocabulary
@@ -278,15 +266,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
                                 ),
                               ),
                           ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '(${widget.vocabulary.transliteration})',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
                         ),
                         // Add extra space at the bottom to ensure scrollability
                         const SizedBox(height: 40),
@@ -305,7 +284,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                   offset: Offset(0, _bounceAnimation.value),
                   child: const Icon(
                     Icons.keyboard_arrow_down,
-                    color: Colors.white38,
+                    color: AppStyles.indicatorColor,
                     size: 28,
                   ),
                 ),
@@ -314,28 +293,6 @@ class _FlashcardState extends ConsumerState<Flashcard>
           ),
         ],
       ),
-    );
-  }
-
-  BoxDecoration _buildCardDecoration({bool isFront = true}) {
-    return BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Colors.grey.shade800, Colors.grey.shade700],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(12.0),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.2),
-        width: 1.0,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.5),
-          blurRadius: 5,
-          offset: const Offset(2, 2),
-        ),
-      ],
     );
   }
 } 

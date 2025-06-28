@@ -9,8 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:math' show Random;
-import 'package:flutter/services.dart' show rootBundle;
-
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
@@ -21,19 +20,20 @@ import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
-import 'package:provider/provider.dart' as provider;
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:babblelon/widgets/score_progress_bar.dart';
 import 'package:babblelon/widgets/modern_calculation_display.dart';
 import 'package:babblelon/widgets/floating_damage_overlay.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:babblelon/providers/battle_providers.dart';
+import 'package:babblelon/widgets/victory_report_dialog.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:babblelon/models/local_storage_models.dart' as isar_models;
+import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/widgets/defeat_dialog.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -160,11 +160,21 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _initializeAnimations();
     _apiService = ApiService();
     _echoAudioService = EchoAudioService();
+    _initializeRecorder();
     
     // Initialize and start boss fight background music
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlameAudio.bgm.stop(); // Stop any previous music
       FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
+
+      // Start tracking battle metrics
+      ref.read(battleTrackingProvider.notifier).startBattle(
+            playerStartingHealth: ref.read(playerHealthProvider),
+            bossMaxHealth: widget.bossData.maxHealth,
+          );
+          
+      // Pre-load sound effects that will be used in dialogs to avoid lag
+      _preloadSoundEffects();
     });
   }
 
@@ -474,6 +484,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier);
       bossHealth.state = (bossHealth.state - damage).clamp(0, widget.bossData.maxHealth);
       
+      // --- VICTORY CHECK ---
+      if (bossHealth.state <= 0) {
+        _showVictoryPopup();
+        return; // Stop further execution in this method
+      }
+      
       // Show boss damage effect, sound, and damage indicator together
       _performBossDamageAnimation();
       
@@ -556,6 +572,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Apply damage to player
     final playerHealth = ref.read(playerHealthProvider.notifier);
     playerHealth.state = (playerHealth.state - actualDamage).clamp(0, 100);
+
+    // --- DEFEAT CHECK ---
+    if (playerHealth.state <= 0) {
+      _showDefeatPopup();
+      return; // Stop further execution
+    }
 
     // Trigger player damage animation, sound, and damage indicator together
     _performPlayerDamageAnimation();
@@ -674,12 +696,6 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _lastPracticeRecordingPath.value = null;
     _practiceAssessmentResult.value = null;
 
-    // Initialize recorder in background to reduce button lag
-    _initializeRecorder();
-
-    // Pause background music when flashcard dialog opens
-    FlameAudio.bgm.pause();
-
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -787,6 +803,26 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     final assessmentResult = _practiceAssessmentResult.value;
     
     if (assessmentResult == null) return;
+
+    // Log the turn data
+    final turnData = {
+      'action': currentTurn == Turn.player ? 'attack' : 'defense',
+      'word': ref.read(tappedCardProvider)?.thai ?? 'Unknown',
+      'pronunciationScore': assessmentResult.pronunciationScore * 100,
+      'complexity': ref.read(tappedCardProvider)?.complexity ?? 0,
+      'damageDealt': currentTurn == Turn.player ? assessmentResult.attackMultiplier.round().toDouble() : 0.0,
+      'damageReceived': currentTurn == Turn.boss ? (15.0 * assessmentResult.defenseMultiplier) : 0.0,
+      'pronunciationErrors': assessmentResult.detailedFeedback.map((e) => e.errorType).where((e) => e != 'None').toList(),
+    };
+    ref.read(battleTrackingProvider.notifier).addTurn(
+      action: turnData['action'] as String,
+      word: turnData['word'] as String,
+      pronunciationScore: turnData['pronunciationScore'] as double,
+      complexity: turnData['complexity'] as int,
+      damageDealt: turnData['damageDealt'] as double,
+      damageReceived: turnData['damageReceived'] as double,
+      pronunciationErrors: turnData['pronunciationErrors'] as List<String>,
+    );
 
     // if (assessmentResult.pronunciationScore >= 80) {
     //   FlameAudio.play('sfx/success_1.wav', volume: ref.read(gameStateProvider).soundEffectsEnabled ? 1.0 : 0.0);
@@ -920,6 +956,18 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
   }
 
+  Future<void> _preloadSoundEffects() async {
+    try {
+      // Pre-load sound effects that will be used in flashcard dialogs
+      // This avoids lag when these sounds play for the first time
+      final tempPlayer = just_audio.AudioPlayer();
+      await tempPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+      await tempPlayer.dispose(); // Dispose after pre-loading
+    } catch (e) {
+      print("Error pre-loading sound effects: $e");
+    }
+  }
+
   Future<void> _startPracticeRecording() async {
     if (!_isRecorderInitialized) {
       await _initializeRecorder();
@@ -929,6 +977,11 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     try {
       final directory = await getApplicationDocumentsDirectory();
       final path = '${directory.path}/practice_recording.wav';
+      
+      final musicEnabled = ref.read(gameStateProvider).musicEnabled;
+      if (musicEnabled) {
+        FlameAudio.bgm.pause();
+      }
       
       await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
       
@@ -942,6 +995,12 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   Future<void> _stopPracticeRecording() async {
     try {
       final path = await _practiceAudioRecorder.stop();
+
+      final musicEnabled = ref.read(gameStateProvider).musicEnabled;
+      if (musicEnabled) {
+        FlameAudio.bgm.resume();
+      }
+
       if (path != null) {
         _lastPracticeRecordingPath.value = path;
         _practiceRecordingState.value = RecordingState.reviewing;
@@ -957,6 +1016,10 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Instead, just ensure it's stopped and reset the state.
     if (await _practiceAudioRecorder.isRecording()) {
       await _practiceAudioRecorder.stop();
+      final musicEnabled = ref.read(gameStateProvider).musicEnabled;
+      if (musicEnabled) {
+        FlameAudio.bgm.resume();
+      }
     }
     _practiceRecordingState.value = RecordingState.idle;
     _lastPracticeRecordingPath.value = null;
@@ -1422,6 +1485,95 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       );
     }
   }
+
+  Future<void> _showVictoryPopup() async {
+    // Finalize metrics
+    final playerHealth = ref.read(playerHealthProvider);
+    ref.read(battleTrackingProvider.notifier).endBattle(finalPlayerHealth: playerHealth);
+    final metrics = ref.read(battleTrackingProvider);
+
+    if (metrics == null) return; // Should not happen
+
+    // --- Save Progress with Isar ---
+    final isarService = IsarService();
+    // This is a placeholder for a real user ID from your auth system
+    const userId = 'default_user'; 
+    
+    // Get or create player profile
+    isar_models.PlayerProfile? profile = await isarService.getPlayerProfile(userId);
+    profile ??= isar_models.PlayerProfile()..userId = userId;
+
+    // Update profile
+    profile.experiencePoints += metrics.expGained;
+    profile.gold += metrics.goldEarned;
+    // TODO: Implement level up logic based on experiencePoints
+
+    await isarService.savePlayerProfile(profile);
+
+    // Update mastered phrases
+    for (final turn in metrics.turns) {
+      isar_models.MasteredPhrase? phrase = await isarService.getMasteredPhrase(turn.word);
+      phrase ??= isar_models.MasteredPhrase()
+        ..phraseEnglishId = turn.word
+        ..isMastered = false;
+      
+      phrase.lastScore = turn.pronunciationScore;
+      phrase.timesPracticed += 1;
+      phrase.lastPracticedAt = DateTime.now();
+      if (turn.pronunciationScore >= 60) { // Mastery threshold
+        phrase.isMastered = true;
+      }
+      await isarService.saveMasteredPhrase(phrase);
+    }
+    // --- End Save Progress ---
+
+    // Stop music and play victory sound
+    FlameAudio.bgm.stop();
+    _playSoundEffect('soundeffects/soundeffect_victory.mp3'); // Victory sound
+
+    // Show the dialog
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return VictoryReportDialog(metrics: metrics);
+      },
+    );
+
+    // After dialog is closed, navigate back to main menu
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  Future<void> _showDefeatPopup() async {
+    // Finalize metrics
+    final playerHealth = ref.read(playerHealthProvider);
+    ref.read(battleTrackingProvider.notifier).endBattle(finalPlayerHealth: playerHealth);
+    final metrics = ref.read(battleTrackingProvider);
+
+    if (metrics == null) return;
+
+    // Stop music and play defeat sound
+    FlameAudio.bgm.stop();
+    _playSoundEffect('soundeffects/soundeffect_defeat.mp3'); // Defeat sound
+
+    // Show the dialog
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return DefeatDialog(metrics: metrics);
+      },
+    );
+
+    // After dialog is closed, navigate back to main menu
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
 }
 
 class _BossFightMenuDialog extends ConsumerWidget {
@@ -1629,6 +1781,9 @@ class _InteractiveFlashcardDialogState
         setState(() {}); // Redraw on progress change
       });
 
+    // Pre-load the sound effect to avoid lag on first play
+    _preloadSoundEffect();
+
     // Listen for the results state to auto-flip the card
     widget.practiceRecordingStateNotifier.addListener(_onRecordingStateChange);
   }
@@ -1641,6 +1796,17 @@ class _InteractiveFlashcardDialogState
     _soundEffectTimer?.cancel(); // Cancel any active timer
     _progressController.dispose();
     super.dispose();
+  }
+  
+
+  
+  Future<void> _preloadSoundEffect() async {
+    try {
+      // Pre-load the increasing number sound effect to avoid lag on first play
+      await _soundEffectsPlayer.setAsset('assets/audio/soundeffects/soundeffect_increasingnumber.mp3');
+    } catch (e) {
+      print("Error pre-loading sound effect: $e");
+    }
   }
   
   void _onRecordingStateChange() {
@@ -1909,11 +2075,7 @@ class _InteractiveFlashcardDialogState
   Widget _buildPanel({required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade900.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade700),
-      ),
+      decoration: AppStyles.cardDecoration,
       child: child,
     );
   }
@@ -1953,7 +2115,7 @@ class _InteractiveFlashcardDialogState
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
-              icon: const Icon(Icons.replay, color: Colors.white, size: 30),
+              icon: const Icon(Icons.replay, color: AppStyles.textColor, size: 30),
               onPressed: widget.onPracticeReset,
               tooltip: 'Record Again',
             ),
@@ -1962,7 +2124,7 @@ class _InteractiveFlashcardDialogState
               onTap: _playRecording,
             ),
             IconButton(
-              icon: const Icon(Icons.send_rounded, color: Colors.greenAccent, size: 30),
+              icon: const Icon(Icons.send_rounded, color: AppStyles.accentColor, size: 30),
               onPressed: widget.onSend,
               tooltip: 'Send for Assessment',
             ),
@@ -1978,7 +2140,7 @@ class _InteractiveFlashcardDialogState
         SizedBox(
             width: 30, height: 30, child: CircularProgressIndicator()),
         SizedBox(height: 16),
-        Text("Assessing...", style: TextStyle(color: Colors.white70)),
+        Text("Assessing...", style: TextStyle(color: AppStyles.subtitleTextColor)),
       ],
     );
   }
@@ -1997,7 +2159,7 @@ class _InteractiveFlashcardDialogState
             const Text(
               "Pronunciation Assessment",
               style: TextStyle(
-                color: Colors.white,
+                color: AppStyles.textColor,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -2115,7 +2277,7 @@ class _InteractiveFlashcardDialogState
                     onPressed: () {
                       widget.practiceRecordingStateNotifier.value = RecordingState.results;
                     },
-                    icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                    icon: const Icon(Icons.arrow_back, color: AppStyles.subtitleTextColor),
                     tooltip: 'Back to Assessment',
                   ),
                   const Spacer(),
@@ -2134,7 +2296,7 @@ class _InteractiveFlashcardDialogState
               Text(
                 isAttackTurn ? "Attack Bonus" : "Defense Bonus",
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppStyles.textColor,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -2162,7 +2324,7 @@ class _InteractiveFlashcardDialogState
                   const Text(
                     "%",
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: AppStyles.subtitleTextColor,
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                     ),
@@ -2190,7 +2352,7 @@ class _InteractiveFlashcardDialogState
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: actionColor,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppStyles.textColor,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -2412,13 +2574,13 @@ class _WordAnalysisRow extends StatelessWidget {
               children: [
                 Text(mapping.thai,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppStyles.textColor,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (mapping.transliteration.isNotEmpty)
                   Text(mapping.transliteration,
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.7), fontSize: 10)),
+                          color: AppStyles.subtitleTextColor, fontSize: 10)),
                 if (mapping.translation.isNotEmpty)
                   Text('"${mapping.translation}"',
                       style: TextStyle(
@@ -2463,13 +2625,13 @@ class _BackendWordAnalysisRow extends StatelessWidget {
               children: [
                 Text(feedback.word,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppStyles.textColor,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (feedback.transliteration.isNotEmpty)
                   Text(feedback.transliteration,
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.7), fontSize: 10)),
+                          color: AppStyles.subtitleTextColor, fontSize: 10)),
                 if (feedback.errorType != 'None')
                   Text(feedback.errorType,
                       style: TextStyle(
@@ -2637,12 +2799,6 @@ class _RevealedCardDetails extends StatelessWidget {
                   ),
                 ),
             ],
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text('(${card.transliteration})',
-                style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.white70)),
           ),
           const SizedBox(height: 12),
 
@@ -2822,7 +2978,7 @@ class _AnimatedNumberDisplay extends StatelessWidget {
         return Text(
           '${isPercentage ? value.toStringAsFixed(0) : value.toStringAsFixed(2)}$unit',
           style: const TextStyle(
-            color: Colors.white,
+            color: AppStyles.textColor,
             fontWeight: FontWeight.bold,
             fontSize: 28,
             shadows: [
@@ -2991,7 +3147,7 @@ class _DetailedPronunciationScores extends StatelessWidget {
           const Text(
             'Detailed Breakdown',
             style: TextStyle(
-              color: Colors.white,
+              color: AppStyles.textColor,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -3079,7 +3235,7 @@ class _AzurePronunciationTips extends StatelessWidget {
               Text(
                 'Pronunciation Tips',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppStyles.textColor,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3107,7 +3263,7 @@ class _AzurePronunciationTips extends StatelessWidget {
                     child: Text(
                       tip,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: AppStyles.textColor.withOpacity(0.9),
                         fontSize: 14,
                       ),
                     ),

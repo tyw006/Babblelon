@@ -50,6 +50,11 @@ app.*.map.json
 .env.local
 babbleon-4cb3b57a2d79.json
 
+# AI code configs
+.gemini
+GEMINI.md
+
+
 # Firebase-related
 google-services.json
 GoogleService-Info.plist
