@@ -4,10 +4,13 @@ import 'package:flutter/services.dart';
 import 'dart:ui';
 import '../game/babblelon_game.dart';
 import '../overlays/dialogue_overlay.dart';
+import '../widgets/info_popup_overlay.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
+import 'main_menu_screen.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -102,6 +105,20 @@ class _GameScreenState extends State<GameScreen> {
                     return GameOverMenu(
                       game: game as BabblelonGame,
                       onRestart: () => (game as BabblelonGame).reset(),
+                    );
+                  },
+                  'info_popup': (context, game) {
+                    final config = ref.watch(popupConfigProvider);
+                    if (config == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return InfoPopupOverlay(
+                      title: config.title,
+                      message: config.message,
+                      confirmText: config.confirmText,
+                      onConfirm: config.onConfirm,
+                      cancelText: config.cancelText,
+                      onCancel: config.onCancel,
                     );
                   },
                 },
@@ -259,6 +276,13 @@ class MainMenu extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 _MenuButton(
+                  icon: gameState.soundEffectsEnabled ? Icons.graphic_eq : Icons.volume_mute,
+                  label: gameState.soundEffectsEnabled ? 'SFX On' : 'SFX Off',
+                  value: gameState.soundEffectsEnabled,
+                  onChanged: (val) => ref.read(gameStateProvider.notifier).setSoundEffectsEnabled(val),
+                ),
+                const SizedBox(height: 12),
+                _MenuButton(
                   icon: dialogueSettings.showEnglishTranslation ? Icons.visibility : Icons.visibility_off,
                   label: 'English Translation',
                   value: dialogueSettings.showEnglishTranslation,
@@ -273,8 +297,40 @@ class MainMenu extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: onClose,
-                  child: const Text('Close'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15.0),
+                    ),
+                  ),
+                  onPressed: () {
+                    ref.playButtonSound();
+                    _showExitLevelConfirmation(context, ref);
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.exit_to_app, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Exit Level', style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.withOpacity(0.3),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15.0),
+                    ),
+                  ),
+                  onPressed: () {
+                    ref.playButtonSound();
+                    onClose();
+                  },
+                  child: const Text('Close', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -282,6 +338,67 @@ class MainMenu extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  static Future<void> _showExitLevelConfirmation(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.grey.shade900,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+            side: BorderSide(
+              color: Colors.white.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          title: const Text(
+            'Exit Level?',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to exit the level? You will lose all progress and return to the main menu.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white70),
+              ),
+              onPressed: () {
+                ref.playButtonSound();
+                Navigator.of(dialogContext).pop(false);
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.8),
+              ),
+              child: const Text(
+                'Exit Level',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () {
+                ref.playButtonSound();
+                Navigator.of(dialogContext).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+        (route) => false, // Remove all previous routes
+      );
+    }
   }
 }
 
@@ -412,7 +529,7 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _MenuButton extends StatelessWidget {
+class _MenuButton extends ConsumerWidget {
   final IconData icon;
   final String label;
   final bool value;
@@ -426,23 +543,22 @@ class _MenuButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Icon(icon, color: Colors.white),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white),
-        ),
-        Switch(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      trailing: Switch(
           value: value,
-          onChanged: onChanged,
-          activeColor: Colors.green,
-          inactiveThumbColor: Colors.red,
-        ),
-      ],
+        onChanged: (val) {
+          ref.playButtonSound();
+          onChanged(val);
+        },
+        activeColor: Colors.blueAccent,
+      ),
+      onTap: () {
+        ref.playButtonSound();
+        onChanged(!value);
+      },
     );
   }
 } 

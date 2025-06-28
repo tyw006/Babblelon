@@ -11,6 +11,15 @@ import datetime
 from pydantic import BaseModel # For request body model
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List
+import logging
+
+# --- Logging Configuration ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+# --- End Logging Configuration ---
 
 # --- Load .env file very first ---
 # This ensures that environment variables are loaded before any other modules
@@ -28,13 +37,21 @@ from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse
 from services.stt_service import transcribe_audio
 from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name
+from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
 
 app = FastAPI()
+
+# Log server startup time
+startup_time = datetime.datetime.now()
+print(f"🚀 Backend server starting up at {startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
+logging.info(f"Backend server starting up at {startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # API keys will now be read by service modules using os.getenv AFTER load_dotenv has run.
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY")
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION")
 
 if not ELEVENLABS_API_KEY:
     print(f"[{datetime.datetime.now()}] WARNING: ELEVENLABS_API_KEY not set in environment for main.py.")
@@ -42,6 +59,8 @@ if not OPENAI_API_KEY:
     print(f"[{datetime.datetime.now()}] WARNING: OPENAI_API_KEY not set in environment for main.py.")
 if not GEMINI_API_KEY:
     print(f"[{datetime.datetime.now()}] WARNING: GEMINI_API_KEY not set in environment for main.py (used by TTS service).")
+if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
+    print(f"[{datetime.datetime.now()}] WARNING: AZURE_SPEECH_KEY or AZURE_SPEECH_REGION not set in environment for main.py (used by Pronunciation Assessment service).")
 
 # Define the origins allowed to access the backend.
 # Using a wildcard for development, but should be restricted in production.
@@ -241,5 +260,60 @@ async def gcloud_translate_tts_endpoint(request: TranslationRequest):
         print(f"[{datetime.datetime.now()}] ERROR: in /gcloud-translate-tts/: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- Pronunciation Assessment Endpoint ---
+@app.post("/pronunciation/assess/", response_model=PronunciationAssessmentResponse)
+async def pronunciation_assessment_endpoint(
+    audio_file: UploadFile = File(...),
+    reference_text: str = Form(...),
+    transliteration: str = Form(...),
+    complexity: int = Form(...),
+    item_type: str = Form(...),
+    turn_type: str = Form(...), # 'attack' or 'defense'
+    was_revealed: bool = Form(False), # Whether the flashcard was revealed before assessment
+    word_mapping_json: str = Form('[]'), # Receive word mapping as a JSON string
+    language: str = Form("th-TH")
+):
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /pronunciation/assess/ received request for text: '{reference_text}' in {language}, revealed: {was_revealed}")
+    
+    try:
+        # Parse the word_mapping from the JSON string
+        try:
+            word_mapping = json.loads(word_mapping_json)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid format for word_mapping_json.")
+
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Audio file content is empty.")
+
+        assessment_result = await assess_pronunciation(
+            audio_bytes=audio_bytes,
+            reference_text=reference_text,
+            transliteration=transliteration,
+            complexity=complexity,
+            item_type=item_type,
+            turn_type=turn_type,
+            was_revealed=was_revealed,
+            word_mapping=word_mapping, # Pass the parsed list
+            language=language
+        )
+        
+        print(f"[{datetime.datetime.now()}] INFO: /pronunciation/assess/ successful for '{reference_text}'. Rating: {assessment_result.rating}")
+        return assessment_result
+
+    except HTTPException as e:
+        # Re-raise HTTPException to let FastAPI handle it
+        print(f"[{datetime.datetime.now()}] ERROR: in /pronunciation/assess/: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /pronunciation/assess/: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during pronunciation assessment: {str(e)}")
+
 if __name__ == "__main__":
+    # Changed host from "127.0.0.1" to "0.0.0.0" to allow connections
+    # from the Android emulator and other devices on the local network.
     uvicorn.run(app, host="0.0.0.0", port=8000) 

@@ -1,0 +1,292 @@
+{
+    "vocabulary": [
+      // --- Tableware/Utensils ---
+      {
+        "english": "Spoon",
+        "thai": "ช้อน",
+        "transliteration": "Chon",
+        "word_mapping": [
+          {"thai": "ช้อน", "transliteration": "Chon", "translation": "Spoon"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "The main utensil for eating in Thailand, held in the right hand. It is used to put food into the mouth."
+      },
+      {
+        "english": "Fork",
+        "thai": "ส้อม",
+        "transliteration": "Som",
+        "word_mapping": [
+          {"thai": "ส้อม", "transliteration": "Som", "translation": "Fork"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "Held in the left hand, the fork is used to push and arrange food onto the spoon. It is generally not put into the mouth."
+      },
+      {
+        "english": "Chopsticks",
+        "thai": "ตะเกียบ",
+        "transliteration": "Takiap",
+        "word_mapping": [
+          {"thai": "ตะเกียบ", "transliteration": "Takiap", "translation": "Chopsticks"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "Mainly used for noodle dishes and items of Chinese origin. To request them, say 'ขอตะเกียบ' (khaw takiap)."
+      },
+      {
+        "english": "Plate",
+        "thai": "จาน",
+        "transliteration": "Jaan",
+        "word_mapping": [
+          {"thai": "จาน", "transliteration": "Jaan", "translation": "Plate"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "A general term for a plate, used for rice dishes and shared foods."
+      },
+      {
+        "english": "Bowl",
+        "thai": "ชาม",
+        "transliteration": "Chaam",
+        "word_mapping": [
+          {"thai": "ชาม", "transliteration": "Chaam", "translation": "Bowl"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "Used for soups, curries, and noodle dishes."
+      },
+      {
+        "english": "Glass",
+        "thai": "แก้ว",
+        "transliteration": "Kaeo",
+        "word_mapping": [
+          {"thai": "แก้ว", "transliteration": "Kaeo", "translation": "Glass"}
+        ],
+        "category": "Tableware/Utensils",
+        "details": "A glass for drinking. To ask for a glass of water, say 'ขอน้ำแก้วหนึ่ง' (khaw nam kaeo neung)."
+      },
+      // --- Condiments ---
+      {
+        "english": "Condiment Set",
+        "thai": "เครื่องปรุง",
+        "transliteration": "Kruang prung",
+        "word_mapping": [
+          {"thai": "เครื่อง", "transliteration": "Kruang", "translation": "set/ingredients"},
+          {"thai": "ปรุง", "transliteration": "Prung", "translation": "to season/flavor"}
+        ],
+        "category": "Condiments",
+        "details": "The standard set of four condiments found on tables in most noodle shops and food stalls."
+      },
+      {
+        "english": "Fish Sauce with Chili",
+        "thai": "พริกน้ำปลา",
+        "transliteration": "Prik nam pla",
+        "word_mapping": [
+          {"thai": "พริก", "transliteration": "Prik", "translation": "Chili"},
+          {"thai": "น้ำปลา", "transliteration": "Nam pla", "translation": "Fish sauce"}
+        ],
+        "category": "Condiments",
+        "details": "A fundamental Thai condiment that adds a salty and spicy kick, made from fish sauce infused with fresh chilies."
+      },
+      {
+        "english": "Chili Flakes",
+        "thai": "พริกป่น",
+        "transliteration": "Prik pon",
+        "word_mapping": [
+          {"thai": "พริก", "transliteration": "Prik", "translation": "Chili"},
+          {"thai": "ป่น", "transliteration": "Pon", "translation": "powder/ground"}
+        ],
+        "category": "Condiments",
+        "details": "Dried, roasted, and ground red chilies used to add pure heat to a dish."
+      },
+      {
+        "english": "Vinegar with Chili",
+        "thai": "น้ำส้มพริกดอง",
+        "transliteration": "Nam som prik dong",
+        "word_mapping": [
+          {"thai": "น้ำส้ม", "transliteration": "Nam som", "translation": "Vinegar"},
+          {"thai": "พริก", "transliteration": "Prik", "translation": "Chili"},
+          {"thai": "ดอง", "transliteration": "Dong", "translation": "pickled"}
+        ],
+        "category": "Condiments",
+        "details": "White vinegar with pickled sliced chilies, adding a sour and subtly spicy flavor. Excellent with noodle dishes."
+      },
+      // --- Drinks ---
+      {
+        "english": "Water",
+        "thai": "น้ำ",
+        "transliteration": "Nam",
+        "formal": "น้ำเปล่า (Nam plao)",
+        "word_mapping": [
+          {"thai": "น้ำ", "transliteration": "Nam", "translation": "Water"}
+        ],
+        "category": "Drinks",
+        "details": "Simply saying 'น้ำ' (nam) is the most common and casual way to ask for water. The more formal version is 'น้ำเปล่า' (nam plao), which means 'plain water'."
+      },
+      {
+        "english": "Ice",
+        "thai": "น้ำแข็ง",
+        "transliteration": "Nam khaeng",
+        "word_mapping": [
+          {"thai": "น้ำ", "transliteration": "Nam", "translation": "Water"},
+          {"thai": "แข็ง", "transliteration": "Khaeng", "translation": "hard"}
+        ],
+        "category": "Drinks",
+        "details": "Literally 'hard water'. Drinks in Thailand are almost always served with ice."
+      },
+      {
+        "english": "Beer",
+        "thai": "เบียร์",
+        "transliteration": "Bia",
+        "word_mapping": [
+          {"thai": "เบียร์", "transliteration": "Bia", "translation": "Beer"}
+        ],
+        "category": "Drinks",
+        "details": "Popular local brands include Singha and Chang. It is common to drink beer with ice."
+      },
+      {
+        "english": "Thai Iced Tea",
+        "thai": "ชาเย็น",
+        "transliteration": "Cha yen",
+        "word_mapping": [
+          {"thai": "ชา", "transliteration": "Cha", "translation": "Tea"},
+          {"thai": "เย็น", "transliteration": "Yen", "translation": "cold/iced"}
+        ],
+        "category": "Drinks",
+        "details": "A famous, sweet, and creamy orange-colored drink made from black tea and condensed milk."
+      },
+      {
+          "english": "Lime Iced Tea",
+          "thai": "ชามะนาว",
+          "transliteration": "Cha manao",
+          "word_mapping": [
+              {"thai": "ชา", "transliteration": "Cha", "translation": "Tea"},
+              {"thai": "มะนาว", "transliteration": "Manao", "translation": "Lime"}
+          ],
+          "category": "Drinks",
+          "details": "A refreshing sweet and sour iced tea, for those who prefer a less milky drink."
+      },
+      {
+        "english": "Coconut Water",
+        "thai": "น้ำมะพร้าว",
+        "transliteration": "Nam maphrao",
+        "word_mapping": [
+          {"thai": "น้ำ", "transliteration": "Nam", "translation": "Water"},
+          {"thai": "มะพร้าว", "transliteration": "Maphrao", "translation": "Coconut"}
+        ],
+        "category": "Drinks",
+        "details": "Often served fresh directly from a chilled coconut. A healthy and hydrating option."
+      },
+      // --- Service Items ---
+      {
+        "english": "Menu",
+        "thai": "เมนู",
+        "transliteration": "Me-nu",
+        "word_mapping": [
+          {"thai": "เมนู", "transliteration": "Me-nu", "translation": "Menu"}
+        ],
+        "category": "Service Items",
+        "details": "To ask for the menu, say 'ขอเมนูหน่อยครับ/ค่ะ' (khaw me-nu noi khrap/kha)."
+      },
+      {
+        "english": "Bill / Check",
+        "thai": "เก็บตังค์",
+        "transliteration": "Kep tang",
+        "formal": "เช็คบิล (Chek bin)",
+        "word_mapping": [
+          {"thai": "เก็บ", "transliteration": "Kep", "translation": "to collect"},
+          {"thai": "ตังค์", "transliteration": "Tang", "translation": "money (slang)"}
+        ],
+        "category": "Service Items",
+        "details": "'เก็บตังค์' (kep tang) is a very common and casual way to ask for the bill. The formal version 'เช็คบิล' (chek bin), which comes from the English 'check bill', is also very common. Another informal option is 'คิดเงิน' (kit ngoen), meaning 'calculate money'."
+      },
+      {
+        "english": "Takeaway / To go",
+        "thai": "กลับบ้าน",
+        "transliteration": "Klap ban",
+        "formal": "ห่อกลับบ้าน (Haw klap ban)",
+        "word_mapping": [
+          {"thai": "กลับ", "transliteration": "Klap", "translation": "to return"},
+          {"thai": "บ้าน", "transliteration": "Ban", "translation": "home"}
+        ],
+        "category": "Service Items",
+        "details": "The most common casual way to ask for takeaway is to say 'กลับบ้าน' (klap ban), which literally means 'return home'. The more formal 'ห่อกลับบ้าน' (haw klap ban), meaning 'wrap to return home', is also widely understood."
+      },
+      // --- Customer Actions/Requests ---
+      {
+        "english": "Not spicy",
+        "thai": "ไม่เผ็ด",
+        "transliteration": "Mai phet",
+        "word_mapping": [
+          {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
+          {"thai": "เผ็ด", "transliteration": "Phet", "translation": "spicy"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "An essential phrase if you have a low tolerance for spice. Always add the polite particle 'ครับ' (khrap) or 'ค่ะ' (kha) at the end."
+      },
+      {
+        "english": "A little spicy",
+        "thai": "เผ็ดน้อย",
+        "transliteration": "Phet noi",
+        "formal": "เผ็ดนิดหน่อย (Phet nit noi)",
+        "word_mapping": [
+          {"thai": "เผ็ด", "transliteration": "Phet", "translation": "spicy"},
+          {"thai": "น้อย", "transliteration": "Noi", "translation": "little"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "The most direct casual way to say 'a little spicy' is 'เผ็ดน้อย' (phet noi). The formal version, 'เผ็ดนิดหน่อย' (phet nit noi), is also very common and means the same thing."
+      },
+      {
+        "english": "Extra spicy",
+        "thai": "เผ็ดๆ",
+        "transliteration": "Phet phet",
+        "formal": "เผ็ดมาก (Phet mak)",
+        "word_mapping": [
+          {"thai": "เผ็ด", "transliteration": "Phet", "translation": "spicy"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "Repeating the word 'เผ็ด' (phet) to say 'เผ็ดๆ' (phet phet) is a very common, local way to ask for it to be made extra spicy. The more standard way is to use the formal version, 'เผ็ดมาก' (phet mak), which means 'very spicy'."
+      },
+      {
+        "english": "Don't add (ingredient)",
+        "thai": "ไม่ใส่...",
+        "transliteration": "Mai sai...",
+        "word_mapping": [
+          {"thai": "ไม่", "transliteration": "Mai", "translation": "not"},
+          {"thai": "ใส่", "transliteration": "Sai", "translation": "to put in/add"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "A crucial structure for dietary restrictions. For example, 'ไม่ใส่ผักชี' (mai sai phak chi) for 'Don't add coriander'."
+      },
+      {
+        "english": "Request a fried egg",
+        "thai": "ขอไข่ดาว",
+        "transliteration": "Khaw khai dao",
+        "formal": "เพิ่มไข่ดาว (Phoem khai dao)",
+        "word_mapping": [
+          {"thai": "ขอ", "transliteration": "Khaw", "translation": "May I have"},
+          {"thai": "ไข่", "transliteration": "Khai", "translation": "egg"},
+          {"thai": "ดาว", "transliteration": "Dao", "translation": "star"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "'ขอไข่ดาว' (khaw khai dao) is a very common way to ask for a fried egg on top of a dish. The slightly more formal version is 'เพิ่มไข่ดาว' (phoem khai dao), which means 'add a fried egg'."
+      },
+      {
+        "english": "Extra portion",
+        "thai": "พิเศษ",
+        "transliteration": "Phi-set",
+        "word_mapping": [
+          {"thai": "พิเศษ", "transliteration": "Phi-set", "translation": "Special/Extra"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "Say this after the dish name to request a larger portion, for example 'ผัดกระเพราพิเศษ' (phat krapao phi-set). This will usually cost a little more."
+      },
+      {
+        "english": "Separate the sauce",
+        "thai": "แยกน้ำ",
+        "transliteration": "Yaek nam",
+        "word_mapping": [
+          {"thai": "แยก", "transliteration": "Yaek", "translation": "to separate"},
+          {"thai": "น้ำ", "transliteration": "Nam", "translation": "water/sauce/curry"}
+        ],
+        "category": "Customer Actions/Requests",
+        "details": "Useful for takeaway or if you want to control how much sauce or curry goes on your rice."
+      }
+    ]
+  }

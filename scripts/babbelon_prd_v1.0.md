@@ -1,8 +1,7 @@
-<context>
 # Overview
 Babbelon is a global, voice-only **2D side-scrolling adventure game** designed to teach travelers the local language of various cities. The Minimum Viable Product (MVP) focuses on the first chapter: **a visually stunning, 16-bit depiction of Yaowarat (Bangkok's Chinatown) at Night**, catering to English speakers learning Thai. Players will navigate this single, detailed map area, similar in style to a MapleStory map. The core gameplay is developed using Flutter with the Flame engine, while FlutterFlow is utilized for no-code UI screens such as onboarding, settings, spaced-repetition drills, and the paywall.
 
-The vision is to create an immersive and engaging language learning experience by simulating real-world Thai conversations—ordering street food, haggling at a market, chatting with a taxi driver—all within this fun, retro-style game context. By leveraging AI for speech recognition and dynamic dialogue generation, Babbelon aims to provide practice beyond static, scripted phrases, making language learning more effective and enjoyable. Future downloadable quests will expand to entirely new cities like Tokyo and Paris, offering new languages, cultures, and distinct map areas.
+The vision is to create an immersive and engaging language learning experience by simulating real-world Thai conversations—ordering street food, haggling at a market, chatting with a taxi driver—all within this fun, retro-style game context. The game culminates in exciting boss fights where players must use their pronunciation skills to win. By leveraging AI for speech recognition and dynamic dialogue generation, Babbelon aims to provide practice beyond static, scripted phrases, making language learning more effective and enjoyable. Future downloadable quests will expand to entirely new cities like Tokyo and Paris, offering new languages, cultures, and distinct map areas.
 
 The art direction for the MVP involves prototyping both retro pixel art and vibrant hand-drawn 2D art in the initial week of development, with a final style to be locked in after review, ensuring the **Yaowarat at Night setting is visually stunning with all its lights and atmosphere.**
 
@@ -52,6 +51,7 @@ The art direction for the MVP involves prototyping both retro pixel art and vibr
         -   **Adaptive Difficulty & Hinting:** NPCs may offer hints or simplify language if the player struggles.
         -   **Story Arcs & Vocabulary Targets:** Chapters themed around specific vocabulary sets, ensuring natural repetition.
         -   **Spaced Repetition System (SRS):** After key interactions or quest completions, players engage in flash-card reviews (built with FlutterFlow) to reinforce learned vocabulary.
+        -   **Boss Battles:** End-of-chapter boss fights that test pronunciation skills in a high-stakes, engaging format, providing a clear goal for players to work towards.
 
 **6. Thai Transliteration & Grammar Highlighting:**
     - **What it does:** Provides visual aids to help learners understand spoken and written Thai.
@@ -66,6 +66,18 @@ The art direction for the MVP involves prototyping both retro pixel art and vibr
     - **Spaced Repetition:** Integrated flash-card reviews and recurring vocabulary in new contexts.
     - **Contextual Immersion:** Learning occurs in simulated real-world locations and scenarios with culturally relevant NPCs.
     - **Immediate Feedback & Adaptation:** AI NPCs respond dynamically, and the game provides immediate feedback on communication success (e.g., charm points, quest progression).
+
+**8. Pronunciation-Based Boss Fights:**
+    - **What it does:** At the end of a chapter or major questline, players face a "boss" character in a turn-based battle. Success in the battle is determined by the player's pronunciation accuracy when speaking specific Thai words or phrases.
+    - **Why it's important:** This feature serves as a dynamic skill check, motivating players to master the vocabulary they've learned. It gamifies the learning assessment process, making it more engaging and rewarding than a standard quiz.
+    - **How it works:**
+        -   Players enter a special boss fight screen with a unique background and boss character (e.g., the "Tuk-Tuk Monster").
+        -   In player turns, they are prompted with a word or phrase to pronounce. The app records and assesses their pronunciation using an AI service.
+        -   The pronunciation score (accuracy, fluency, etc.) is converted into attack power. Higher scores result in more damage to the boss.
+        -   In the boss's turn, the player might be prompted to pronounce a defensive phrase. Good pronunciation reduces incoming damage.
+        -   The battle uses a turn-based system, with health bars for both the player and the boss.
+        -   Winning the boss fight unlocks significant rewards and progresses the story.
+        -   After the battle, players receive a detailed report on their performance, including average pronunciation scores and words that need to practice.
 
 # User Experience
 
@@ -84,6 +96,10 @@ The art direction for the MVP involves prototyping both retro pixel art and vibr
         -   AI pipeline processes speech and generates NPC response (voice + text).
         -   Player continues conversation, aiming to use target phrases correctly to build charm and complete objectives.
         -   Successful interaction leads to reward (e.g., virtual dish item, charm points).
+    - **Boss Fight:**
+        -   At the end of a questline, the player might encounter a portal leading to a boss fight.
+        -   The player engages in a turn-based battle where pronunciation accuracy determines attack and defense effectiveness.
+        -   Winning the fight yields significant rewards and story progression.
     - **Practice-Anytime Chat (Premium):**
         -   Player selects an unlocked NPC from a menu.
         -   Engages in open-ended conversation, with the AI recalling past interactions.
@@ -308,4 +324,3 @@ The art direction for the MVP involves prototyping both retro pixel art and vibr
 
 ---
 *This PRD (v1.0) synthesizes previous planning and research. It should serve as the guiding document for the MVP development sprint.*
-</context> 

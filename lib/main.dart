@@ -1,9 +1,13 @@
+import 'package:babblelon/screens/main_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/game_screen.dart';
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:babblelon/widgets/debug_dialog_test.dart';
+import 'package:babblelon/widgets/shared/app_styles.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +37,10 @@ void main() async {
     );
   }
 
-  runApp(ProviderScope(child: const MyApp()));
+  // Initialize Isar DB
+  await IsarService.init();
+
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -43,11 +50,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Babblelon',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: GameScreen(),
+      theme: AppStyles.mainTheme,
+      home: const MainMenuScreen(),
+      // home: const DebugDialogTest(), // Temporarily set to debug screen
     );
   }
 } 

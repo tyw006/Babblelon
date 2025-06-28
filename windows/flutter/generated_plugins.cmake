@@ -5,8 +5,10 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   audioplayers_windows
+  isar_flutter_libs
   permission_handler_windows
   record_windows
+  rive_common
   url_launcher_windows
 )
 
