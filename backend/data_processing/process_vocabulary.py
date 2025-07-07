@@ -14,6 +14,7 @@ import tempfile
 import mimetypes
 import struct
 import wave
+from collections import defaultdict
 
 from dotenv import load_dotenv
 from google import genai
@@ -237,37 +238,41 @@ def retry_audio_generation(api_func, *args, max_retries=3, min_wait=2, max_wait=
     raise RuntimeError(f"Audio generation failed after {max_retries} retries.")
 
 
-def get_transliteration_and_translation(tokens: list[str], client, model_name: str, english_context: str, thai_context: str = ""):
+def get_transliteration_and_translation_batch(unique_words: list[str], client, model_name: str) -> dict[str, dict]:
     """
-    Gets transliteration and translation for a list of tokenized words using Gemini
-    in a single API call. Now includes English context for better accuracy.
+    Gets transliteration and translation for a list of unique Thai words using Gemini
+    in a single API call. Ensures consistent transliterations for the same characters.
+    Returns a dictionary mapping Thai words to their transliteration and translation.
     """
-    if not tokens:
-        return None
+    if not unique_words:
+        return {}
 
     # Create the list of JSON objects for the prompt
-    word_list_str = ",\n".join([f'    {{"thai": "{token}", "transliteration": "", "translation": ""}}' for token in tokens])
+    word_list_str = ",\n".join([f'    {{"thai": "{word}", "transliteration": "", "translation": ""}}' for word in unique_words])
 
-    thai_context_line = f"The original Thai phrase is: '{thai_context}'" if thai_context else ""
-    
     prompt = f"""
-You are helping to create accurate transliterations and translations for Thai words that were automatically tokenized from speech recognition.
+You are helping to create accurate and CONSISTENT transliterations and translations for Thai words.
 
-CONTEXT: These Thai words come from the phrase that means "{english_context}" in English.
-{thai_context_line}
+IMPORTANT: Use the SAME transliteration for identical Thai characters across all words. For example, if you see the character "ก" in multiple words, it should always be transliterated the same way (e.g., "g" or "k" consistently).
 
-Please fill in the 'transliteration' (using standard romanization for pronunciation) and 'translation' (English meaning) for each of the following Thai words. Use the English and Thai context to help determine the most appropriate translation for each word.
+Please fill in the 'transliteration' (using standard romanization for pronunciation) and 'translation' (English meaning) for each of the following Thai words. Ensure consistency in your transliteration system across all words.
+
+Guidelines:
+1. Use consistent romanization for the same Thai characters
+2. Follow standard Thai romanization conventions
+3. Provide accurate English translations
+4. Be consistent with tone markers and vowel representations
 
 Input:
 [
 {word_list_str}
 ]
 
-Return the result as a single, raw JSON object with a single key "word_mapping" which contains the completed list. Do not include any other text, formatting, or markdown.
+Return the result as a single, raw JSON object with a single key "azure_pron_mapping" which contains the completed list. Do not include any other text, formatting, or markdown.
 
 Expected Output Format:
 {{
-    "word_mapping": [
+    "azure_pron_mapping": [
         {{
             "thai": "...",
             "transliteration": "...",
@@ -276,6 +281,7 @@ Expected Output Format:
     ]
 }}
 """
+    
     def api_call():
         response = client.models.generate_content(
             model=model_name,
@@ -284,13 +290,27 @@ Expected Output Format:
         # Clean the response to ensure it's valid JSON
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
         return json.loads(cleaned_response)
+    
     try:
-        return retry_with_backoff(api_call)
+        result = retry_with_backoff(api_call)
+        if result and 'azure_pron_mapping' in result:
+            # Convert list to dictionary for easy lookup
+            word_dict = {}
+            for item in result['azure_pron_mapping']:
+                thai_word = item['thai']
+                word_dict[thai_word] = {
+                    'transliteration': item['transliteration'],
+                    'translation': item['translation']
+                }
+            return word_dict
+        else:
+            tqdm.write(f"  - Error: Gemini API did not return 'azure_pron_mapping'. Response: {result}")
+            return {}
     except Exception as e:
-        tqdm.write(f"  - Error processing tokens '{tokens}' with context '{english_context}': {e}")
+        tqdm.write(f"  - Error processing batch transliteration: {e}")
         tqdm.write(f"  - Exception type: {type(e).__name__}")
         tqdm.write(f"  - Full traceback: {traceback.format_exc()}")
-        return None
+        return {}
 
 
 def generate_audio_file(client, model_name, text: str, file_path: str, english_phrase: str) -> tuple[str | None, bool]:
@@ -346,6 +366,64 @@ def generate_audio_file(client, model_name, text: str, file_path: str, english_p
             return None, False
 
     return retry_with_backoff(api_call)
+
+
+def check_existing_audio_files(project_root: str, thai_phrase: str, english_phrase: str) -> str | None:
+    """
+    Check if audio already exists for this Thai phrase in any audio directory.
+    Also checks for files in backend/assets/audio and migrates them if found.
+    Returns the relative path to the existing audio file if found, None otherwise.
+    """
+    # Generate the expected filename for this entry
+    sanitized_filename = sanitize_filename(english_phrase) + ".wav"
+    
+    # First check the correct location: project_root/assets/audio
+    audio_base_dir = os.path.join(project_root, 'assets/audio')
+    if os.path.exists(audio_base_dir):
+        for subdir in os.listdir(audio_base_dir):
+            subdir_path = os.path.join(audio_base_dir, subdir)
+            if os.path.isdir(subdir_path):
+                potential_file = os.path.join(subdir_path, sanitized_filename)
+                if os.path.exists(potential_file):
+                    # Validate it's a proper WAV file
+                    if is_valid_wav_file(potential_file):
+                        relative_path = os.path.relpath(potential_file, project_root).replace(os.sep, '/')
+                        tqdm.write(f"  - Found existing audio: '{english_phrase}' -> '{relative_path}'")
+                        return relative_path
+                    else:
+                        tqdm.write(f"  - Found invalid audio file: '{potential_file}' (will be skipped)")
+    
+    # Also check for files in the wrong location (backend/assets/audio) and migrate them
+    backend_audio_base_dir = os.path.join(project_root, 'backend/assets/audio')
+    if os.path.exists(backend_audio_base_dir):
+        for subdir in os.listdir(backend_audio_base_dir):
+            subdir_path = os.path.join(backend_audio_base_dir, subdir)
+            if os.path.isdir(subdir_path):
+                potential_file = os.path.join(subdir_path, sanitized_filename)
+                if os.path.exists(potential_file):
+                    # Validate it's a proper WAV file
+                    if is_valid_wav_file(potential_file):
+                        # Migrate the file to the correct location
+                        correct_subdir = os.path.join(audio_base_dir, subdir)
+                        os.makedirs(correct_subdir, exist_ok=True)
+                        correct_file_path = os.path.join(correct_subdir, sanitized_filename)
+                        
+                        try:
+                            # Copy the file to the correct location
+                            import shutil
+                            shutil.copy2(potential_file, correct_file_path)
+                            tqdm.write(f"  - Migrated audio file from '{potential_file}' to '{correct_file_path}'")
+                            
+                            # Return the relative path from project root
+                            relative_path = os.path.relpath(correct_file_path, project_root).replace(os.sep, '/')
+                            tqdm.write(f"  - Using migrated audio: '{english_phrase}' -> '{relative_path}'")
+                            return relative_path
+                        except Exception as e:
+                            tqdm.write(f"  - Error migrating file '{potential_file}': {e}")
+                    else:
+                        tqdm.write(f"  - Found invalid audio file in backend: '{potential_file}' (will be skipped)")
+    
+    return None
 
 
 def sanitize_filename(text: str) -> str:
@@ -468,9 +546,11 @@ def process_vocabulary(vocab_file_path: str):
     - Check audio_path fields exist before processing
     - Generate audio (TTS API)
     - Validate WAV files after generation
-    - Verify/correct word mapping (Azure Speech API for tokenization, then Gemini for text API)
+    - Tokenize audio using Azure Speech API
+    - Collect all unique Thai words and send to Gemini for consistent transliteration/translation
+    - Apply the consistent mappings to all entries
     - Save progress after each step
-    - Add 'audio_generated' and 'word_mapping_verified' fields
+    - Add 'audio_generated' and 'azure_pron_mapping_verified' fields
     """
     load_dotenv(dotenv_path=os.path.join(os.getcwd(), '.env'))
 
@@ -493,8 +573,14 @@ def process_vocabulary(vocab_file_path: str):
     tts_model_name = "gemini-2.5-flash-preview-tts"
     text_model_name = "gemini-2.5-flash"
 
-    # Define paths
-    project_root = os.getcwd()
+    # Define paths - ensure we use the project root, not the current working directory
+    # This script may be run from the backend/ directory, so we need to find the actual project root
+    current_dir = os.getcwd()
+    if current_dir.endswith('backend'):
+        project_root = os.path.dirname(current_dir)  # Go up one level to project root
+    else:
+        project_root = current_dir
+    
     if not os.path.isabs(vocab_file_path):
         vocab_file_path = os.path.join(project_root, vocab_file_path)
 
@@ -515,12 +601,11 @@ def process_vocabulary(vocab_file_path: str):
     valid_audio_count, total_count = check_audio_paths_exist(data, project_root)
     if valid_audio_count == 0:
         print("Warning: No entries have valid audio files. Audio generation will be performed first.")
-    
-    # Note: We'll process word mappings for entries that have audio_generated=True and need verification
 
     tts_failures = 0
-    text_failures = 0
     azure_tokenization_failures = 0
+    existing_audio_used = 0
+    new_audio_generated = 0
 
     # --- Pass 1: Audio Generation and immediate JSON update ---
     print("\n--- Pass 1: Generating audio files ---")
@@ -531,39 +616,56 @@ def process_vocabulary(vocab_file_path: str):
 
         # Only generate audio if not already done
         if not entry.get('audio_generated'):
-            sanitized_filename = sanitize_filename(english_phrase) + ".wav"
-            relative_audio_dir = os.path.join('assets/audio', file_basename)
-            audio_file_path = os.path.join(project_root, relative_audio_dir, sanitized_filename)
-            try:
-                saved_path, streamed = retry_audio_generation(generate_audio_file, client, tts_model_name, thai_phrase, audio_file_path, english_phrase)
-                if saved_path:
-                    relative_path = os.path.relpath(saved_path, project_root).replace(os.sep, '/')
-                    entry[audio_path_key] = relative_path
-                    entry['audio_generated'] = True
-                    tqdm.write(f"  - Successfully generated audio for '{english_phrase}'")
-                    # Immediately save progress to disk after each audio file
-                    with open(vocab_file_path, 'w', encoding='utf-8') as f:
-                        json.dump(data, f, ensure_ascii=False, indent=4)
-                else:
+            # First check if audio already exists anywhere in assets/audio
+            existing_audio_path = check_existing_audio_files(project_root, thai_phrase, english_phrase)
+            
+            if existing_audio_path:
+                # Use existing audio file
+                entry[audio_path_key] = existing_audio_path
+                entry['audio_generated'] = True
+                existing_audio_used += 1
+                tqdm.write(f"  - Using existing audio for '{english_phrase}'")
+                # Immediately save progress to disk
+                with open(vocab_file_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+            else:
+                # Generate new audio file
+                sanitized_filename = sanitize_filename(english_phrase) + ".wav"
+                relative_audio_dir = os.path.join('assets/audio', file_basename)
+                audio_file_path = os.path.join(project_root, relative_audio_dir, sanitized_filename)
+                try:
+                    saved_path, streamed = retry_audio_generation(generate_audio_file, client, tts_model_name, thai_phrase, audio_file_path, english_phrase)
+                    if saved_path:
+                        relative_path = os.path.relpath(saved_path, project_root).replace(os.sep, '/')
+                        entry[audio_path_key] = relative_path
+                        entry['audio_generated'] = True
+                        new_audio_generated += 1
+                        tqdm.write(f"  - Successfully generated audio for '{english_phrase}'")
+                        # Immediately save progress to disk after each audio file
+                        with open(vocab_file_path, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=4)
+                    else:
+                        tts_failures += 1
+                        tqdm.write(f"  - Failed to generate audio for '{thai_phrase}' after retries (API returned empty data or validation failed).")
+                except Exception as e:
                     tts_failures += 1
-                    tqdm.write(f"  - Failed to generate audio for '{thai_phrase}' after retries (API returned empty data or validation failed).")
-            except Exception as e:
-                tts_failures += 1
-                tqdm.write(f"  - Error generating audio for '{thai_phrase}' after retries: {e}")
-                tqdm.write(traceback.format_exc())
+                    tqdm.write(f"  - Error generating audio for '{thai_phrase}' after retries: {e}")
+                    tqdm.write(traceback.format_exc())
 
-    # --- Pass 2: Azure Tokenization and Gemini Text Processing ---
-    print("\n--- Pass 2: Tokenizing with Azure and verifying word mappings ---")
-    for i, entry in enumerate(tqdm(data['vocabulary'], desc="Processing word mappings")):
+    # --- Pass 2: Azure Tokenization ---
+    print("\n--- Pass 2: Tokenizing audio with Azure Speech API ---")
+    entry_tokens = {}  # Store tokens for each entry index
+    all_unique_words = set()  # Collect all unique Thai words
+    
+    for i, entry in enumerate(tqdm(data['vocabulary'], desc="Tokenizing audio")):
         thai_phrase = entry['thai']
         english_phrase = entry['english']
-        word_mapping = entry.get('word_mapping', [])
         audio_path = entry.get('audio_path')
         audio_generated = entry.get('audio_generated', False)
-        word_mapping_verified = entry.get('word_mapping_verified', False)
+        azure_pron_mapping_verified = entry.get('azure_pron_mapping_verified', False)
 
-        # Skip if word mapping is already verified
-        if word_mapping_verified:
+        # Skip if azure pronunciation mapping is already verified
+        if azure_pron_mapping_verified:
             tqdm.write(f"  - Skipping '{english_phrase}' - already verified")
             continue
 
@@ -573,15 +675,15 @@ def process_vocabulary(vocab_file_path: str):
             continue
 
         if not audio_path:
-            tqdm.write(f"  - Skipping word mapping for '{english_phrase}' due to missing audio_path field.")
+            tqdm.write(f"  - Skipping tokenization for '{english_phrase}' due to missing audio_path field.")
             continue
 
         full_audio_path = os.path.join(project_root, audio_path)
         if not os.path.exists(full_audio_path):
-            tqdm.write(f"  - Skipping word mapping for '{english_phrase}' - audio file not found at '{full_audio_path}'.")
+            tqdm.write(f"  - Skipping tokenization for '{english_phrase}' - audio file not found at '{full_audio_path}'.")
             continue
 
-        tqdm.write(f"  - Processing word mapping for '{english_phrase}'...")
+        tqdm.write(f"  - Tokenizing audio for '{english_phrase}'...")
         try:
             # Use Azure Speech SDK for tokenization from audio
             azure_tokens = get_azure_tokens_from_audio(full_audio_path, azure_speech_key, azure_speech_region, english_phrase, thai_phrase)
@@ -591,30 +693,103 @@ def process_vocabulary(vocab_file_path: str):
                 tqdm.write(f"  - Azure Speech API returned no tokens for '{english_phrase}'.")
                 continue
 
-            # Now send these tokens to Gemini for transliteration and translation with English context
-            tqdm.write(f"  - Sending Azure tokens '{azure_tokens}' to Gemini for transliteration/translation...")
-            correction = retry_with_backoff(get_transliteration_and_translation, azure_tokens, client, text_model_name, english_phrase, thai_phrase)
-            if correction and 'word_mapping' in correction:
-                entry['word_mapping'] = correction['word_mapping']
-                entry['word_mapping_verified'] = True
-                tqdm.write("  - Word mapping corrected with English context and marked as verified.")
-            else:
-                text_failures += 1
-                tqdm.write(f"  - Gemini API did not return 'word_mapping' for '{thai_phrase}'. Response: {correction}")
+            # Store tokens for this entry and add to unique words set
+            entry_tokens[i] = azure_tokens
+            all_unique_words.update(azure_tokens)
+            tqdm.write(f"  - Successfully tokenized '{english_phrase}' into {len(azure_tokens)} words")
+            
         except Exception as e:
-            text_failures += 1
-            tqdm.write(f"  - Error processing word mapping for '{thai_phrase}': {e}")
+            azure_tokenization_failures += 1
+            tqdm.write(f"  - Error tokenizing '{thai_phrase}': {e}")
             tqdm.write(traceback.format_exc())
 
-        # Save progress after each entry in the second pass
+    # --- Pass 3: Batch Transliteration and Translation with Gemini ---
+    print(f"\n--- Pass 3: Getting consistent transliterations for {len(all_unique_words)} unique words ---")
+    word_mapping_dict = {}
+    
+    if all_unique_words:
+        unique_words_list = list(all_unique_words)
+        tqdm.write(f"  - Unique Thai words found: {unique_words_list}")
+        
+        # Process in batches to avoid hitting API limits (adjust batch size as needed)
+        batch_size = 50  # Adjust based on API limits
+        for batch_start in range(0, len(unique_words_list), batch_size):
+            batch_end = min(batch_start + batch_size, len(unique_words_list))
+            batch_words = unique_words_list[batch_start:batch_end]
+            
+            tqdm.write(f"  - Processing batch {batch_start // batch_size + 1}: words {batch_start + 1}-{batch_end} of {len(unique_words_list)}")
+            
+            try:
+                batch_mapping = get_transliteration_and_translation_batch(batch_words, client, text_model_name)
+                word_mapping_dict.update(batch_mapping)
+                tqdm.write(f"  - Successfully processed {len(batch_mapping)} words in this batch")
+                
+                # Small delay between batches to be respectful to the API
+                if batch_end < len(unique_words_list):
+                    time.sleep(1)
+                    
+            except Exception as e:
+                tqdm.write(f"  - Error processing batch {batch_start // batch_size + 1}: {e}")
+                tqdm.write(traceback.format_exc())
+
+    # --- Pass 4: Apply Consistent Mappings to Entries ---
+    print(f"\n--- Pass 4: Applying consistent mappings to vocabulary entries ---")
+    mapping_failures = 0
+    
+    for i, entry in enumerate(tqdm(data['vocabulary'], desc="Applying mappings")):
+        english_phrase = entry['english']
+        
+        # Skip if already verified or no tokens available
+        if entry.get('azure_pron_mapping_verified', False):
+            continue
+            
+        if i not in entry_tokens:
+            continue
+            
+        tokens = entry_tokens[i]
+        
+        try:
+            # Build azure pronunciation mapping for this entry using the consistent dictionary
+            azure_pron_mapping = []
+            for token in tokens:
+                if token in word_mapping_dict:
+                    azure_pron_mapping.append({
+                        "thai": token,
+                        "transliteration": word_mapping_dict[token]['transliteration'],
+                        "translation": word_mapping_dict[token]['translation']
+                    })
+                else:
+                    # Fallback for words that weren't processed successfully
+                    tqdm.write(f"  - Warning: No mapping found for token '{token}' in '{english_phrase}'")
+                    azure_pron_mapping.append({
+                        "thai": token,
+                        "transliteration": "",
+                        "translation": ""
+                    })
+            
+            # Update the entry
+            entry['azure_pron_mapping'] = azure_pron_mapping
+            entry['azure_pron_mapping_verified'] = True
+            tqdm.write(f"  - Applied consistent mapping to '{english_phrase}' ({len(azure_pron_mapping)} words)")
+            
+        except Exception as e:
+            mapping_failures += 1
+            tqdm.write(f"  - Error applying mapping to '{english_phrase}': {e}")
+            tqdm.write(traceback.format_exc())
+
+        # Save progress after each entry
         with open(vocab_file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     # Print summary
     print(f"\nSUMMARY:")
-    print(f"  Text API failures: {text_failures}")
+    print(f"  Existing audio files used: {existing_audio_used}")
+    print(f"  New audio files generated: {new_audio_generated}")
     print(f"  TTS API failures: {tts_failures}")
     print(f"  Azure Tokenization failures: {azure_tokenization_failures}")
+    print(f"  Mapping application failures: {mapping_failures}")
+    print(f"  Unique Thai words processed: {len(word_mapping_dict)}")
+    print(f"  Total vocabulary entries: {len(data['vocabulary'])}")
     print(f"Vocabulary processing complete. File '{vocab_file_path}' updated.")
 
 

@@ -40,7 +40,7 @@ class PronunciationAssessmentRequest(BaseModel):
     item_type: str
     turn_type: str
     was_revealed: bool = False
-    word_mapping: List[Dict[str, str]] = []
+    azure_pron_mapping: List[Dict[str, str]] = []
 
 class WordFeedback(BaseModel):
     word: str
@@ -80,7 +80,7 @@ async def assess_pronunciation(
     item_type: str,
     turn_type: str,
     was_revealed: bool,
-    word_mapping: List[Dict[str, str]],
+    azure_pron_mapping: List[Dict[str, str]],
     language: str = "th-TH"
 ) -> PronunciationAssessmentResponse:
     """
@@ -177,7 +177,7 @@ async def assess_pronunciation(
 
         # --- Detailed Word Analysis ---
         detailed_feedback_list = []
-        translit_map = {word['thai']: word['transliteration'] for word in word_mapping}
+        translit_map = {word['thai']: word['transliteration'] for word in azure_pron_mapping}
         
         print(f"\n📝 WORD-BY-WORD ANALYSIS:")
         print(f"Static mapping available: {list(translit_map.keys())}")

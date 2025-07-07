@@ -38,6 +38,7 @@ dependencies:
   animated_flip_counter: ^0.2.6
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
+  google_mlkit_digital_ink_recognition: ^0.14.1
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,8 @@ flutter:
     - assets/audio/bg/
     - assets/audio/soundeffects/
     - assets/audio/beginner_food_vocabulary/
+    - assets/audio/npc_vocabulary_amara/
+    - assets/audio/npc_vocabulary_somchai/
     - assets/images/bosses/tuktuk/
     - assets/data/
     - assets/lottie/

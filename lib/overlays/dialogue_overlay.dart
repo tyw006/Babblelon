@@ -8,6 +8,7 @@ import 'dart:io'; // Added for File
 import 'package:http/http.dart' as http; // Added for http
 import 'dart:convert'; // Added for json encoding/decoding
 import 'package:flutter/services.dart'; // Added for DefaultAssetBundle
+import 'package:flutter/scheduler.dart'; // Added for SchedulerBinding
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
@@ -19,6 +20,7 @@ import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
 import '../services/isar_service.dart'; // For database operations
 import '../widgets/dialogue_ui.dart';
+import '../widgets/character_tracing_widget.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -230,6 +232,8 @@ class DialogueOverlay extends ConsumerStatefulWidget {
 class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerProviderStateMixin {
   final ScrollController _mainDialogueScrollController = ScrollController();
   final ScrollController _historyDialogScrollController = ScrollController(); // For history dialog
+  final ScrollController _wordTracingScrollController = ScrollController(); // For horizontal word tracing navigation
+  bool _showScrollArrow = true; // Show/hide scroll indicator arrow
   
   // --- Recording State ---
   RecordingState _recordingState = RecordingState.idle;
@@ -249,7 +253,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   final ValueNotifier<String> _translationAudioNotifier = ValueNotifier<String>("");
   final ValueNotifier<bool> _translationIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _translationErrorNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Translate to Thai'); // Default title
+  final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Language Tools'); // Default title
   final ValueNotifier<bool> _isTranscribing = ValueNotifier<bool>(false);
 
   // State for the new practice recording feature
@@ -263,6 +267,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   late mlkit.DigitalInkRecognizerModelManager _modelManager;
   final mlkit.Ink _ink = mlkit.Ink();
   mlkit.Stroke? _currentStroke;
+  List<mlkit.StrokePoint> _currentStrokePoints = []; // For real-time preview
   String? _targetCharacter;
   String _lastRecognitionResult = '';
   
@@ -284,6 +289,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   PageController _characterPageController = PageController();
   Map<int, bool> _characterCompletionStatus = {};
   Map<int, String> _characterRecognitionResults = {};
+  Map<String, Map<String, dynamic>> _characterAnalysisCache = {}; // Cache for PyThaiNLP analysis
+  
+  // Simple test drawing state (Flutter docs pattern)
   
   bool _isModelDownloaded = false;
 
@@ -320,6 +328,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     // --- ML Kit Initialization ---
     _initializeMLKit();
+
+    // --- Scroll Listener for Arrow Indicator ---
+    _wordTracingScrollController.addListener(_onScrollChanged);
 
     // --- Animation Initialization ---
     _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
@@ -431,6 +442,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _activeTextStreamTimer?.cancel();
     _mainDialogueScrollController.dispose();
     _historyDialogScrollController.dispose();
+    _wordTracingScrollController.dispose();
     
     // Dispose review player
     _reviewPlayer.dispose();
@@ -450,6 +462,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _practiceReviewPlayer.dispose();
 
     super.dispose();
+  }
+
+  void _onScrollChanged() {
+    // Check if user has scrolled to the end
+    if (_wordTracingScrollController.hasClients) {
+      final position = _wordTracingScrollController.position;
+      final isAtEnd = position.pixels >= position.maxScrollExtent - 10; // 10px threshold
+      
+      setState(() {
+        _showScrollArrow = !isAtEnd;
+      });
+    }
   }
 
   Future<void> _startRecording() async {
@@ -790,6 +814,22 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       await player.play();
     } catch (e) {
       print("Error playing dialogue audio for entry ID ${entry.id}: $e");
+    }
+  }
+
+  Future<void> _playVocabularyAudio(String audioPath) async {
+    final player = ref.read(dialogueReplayPlayerProvider);
+    await player.stop();
+
+    try {
+      if (audioPath.startsWith('assets/')) {
+        await player.setAsset(audioPath);
+      } else {
+        await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPath)));
+      }
+      await player.play();
+    } catch (e) {
+      print("Error playing vocabulary audio: $e");
     }
   }
 
@@ -1279,7 +1319,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
   
   // --- New Dialog for English to Target Language Translation Input ---
-  Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th"}) async {
+  Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th", int initialTabIndex = 0}) async {
     // Reset state when opening the dialog
     _translationEnglishController.clear();
     _translationMappingsNotifier.value = [];
@@ -1289,7 +1329,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _lastPracticeRecordingPath.value = null;
 
     // Set initial title when dialog is opened.
-    _translationDialogTitleNotifier.value = 'Translate to ${getLanguageName(targetLanguage)}';
+    _translationDialogTitleNotifier.value = 'Language Tools';
 
     // Get the audio player from Riverpod
     final audioPlayer = ref.read(dialogueReplayPlayerProvider);
@@ -1314,6 +1354,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       builder: (BuildContext dialogContext) {
         return DefaultTabController(
           length: 2,
+          initialIndex: initialTabIndex,
           child: AlertDialog(
             title: ValueListenableBuilder<String>(
               valueListenable: _translationDialogTitleNotifier,
@@ -1399,9 +1440,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   if (response.statusCode == 200) {
                     final data = jsonDecode(response.body);
                     
-                    if (data['target_language_name'] != null) {
-                      _translationDialogTitleNotifier.value = 'Translate to ${data['target_language_name']}';
-                    }
+                    // Keep consistent title regardless of language
+                    _translationDialogTitleNotifier.value = 'Language Tools';
                     
                     _translationAudioNotifier.value = data['audio_base64'] ?? "";
                     
@@ -1598,7 +1638,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   return DropdownMenuItem<Map<String, dynamic>>(
                     value: item,
                     child: Text(
-                      '${item['thai']} - ${item['english']}',
+                      '${item['thai'] ?? item['target'] ?? ''} - ${item['english']}',
                       overflow: TextOverflow.ellipsis,
                     ),
                   );
@@ -1658,7 +1698,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   border: OutlineInputBorder(),
                   hintText: 'Enter English word...',
                   suffixIcon: IconButton(
-                    icon: Icon(Icons.translate),
+                    icon: Icon(Icons.language),
                     onPressed: () => _translateCustomItem(targetLanguage),
                   ),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1702,13 +1742,38 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                           ),
                           SizedBox(height: 8),
                           Center(
-                            child: Text(
-                              itemData['thai'] ?? '',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  itemData['target'] ?? itemData['thai'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                // Audio icon if audio_path is present
+                                if (itemData['audio_path'] != null && itemData['audio_path'].toString().isNotEmpty) ...[
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () => _playVocabularyAudio(itemData['audio_path']),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.teal.shade100,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Icon(
+                                        Icons.volume_up,
+                                        color: Colors.teal.shade700,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           SizedBox(height: 8),
@@ -1736,31 +1801,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                             ),
                           ),
                           SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
-                                  icon: Icon(Icons.edit, size: 18),
-                                  label: Text('Trace', style: TextStyle(fontSize: 12)),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                ),
+                          // Only show Trace Character button for custom translations
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
+                              icon: Icon(Icons.edit, size: 18),
+                              label: Text('Trace Character', style: TextStyle(fontSize: 14)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4ECCA3),
+                                foregroundColor: Colors.black,
+                                padding: EdgeInsets.symmetric(vertical: 12),
                               ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _giveItemToNPC(itemData, dialogContext, targetLanguage),
-                                  icon: Icon(Icons.card_giftcard, size: 18),
-                                  label: Text('Give Item', style: TextStyle(fontSize: 12)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    padding: EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -1774,6 +1827,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       ],
     );
   }
+
 
   // --- Quick Select and Character Display Methods ---
   
@@ -1791,15 +1845,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       setState(() {
         _currentCharacterIndex--;
       });
-      // Only animate PageController if it's attached
-      if (_characterPageController.hasClients) {
-        _characterPageController.animateToPage(
-          _currentCharacterIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
       _clearCanvas();
+      // Update the tracing area with the new character
+      _updateTracingArea();
     }
   }
   
@@ -1808,16 +1856,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       setState(() {
         _currentCharacterIndex++;
       });
-      // Only animate PageController if it's attached
-      if (_characterPageController.hasClients) {
-        _characterPageController.animateToPage(
-          _currentCharacterIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
       _clearCanvas();
+      // Update the tracing area with the new character
+      _updateTracingArea();
     }
+  }
+  
+  void _updateTracingArea() {
+    // Trigger a rebuild of the tracing area with the new character
+    setState(() {});
   }
   
   Map<String, dynamic> _getCurrentCharacter() {
@@ -1866,7 +1913,216 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       },
     );
   }
+
+  void _showCharacterPronunciationTips(Map<String, dynamic> character) {
+    final thaiChar = character['thai'] ?? '';
+    final transliteration = character['transliteration'] ?? character['romanized'] ?? '';
+    final translation = character['translation'] ?? character['english'] ?? '';
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: const Color(0xFF1F1F1F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F1F1F),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Character display
+                Row(
+                  children: [
+                    Text(
+                      thaiChar,
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4ECCA3),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (transliteration.isNotEmpty)
+                            Text(
+                              transliteration,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          if (translation.isNotEmpty)
+                            Text(
+                              translation,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Pronunciation tips
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D2D2D),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.record_voice_over,
+                            color: Color(0xFF4ECCA3),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Pronunciation Tips',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4ECCA3),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _getCharacterSpecificPronunciationTips(thaiChar, transliteration),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Close button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4ECCA3),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Got it!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
   
+  String _getCharacterSpecificPronunciationTips(String thaiChar, String transliteration) {
+    // Return character-specific pronunciation guidance
+    switch (thaiChar) {
+      case 'ก':
+        return 'Pronounced like "k" in "cat". Keep your tongue at the back and make a sharp, crisp sound without breathing out.';
+      case 'ข':
+        return 'Like "kh" - similar to "k" but with a puff of air. Place your tongue at the back and exhale slightly.';
+      case 'ค':
+        return 'Another "kh" sound, identical to ข. Practice the difference through context and listening.';
+      case 'ง':
+        return 'Like "ng" in "sing". This sound can start Thai syllables, unlike in English where it only ends words.';
+      case 'จ':
+        return 'Like "j" in "jump". Touch your tongue to the roof of your mouth and release with voice.';
+      case 'ฉ':
+        return 'Like "ch" in "church" but with more air. Similar to จ but unvoiced and breathy.';
+      case 'ช':
+        return 'Also like "ch" in "church". Practice distinguishing from ฉ through listening.';
+      case 'ซ':
+        return 'Like "s" in "sun". Keep your tongue behind your teeth and let air flow smoothly.';
+      case 'ด':
+        return 'Like "d" in "dog". Touch your tongue tip to the roof of your mouth briefly.';
+      case 'ต':
+        return 'Like "t" in "top". Similar to ด but without voice - just a quick tongue tap.';
+      case 'ท':
+        return 'Like "th" in "top" with aspiration. Touch tongue tip to teeth and release with air.';
+      case 'น':
+        return 'Like "n" in "no". Touch your tongue tip to the roof of your mouth and hum.';
+      case 'บ':
+        return 'Like "b" in "big". Press your lips together and release with voice.';
+      case 'ป':
+        return 'Like "p" in "pat". Similar to บ but without voice - just lip release.';
+      case 'ผ':
+        return 'Like "ph" in "phone" but as one sound. Not "p" + "h" but a single aspirated "p".';
+      case 'ฝ':
+        return 'Like "f" in "food". Place your bottom lip against your top teeth and blow air.';
+      case 'พ':
+        return 'Another "ph" sound, identical to ผ. Listen for context differences.';
+      case 'ฟ':
+        return 'Another "f" sound, identical to ฝ. Practice distinguishing through context.';
+      case 'ม':
+        return 'Like "m" in "mom". Close your lips and hum with your nose.';
+      case 'ย':
+        return 'Like "y" in "yes". Keep your tongue relaxed and glide into the next sound.';
+      case 'ร':
+        return 'Rolled "r" like Spanish. Tap your tongue tip against the roof lightly and rapidly.';
+      case 'ล':
+        return 'Like "l" in "love". Touch your tongue tip to the roof and let air flow around sides.';
+      case 'ว':
+        return 'Like "w" in "water". Round your lips and glide into the next sound.';
+      case 'ส':
+        return 'Like "s" in "sun". Keep airflow smooth and tongue behind teeth.';
+      case 'ห':
+        return 'Like "h" in "house". Breathe out gently - it\'s just air flow.';
+      case 'อ':
+        return 'A glottal stop - like the pause in "uh-oh". Brief closure in your throat.';
+      default:
+        if (transliteration.contains('th')) {
+          return 'For "th" sounds: Touch your tongue tip to your teeth and breathe out gently. Not like English "th".';
+        } else if (transliteration.contains('ph')) {
+          return 'For "ph" sounds: Like "p" with a puff of air, not an "f" sound. One unified sound.';
+        } else if (transliteration.contains('ng')) {
+          return 'For "ng" sounds: Like the end of "sing" but can start Thai syllables. Practice holding the sound.';
+        } else {
+          return 'Listen carefully to native pronunciation. Thai has 5 tones, so pitch changes meaning. Practice with tone awareness.';
+        }
+    }
+  }
+
   Color _getRecognitionFeedbackColor() {
     final currentChar = _getCurrentCharacter();
     final expectedChar = currentChar['thai'] ?? '';
@@ -1887,7 +2143,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final expectedChar = currentChar['thai'] ?? '';
     
     if (_lastRecognitionResult.isEmpty) {
-      return 'Start tracing the character...';
+      return 'Ready to trace...';
     } else if (_lastRecognitionResult == expectedChar) {
       return '✓ Perfect! Character traced correctly!';
     } else if (_lastRecognitionResult == 'Not recognized') {
@@ -1986,12 +2242,26 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Format the data for item giving
+        // Transform word_mappings from backend format to app format
+        List<Map<String, dynamic>> transformedMappings = [];
+        if (data['word_mappings'] != null) {
+          transformedMappings = (data['word_mappings'] as List).map<Map<String, dynamic>>((mapping) => {
+            'target': mapping['target'] ?? '',
+            'transliteration': mapping['romanized'] ?? '',
+            'translation': mapping['english'] ?? '',
+          }).toList();
+        }
+        
+        // Format the data for item giving and character tracing
         final Map<String, dynamic> itemData = {
           'english': englishText,
-          'thai': data['target_text'] ?? '',
+          'thai': data['target_text'] ?? '', // Keep for backward compatibility
+          'target': data['target_text'] ?? '', // Add target field for app logic
+          'target_language': targetLanguage,
           'romanized': data['romanized_text'] ?? '',
           'transliteration': data['romanized_text'] ?? '',
+          'translation': englishText,
+          'word_mapping': transformedMappings,
         };
         
         _customItemDataNotifier.value = itemData;
@@ -2001,6 +2271,62 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     } catch (e) {
       print("Error translating custom item: $e");
     }
+  }
+
+  Future<void> _translateForTracing(String targetLanguage) async {
+    // Use the same translation logic as _translateCustomItem since it now provides word_mapping
+    await _translateCustomItem(targetLanguage);
+  }
+
+  Future<void> _startDirectCharacterTracing(Map<String, dynamic> itemData, BuildContext dialogContext, String targetLanguage) async {
+    Navigator.of(dialogContext).pop(); // Close translation dialog
+    
+    // Clear any previous ink strokes
+    _ink.strokes.clear();
+    _currentStroke = null;
+    
+    // Start downloading Thai model if not already downloaded
+    if (!_isModelDownloaded) {
+      _downloadThaiModel();
+    }
+    
+    // Show character tracing dialog - goes directly to tracing without returning to tabs
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => _buildDirectCharacterTracingDialog(itemData, targetLanguage),
+    );
+  }
+
+  Widget _buildDirectCharacterTracingDialog(Map<String, dynamic> itemData, String targetLanguage) {
+    // Parse word mapping for canvas splitting
+    final wordMapping = List<Map<String, dynamic>>.from(itemData['word_mapping'] ?? [itemData]);
+    
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: CharacterTracingWidget(
+        wordMapping: wordMapping,
+        originalVocabularyItem: itemData, // Pass original item for audio_path
+        onBack: () {
+          Navigator.of(context).pop(); // Close character tracing
+          // Return to language tools dialog with Trace Chars tab selected
+          _showEnglishToTargetLanguageTranslationDialog(context, targetLanguage: targetLanguage, initialTabIndex: 2);
+        },
+        onComplete: () {
+          Navigator.of(context).pop(); // Close character tracing
+          // Show completion message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Character tracing completed!'),
+              backgroundColor: Color(0xFF4ECCA3),
+            ),
+          );
+        },
+        showBackButton: true,
+        showWritingTips: true,
+      ),
+    );
   }
 
   Future<void> _startCharacterTracing(Map<String, dynamic> itemData, BuildContext dialogContext, String targetLanguage) async {
@@ -2023,319 +2349,71 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
 
+  /// Helper method to map vocabulary format to app format
+  Map<String, dynamic> _mapVocabularyToAppFormat(Map<String, dynamic> vocabItem) {
+    print('DEBUG _mapVocabularyToAppFormat input: ${vocabItem.keys}');
+    print('DEBUG vocabItem[english] = ${vocabItem['english']}');
+    
+    return {
+      ...vocabItem,
+      'target': vocabItem['thai'] ?? vocabItem['target'], // Support both formats
+      'english': vocabItem['english'] ?? vocabItem['translation'], // Preserve english field
+      'audio_path': vocabItem['audio_path'], // Preserve audio_path field
+      'target_language': 'th', // Will be dynamic in future
+      'azure_pron_mapping': vocabItem['azure_pron_mapping']?.map<Map<String, dynamic>>((item) => {
+        'target': item['thai'] ?? item['target'],
+        'transliteration': item['transliteration'],
+        'translation': item['translation'],
+        'english': vocabItem['english'], // Add the parent english field to each azure pronunciation mapping
+        'audio_path': item['audio_path'], // Preserve audio_path in mappings too
+      }).toList(),
+      'word_mapping': vocabItem['word_mapping']?.map<Map<String, dynamic>>((item) => {
+        'target': item['thai'] ?? item['target'],
+        'transliteration': item['transliteration'],
+        'translation': item['translation'],
+        'english': vocabItem['english'], // Add the parent english field to each word mapping
+        'audio_path': item['audio_path'], // Preserve audio_path in mappings too
+      }).toList(),
+    };
+  }
+
   Widget _buildCharacterTracingDialog(Map<String, dynamic> itemData, String targetLanguage) {
-    // Parse word mapping for multi-character support
-    _currentWordMapping = List<Map<String, dynamic>>.from(itemData['word_mapping'] ?? [itemData]);
-    _currentCharacterIndex = 0;
-    _characterCompletionStatus.clear();
-    _characterRecognitionResults.clear();
+    // Map vocabulary format to app format
+    final mappedItemData = _mapVocabularyToAppFormat(itemData);
+    
+    // Use semantic word boundaries from word_mapping for tracing
+    List<Map<String, dynamic>> wordMapping;
+    
+    if (mappedItemData['word_mapping'] != null && mappedItemData['word_mapping'] is List) {
+      // Use the semantic word breakdown for tracing (e.g., เครื่องปรุง → เครื่อง, ปรุง)
+      wordMapping = List<Map<String, dynamic>>.from(mappedItemData['word_mapping']);
+    } else if (mappedItemData['target'] != null && mappedItemData['target'].toString().isNotEmpty) {
+      // Fallback: create mapping with the full word
+      final fullWordMapping = {
+        'target': mappedItemData['target'],
+        'transliteration': mappedItemData['transliteration'] ?? '',
+        'translation': mappedItemData['english'] ?? '',
+      };
+      wordMapping = [fullWordMapping];
+    } else {
+      // Final fallback
+      wordMapping = [mappedItemData];
+    }
     
     return Dialog(
-      backgroundColor: const Color(0xFF1F1F1F),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.95,
-        height: MediaQuery.of(context).size.height * 0.85,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F1F1F),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF4ECCA3).withOpacity(0.3),
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            // Header with word information - matching dark theme
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F1F1F), // Using app_styles primary color
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF4ECCA3).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    itemData['thai'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4ECCA3), // Using app_styles accent color
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${itemData['english']} (${itemData['transliteration'] ?? itemData['romanized'] ?? ''})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // SINGLE CENTRAL TRACING AREA WITH CHARACTER AND DRAWING COMBINED
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D2D2D), // Using app_styles secondary color
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF4ECCA3).withOpacity(0.3), // Using app_styles accent color
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: _buildCombinedTracingArea(_getCurrentCharacter()['thai'] ?? ''),
-              ),
-            ),
-            const SizedBox(height: 8),
-            
-            // Character navigation moved to bottom - show for multi-character words OR when word is very long
-            if (_shouldShowCharacterNavigation()) ...[
-              Container(
-                height: 60,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F1F1F), // Using app_styles primary color
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.15),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: _currentCharacterIndex > 0 ? _previousCharacter : null,
-                      icon: Icon(
-                        Icons.chevron_left,
-                        color: _currentCharacterIndex > 0 ? const Color(0xFF4ECCA3) : Colors.grey[600],
-                        size: 28,
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _currentWordMapping.length,
-                        itemBuilder: (context, index) {
-                          final character = _currentWordMapping[index];
-                          final isCompleted = _characterCompletionStatus[index] ?? false;
-                          final isCurrent = index == _currentCharacterIndex;
-                          
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _currentCharacterIndex = index;
-                              });
-                              // Only animate PageController if it's attached
-                              if (_characterPageController.hasClients) {
-                                _characterPageController.animateToPage(
-                                  index,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              }
-                              _clearCanvas();
-                            },
-                            child: Container(
-                              width: 45,
-                              height: 45,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: isCurrent
-                                    ? const Color(0xFF4ECCA3)
-                                    : isCompleted
-                                        ? Colors.green[600]
-                                        : const Color(0xFF2D2D2D),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isCurrent
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.2),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Text(
-                                    character['thai'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: isCurrent
-                                          ? Colors.black
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                  if (isCompleted)
-                                    Positioned(
-                                      top: 2,
-                                      right: 2,
-                                      child: Icon(
-                                        Icons.check_circle,
-                                        color: Colors.white,
-                                        size: 12,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _currentCharacterIndex < _currentWordMapping.length - 1 ? _nextCharacter : null,
-                      icon: Icon(
-                        Icons.chevron_right,
-                        color: _currentCharacterIndex < _currentWordMapping.length - 1 ? const Color(0xFF4ECCA3) : Colors.grey[600],
-                        size: 28,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            
-            // Recognition feedback with better styling
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _getRecognitionFeedbackColor(),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.15),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _getRecognitionFeedbackIcon(),
-                    color: _getRecognitionFeedbackIconColor(),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _getRecognitionFeedbackText(),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // ACTION BUTTONS WITH APP STYLES
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Back button - navigate to word selection instead of closing overlay
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D2D2D),
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close character tracing and return to main dialogue
-                    },
-                    icon: const Icon(Icons.arrow_back, size: 24, color: Colors.white),
-                    tooltip: 'Back to word selection',
-                  ),
-                ),
-                // Help/Tips button
-                GestureDetector(
-                  onTap: () => _showWritingTipsTooltip(context),
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[600],
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: const Icon(Icons.help_outline, size: 24, color: Colors.white),
-                  ),
-                ),
-                // Clear/Replay button
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.orange[600],
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    onPressed: _clearCanvas,
-                    icon: const Icon(Icons.refresh, size: 24, color: Colors.white),
-                    tooltip: 'Clear drawing',
-                  ),
-                ),
-                // Send/Complete button
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: _canGiveItem() ? const Color(0xFF4ECCA3) : Colors.grey[600],
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    onPressed: _canGiveItem() ? () => _submitTracing(itemData, targetLanguage) : null,
-                    icon: Icon(
-                      _canGiveItem() ? Icons.send : Icons.lock,
-                      size: 24,
-                      color: _canGiveItem() ? Colors.black : Colors.white70,
-                    ),
-                    tooltip: _canGiveItem() ? 'Give item' : 'Complete tracing first',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: CharacterTracingWidget(
+        wordMapping: wordMapping,
+        originalVocabularyItem: mappedItemData, // Pass mapped item for audio_path
+        onBack: () {
+          Navigator.of(context).pop(); // Close character tracing
+          // Show language tools dialog with Give Item tab selected
+          _showEnglishToTargetLanguageTranslationDialog(context, targetLanguage: 'th', initialTabIndex: 1);
+        },
+        onComplete: () => _submitTracing(itemData, targetLanguage),
+        showBackButton: true,
+        showWritingTips: true,
       ),
     );
   }
@@ -2346,12 +2424,24 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final transliteration = currentChar['transliteration'] ?? currentChar['romanized'] ?? '';
     final translation = currentChar['translation'] ?? currentChar['english'] ?? '';
     
-    // Calculate font size based on character length to prevent overflow
-    double characterFontSize = 200;
-    if (targetCharacter.length > 3) {
-      characterFontSize = 120; // Smaller for longer words
+    // Improved font size calculation that's more responsive to container size
+    // Base the calculation on both character length and available space
+    double characterFontSize = 180; // Reduced base size
+    
+    // Adjust based on character length with more granular control
+    if (targetCharacter.length > 5) {
+      characterFontSize = 80; // Much smaller for very long words
+    } else if (targetCharacter.length > 3) {
+      characterFontSize = 100; // Smaller for longer words  
+    } else if (targetCharacter.length > 2) {
+      characterFontSize = 140; // Medium for multi-character
     } else if (targetCharacter.length > 1) {
-      characterFontSize = 160; // Medium for multi-character
+      characterFontSize = 160; // Slightly smaller for 2-character words
+    }
+    
+    // Additional check for complex characters (with tone marks, vowels)
+    if (_isComplexCharacter(targetCharacter)) {
+      characterFontSize *= 0.8; // Reduce by 20% for complex characters
     }
     
     return Stack(
@@ -2372,19 +2462,25 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             borderRadius: BorderRadius.circular(16),
           ),
           child: Center(
-            child: Text(
-              targetCharacter,
-              style: TextStyle(
-                fontSize: characterFontSize,
-                fontWeight: FontWeight.w300,
-                color: const Color(0xFF4ECCA3).withOpacity(0.15), // app_styles accent with opacity
-                shadows: [
-                  Shadow(
-                    offset: const Offset(2, 2),
-                    blurRadius: 4,
-                    color: const Color(0xFF4ECCA3).withOpacity(0.1),
+            child: FittedBox(
+              fit: BoxFit.contain, // Ensure text always fits within bounds
+              child: Padding(
+                padding: const EdgeInsets.all(20.0), // Add padding to prevent edge clipping
+                child: Text(
+                  targetCharacter,
+                  style: TextStyle(
+                    fontSize: characterFontSize,
+                    fontWeight: FontWeight.w300,
+                    color: const Color(0xFF4ECCA3).withOpacity(0.15), // app_styles accent with opacity
+                    shadows: [
+                      Shadow(
+                        offset: const Offset(2, 2),
+                        blurRadius: 4,
+                        color: const Color(0xFF4ECCA3).withOpacity(0.1),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -2437,7 +2533,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           onPanUpdate: _onPanUpdate,
           onPanEnd: _onPanEnd,
           child: CustomPaint(
-            painter: _InkPainter(_ink),
+            painter: _InkPainter(_ink, currentStrokePoints: _currentStrokePoints),
             size: Size.infinite,
           ),
         ),
@@ -2485,7 +2581,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           onPanUpdate: _onPanUpdate,
           onPanEnd: _onPanEnd,
           child: CustomPaint(
-            painter: _InkPainter(_ink),
+            key: ValueKey('ink_canvas_${_ink.strokes.length}_${_currentStrokePoints.length}'),
+            painter: _InkPainter(_ink, currentStrokePoints: _currentStrokePoints),
             size: Size.infinite,
           ),
         ),
@@ -2529,6 +2626,151 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildWordTracingArea(String targetWord, Map<String, dynamic> wordData) {
+    _targetCharacter = targetWord;
+    final transliteration = wordData['transliteration'] ?? wordData['romanized'] ?? '';
+    final translation = wordData['translation'] ?? wordData['english'] ?? '';
+    
+    // Calculate font size based on word length for better readability
+    double wordFontSize = 200; // Start with larger base size
+    
+    // Adjust based on word length
+    if (targetWord.length > 8) {
+      wordFontSize = 60; // Very small for extremely long words
+    } else if (targetWord.length > 6) {
+      wordFontSize = 80; // Small for long words
+    } else if (targetWord.length > 4) {
+      wordFontSize = 120; // Medium for moderate words
+    } else if (targetWord.length > 2) {
+      wordFontSize = 160; // Large for short words
+    }
+    // Single characters or very short words keep the largest size (200)
+    
+    return Stack(
+      children: [
+        // Word display background with subtle border
+        Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1F1F1F),
+                Color(0xFF2D2D2D),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF4ECCA3).withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  targetWord,
+                  style: TextStyle(
+                    fontSize: wordFontSize,
+                    fontWeight: FontWeight.w300,
+                    color: const Color(0xFF4ECCA3).withOpacity(0.15),
+                    shadows: [
+                      Shadow(
+                        offset: const Offset(2, 2),
+                        blurRadius: 4,
+                        color: const Color(0xFF4ECCA3).withOpacity(0.1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Transliteration and translation overlay with info icon
+        if (transliteration.isNotEmpty || translation.isNotEmpty)
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (transliteration.isNotEmpty)
+                          Text(
+                            transliteration,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4ECCA3),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        if (translation.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              translation,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Pronunciation tips info icon
+                  GestureDetector(
+                    onTap: () => _showCharacterPronunciationTips(wordData),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ECCA3).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Color(0xFF4ECCA3),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // Drawing area overlay - Using working approach from test widget
+        GestureDetector(
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: _onPanEnd,
+          child: CustomPaint(
+            painter: _InkPainter(_ink, currentStrokePoints: _currentStrokePoints),
+            size: Size.infinite,
+          ),
+        ),
+
       ],
     );
   }
@@ -2608,70 +2850,75 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                       width: 1,
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  child: SizedBox(
+                    height: 300, // Set max height for scrollable area
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.lightbulb_outline,
-                            color: const Color(0xFF4ECCA3),
-                            size: 20,
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: const Color(0xFF4ECCA3),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Writing Tips',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4ECCA3),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 12),
+                          FutureBuilder<String>(
+                            future: _getCharacterSpecificTips(character),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Text(
+                                  'Loading character analysis...',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                    height: 1.4,
+                                  ),
+                                );
+                              }
+                              return Text(
+                                snapshot.data ?? 'General tip: Start with circles, write vowels after consonants, keep strokes smooth and flowing.',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                  height: 1.4,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
                           const Text(
-                            'Writing Tips',
+                            'General Thai Writing Principles:',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF4ECCA3),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            '• Write from top to bottom, left to right\n• Complete circles and curves first\n• Keep strokes smooth and flowing\n• Practice consistent character size',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white60,
+                              height: 1.3,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      FutureBuilder<String>(
-                        future: _getCharacterSpecificTips(character),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Text(
-                              'Loading character analysis...',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                height: 1.4,
-                              ),
-                            );
-                          }
-                          return Text(
-                            snapshot.data ?? 'General tip: Start with circles, write vowels after consonants, keep strokes smooth and flowing.',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              height: 1.4,
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'General Thai Writing Principles:',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        '• Write from top to bottom, left to right\n• Complete circles and curves first\n• Keep strokes smooth and flowing\n• Practice consistent character size',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white60,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -2719,6 +2966,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // Clear the digital ink canvas
     _ink.strokes.clear();
     _currentStroke = null;
+    _currentStrokePoints.clear(); // CRITICAL: Clear real-time stroke points
     
     // Reset stroke order tracking
     _completedStrokes.clear();
@@ -2732,7 +2980,40 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _lastRecognitionResult = '';
     
     setState(() {});
-    print("Canvas cleared");
+  }
+
+  void _undoLastStroke() {
+    // Remove the last stroke if there are any strokes
+    if (_ink.strokes.isNotEmpty) {
+      _ink.strokes.removeLast();
+      
+      // Also remove from completed strokes tracking
+      if (_completedStrokes.isNotEmpty) {
+        _completedStrokes.removeLast();
+      }
+      
+      // Decrement stroke count
+      if (_currentStrokeCount > 0) {
+        _currentStrokeCount--;
+      }
+      
+      // Remove last stroke metrics if available
+      if (_strokeLengths.isNotEmpty) {
+        _strokeLengths.removeLast();
+      }
+      if (_strokeSpeeds.isNotEmpty) {
+        _strokeSpeeds.removeLast();
+      }
+      
+      // Clear current stroke points if any
+      _currentStrokePoints.clear();
+      
+      // Clear last recognition result since the drawing has changed
+      _lastRecognitionResult = '';
+      
+      setState(() {});
+      print("Last stroke undone");
+    }
   }
 
   // --- ML Kit Initialization and Methods ---
@@ -2771,19 +3052,25 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   
   void _onPanStart(DragStartDetails details) {
     _currentStroke = mlkit.Stroke();
+    _currentStrokePoints.clear();
     _strokeStartTime = DateTime.now();
     _currentStrokeCount++;
     
-    _currentStroke!.points.add(
-      mlkit.StrokePoint(
-        x: details.localPosition.dx,
-        y: details.localPosition.dy,
-        t: DateTime.now().millisecondsSinceEpoch,
-      ),
+    final point = mlkit.StrokePoint(
+      x: details.localPosition.dx,
+      y: details.localPosition.dy,
+      t: DateTime.now().millisecondsSinceEpoch,
     );
+    
+    _currentStroke!.points.add(point);
+    _currentStrokePoints.add(point);
     
     // Start stroke analysis
     _analyzeStrokeStart(details.localPosition);
+    setState(() {}); // Trigger immediate redraw
+    
+    // Force immediate frame to ensure real-time rendering
+    SchedulerBinding.instance.scheduleFrame();
   }
   
   void _analyzeStrokeStart(Offset startPoint) {
@@ -2797,18 +3084,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (_currentStroke != null) {
-      _currentStroke!.points.add(
-        mlkit.StrokePoint(
-          x: details.localPosition.dx,
-          y: details.localPosition.dy,
-          t: DateTime.now().millisecondsSinceEpoch,
-        ),
+      final point = mlkit.StrokePoint(
+        x: details.localPosition.dx,
+        y: details.localPosition.dy,
+        t: DateTime.now().millisecondsSinceEpoch,
       );
-      // Update the ink with current stroke for real-time preview
-      if (!_ink.strokes.contains(_currentStroke!)) {
-        _ink.strokes.add(_currentStroke!);
-      }
-      setState(() {}); // This triggers real-time redraw
+      
+      _currentStroke!.points.add(point);
+      _currentStrokePoints.add(point);
+      
+      setState(() {}); // Trigger real-time redraw
     }
   }
 
@@ -2820,12 +3105,13 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       // Add stroke to completed strokes list
       _completedStrokes.add(_currentStroke!.points.toList());
       
-      // Ensure stroke is in ink (might already be added in onPanUpdate for real-time preview)
+      // Ensure stroke is in ink
       if (!_ink.strokes.contains(_currentStroke!)) {
         _ink.strokes.add(_currentStroke!);
       }
       
       _currentStroke = null;
+      _currentStrokePoints.clear();
       
       // Analyze stroke pattern for order validation
       _validateStrokeOrder();
@@ -2995,7 +3281,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
   
   Future<String> _getCharacterSpecificTips(String character) async {
-    // First, try to get PyThaiNLP analysis from backend
+    // First, check if we have cached analysis from parallel processing
+    if (_characterAnalysisCache.containsKey(character)) {
+      final cachedData = _characterAnalysisCache[character]!;
+      if (!cachedData.containsKey('error')) {
+        return _buildTipsFromAnalysis(character, cachedData);
+      }
+    }
+    
+    // If not cached, try to get PyThaiNLP analysis from backend
     try {
       final response = await http.post(
         Uri.parse('http://localhost:8000/analyze-character'),
@@ -3005,6 +3299,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        // Cache the result for future use
+        _characterAnalysisCache[character] = data;
         return _buildTipsFromAnalysis(character, data);
       }
     } catch (e) {
@@ -3016,31 +3312,122 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
   
   String _buildTipsFromAnalysis(String character, Map<String, dynamic> analysis) {
-    final List<String> tips = [];
+    final List<String> practicalTips = [];
     
-    // Add character type information
-    if (analysis['consonant_class'] != null) {
-      tips.add('${analysis['consonant_class']} consonant');
+    // Extract only practical drawing guidance from PyThaiNLP analysis
+    if (analysis['writing_tips'] != null) {
+      final writingTips = analysis['writing_tips'] as List;
+      for (var tip in writingTips) {
+        String tipText = tip.toString();
+        // Filter to keep only directional and order-based tips
+        if (_isPracticalDrawingTip(tipText)) {
+          practicalTips.add('• $tipText');
+        }
+      }
     }
     
-    if (analysis['consonant_sound'] != null) {
-      tips.add('Sound: ${analysis['consonant_sound']}');
+    // Add basic drawing order guidance based on character components
+    if (analysis['breakdown'] != null) {
+      final consonants = analysis['consonants'] as List? ?? [];
+      final vowels = analysis['vowels'] as List? ?? [];
+      final toneMarks = analysis['tone_marks'] as List? ?? [];
+      
+      // Generate simple directional tips
+      if (consonants.isNotEmpty && vowels.isNotEmpty) {
+        practicalTips.add('• Draw main character first, then add marks');
+      }
+      
+      if (vowels.any((v) => v['position_type'] == 'above')) {
+        practicalTips.add('• Add marks above after completing base');
+      }
+      
+      if (vowels.any((v) => v['position_type'] == 'below')) {
+        practicalTips.add('• Add marks below after completing base');
+      }
+      
+      if (vowels.any((v) => v['position_type'] == 'leading')) {
+        practicalTips.add('• Start from left, move right');
+      }
     }
     
-    // Add vowel information if present
-    if (analysis['vowels'] != null && (analysis['vowels'] as List).isNotEmpty) {
-      tips.add('Contains vowels: ${(analysis['vowels'] as List).join(', ')}');
+    // Fallback to static directional tips
+    if (practicalTips.isEmpty) {
+      practicalTips.add('• ${_getDirectionalTips(character)}');
     }
     
-    // Add tone information
-    if (analysis['tone'] != null) {
-      tips.add('Tone: ${analysis['tone']}');
+    // Add general drawing principles
+    practicalTips.add('• Keep strokes smooth and flowing');
+    practicalTips.add('• Write from top to bottom, left to right');
+    
+    return practicalTips.isNotEmpty ? practicalTips.join('\n') : 'Practice writing this character smoothly and steadily.';
+  }
+  
+  bool _isPracticalDrawingTip(String tip) {
+    // Check if tip contains practical drawing guidance
+    final practicalKeywords = ['draw', 'start', 'begin', 'first', 'then', 'direction', 'stroke', 'top', 'bottom', 'left', 'right', 'circle', 'line', 'curve'];
+    final lowercaseTip = tip.toLowerCase();
+    
+    return practicalKeywords.any((keyword) => lowercaseTip.contains(keyword)) &&
+           !lowercaseTip.contains('class') &&
+           !lowercaseTip.contains('tone') &&
+           !lowercaseTip.contains('phonetic');
+  }
+  
+  String _getDirectionalTips(String character) {
+    // Simple directional guidance based on character structure
+    if (character.contains('ก') || character.contains('ด') || character.contains('ต')) {
+      return 'Start with horizontal line, then add vertical strokes';
+    } else if (character.contains('อ') || character.contains('ว')) {
+      return 'Begin with circular shapes, draw curves smoothly';
+    } else if (character.contains('ย') || character.contains('ร')) {
+      return 'Start from top, draw main stroke downward';
+    } else {
+      return 'Start from top-left, move right and down';
     }
-    
-    // Add writing tips based on character structure
-    tips.add(_getWritingTipsByStructure(character, analysis));
-    
-    return tips.join('\n• ');
+  }
+
+  void _analyzeAllCharactersInParallel() async {
+    // Extract all unique characters from the current word mapping
+    Set<String> uniqueCharacters = {};
+    for (var wordData in _currentWordMapping) {
+      String character = wordData['thai'] ?? '';
+      if (character.isNotEmpty) {
+        uniqueCharacters.add(character);
+      }
+    }
+
+    // Create parallel analysis tasks for all unique characters
+    List<Future<void>> analysisTasks = uniqueCharacters.map((character) async {
+      try {
+        final response = await http.post(
+          Uri.parse('http://localhost:8000/analyze-character'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'character': character}),
+        );
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          _characterAnalysisCache[character] = data;
+          print('Analyzed character: $character');
+        }
+      } catch (e) {
+        print('Failed to analyze character $character: $e');
+        // Store fallback analysis
+        _characterAnalysisCache[character] = {
+          'character': character,
+          'error': 'Network error',
+          'fallback': true
+        };
+      }
+    }).toList();
+
+    // Execute all analysis tasks in parallel
+    try {
+      await Future.wait(analysisTasks);
+      print('Completed parallel analysis for ${uniqueCharacters.length} characters');
+    } catch (e) {
+      print('Error in parallel character analysis: $e');
+    }
   }
   
   String _getWritingTipsByStructure(String character, Map<String, dynamic> analysis) {
@@ -3287,7 +3674,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.green),
                   ),
@@ -3590,7 +3977,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.8),
+                    color: Colors.red.withValues(alpha: 0.8),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -3879,13 +4266,14 @@ class _CharmChangeDialogContentState extends State<_CharmChangeDialogContent> wi
 // Custom painter for ML Kit Digital Ink with real-time preview
 class _InkPainter extends CustomPainter {
   final mlkit.Ink ink;
+  final List<mlkit.StrokePoint> currentStrokePoints;
 
-  _InkPainter(this.ink);
+  _InkPainter(this.ink, {this.currentStrokePoints = const []});
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = const Color(0xFF4ECCA3) // Use app theme accent color
+      ..color = const Color(0xFF4ECCA3)
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 4.0
       ..style = PaintingStyle.stroke;
@@ -3906,12 +4294,40 @@ class _InkPainter extends CustomPainter {
       
       canvas.drawPath(path, paint);
     }
+
+    // Draw current stroke being drawn (real-time preview)
+    if (currentStrokePoints.isNotEmpty) {
+      final Paint currentPaint = Paint()
+        ..color = const Color(0xFF4ECCA3).withValues(alpha: 0.8)
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 4.0
+        ..style = PaintingStyle.stroke;
+
+      final Path currentPath = Path();
+      bool first = true;
+      
+      for (final mlkit.StrokePoint point in currentStrokePoints) {
+        if (first) {
+          currentPath.moveTo(point.x, point.y);
+          first = false;
+        } else {
+          currentPath.lineTo(point.x, point.y);
+        }
+      }
+      
+      canvas.drawPath(currentPath, currentPaint);
+    }
   }
 
   @override
   bool shouldRepaint(covariant _InkPainter oldDelegate) {
-    // Repaint when ink changes or strokes are modified
-    return true; // Always repaint for real-time updates
+    // Always repaint if we're currently drawing (have current stroke points)
+    if (currentStrokePoints.isNotEmpty || oldDelegate.currentStrokePoints.isNotEmpty) {
+      return true; // Fast path for live drawing
+    }
+    
+    // Repaint when ink changes
+    return oldDelegate.ink.strokes.length != ink.strokes.length;
   }
 }
 
@@ -4058,3 +4474,5 @@ class _AnimatedPressWrapperState extends State<_AnimatedPressWrapper> with Singl
     );
   }
 }
+
+// PRODUCTION PAINTER - OPTIMIZED VERSION BASED ON FLUTTER DOCS PATTERN

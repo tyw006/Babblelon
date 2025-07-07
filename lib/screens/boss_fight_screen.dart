@@ -768,7 +768,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
         audioBytes: audioBytes,
         referenceText: usedCard.thai,
         transliteration: usedCard.transliteration,
-        wordMapping: usedCard.wordMapping.map((e) => e.toJson()).toList(),
+        azurePronMapping: usedCard.wordMapping.map((e) => e.toJson()).toList(),
         complexity: usedCard.complexity,
         itemType: itemType,
         turnType: turnType,

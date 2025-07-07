@@ -108,7 +108,7 @@ class ApiService {
     required String itemType,
     required String turnType,
     required bool wasRevealed,
-    required List<Map<String, dynamic>> wordMapping,
+    required List<Map<String, dynamic>> azurePronMapping,
     String language = 'th-TH',
   }) async {
     final uri = Uri.parse("$_baseUrl/pronunciation/assess/");
@@ -119,7 +119,7 @@ class ApiService {
       ..fields['item_type'] = itemType
       ..fields['turn_type'] = turnType
       ..fields['was_revealed'] = wasRevealed.toString()
-      ..fields['word_mapping_json'] = jsonEncode(wordMapping)
+      ..fields['azure_pron_mapping_json'] = jsonEncode(azurePronMapping)
       ..fields['language'] = language;
 
     // Add the audio bytes as a multipart file

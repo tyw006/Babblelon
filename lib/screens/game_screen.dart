@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
+import '../services/game_initialization_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -32,6 +33,19 @@ class _GameScreenState extends State<GameScreen> {
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
+    
+    // Start background initialization (non-blocking)
+    _initializeGameAssetsInBackground();
+  }
+  
+  /// Initialize game assets in the background without blocking the game
+  void _initializeGameAssetsInBackground() {
+    final initService = GameInitializationService();
+    initService.initializeGame().then((success) {
+      print('🎮 Background initialization completed: $success');
+    }).catchError((error) {
+      print('⚠️ Background initialization failed, but game can continue: $error');
+    });
   }
 
   @override

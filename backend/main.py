@@ -36,7 +36,7 @@ else:
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse
 from services.stt_service import transcribe_audio
-from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name
+from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, analyze_character_components, split_compound_word, split_word_for_tracing, filter_drawable_items_from_translation, analyze_word_syllables
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
 
 app = FastAPI()
@@ -107,32 +107,43 @@ async def root():
 
 @app.post("/generate-npc-response/")
 async def generate_npc_response_endpoint(
-    audio_file: UploadFile = File(...),
+    audio_file: UploadFile = File(None),  # Made optional for item giving
     npc_id: str = Form(...),
     npc_name: str = Form(...),
     charm_level: int = Form(50),
     target_language: Optional[str] = Form("th"),  # Add target language parameter
-    previous_conversation_history: Optional[str] = Form("")
+    previous_conversation_history: Optional[str] = Form(""),
+    custom_message: Optional[str] = Form(None)  # NEW: For item giving bypass STT
 ):
-    print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. File: {audio_file.filename}")
+    print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. Custom message: {custom_message is not None}")
     
     try:
-        # 1. STT - Transcribe player's audio
-        player_audio_bytes = await audio_file.read()
-        await audio_file.close()
-        if not player_audio_bytes:
-            raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
-        
-        player_audio_stream = io.BytesIO(player_audio_bytes)
-        player_transcription = await transcribe_audio(player_audio_stream, language_code=target_language)
-        print(f"[{datetime.datetime.now()}] INFO: STT for {npc_id} successful. Transcription: '{player_transcription}'")
+        # 1. Handle STT or Custom Message
+        if custom_message:
+            # Item giving: Skip STT, use custom message directly
+            latest_player_message = custom_message
+            player_transcription = custom_message  # For response consistency
+            print(f"[{datetime.datetime.now()}] INFO: Using custom message for {npc_id}: '{custom_message}'")
+        else:
+            # Normal conversation: STT - Transcribe player's audio
+            if not audio_file:
+                raise HTTPException(status_code=400, detail="Either audio_file or custom_message must be provided.")
+                
+            player_audio_bytes = await audio_file.read()
+            await audio_file.close()
+            if not player_audio_bytes:
+                raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
+            
+            player_audio_stream = io.BytesIO(player_audio_bytes)
+            player_transcription = await transcribe_audio(player_audio_stream, language_code=target_language)
+            latest_player_message = player_transcription if player_transcription and player_transcription.strip() else ""
+            print(f"[{datetime.datetime.now()}] INFO: STT for {npc_id} successful. Transcription: '{player_transcription}'")
 
         # 2. Prepare conversation history and latest message for LLM
         conversation_history = previous_conversation_history if previous_conversation_history else ""
-        latest_player_message = player_transcription if player_transcription and player_transcription.strip() else ""
         
         if not latest_player_message:
-            raise HTTPException(status_code=400, detail="Player transcription is empty or invalid.")
+            raise HTTPException(status_code=400, detail="Player message is empty or invalid.")
 
         # 3. LLM - Get NPC's response
         npc_response_data: NPCResponse = await get_llm_response(
@@ -207,6 +218,148 @@ async def generate_npc_response_endpoint(
 async def health_check():
     return {"status": "healthy"}
 
+# --- Character Analysis Endpoint for PyThaiNLP Integration ---
+class CharacterAnalysisRequest(BaseModel):
+    character: str
+
+@app.post("/analyze-character")
+async def analyze_character_endpoint(request: CharacterAnalysisRequest):
+    """
+    Analyze a Thai character using PyThaiNLP to provide writing tips
+    based on consonants, vowels, and tones.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /analyze-character endpoint hit for character: '{request.character}'")
+    
+    try:
+        # Add timeout to prevent hanging requests
+        import asyncio
+        analysis = await asyncio.wait_for(
+            analyze_character_components(request.character, "th"),
+            timeout=10.0  # 10 second timeout
+        )
+        print(f"[{datetime.datetime.now()}] DEBUG: Character analysis result: {analysis}")
+        return analysis
+    except asyncio.TimeoutError:
+        print(f"[{datetime.datetime.now()}] ERROR: Character analysis timeout for: '{request.character}'")
+        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing character: {request.character}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Character analysis failed: {e}")
+        # Return fallback analysis
+        return {
+            "character": request.character,
+            "consonant_class": None,
+            "consonant_sound": None,
+            "vowels": [],
+            "tone": None,
+            "error": str(e)
+        }
+
+# --- Compound Word Splitting Endpoint ---
+class CompoundWordRequest(BaseModel):
+    word: str
+    target_language: Optional[str] = "th"
+
+@app.post("/split-compound-word")
+async def split_compound_word_endpoint(request: CompoundWordRequest):
+    """
+    Split compound Thai words into constituent words using PyThaiNLP subword tokenization.
+    Example: เครื่องปรุง -> [เครื่อง, ปรุง]
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /split-compound-word endpoint hit for word: '{request.word}'")
+    
+    try:
+        # Use the new compound word splitting function
+        split_result = await split_compound_word(request.word, request.target_language)
+        print(f"[{datetime.datetime.now()}] DEBUG: Compound word split result: {split_result}")
+        return split_result
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Compound word splitting failed: {e}")
+        # Return fallback result
+        return {
+            "original_word": request.word,
+            "is_compound": False,
+            "constituent_words": [request.word],
+            "subword_clusters": [],
+            "method": "error_fallback",
+            "error": str(e)
+        }
+
+# --- Word Splitting for Character Tracing Endpoint ---
+class WordTracingRequest(BaseModel):
+    word: str
+    target_language: Optional[str] = "th"
+
+@app.post("/split-word-for-tracing")
+async def split_word_for_tracing_endpoint(request: WordTracingRequest):
+    """
+    Split Thai words for character tracing using PyThaiNLP subword tokenization.
+    Returns optimal tracing sequence and constituent word boundaries.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /split-word-for-tracing endpoint hit for word: '{request.word}'")
+    
+    try:
+        # Add timeout to prevent hanging requests
+        import asyncio
+        split_result = await asyncio.wait_for(
+            split_word_for_tracing(request.word, request.target_language),
+            timeout=15.0  # 15 second timeout for more complex processing
+        )
+        print(f"[{datetime.datetime.now()}] DEBUG: Word tracing split result: {split_result}")
+        return split_result
+    except asyncio.TimeoutError:
+        print(f"[{datetime.datetime.now()}] ERROR: Word tracing split timeout for: '{request.word}'")
+        raise HTTPException(status_code=408, detail=f"Request timeout while processing word: {request.word}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Word tracing split failed: {e}")
+        # Return fallback result
+        return {
+            "original_word": request.word,
+            "subword_clusters": [request.word],
+            "constituent_words": [request.word],
+            "is_compound": False,
+            "tracing_sequence": list(request.word),
+            "error": str(e)
+        }
+
+# --- Comprehensive Syllable Analysis Endpoint ---
+class SyllableAnalysisRequest(BaseModel):
+    word: str
+    target_language: Optional[str] = "th"
+
+@app.post("/analyze-word-syllables")
+async def analyze_word_syllables_endpoint(request: SyllableAnalysisRequest):
+    """
+    Comprehensive syllable analysis for Thai words following educational format.
+    Provides detailed breakdown including tone rules, component roles, and writing guidance.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /analyze-word-syllables endpoint hit for word: '{request.word}'")
+    
+    try:
+        # Add timeout to prevent hanging requests
+        import asyncio
+        analysis_result = await asyncio.wait_for(
+            analyze_word_syllables(request.word, request.target_language),
+            timeout=20.0  # 20 second timeout for comprehensive analysis
+        )
+        print(f"[{datetime.datetime.now()}] DEBUG: Word syllable analysis result: {analysis_result}")
+        return analysis_result
+    except asyncio.TimeoutError:
+        print(f"[{datetime.datetime.now()}] ERROR: Word syllable analysis timeout for: '{request.word}'")
+        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing word: {request.word}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Word syllable analysis failed: {e}")
+        # Return fallback result
+        return {
+            "word": request.word,
+            "error": str(e),
+            "syllable_count": 1,
+            "fallback": True
+        }
+
 @app.post("/transcribe-audio/")
 async def transcribe_audio_endpoint(
     audio_file: UploadFile = File(...),
@@ -270,18 +423,18 @@ async def pronunciation_assessment_endpoint(
     item_type: str = Form(...),
     turn_type: str = Form(...), # 'attack' or 'defense'
     was_revealed: bool = Form(False), # Whether the flashcard was revealed before assessment
-    word_mapping_json: str = Form('[]'), # Receive word mapping as a JSON string
+    azure_pron_mapping_json: str = Form('[]'), # Receive azure pronunciation mapping as a JSON string
     language: str = Form("th-TH")
 ):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /pronunciation/assess/ received request for text: '{reference_text}' in {language}, revealed: {was_revealed}")
     
     try:
-        # Parse the word_mapping from the JSON string
+        # Parse the azure_pron_mapping from the JSON string
         try:
-            word_mapping = json.loads(word_mapping_json)
+            azure_pron_mapping = json.loads(azure_pron_mapping_json)
         except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid format for word_mapping_json.")
+            raise HTTPException(status_code=400, detail="Invalid format for azure_pron_mapping_json.")
 
         audio_bytes = await audio_file.read()
         await audio_file.close()
@@ -296,7 +449,7 @@ async def pronunciation_assessment_endpoint(
             item_type=item_type,
             turn_type=turn_type,
             was_revealed=was_revealed,
-            word_mapping=word_mapping, # Pass the parsed list
+            azure_pron_mapping=azure_pron_mapping, # Pass the parsed list
             language=language
         )
         
@@ -312,6 +465,134 @@ async def pronunciation_assessment_endpoint(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during pronunciation assessment: {str(e)}")
+
+# --- Thai Character Tracing Endpoints ---
+
+@app.get("/writing-guidance/{character}")
+async def get_writing_guidance_endpoint(
+    character: str,
+    target_language: str = Query("th", description="Target language code")
+):
+    """Get comprehensive writing guidance for a Thai character including traditional names, cultural context, and component analysis."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /writing-guidance/ received request for character: '{character}' in {target_language}")
+    try:
+        # Add timeout to prevent hanging requests
+        import asyncio
+        guidance = await asyncio.wait_for(
+            analyze_character_components(character, target_language),
+            timeout=10.0  # 10 second timeout
+        )
+        
+        # Add response metadata
+        guidance["request_timestamp"] = request_time.isoformat()
+        guidance["endpoint"] = "/writing-guidance/"
+        
+        print(f"[{datetime.datetime.now()}] INFO: /writing-guidance/ successful for '{character}'. Components: {len(guidance.get('breakdown', []))}")
+        return JSONResponse(content=guidance)
+    except asyncio.TimeoutError:
+        print(f"[{datetime.datetime.now()}] ERROR: /writing-guidance/ timeout for character: '{character}'")
+        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing character: {character}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /writing-guidance/: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Writing guidance error: {str(e)}")
+
+@app.get("/thai-writing-tips/{character}")
+async def get_writing_tips_endpoint(
+    character: str,
+    target_language: str = Query("th", description="Target language code"),
+    context_word: Optional[str] = Query(None, description="Word context for contextual tips"),
+    position_in_word: Optional[int] = Query(None, description="Position of character in word")
+):
+    """Get writing tips for a specific Thai character with optional context."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /thai-writing-tips/ received request for character: '{character}' in {target_language}")
+    if context_word:
+        print(f"[{request_time}] INFO: Context provided - word: '{context_word}', position: {position_in_word}")
+    try:
+        tips = await get_thai_writing_tips(
+            character, 
+            target_language, 
+            context_word=context_word, 
+            position_in_word=position_in_word or 0
+        )
+        return JSONResponse(content=tips)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /thai-writing-tips/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/drawable-vocabulary/")
+async def get_drawable_vocabulary_endpoint(
+    target_language: str = Query("th", description="Target language code")
+):
+    """Get vocabulary items that can be drawn as characters."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /drawable-vocabulary/ received request for language: {target_language}")
+    try:
+        vocab_items = await get_drawable_vocabulary_items(target_language)
+        return JSONResponse(content=vocab_items)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /drawable-vocabulary/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/character-analysis/{character}")
+async def get_character_analysis_endpoint(
+    character: str,
+    target_language: str = Query("th", description="Target language code")
+):
+    """Analyze the components of a character for tracing guidance."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /character-analysis/ received request for character: '{character}' in {target_language}")
+    try:
+        analysis = await analyze_character_components(character, target_language)
+        return JSONResponse(content=analysis)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /character-analysis/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class DrawableItemsFilterRequest(BaseModel):
+    word_mappings: List[Dict]
+    target_language: str = "th"
+
+@app.post("/filter-drawable-items/")
+async def filter_drawable_items_endpoint(request: DrawableItemsFilterRequest):
+    """Filter word mappings to show only drawable items."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /filter-drawable-items/ received request with {len(request.word_mappings)} mappings in {request.target_language}")
+    try:
+        filtered_result = await filter_drawable_items_from_translation(request.word_mappings, request.target_language)
+        return JSONResponse(content=filtered_result)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /filter-drawable-items/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class SynthesizeSpeechRequest(BaseModel):
+    text: str
+    target_language: str = "th"
+    custom_voice: Optional[str] = None
+
+@app.post("/synthesize-speech/")
+async def synthesize_speech_endpoint(request: SynthesizeSpeechRequest):
+    """Synthesize speech from text for character audio playback."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /synthesize-speech/ received request for text: '{request.text}' in {request.target_language}")
+    try:
+        # Use the existing synthesize_speech function from translation_service
+        audio_result = await synthesize_speech(
+            text=request.text,
+            target_language=request.target_language,
+            custom_voice=request.custom_voice
+        )
+        
+        print(f"[{datetime.datetime.now()}] INFO: /synthesize-speech/ successful for '{request.text}'. Audio generated: {bool(audio_result.get('audio_base64'))}")
+        return JSONResponse(content=audio_result)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /synthesize-speech/: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Speech synthesis error: {str(e)}")
 
 if __name__ == "__main__":
     # Changed host from "127.0.0.1" to "0.0.0.0" to allow connections

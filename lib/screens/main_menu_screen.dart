@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
+import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
+import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 
 class MainMenuScreen extends ConsumerWidget {
@@ -46,8 +48,8 @@ class MainMenuScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 50),
               ElevatedButton(
-                              onPressed: () {
-                ref.playButtonSound();
+                onPressed: () {
+                  ref.playButtonSound();
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -161,6 +163,21 @@ class MainMenuScreen extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () => _showDefeatDialog(context),
                 child: const Text('Test Defeat Dialog'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  ref.playButtonSound();
+                  showDialog(
+                    context: context,
+                    builder: (context) => const CharacterTracingTestWidget(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4ECCA3),
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text('Test Character Tracing'),
               ),
             ],
           ),

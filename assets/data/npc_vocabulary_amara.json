@@ -1,799 +1,1366 @@
 {
     "vocabulary": [
-      {
-        "english": "Chicken",
-        "thai": "ไก่",
-        "transliteration": "gài",
-        "word_mapping": [
-          {
+        {
+            "english": "Chicken",
             "thai": "ไก่",
             "transliteration": "gài",
-            "translation": "chicken"
-          }
-        ],
-        "category": "Proteins",
-        "details": "A ubiquitous protein in Thai cuisine, found in everything from street food skewers to curries and stir-fries.",
-        "formal": ""
-      },
-      {
-        "english": "Pork",
-        "thai": "หมู",
-        "transliteration": "mŏo",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ไก่",
+                    "transliteration": "gài",
+                    "translation": "chicken"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ไก่",
+                    "transliteration": "gài",
+                    "translation": "chicken"
+                }
+            ],
+            "category": "Proteins",
+            "details": "A ubiquitous protein in Thai cuisine, found in everything from street food skewers to curries and stir-fries.",
+            "formal": "",
+            "audio_path": "assets/audio/beginner_food_vocabulary/chicken.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Pork",
             "thai": "หมู",
             "transliteration": "mŏo",
-            "translation": "pork"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Another staple protein, featured in popular dishes like 'moo ping' (grilled pork skewers) and various stir-fries.",
-        "formal": ""
-      },
-      {
-        "english": "Crispy Pork",
-        "thai": "หมูกรอบ",
-        "transliteration": "mŏo gròp",
-        "word_mapping": [
-          {
-            "thai": "หมู",
-            "transliteration": "mŏo",
-            "translation": "pork"
-          },
-          {
-            "thai": "กรอบ",
-            "transliteration": "gròp",
-            "translation": "crispy"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Crispy deep-fried pork belly, a popular street food and ingredient in stir-fries like 'pad kana moo krop' (ผัดคะน้าหมูกรอบ).",
-        "formal": ""
-      },
-      {
-        "english": "Beef",
-        "thai": "เนื้อ",
-        "transliteration": "néua",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "mu",
+                    "translation": "pork; pig"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "mŏo",
+                    "translation": "pork; pig"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Another staple protein, featured in popular dishes like 'moo ping' (grilled pork skewers) and various stir-fries.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/pork.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Crispy Pork",
+            "thai": "หมูกรอบ",
+            "transliteration": "moo krop",
+            "azure_pron_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "moo",
+                    "translation": "pork; pig"
+                },
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "krop",
+                    "translation": "crispy"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "moo",
+                    "translation": "pork; pig"
+                },
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "krop",
+                    "translation": "crispy"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Crispy deep-fried pork belly, a popular street food and ingredient in stir-fries like 'pad kana moo krop' (ผัดคะน้าหมูกรอบ).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/crispy_pork.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Beef",
             "thai": "เนื้อ",
             "transliteration": "néua",
-            "translation": "meat"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Commonly found in soups, curries, and grilled dishes. It's usually shortened to just เนื้อ (néua). The full, more formal term is เนื้อวัว (néua wua), where วัว (wua) means 'cow'.",
-        "formal": "เนื้อวัว"
-      },
-      {
-        "english": "Duck",
-        "thai": "เป็ด",
-        "transliteration": "bpèt",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เนื้อ",
+                    "transliteration": "nûea",
+                    "translation": "meat"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เนื้อ",
+                    "transliteration": "néua",
+                    "translation": "meat; flesh"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Commonly found in soups, curries, and grilled dishes. It's usually shortened to just เนื้อ (néua). The full, more formal term is เนื้อวัว (néua wua), where วัว (wua) means 'cow'.",
+            "formal": "เนื้อวัว",
+            "audio_path": "assets/audio/beginner_food_vocabulary/beef.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Duck",
             "thai": "เป็ด",
             "transliteration": "bpèt",
-            "translation": "duck"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Often roasted, called เป็ดย่าง (bpèt yâang), or served in noodle soups.",
-        "formal": ""
-      },
-      {
-        "english": "Shrimp / Prawns",
-        "thai": "กุ้ง",
-        "transliteration": "gûng",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เป็ด",
+                    "transliteration": "bpèt",
+                    "translation": "duck"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เป็ด",
+                    "transliteration": "bpèt",
+                    "translation": "duck"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Often roasted, called เป็ดย่าง (bpèt yâang), or served in noodle soups.",
+            "formal": ""
+        },
+        {
+            "english": "Shrimp / Prawns",
             "thai": "กุ้ง",
             "transliteration": "gûng",
-            "translation": "shrimp/prawns"
-          }
-        ],
-        "category": "Proteins",
-        "details": "A very popular seafood choice, central to dishes like Tom Yum Goong (ต้มยำกุ้ง).",
-        "formal": ""
-      },
-      {
-        "english": "Fish",
-        "thai": "ปลา",
-        "transliteration": "bplaa",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กุ้ง",
+                    "transliteration": "gûng",
+                    "translation": "shrimp/prawns"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กุ้ง",
+                    "transliteration": "gûng",
+                    "translation": "shrimp; prawn"
+                }
+            ],
+            "category": "Proteins",
+            "details": "A very popular seafood choice, central to dishes like Tom Yum Goong (ต้มยำกุ้ง).",
+            "formal": ""
+        },
+        {
+            "english": "Fish",
             "thai": "ปลา",
             "transliteration": "bplaa",
-            "translation": "fish"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Can be steamed, fried, or grilled and is a staple protein source.",
-        "formal": ""
-      },
-      {
-        "english": "Squid",
-        "thai": "หมึก",
-        "transliteration": "mèuk",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ปลา",
+                    "transliteration": "plaa",
+                    "translation": "fish"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ปลา",
+                    "transliteration": "bplaa",
+                    "translation": "fish"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Can be steamed, fried, or grilled and is a staple protein source.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/fish.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Squid",
             "thai": "หมึก",
             "transliteration": "mèuk",
-            "translation": "squid/ink"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Often grilled or used in stir-fries and salads. The casual term is just หมึก (mèuk). The full term is ปลาหมึก (bplaa mèuk), which literally means 'ink fish', as ปลา (bplaa) means 'fish' and หมึก (mèuk) means 'ink'.",
-        "formal": "ปลาหมึก"
-      },
-      {
-        "english": "Crab",
-        "thai": "ปู",
-        "transliteration": "bpoo",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "หมึก",
+                    "transliteration": "muěk",
+                    "translation": "ink; squid; cuttlefish"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หมึก",
+                    "transliteration": "mèuk",
+                    "translation": "squid; cuttlefish; ink"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Often grilled or used in stir-fries and salads. The casual term is just หมึก (mèuk). The full term is ปลาหมึก (bplaa mèuk), which literally means 'ink fish', as ปลา (bplaa) means 'fish' and หมึก (mèuk) means 'ink'.",
+            "formal": "ปลาหมึก",
+            "audio_path": "assets/audio/npc_vocabulary_amara/squid.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Crab",
             "thai": "ปู",
             "transliteration": "bpoo",
-            "translation": "crab"
-          }
-        ],
-        "category": "Proteins",
-        "details": "A popular seafood item, especially in coastal areas. Famous in the dish ปูผัดผงกะหรี่ (bpoo pàt pŏng gà-rèe), or stir-fried crab with curry powder.",
-        "formal": ""
-      },
-      {
-        "english": "Egg",
-        "thai": "ไข่",
-        "transliteration": "kài",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ปู",
+                    "transliteration": "pu",
+                    "translation": "crab"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ปู",
+                    "transliteration": "bpoo",
+                    "translation": "crab"
+                }
+            ],
+            "category": "Proteins",
+            "details": "A popular seafood item, especially in coastal areas. Famous in the dish ปูผัดผงกะหรี่ (bpoo pàt pŏng gà-rèe), or stir-fried crab with curry powder.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/crab.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Egg",
             "thai": "ไข่",
             "transliteration": "kài",
-            "translation": "egg"
-          }
-        ],
-        "category": "Proteins",
-        "details": "Frequently served as a fried egg, ไข่ดาว (kài daao), or in an omelette, ไข่เจียว (kài jiao).",
-        "formal": ""
-      },
-      {
-        "english": "Tofu",
-        "thai": "เต้าหู้",
-        "transliteration": "dtâo-hûu",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ไข่",
+                    "transliteration": "khài",
+                    "translation": "egg"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ไข่",
+                    "transliteration": "kài",
+                    "translation": "egg"
+                }
+            ],
+            "category": "Proteins",
+            "details": "Frequently served as a fried egg, ไข่ดาว (kài daao), or in an omelette, ไข่เจียว (kài jiao).",
+            "formal": "",
+            "audio_path": "assets/audio/beginner_food_vocabulary/egg.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Tofu",
             "thai": "เต้าหู้",
             "transliteration": "dtâo-hûu",
-            "translation": "tofu"
-          }
-        ],
-        "category": "Proteins",
-        "details": "A common vegetarian protein option, available in various forms. This is a loanword from Chinese and is treated as a single word.",
-        "formal": ""
-      },
-      {
-        "english": "Morning Glory",
-        "thai": "ผักบุ้ง",
-        "transliteration": "pàk bûng",
-        "word_mapping": [
-          {
-            "thai": "ผัก",
-            "transliteration": "pàk",
-            "translation": "vegetable"
-          },
-          {
-            "thai": "บุ้ง",
-            "transliteration": "bûng",
-            "translation": "morning glory"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "A popular leafy green, famously stir-fried as ผัดผักบุ้งไฟแดง (pàt pàk bûng fai daeng).",
-        "formal": ""
-      },
-      {
-        "english": "Chinese Broccoli",
-        "thai": "คะน้า",
-        "transliteration": "ká-náa",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เต้า",
+                    "transliteration": "tao",
+                    "translation": "bean curd (prefix); block"
+                },
+                {
+                    "thai": "หู้",
+                    "transliteration": "hu",
+                    "translation": "bean curd; tofu (as in เต้าหู้)"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เต้าหู้",
+                    "transliteration": "dtâo-hûu",
+                    "translation": "tofu"
+                }
+            ],
+            "category": "Proteins",
+            "details": "A common vegetarian protein option, available in various forms. This is a loanword from Chinese and is treated as a single word.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/tofu.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Morning Glory",
+            "thai": "ผักบุ้ง",
+            "transliteration": "pàk bûng",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "phak",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "บุ้ง",
+                    "transliteration": "bung",
+                    "translation": "water spinach (as in ผักบุ้ง)"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "pàk",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "บุ้ง",
+                    "transliteration": "bûng",
+                    "translation": "morning glory (plant)"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "A popular leafy green, famously stir-fried as ผัดผักบุ้งไฟแดง (pàt pàk bûng fai daeng).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/morning_glory.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Chinese Broccoli",
             "thai": "คะน้า",
             "transliteration": "ká-náa",
-            "translation": "Chinese broccoli"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "Commonly used in stir-fries, often with crispy pork in the dish คะน้าหมูกรอบ (ká-náa mŏo gròp).",
-        "formal": ""
-      },
-      {
-        "english": "Cabbage",
-        "thai": "กะหล่ำ",
-        "transliteration": "gà-làm",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "คะน้า",
+                    "transliteration": "khana",
+                    "translation": "Chinese broccoli; kale"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "คะน้า",
+                    "transliteration": "ká-náa",
+                    "translation": "Chinese broccoli; kale"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "Commonly used in stir-fries, often with crispy pork in the dish คะน้าหมูกรอบ (ká-náa mŏo gròp).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/chinese_broccoli.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Cabbage",
             "thai": "กะหล่ำ",
             "transliteration": "gà-làm",
-            "translation": "cabbage"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "Used in various dishes from stir-fries to soups. The common name is often shortened to กะหล่ำ (gà-làm). The full name is กะหล่ำปลี (gà-làm-bplee), where ปลี (bplee) refers to a blossom or head of a plant.",
-        "formal": "กะหล่ำปลี"
-      },
-      {
-        "english": "Papaya",
-        "thai": "มะละกอ",
-        "transliteration": "má-lá-gɔɔ",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กะ",
+                    "transliteration": "ka",
+                    "translation": "a prefix; approximately"
+                },
+                {
+                    "thai": "หล่ำ",
+                    "transliteration": "lam",
+                    "translation": "stout; plump"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กะหล่ำ",
+                    "transliteration": "gà-làm",
+                    "translation": "cabbage"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "Used in various dishes from stir-fries to soups. The common name is often shortened to กะหล่ำ (gà-làm). The full name is กะหล่ำปลี (gà-làm-bplee), where ปลี (bplee) refers to a blossom or head of a plant.",
+            "formal": "กะหล่ำปลี",
+            "audio_path": "assets/audio/npc_vocabulary_amara/cabbage.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Papaya",
             "thai": "มะละกอ",
             "transliteration": "má-lá-gɔɔ",
-            "translation": "papaya"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "The key ingredient, when unripe and green, for the famous papaya salad, ส้มตำ (sôm dtam).",
-        "formal": ""
-      },
-      {
-        "english": "Bamboo Shoots",
-        "thai": "หน่อไม้",
-        "transliteration": "nòr-máai",
-        "word_mapping": [
-          {
-            "thai": "หน่อ",
-            "transliteration": "nòr",
-            "translation": "shoot"
-          },
-          {
-            "thai": "ไม้",
-            "transliteration": "máai",
-            "translation": "wood/plant"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "Adds a crunchy texture to curries and stir-fries.",
-        "formal": ""
-      },
-      {
-        "english": "Bean Sprouts",
-        "thai": "ถั่วงอก",
-        "transliteration": "tùa-ngôk",
-        "word_mapping": [
-          {
-            "thai": "ถั่ว",
-            "transliteration": "tùa",
-            "translation": "bean"
-          },
-          {
-            "thai": "งอก",
-            "transliteration": "ngôk",
-            "translation": "to sprout"
-          }
-        ],
-        "category": "Vegetables",
-        "details": "A common ingredient in noodle dishes like Pad Thai (ผัดไทย) and as a side for soups.",
-        "formal": ""
-      },
-      {
-        "english": "Lemongrass",
-        "thai": "ตะไคร้",
-        "transliteration": "dtà-krái",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "มะ",
+                    "transliteration": "ma",
+                    "translation": "prefix for fruits (e.g., mango, lime)"
+                },
+                {
+                    "thai": "ละ",
+                    "transliteration": "la",
+                    "translation": "each; every; per"
+                },
+                {
+                    "thai": "กอ",
+                    "transliteration": "ko",
+                    "translation": "clump; bush"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "มะละกอ",
+                    "transliteration": "má-lá-gɔɔ",
+                    "translation": "papaya"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "The key ingredient, when unripe and green, for the famous papaya salad, ส้มตำ (sôm dtam).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/papaya.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Bamboo Shoots",
+            "thai": "หน่อไม้",
+            "transliteration": "nòr-máai",
+            "azure_pron_mapping": [
+                {
+                    "thai": "หน่อไม้",
+                    "transliteration": "no mai",
+                    "translation": "bamboo shoot"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หน่อ",
+                    "transliteration": "nòr",
+                    "translation": "shoot; sprout"
+                },
+                {
+                    "thai": "ไม้",
+                    "transliteration": "máai",
+                    "translation": "wood; plant"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "Adds a crunchy texture to curries and stir-fries.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/bamboo_shoots.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Bean Sprouts",
+            "thai": "ถั่วงอก",
+            "transliteration": "tùa-ngôk",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "thua",
+                    "translation": "bean; peanut"
+                },
+                {
+                    "thai": "งอก",
+                    "transliteration": "ngok",
+                    "translation": "to sprout; sprout"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "tùa",
+                    "translation": "bean; nut"
+                },
+                {
+                    "thai": "งอก",
+                    "transliteration": "ngôk",
+                    "translation": "to sprout"
+                }
+            ],
+            "category": "Vegetables",
+            "details": "A common ingredient in noodle dishes like Pad Thai (ผัดไทย) and as a side for soups.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/bean_sprouts.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Lemongrass",
             "thai": "ตะไคร้",
             "transliteration": "dtà-krái",
-            "translation": "lemongrass"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "A staple in Thai soups and curries, providing a citrusy aroma.",
-        "formal": ""
-      },
-      {
-        "english": "Galangal",
-        "thai": "ข่า",
-        "transliteration": "kàa",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ตะไคร้",
+                    "transliteration": "takhrai",
+                    "translation": "lemongrass"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ตะไคร้",
+                    "transliteration": "dtà-krái",
+                    "translation": "lemongrass"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "A staple in Thai soups and curries, providing a citrusy aroma.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/lemongrass.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Galangal",
             "thai": "ข่า",
             "transliteration": "kàa",
-            "translation": "galangal"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Similar to ginger but with a more peppery and citrusy flavor, essential for soups like Tom Yum (ต้มยำ) and Tom Kha (ต้มข่า).",
-        "formal": ""
-      },
-      {
-        "english": "Ginger",
-        "thai": "ขิง",
-        "transliteration": "kĭng",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ข่า",
+                    "transliteration": "kha",
+                    "translation": "galangal"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ข่า",
+                    "transliteration": "kàa",
+                    "translation": "galangal"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Similar to ginger but with a more peppery and citrusy flavor, essential for soups like Tom Yum (ต้มยำ) and Tom Kha (ต้มข่า).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/galangal.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Ginger",
             "thai": "ขิง",
             "transliteration": "kĭng",
-            "translation": "ginger"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Different from galangal, it provides a spicier heat and is used in many stir-fries and sauces.",
-        "formal": ""
-      },
-      {
-        "english": "Makrut Lime Leaves",
-        "thai": "ใบมะกรูด",
-        "transliteration": "bai má-gròot",
-        "word_mapping": [
-          {
-            "thai": "ใบ",
-            "transliteration": "bai",
-            "translation": "leaf"
-          },
-          {
-            "thai": "มะกรูด",
-            "transliteration": "má-gròot",
-            "translation": "makrut lime"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Adds a unique citrusy and floral aroma to soups and curries.",
-        "formal": ""
-      },
-      {
-        "english": "Chili",
-        "thai": "พริก",
-        "transliteration": "prík",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ขิง",
+                    "transliteration": "khing",
+                    "translation": "ginger"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ขิง",
+                    "transliteration": "kĭng",
+                    "translation": "ginger"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Different from galangal, it provides a spicier heat and is used in many stir-fries and sauces.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/ginger.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Makrut Lime Leaves",
+            "thai": "ใบมะกรูด",
+            "transliteration": "bai má-gròot",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ใบ",
+                    "transliteration": "bai",
+                    "translation": "leaf"
+                },
+                {
+                    "thai": "มะ",
+                    "transliteration": "ma",
+                    "translation": "prefix for fruits (e.g., mango, lime)"
+                },
+                {
+                    "thai": "กรูด",
+                    "transliteration": "krut",
+                    "translation": "kaffir lime (as in มะกรูด)"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ใบ",
+                    "transliteration": "bai",
+                    "translation": "leaf"
+                },
+                {
+                    "thai": "มะกรูด",
+                    "transliteration": "má-gròot",
+                    "translation": "makrut lime"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Adds a unique citrusy and floral aroma to soups and curries.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/makrut_lime_leaves.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Chili",
             "thai": "พริก",
             "transliteration": "prík",
-            "translation": "chili"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "The foundation of spiciness in Thai cuisine, used fresh and dried. A common small but very spicy variety is called พริกขี้หนู (prík kee noo).",
-        "formal": ""
-      },
-      {
-        "english": "Garlic",
-        "thai": "กระเทียม",
-        "transliteration": "grà-tiam",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "The foundation of spiciness in Thai cuisine, used fresh and dried. A common small but very spicy variety is called พริกขี้หนู (prík kee noo).",
+            "formal": ""
+        },
+        {
+            "english": "Garlic",
             "thai": "กระเทียม",
             "transliteration": "grà-tiam",
-            "translation": "garlic"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "A fundamental aromatic used in almost all savory dishes.",
-        "formal": ""
-      },
-      {
-        "english": "Shallots",
-        "thai": "หอมแดง",
-        "transliteration": "hŏm daeng",
-        "word_mapping": [
-          {
-            "thai": "หอม",
-            "transliteration": "hŏm",
-            "translation": "fragrant/onion"
-          },
-          {
-            "thai": "แดง",
-            "transliteration": "daeng",
-            "translation": "red"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Provide a sweet and pungent flavor to many dishes. Literally 'red onion' or 'fragrant red'.",
-        "formal": ""
-      },
-      {
-        "english": "Holy Basil",
-        "thai": "กะเพรา",
-        "transliteration": "gà-prao",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กระเทียม",
+                    "transliteration": "krathiam",
+                    "translation": "garlic"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กระเทียม",
+                    "transliteration": "grà-tiam",
+                    "translation": "garlic"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "A fundamental aromatic used in almost all savory dishes.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/garlic.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Shallots",
+            "thai": "หอมแดง",
+            "transliteration": "hŏm daeng",
+            "azure_pron_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hom",
+                    "translation": "shallot / onion; fragrant"
+                },
+                {
+                    "thai": "แดง",
+                    "transliteration": "daeng",
+                    "translation": "red"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hŏm",
+                    "translation": "onion; shallot; fragrant"
+                },
+                {
+                    "thai": "แดง",
+                    "transliteration": "daeng",
+                    "translation": "red"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Provide a sweet and pungent flavor to many dishes. Literally 'red onion' or 'fragrant red'.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/shallots.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Holy Basil",
             "thai": "กะเพรา",
             "transliteration": "gà-prao",
-            "translation": "holy basil"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Has a peppery, clove-like flavor and is the star of Thailand's famous stir-fry, Pad Krapow (ผัดกะเพรา).",
-        "formal": ""
-      },
-      {
-        "english": "Sweet Basil",
-        "thai": "โหระพา",
-        "transliteration": "hŏrápáa",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กะเพรา",
+                    "transliteration": "kaphao",
+                    "translation": "holy basil"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กะเพรา",
+                    "transliteration": "gà-prao",
+                    "translation": "holy basil"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Has a peppery, clove-like flavor and is the star of Thailand's famous stir-fry, Pad Krapow (ผัดกะเพรา).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/holy_basil.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Sweet Basil",
             "thai": "โหระพา",
             "transliteration": "hŏrápáa",
-            "translation": "sweet basil"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Often used in curries like Green Curry, แกงเขียวหวาน (gaeng kĭeow wăan), and has a sweet, anise-like flavor.",
-        "formal": ""
-      },
-      {
-        "english": "Coriander/Cilantro Root",
-        "thai": "รากผักชี",
-        "transliteration": "râak pàk chee",
-        "word_mapping": [
-          {
-            "thai": "ราก",
-            "transliteration": "râak",
-            "translation": "root"
-          },
-          {
-            "thai": "ผักชี",
-            "transliteration": "pàk chee",
-            "translation": "coriander/cilantro"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "A key ingredient pounded with garlic (กระเทียม) and white peppercorns (พริกไทยขาว) to form a foundational aromatic paste called สามเกลอ (săam gler), or 'three buddies'.",
-        "formal": ""
-      },
-      {
-        "english": "Turmeric",
-        "thai": "ขมิ้น",
-        "transliteration": "kà-mîn",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "โหระพา",
+                    "transliteration": "horapha",
+                    "translation": "sweet basil"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "โหระพา",
+                    "transliteration": "hŏrápáa",
+                    "translation": "sweet basil"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Often used in curries like Green Curry, แกงเขียวหวาน (gaeng kĭeow wăan), and has a sweet, anise-like flavor.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/sweet_basil.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Coriander/Cilantro Root",
+            "thai": "รากผักชี",
+            "transliteration": "râak pàk chee",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ราก",
+                    "transliteration": "rak",
+                    "translation": "root"
+                },
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "phak chi",
+                    "translation": "coriander"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ราก",
+                    "transliteration": "râak",
+                    "translation": "root"
+                },
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "pàk chee",
+                    "translation": "coriander; cilantro"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "A key ingredient pounded with garlic (กระเทียม) and white peppercorns (พริกไทยขาว) to form a foundational aromatic paste called สามเกลอ (săam gler), or 'three buddies'.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/coriandercilantro_root.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Turmeric",
             "thai": "ขมิ้น",
             "transliteration": "kà-mîn",
-            "translation": "turmeric"
-          }
-        ],
-        "category": "Aromatics",
-        "details": "Used for its yellow color and earthy flavor, especially in Southern Thai cuisine.",
-        "formal": ""
-      },
-      {
-        "english": "Fish Sauce",
-        "thai": "น้ำปลา",
-        "transliteration": "nám bplaa",
-        "word_mapping": [
-          {
-            "thai": "น้ำ",
-            "transliteration": "nám",
-            "translation": "water/sauce"
-          },
-          {
-            "thai": "ปลา",
-            "transliteration": "bplaa",
-            "translation": "fish"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "The primary source of saltiness in Thai cuisine, used in countless dishes. A popular chili dipping sauce made with it is พริกน้ำปลา (prík nám bplaa).",
-        "formal": ""
-      },
-      {
-        "english": "Oyster Sauce",
-        "thai": "น้ำมันหอย",
-        "transliteration": "nám man hŏi",
-        "word_mapping": [
-          {
-            "thai": "น้ำมัน",
-            "transliteration": "nám man",
-            "translation": "oil"
-          },
-          {
-            "thai": "หอย",
-            "transliteration": "hŏi",
-            "translation": "oyster/shellfish"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A thick, savory sauce used in many stir-fries.",
-        "formal": ""
-      },
-      {
-        "english": "Soy Sauce",
-        "thai": "ซีอิ๊ว",
-        "transliteration": "see éw",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ขมิ้น",
+                    "transliteration": "khamin",
+                    "translation": "turmeric"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ขมิ้น",
+                    "transliteration": "kà-mîn",
+                    "translation": "turmeric"
+                }
+            ],
+            "category": "Aromatics",
+            "details": "Used for its yellow color and earthy flavor, especially in Southern Thai cuisine.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/turmeric.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Fish Sauce",
+            "thai": "น้ำปลา",
+            "transliteration": "nám bplaa",
+            "azure_pron_mapping": [
+                {
+                    "thai": "น้ำปลา",
+                    "transliteration": "nam pla",
+                    "translation": "fish sauce"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water; liquid"
+                },
+                {
+                    "thai": "ปลา",
+                    "transliteration": "bplaa",
+                    "translation": "fish"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "The primary source of saltiness in Thai cuisine, used in countless dishes. A popular chili dipping sauce made with it is พริกน้ำปลา (prík nám bplaa).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/fish_sauce.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Oyster Sauce",
+            "thai": "น้ำมันหอย",
+            "transliteration": "nám man hŏi",
+            "azure_pron_mapping": [
+                {
+                    "thai": "น้ำมัน",
+                    "transliteration": "nam man",
+                    "translation": "oil"
+                },
+                {
+                    "thai": "หอย",
+                    "transliteration": "hoi",
+                    "translation": "shellfish"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "น้ำมัน",
+                    "transliteration": "nám man",
+                    "translation": "oil"
+                },
+                {
+                    "thai": "หอย",
+                    "transliteration": "hŏi",
+                    "translation": "shellfish; oyster"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A thick, savory sauce used in many stir-fries.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/oyster_sauce.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Soy Sauce",
             "thai": "ซีอิ๊ว",
             "transliteration": "see éw",
-            "translation": "soy sauce"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A loanword from Teochew Chinese. Comes in a light, salty version called ซีอิ๊วขาว (see éw kăao), 'white soy sauce', and a dark, sweet version called ซีอิ๊วดำ (see éw dam), 'black soy sauce'.",
-        "formal": ""
-      },
-      {
-        "english": "Fermented Soybean Paste",
-        "thai": "เต้าเจี้ยว",
-        "transliteration": "dtâo-jîao",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "ซีอิ๊ว",
+                    "transliteration": "see éw",
+                    "translation": "soy sauce"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ซีอิ๊ว",
+                    "transliteration": "see éw",
+                    "translation": "soy sauce"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A loanword from Teochew Chinese. Comes in a light, salty version called ซีอิ๊วขาว (see éw kăao), 'white soy sauce', and a dark, sweet version called ซีอิ๊วดำ (see éw dam), 'black soy sauce'.",
+            "formal": ""
+        },
+        {
+            "english": "Fermented Soybean Paste",
             "thai": "เต้าเจี้ยว",
             "transliteration": "dtâo-jîao",
-            "translation": "fermented soybean paste"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A salty, savory paste used to add umami depth to stir-fries and sauces.",
-        "formal": ""
-      },
-      {
-        "english": "Coconut Milk",
-        "thai": "กะทิ",
-        "transliteration": "gà-tí",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เต้า",
+                    "transliteration": "dtâo",
+                    "translation": "bean (in compounds); breast"
+                },
+                {
+                    "thai": "เต้า",
+                    "transliteration": "dtâo",
+                    "translation": "bean (in compounds); breast"
+                },
+                {
+                    "thai": "เจี้ยว",
+                    "transliteration": "jîao",
+                    "translation": "paste; sauce (as in soybean paste)"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เต้า",
+                    "transliteration": "dtâo",
+                    "translation": "bean; tofu"
+                },
+                {
+                    "thai": "เจี้ยว",
+                    "transliteration": "jîao",
+                    "translation": "paste; sauce"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A salty, savory paste used to add umami depth to stir-fries and sauces.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/fermented_soybean_paste.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Coconut Milk",
             "thai": "กะทิ",
             "transliteration": "gà-tí",
-            "translation": "coconut milk"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "The creamy base for most Thai curries and many desserts.",
-        "formal": ""
-      },
-      {
-        "english": "Palm Sugar",
-        "thai": "น้ำตาลปี๊บ",
-        "transliteration": "nám-dtaan bpíip",
-        "word_mapping": [
-          {
-            "thai": "น้ำตาล",
-            "transliteration": "nám-dtaan",
-            "translation": "sugar"
-          },
-          {
-            "thai": "ปี๊บ",
-            "transliteration": "bpíip",
-            "translation": "tin/can"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A traditional sweetener with a deep, caramel-like flavor. The name comes from น้ำตาล (nám-dtaan) for 'sugar' and ปี๊บ (bpíip) for the 'tin/can' it was traditionally sold in. A more specific term is น้ำตาลมะพร้าว (nám-dtaan má-práao), or 'coconut sugar'.",
-        "formal": ""
-      },
-      {
-        "english": "Tamarind Paste",
-        "thai": "น้ำมะขาม",
-        "transliteration": "nám má-kăam",
-        "word_mapping": [
-          {
-            "thai": "น้ำ",
-            "transliteration": "nám",
-            "translation": "water/juice"
-          },
-          {
-            "thai": "มะขาม",
-            "transliteration": "má-kăam",
-            "translation": "tamarind"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "Provides a sour taste to dishes like Pad Thai and some curries. The full term is น้ำมะขามเปียก (nám má-kăam bpìak), where เปียก (bpìak) means 'wet', referring to the wet paste form.",
-        "formal": "น้ำมะขามเปียก"
-      },
-      {
-        "english": "Sweet",
-        "thai": "หวาน",
-        "transliteration": "wăan",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กะทิ",
+                    "transliteration": "gà-tí",
+                    "translation": "coconut milk"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กะทิ",
+                    "transliteration": "gà-tí",
+                    "translation": "coconut milk"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "The creamy base for most Thai curries and many desserts.",
+            "formal": ""
+        },
+        {
+            "english": "Palm Sugar",
+            "thai": "น้ำตาลปี๊บ",
+            "transliteration": "nám-dtaan bpíip",
+            "azure_pron_mapping": [
+                {
+                    "thai": "น้ำตาล",
+                    "transliteration": "nam tan",
+                    "translation": "sugar"
+                },
+                {
+                    "thai": "ปี๊บ",
+                    "transliteration": "pip",
+                    "translation": "tin can; container"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "น้ำตาล",
+                    "transliteration": "nám-dtaan",
+                    "translation": "sugar"
+                },
+                {
+                    "thai": "ปี๊บ",
+                    "transliteration": "bpíip",
+                    "translation": "tin can"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A traditional sweetener with a deep, caramel-like flavor. The name comes from น้ำตาล (nám-dtaan) for 'sugar' and ปี๊บ (bpíip) for the 'tin/can' it was traditionally sold in. A more specific term is น้ำตาลมะพร้าว (nám-dtaan má-práao), or 'coconut sugar'.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/palm_sugar.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Tamarind Paste",
+            "thai": "น้ำมะขาม",
+            "transliteration": "nám má-kăam",
+            "azure_pron_mapping": [
+                {
+                    "thai": "น้ำมะ",
+                    "transliteration": "nam ma",
+                    "translation": "juice of / water of (prefix for fruits)"
+                },
+                {
+                    "thai": "ขาม",
+                    "transliteration": "kham",
+                    "translation": "tamarind (as in มะขาม)"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water; juice; liquid"
+                },
+                {
+                    "thai": "มะขาม",
+                    "transliteration": "má-kăam",
+                    "translation": "tamarind"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "Provides a sour taste to dishes like Pad Thai and some curries. The full term is น้ำมะขามเปียก (nám má-kăam bpìak), where เปียก (bpìak) means 'wet', referring to the wet paste form.",
+            "formal": "น้ำมะขามเปียก",
+            "audio_path": "assets/audio/npc_vocabulary_amara/tamarind_paste.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Sweet",
             "thai": "หวาน",
             "transliteration": "wăan",
-            "translation": "sweet"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "One of the core flavors of Thai cuisine.",
-        "formal": ""
-      },
-      {
-        "english": "Sour",
-        "thai": "เปรี้ยว",
-        "transliteration": "bprîeow",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "หวาน",
+                    "transliteration": "wǎan",
+                    "translation": "sweet"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หวาน",
+                    "transliteration": "wăan",
+                    "translation": "sweet"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "One of the core flavors of Thai cuisine.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/sweet.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Sour",
             "thai": "เปรี้ยว",
             "transliteration": "bprîeow",
-            "translation": "sour"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A key flavor, often from lime, มะนาว (má-naao), or tamarind, มะขาม (má-kăam), that balances richness.",
-        "formal": ""
-      },
-      {
-        "english": "Salty",
-        "thai": "เค็ม",
-        "transliteration": "kem",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เปรี้ยว",
+                    "transliteration": "prîao",
+                    "translation": "sour"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เปรี้ยว",
+                    "transliteration": "bprîeow",
+                    "translation": "sour"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A key flavor, often from lime, มะนาว (má-naao), or tamarind, มะขาม (má-kăam), that balances richness.",
+            "formal": "",
+            "audio_path": "assets/audio/beginner_food_vocabulary/sour.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Salty",
             "thai": "เค็ม",
             "transliteration": "kem",
-            "translation": "salty"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A fundamental taste, usually from fish sauce, น้ำปลา (nám bplaa), or soy sauce, ซีอิ๊ว (see éw).",
-        "formal": ""
-      },
-      {
-        "english": "Spicy",
-        "thai": "เผ็ด",
-        "transliteration": "pèt",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เค็ม",
+                    "transliteration": "khem",
+                    "translation": "salty"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เค็ม",
+                    "transliteration": "kem",
+                    "translation": "salty"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A fundamental taste, usually from fish sauce, น้ำปลา (nám bplaa), or soy sauce, ซีอิ๊ว (see éw).",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/salty.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Spicy",
             "thai": "เผ็ด",
             "transliteration": "pèt",
-            "translation": "spicy"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A defining characteristic of many Thai dishes.",
-        "formal": ""
-      },
-      {
-        "english": "Dipping Sauce",
-        "thai": "น้ำจิ้ม",
-        "transliteration": "nám jím",
-        "word_mapping": [
-          {
-            "thai": "น้ำ",
-            "transliteration": "nám",
-            "translation": "water/sauce"
-          },
-          {
-            "thai": "จิ้ม",
-            "transliteration": "jím",
-            "translation": "to dip"
-          }
-        ],
-        "category": "Sauces/Flavors",
-        "details": "A general term for a wide variety of dipping sauces served with Thai food.",
-        "formal": ""
-      },
-      {
-        "english": "Crispy",
-        "thai": "กรอบ",
-        "transliteration": "gròp",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "phèt",
+                    "translation": "spicy"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A defining characteristic of many Thai dishes.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/spicy.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Dipping Sauce",
+            "thai": "น้ำจิ้ม",
+            "transliteration": "nám jím",
+            "azure_pron_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nam",
+                    "translation": "water; liquid; juice"
+                },
+                {
+                    "thai": "จิ้ม",
+                    "transliteration": "chim",
+                    "translation": "to dip; dipping sauce"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "sauce; liquid"
+                },
+                {
+                    "thai": "จิ้ม",
+                    "transliteration": "jím",
+                    "translation": "to dip"
+                }
+            ],
+            "category": "Sauces/Flavors",
+            "details": "A general term for a wide variety of dipping sauces served with Thai food.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/dipping_sauce.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Crispy",
             "thai": "กรอบ",
             "transliteration": "gròp",
-            "translation": "crispy"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "A desirable texture in many fried dishes and some salads.",
-        "formal": ""
-      },
-      {
-        "english": "Fried Garlic",
-        "thai": "กระเทียมเจียว",
-        "transliteration": "grà-tiam jieow",
-        "word_mapping": [
-          {
-            "thai": "กระเทียม",
-            "transliteration": "grà-tiam",
-            "translation": "garlic"
-          },
-          {
-            "thai": "เจียว",
-            "transliteration": "jieow",
-            "translation": "to fry (in oil)"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "A common garnish that adds a crunchy, savory flavor.",
-        "formal": ""
-      },
-      {
-        "english": "Fried Shallots",
-        "thai": "หอมเจียว",
-        "transliteration": "hŏm jieow",
-        "word_mapping": [
-          {
-            "thai": "หอม",
-            "transliteration": "hŏm",
-            "translation": "fragrant/onion"
-          },
-          {
-            "thai": "เจียว",
-            "transliteration": "jieow",
-            "translation": "to fry (in oil)"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "Another popular crispy garnish, adding a sweet and savory crunch.",
-        "formal": ""
-      },
-      {
-        "english": "Cilantro/Coriander Leaves",
-        "thai": "ผักชี",
-        "transliteration": "pàk chee",
-        "word_mapping": [
-          {
-            "thai": "ผัก",
-            "transliteration": "pàk",
-            "translation": "vegetable"
-          },
-          {
-            "thai": "ชี",
-            "transliteration": "chee",
-            "translation": "coriander"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "The fresh leaves are used as a garnish for almost every type of dish, adding a fresh, citrusy note.",
-        "formal": ""
-      },
-      {
-        "english": "Culantro / Sawtooth Coriander",
-        "thai": "ผักชีฝรั่ง",
-        "transliteration": "pàk chee fà-ràng",
-        "word_mapping": [
-          {
+            "azure_pron_mapping": [
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "gròp",
+                    "translation": "crispy"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "gròp",
+                    "translation": "crispy"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "A desirable texture in many fried dishes and some salads.",
+            "formal": ""
+        },
+        {
+            "english": "Fried Garlic",
+            "thai": "กระเทียมเจียว",
+            "transliteration": "grà-tiam jieow",
+            "azure_pron_mapping": [
+                {
+                    "thai": "กระเทียม",
+                    "transliteration": "krathiam",
+                    "translation": "garlic"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "chiao",
+                    "translation": "to fry (in oil); fried"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "กระเทียม",
+                    "transliteration": "grà-tiam",
+                    "translation": "garlic"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "jieow",
+                    "translation": "to deep-fry (until crispy)"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "A common garnish that adds a crunchy, savory flavor.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/fried_garlic.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Fried Shallots",
+            "thai": "หอมเจียว",
+            "transliteration": "hŏm jieow",
+            "azure_pron_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hom",
+                    "translation": "shallot / onion; fragrant"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "chiao",
+                    "translation": "to fry (in oil); fried"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hŏm",
+                    "translation": "shallot; onion"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "jieow",
+                    "translation": "to deep-fry (until crispy)"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "Another popular crispy garnish, adding a sweet and savory crunch.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/fried_shallots.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Cilantro/Coriander Leaves",
             "thai": "ผักชี",
             "transliteration": "pàk chee",
-            "translation": "coriander"
-          },
-          {
-            "thai": "ฝรั่ง",
-            "transliteration": "fà-ràng",
-            "translation": "foreign (Western)"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "Literally 'foreign coriander'. Has a much stronger, more pungent flavor than regular cilantro and is often used in soups and spicy salads.",
-        "formal": ""
-      },
-      {
-        "english": "Roasted Peanuts",
-        "thai": "ถั่วคั่ว",
-        "transliteration": "tùa kûa",
-        "word_mapping": [
-          {
-            "thai": "ถั่ว",
-            "transliteration": "tùa",
-            "translation": "bean/nut"
-          },
-          {
-            "thai": "คั่ว",
-            "transliteration": "kûa",
-            "translation": "to roast"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "Often crushed and sprinkled on top of salads and noodle dishes for texture and flavor. The full, formal term is ถั่วลิสงคั่ว (tùa lí-sŏng kûa), where ลิสง (lí-sŏng) specifically means 'peanut'.",
-        "formal": "ถั่วลิสงคั่ว"
-      },
-      {
-        "english": "Chili Flakes",
-        "thai": "พริกป่น",
-        "transliteration": "prík bpòn",
-        "word_mapping": [
-          {
-            "thai": "พริก",
-            "transliteration": "prík",
-            "translation": "chili"
-          },
-          {
-            "thai": "ป่น",
-            "transliteration": "bpòn",
-            "translation": "ground/powder"
-          }
-        ],
-        "category": "Textures/Garnishes",
-        "details": "A common condiment, usually made from dry-roasted chilis, to add extra heat to dishes.",
-        "formal": ""
-      }
+            "azure_pron_mapping": [
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "phak chi",
+                    "translation": "coriander"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "pàk chee",
+                    "translation": "coriander; cilantro"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "The fresh leaves are used as a garnish for almost every type of dish, adding a fresh, citrusy note.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/cilantrocoriander_leaves.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Culantro / Sawtooth Coriander",
+            "thai": "ผักชีฝรั่ง",
+            "transliteration": "pàk chee fà-ràng",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "phak",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "ชี",
+                    "transliteration": "chi",
+                    "translation": "coriander (as in ผักชี)"
+                },
+                {
+                    "thai": "ฝรั่ง",
+                    "transliteration": "farang",
+                    "translation": "guava; Westerner"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ผักชี",
+                    "transliteration": "pàk chee",
+                    "translation": "coriander; cilantro"
+                },
+                {
+                    "thai": "ฝรั่ง",
+                    "transliteration": "fà-ràng",
+                    "translation": "foreign; Western"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "Literally 'foreign coriander'. Has a much stronger, more pungent flavor than regular cilantro and is often used in soups and spicy salads.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/culantro__sawtooth_coriander.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Roasted Peanuts",
+            "thai": "ถั่วคั่ว",
+            "transliteration": "tùa kûa",
+            "azure_pron_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "thua",
+                    "translation": "bean; peanut"
+                },
+                {
+                    "thai": "คั่ว",
+                    "transliteration": "khua",
+                    "translation": "to roast; to pan-fry"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "tùa",
+                    "translation": "peanut; bean"
+                },
+                {
+                    "thai": "คั่ว",
+                    "transliteration": "kûa",
+                    "translation": "to roast (in a pan)"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "Often crushed and sprinkled on top of salads and noodle dishes for texture and flavor. The full, formal term is ถั่วลิสงคั่ว (tùa lí-sŏng kûa), where ลิสง (lí-sŏng) specifically means 'peanut'.",
+            "formal": "ถั่วลิสงคั่ว",
+            "audio_path": "assets/audio/npc_vocabulary_amara/roasted_peanuts.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        },
+        {
+            "english": "Chili Flakes",
+            "thai": "พริกป่น",
+            "transliteration": "prík bpòn",
+            "azure_pron_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "phrik",
+                    "translation": "chili; pepper"
+                },
+                {
+                    "thai": "ป่น",
+                    "transliteration": "pon",
+                    "translation": "powdered; ground"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                },
+                {
+                    "thai": "ป่น",
+                    "transliteration": "bpòn",
+                    "translation": "powdered; ground"
+                }
+            ],
+            "category": "Textures/Garnishes",
+            "details": "A common condiment, usually made from dry-roasted chilis, to add extra heat to dishes.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/chili_flakes.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
+        }
     ]
-  }
+}
