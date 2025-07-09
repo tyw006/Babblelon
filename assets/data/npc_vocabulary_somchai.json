@@ -3,7 +3,7 @@
         {
             "english": "Spoon",
             "thai": "ช้อน",
-            "transliteration": "Chon",
+            "transliteration": "chɔ́ɔn",
             "azure_pron_mapping": [
                 {
                     "thai": "ช้อน",
@@ -12,6 +12,13 @@
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ช้อน",
+                    "transliteration": "chɔ́ɔn",
+                    "translation": "spoon"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ช้อน",
                     "transliteration": "chɔ́ɔn",
@@ -27,7 +34,7 @@
         {
             "english": "Fork",
             "thai": "ส้อม",
-            "transliteration": "Som",
+            "transliteration": "sɔ̂m",
             "azure_pron_mapping": [
                 {
                     "thai": "ส้อม",
@@ -36,6 +43,13 @@
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ส้อม",
+                    "transliteration": "sɔ̂m",
+                    "translation": "fork"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ส้อม",
                     "transliteration": "sɔ̂m",
@@ -51,7 +65,7 @@
         {
             "english": "Chopsticks",
             "thai": "ตะเกียบ",
-            "transliteration": "Takiap",
+            "transliteration": "dtà-gìap",
             "azure_pron_mapping": [
                 {
                     "thai": "ตะเกียบ",
@@ -66,8 +80,20 @@
                     "translation": "chopsticks"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ตะ",
+                    "transliteration": "dtà",
+                    "translation": "(part of 'chopsticks')"
+                },
+                {
+                    "thai": "เกียบ",
+                    "transliteration": "gìap",
+                    "translation": "(part of 'chopsticks')"
+                }
+            ],
             "category": "Tableware/Utensils",
-            "details": "Mainly used for noodle dishes and items of Chinese origin. To request them, say 'ขอตะเกียบ' (khaw takiap).",
+            "details": "Mainly used for noodle dishes and items of Chinese origin. To request them, say 'ขอตะเกียบ' (kŏr dtà-gìap).",
             "audio_path": "assets/audio/npc_vocabulary_somchai/chopsticks.wav",
             "audio_generated": true,
             "azure_pron_mapping_verified": true
@@ -75,7 +101,7 @@
         {
             "english": "Plate",
             "thai": "จาน",
-            "transliteration": "Jaan",
+            "transliteration": "jaan",
             "azure_pron_mapping": [
                 {
                     "thai": "จาน",
@@ -84,6 +110,13 @@
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "จาน",
+                    "transliteration": "jaan",
+                    "translation": "plate"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "จาน",
                     "transliteration": "jaan",
@@ -99,7 +132,7 @@
         {
             "english": "Bowl",
             "thai": "ชาม",
-            "transliteration": "Chaam",
+            "transliteration": "chaam",
             "azure_pron_mapping": [
                 {
                     "thai": "ชาม",
@@ -108,6 +141,13 @@
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ชาม",
+                    "transliteration": "chaam",
+                    "translation": "bowl"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ชาม",
                     "transliteration": "chaam",
@@ -123,7 +163,7 @@
         {
             "english": "Glass",
             "thai": "แก้ว",
-            "transliteration": "Kaeo",
+            "transliteration": "gâew",
             "azure_pron_mapping": [
                 {
                     "thai": "แก้ว",
@@ -134,12 +174,19 @@
             "word_mapping": [
                 {
                     "thai": "แก้ว",
-                    "transliteration": "gɛ̂ɛo",
+                    "transliteration": "gâew",
                     "translation": "glass; cup"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "แก้ว",
+                    "transliteration": "gâew",
+                    "translation": "glass"
+                }
+            ],
             "category": "Tableware/Utensils",
-            "details": "A glass for drinking. To ask for a glass of water, say 'ขอน้ำแก้วหนึ่ง' (khaw nam kaeo neung).",
+            "details": "A glass for drinking. To ask for a glass of water, say 'ขอน้ำแก้วหนึ่ง' (kŏr nám gâew neung).",
             "audio_path": "assets/audio/npc_vocabulary_somchai/glass.wav",
             "audio_generated": true,
             "azure_pron_mapping_verified": true
@@ -147,29 +194,41 @@
         {
             "english": "Condiment Set",
             "thai": "เครื่องปรุง",
-            "transliteration": "Kruang prung",
+            "transliteration": "krʉ̂ang-bprung",
             "azure_pron_mapping": [
                 {
                     "thai": "เครื่อง",
-                    "transliteration": "kruang",
-                    "translation": "items; set; equipment"
-                },
-                {
-                    "thai": "ปรุง",
-                    "transliteration": "prung",
-                    "translation": "to season; to prepare"
-                }
-            ],
-            "word_mapping": [
-                {
-                    "thai": "เครื่อง",
-                    "transliteration": "krʉ̂ʉang",
+                    "transliteration": "krʉ̂ang",
                     "translation": "items; set; equipment"
                 },
                 {
                     "thai": "ปรุง",
                     "transliteration": "bprung",
                     "translation": "to season; to prepare"
+                }
+            ],
+            "word_mapping": [
+                {
+                    "thai": "เครื่อง",
+                    "transliteration": "krʉ̂ang",
+                    "translation": "items; set; equipment"
+                },
+                {
+                    "thai": "ปรุง",
+                    "transliteration": "bprung",
+                    "translation": "to season; to prepare"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เครื่อง",
+                    "transliteration": "krʉ̂ang",
+                    "translation": "items"
+                },
+                {
+                    "thai": "ปรุง",
+                    "transliteration": "bprung",
+                    "translation": "to season"
                 }
             ],
             "category": "Condiments",
@@ -181,16 +240,16 @@
         {
             "english": "Fish Sauce with Chili",
             "thai": "พริกน้ำปลา",
-            "transliteration": "Prik nam pla",
+            "transliteration": "prík nám-bplaa",
             "azure_pron_mapping": [
                 {
                     "thai": "พริก",
-                    "transliteration": "phrik",
+                    "transliteration": "prík",
                     "translation": "chili"
                 },
                 {
                     "thai": "น้ำปลา",
-                    "transliteration": "nam-pla",
+                    "transliteration": "nám-bplaa",
                     "translation": "fish sauce"
                 }
             ],
@@ -206,6 +265,23 @@
                     "translation": "fish sauce"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                },
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water"
+                },
+                {
+                    "thai": "ปลา",
+                    "transliteration": "bplaa",
+                    "translation": "fish"
+                }
+            ],
             "category": "Condiments",
             "details": "A fundamental Thai condiment that adds a salty and spicy kick, made from fish sauce infused with fresh chilies.",
             "audio_path": "assets/audio/beginner_food_vocabulary/fish_sauce_with_chili.wav",
@@ -215,16 +291,16 @@
         {
             "english": "Chili Flakes",
             "thai": "พริกป่น",
-            "transliteration": "Prik pon",
+            "transliteration": "prík-bpòn",
             "azure_pron_mapping": [
                 {
                     "thai": "พริก",
-                    "transliteration": "phrik",
+                    "transliteration": "prík",
                     "translation": "chili; pepper"
                 },
                 {
                     "thai": "ป่น",
-                    "transliteration": "pon",
+                    "transliteration": "bpòn",
                     "translation": "powder; crushed"
                 }
             ],
@@ -240,6 +316,18 @@
                     "translation": "powdered; ground"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                },
+                {
+                    "thai": "ป่น",
+                    "transliteration": "bpòn",
+                    "translation": "powdered"
+                }
+            ],
             "category": "Condiments",
             "details": "Dried, roasted, and ground red chilies used to add pure heat to a dish.",
             "audio_path": "assets/audio/npc_vocabulary_amara/chili_flakes.wav",
@@ -249,21 +337,21 @@
         {
             "english": "Vinegar with Chili",
             "thai": "น้ำส้มพริกดอง",
-            "transliteration": "Nam som prik dong",
+            "transliteration": "nám-sôm prík-dɔɔng",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำ",
-                    "transliteration": "nam",
+                    "transliteration": "nám",
                     "translation": "water"
                 },
                 {
                     "thai": "ส้มพริก",
-                    "transliteration": "som-phrik",
+                    "transliteration": "sôm-prík",
                     "translation": "pickled chili"
                 },
                 {
                     "thai": "ดอง",
-                    "transliteration": "dong",
+                    "transliteration": "dɔɔng",
                     "translation": "pickle"
                 }
             ],
@@ -272,6 +360,23 @@
                     "thai": "น้ำส้ม",
                     "transliteration": "nám-sôm",
                     "translation": "vinegar"
+                },
+                {
+                    "thai": "พริกดอง",
+                    "transliteration": "prík-dɔɔng",
+                    "translation": "pickled chili"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "liquid"
+                },
+                {
+                    "thai": "ส้ม",
+                    "transliteration": "sôm",
+                    "translation": "orange (in this case, vinegar)"
                 },
                 {
                     "thai": "พริก",
@@ -293,16 +398,23 @@
         {
             "english": "Water",
             "thai": "น้ำ",
-            "transliteration": "Nam",
-            "formal": "น้ำเปล่า (Nam plao)",
+            "transliteration": "nám",
+            "formal": "น้ำเปล่า (nám bplào)",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำ",
-                    "transliteration": "nam",
+                    "transliteration": "nám",
                     "translation": "water"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "น้ำ",
                     "transliteration": "nám",
@@ -318,11 +430,11 @@
         {
             "english": "Ice",
             "thai": "น้ำแข็ง",
-            "transliteration": "Nam khaeng",
+            "transliteration": "nám-kăeng",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำแข็ง",
-                    "transliteration": "nam-khaeng",
+                    "transliteration": "nám-kăeng",
                     "translation": "ice"
                 }
             ],
@@ -334,7 +446,19 @@
                 },
                 {
                     "thai": "แข็ง",
-                    "transliteration": "kɛ̌ng",
+                    "transliteration": "kăeng",
+                    "translation": "hard"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water"
+                },
+                {
+                    "thai": "แข็ง",
+                    "transliteration": "kăeng",
                     "translation": "hard"
                 }
             ],
@@ -347,7 +471,7 @@
         {
             "english": "Beer",
             "thai": "เบียร์",
-            "transliteration": "Bia",
+            "transliteration": "bia",
             "azure_pron_mapping": [
                 {
                     "thai": "เบียร์",
@@ -356,6 +480,13 @@
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "เบียร์",
+                    "transliteration": "bia",
+                    "translation": "beer"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "เบียร์",
                     "transliteration": "bia",
@@ -371,7 +502,7 @@
         {
             "english": "Thai Iced Tea",
             "thai": "ชาเย็น",
-            "transliteration": "Cha yen",
+            "transliteration": "chaa-yen",
             "azure_pron_mapping": [
                 {
                     "thai": "ชาเย็น",
@@ -391,6 +522,18 @@
                     "translation": "cold; iced"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ชา",
+                    "transliteration": "chaa",
+                    "translation": "tea"
+                },
+                {
+                    "thai": "เย็น",
+                    "transliteration": "yen",
+                    "translation": "cold"
+                }
+            ],
             "category": "Drinks",
             "details": "A famous, sweet, and creamy orange-colored drink made from black tea and condensed milk.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/thai_iced_tea.wav",
@@ -400,7 +543,7 @@
         {
             "english": "Lime Iced Tea",
             "thai": "ชามะนาว",
-            "transliteration": "Cha manao",
+            "transliteration": "chaa má-naao",
             "azure_pron_mapping": [
                 {
                     "thai": "ชา",
@@ -409,12 +552,12 @@
                 },
                 {
                     "thai": "มะ",
-                    "transliteration": "ma",
+                    "transliteration": "má",
                     "translation": "prefix (e.g., for fruits)"
                 },
                 {
                     "thai": "นาว",
-                    "transliteration": "nao",
+                    "transliteration": "naao",
                     "translation": "(part of) lime"
                 }
             ],
@@ -430,6 +573,23 @@
                     "translation": "lime"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ชา",
+                    "transliteration": "chaa",
+                    "translation": "tea"
+                },
+                {
+                    "thai": "มะ",
+                    "transliteration": "má",
+                    "translation": "fruit prefix"
+                },
+                {
+                    "thai": "นาว",
+                    "transliteration": "naao",
+                    "translation": "lime"
+                }
+            ],
             "category": "Drinks",
             "details": "A refreshing sweet and sour iced tea, for those who prefer a less milky drink.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/lime_iced_tea.wav",
@@ -439,16 +599,16 @@
         {
             "english": "Coconut Water",
             "thai": "น้ำมะพร้าว",
-            "transliteration": "Nam maphrao",
+            "transliteration": "nám má-práao",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำ",
-                    "transliteration": "nam",
+                    "transliteration": "nám",
                     "translation": "water"
                 },
                 {
                     "thai": "มะพร้าว",
-                    "transliteration": "maphrao",
+                    "transliteration": "má-práao",
                     "translation": "coconut"
                 }
             ],
@@ -464,6 +624,23 @@
                     "translation": "coconut"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water"
+                },
+                {
+                    "thai": "มะ",
+                    "transliteration": "má",
+                    "translation": "fruit prefix"
+                },
+                {
+                    "thai": "พร้าว",
+                    "transliteration": "práao",
+                    "translation": "coconut"
+                }
+            ],
             "category": "Drinks",
             "details": "Often served fresh directly from a chilled coconut. A healthy and hydrating option.",
             "audio_path": "assets/audio/beginner_food_vocabulary/coconut_water.wav",
@@ -473,11 +650,11 @@
         {
             "english": "Menu",
             "thai": "เมนู",
-            "transliteration": "Me-nu",
+            "transliteration": "mee-nuu",
             "azure_pron_mapping": [
                 {
                     "thai": "เมนู",
-                    "transliteration": "meenuu",
+                    "transliteration": "mee-nuu",
                     "translation": "menu"
                 }
             ],
@@ -488,8 +665,20 @@
                     "translation": "menu"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "เม",
+                    "transliteration": "mee",
+                    "translation": "(part of 'menu')"
+                },
+                {
+                    "thai": "นู",
+                    "transliteration": "nuu",
+                    "translation": "(part of 'menu')"
+                }
+            ],
             "category": "Service Items",
-            "details": "To ask for the menu, say 'ขอเมนูหน่อยครับ/ค่ะ' (khaw me-nu noi khrap/kha).",
+            "details": "To ask for the menu, say 'ขอเมนูหน่อยครับ/ค่ะ' (kŏr mee-nuu nòi kráp/kâ).",
             "audio_path": "assets/audio/npc_vocabulary_somchai/menu.wav",
             "audio_generated": true,
             "azure_pron_mapping_verified": true
@@ -497,17 +686,17 @@
         {
             "english": "Bill / Check",
             "thai": "เก็บตังค์",
-            "transliteration": "Kep tang",
-            "formal": "เช็คบิล (Chek bin)",
+            "transliteration": "gèp-dtang",
+            "formal": "เช็คบิล (chék bin)",
             "azure_pron_mapping": [
                 {
                     "thai": "เก็บ",
-                    "transliteration": "kep",
+                    "transliteration": "gèp",
                     "translation": "to collect"
                 },
                 {
                     "thai": "ตังค์",
-                    "transliteration": "tang",
+                    "transliteration": "dtang",
                     "translation": "money"
                 }
             ],
@@ -523,6 +712,18 @@
                     "translation": "money (slang)"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "เก็บ",
+                    "transliteration": "gèp",
+                    "translation": "to collect"
+                },
+                {
+                    "thai": "ตังค์",
+                    "transliteration": "dtang",
+                    "translation": "money"
+                }
+            ],
             "category": "Service Items",
             "details": "'เก็บตังค์' (kep tang) is a very common and casual way to ask for the bill. The formal version 'เช็คบิล' (chek bin), which comes from the English 'check bill', is also very common. Another informal option is 'คิดเงิน' (kit ngoen), meaning 'calculate money'.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/bill__check.wav",
@@ -532,17 +733,17 @@
         {
             "english": "Takeaway / To go",
             "thai": "กลับบ้าน",
-            "transliteration": "Klap ban",
-            "formal": "ห่อกลับบ้าน (Haw klap ban)",
+            "transliteration": "glàp-bâan",
+            "formal": "ห่อกลับบ้าน (hòr glàp-bâan)",
             "azure_pron_mapping": [
                 {
                     "thai": "กลับ",
-                    "transliteration": "klap",
+                    "transliteration": "glàp",
                     "translation": "to return"
                 },
                 {
                     "thai": "บ้าน",
-                    "transliteration": "ban",
+                    "transliteration": "bâan",
                     "translation": "house"
                 }
             ],
@@ -558,8 +759,20 @@
                     "translation": "home"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "กลับ",
+                    "transliteration": "glàp",
+                    "translation": "to return"
+                },
+                {
+                    "thai": "บ้าน",
+                    "transliteration": "bâan",
+                    "translation": "home"
+                }
+            ],
             "category": "Service Items",
-            "details": "The most common casual way to ask for takeaway is to say 'กลับบ้าน' (klap ban), which literally means 'return home'. The more formal 'ห่อกลับบ้าน' (haw klap ban), meaning 'wrap to return home', is also widely understood.",
+            "details": "The most common casual way to ask for takeaway is to say 'กลับบ้าน' (klap ban), which literally means 'return home'. The more formal 'ห่อกลับบ้าน' (haw glap ban), meaning 'wrap to return home', is also widely understood.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/takeaway__to_go.wav",
             "audio_generated": true,
             "azure_pron_mapping_verified": true
@@ -567,20 +780,32 @@
         {
             "english": "Not spicy",
             "thai": "ไม่เผ็ด",
-            "transliteration": "Mai phet",
+            "transliteration": "mâi-pèt",
             "azure_pron_mapping": [
                 {
                     "thai": "ไม่",
-                    "transliteration": "mai",
+                    "transliteration": "mâi",
                     "translation": "no"
                 },
                 {
                     "thai": "เผ็ด",
-                    "transliteration": "phet",
+                    "transliteration": "pèt",
                     "translation": "spicy"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mâi",
+                    "translation": "not"
+                },
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ไม่",
                     "transliteration": "mâi",
@@ -601,17 +826,17 @@
         {
             "english": "A little spicy",
             "thai": "เผ็ดน้อย",
-            "transliteration": "Phet noi",
-            "formal": "เผ็ดนิดหน่อย (Phet nit noi)",
+            "transliteration": "pèt-nɔ́ɔi",
+            "formal": "เผ็ดนิดหน่อย (pèt nít-nòi)",
             "azure_pron_mapping": [
                 {
                     "thai": "เผ็ด",
-                    "transliteration": "phet",
+                    "transliteration": "pèt",
                     "translation": "spicy"
                 },
                 {
                     "thai": "น้อย",
-                    "transliteration": "noi",
+                    "transliteration": "nɔ́ɔi",
                     "translation": "a little"
                 }
             ],
@@ -627,6 +852,18 @@
                     "translation": "a little"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                },
+                {
+                    "thai": "น้อย",
+                    "transliteration": "nɔ́ɔi",
+                    "translation": "little"
+                }
+            ],
             "category": "Customer Actions/Requests",
             "details": "The most direct casual way to say 'a little spicy' is 'เผ็ดน้อย' (phet noi). The formal version, 'เผ็ดนิดหน่อย' (phet nit noi), is also very common and means the same thing.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/a_little_spicy.wav",
@@ -636,38 +873,52 @@
         {
             "english": "Extra spicy",
             "thai": "เผ็ดๆ",
-            "transliteration": "Phet phet",
-            "formal": "เผ็ดมาก (Phet mak)",
+            "transliteration": "pèt-pèt",
+            "formal": "เผ็ดมาก (pèt mâak)",
             "azure_pron_mapping": [
-                {
-                    "thai": "เผ็ดๆ",
-                    "transliteration": "phet phet",
-                    "translation": "extra spicy; very spicy"
-                }
-            ],
-            "word_mapping": [
                 {
                     "thai": "เผ็ดๆ",
                     "transliteration": "pèt pèt",
                     "translation": "extra spicy; very spicy"
                 }
             ],
+            "word_mapping": [
+                {
+                    "thai": "เผ็ดๆ",
+                    "transliteration": "pèt-pèt",
+                    "translation": "extra spicy; very spicy"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                },
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy (repeated for emphasis)"
+                }
+            ],
             "category": "Customer Actions/Requests",
-            "details": "Repeating the word 'เผ็ด' (phet) to say 'เผ็ดๆ' (phet phet) is a very common, local way to ask for it to be made extra spicy. The more standard way is to use the formal version, 'เผ็ดมาก' (phet mak), which means 'very spicy'."
+            "details": "Repeating the word 'เผ็ด' (phet) to say 'เผ็ดๆ' (phet phet) is a very common, local way to ask for it to be made extra spicy. The more standard way is to use the formal version, 'เผ็ดมาก' (phet mak), which means 'very spicy'.",
+            "audio_path": "assets/audio/npc_vocabulary_somchai/extra_spicy.wav",
+            "audio_generated": true
         },
         {
             "english": "Don't add (ingredient)",
             "thai": "ไม่ใส่...",
-            "transliteration": "Mai sai...",
+            "transliteration": "mâi sài...",
             "azure_pron_mapping": [
                 {
                     "thai": "ไม่",
-                    "transliteration": "Mai",
+                    "transliteration": "mâi",
                     "translation": "not"
                 },
                 {
                     "thai": "ใส่",
-                    "transliteration": "Sai",
+                    "transliteration": "sài",
                     "translation": "to put in/add"
                 }
             ],
@@ -683,41 +934,72 @@
                     "translation": "to put in; add"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ไม่",
+                    "transliteration": "mâi",
+                    "translation": "not"
+                },
+                {
+                    "thai": "ใส่",
+                    "transliteration": "sài",
+                    "translation": "add"
+                }
+            ],
             "category": "Customer Actions/Requests",
-            "details": "A crucial structure for dietary restrictions. For example, 'ไม่ใส่ผักชี' (mai sai phak chi) for 'Don't add coriander'."
+            "details": "A crucial structure for dietary restrictions. For example, 'ไม่ใส่ผักชี' (mâi sài pàk-chee) for 'Don't add coriander'.",
+            "audio_path": "assets/audio/npc_vocabulary_somchai/don't_add_(ingredient).wav",
+            "audio_generated": true
         },
         {
             "english": "Request a fried egg",
             "thai": "ขอไข่ดาว",
-            "transliteration": "Khaw khai dao",
-            "formal": "เพิ่มไข่ดาว (Phoem khai dao)",
+            "transliteration": "kŏr kài-daao",
+            "formal": "เพิ่มไข่ดาว (pêrm kài-daao)",
             "azure_pron_mapping": [
                 {
                     "thai": "ขอ",
-                    "transliteration": "kho",
+                    "transliteration": "kŏr",
                     "translation": "to ask for"
                 },
                 {
                     "thai": "ไข่",
-                    "transliteration": "khai",
+                    "transliteration": "kài",
                     "translation": "egg"
                 },
                 {
                     "thai": "ดาว",
-                    "transliteration": "dao",
+                    "transliteration": "daao",
                     "translation": "star"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "ขอ",
-                    "transliteration": "kɔ̌ɔ",
+                    "transliteration": "kŏr",
                     "translation": "to ask for; may I have"
                 },
                 {
                     "thai": "ไข่ดาว",
                     "transliteration": "kài-daao",
                     "translation": "fried egg"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ขอ",
+                    "transliteration": "kŏr",
+                    "translation": "to request"
+                },
+                {
+                    "thai": "ไข่",
+                    "transliteration": "kài",
+                    "translation": "egg"
+                },
+                {
+                    "thai": "ดาว",
+                    "transliteration": "daao",
+                    "translation": "star"
                 }
             ],
             "category": "Customer Actions/Requests",
@@ -729,11 +1011,11 @@
         {
             "english": "Extra portion",
             "thai": "พิเศษ",
-            "transliteration": "Phi-set",
+            "transliteration": "pí-sèet",
             "azure_pron_mapping": [
                 {
                     "thai": "พิเศษ",
-                    "transliteration": "phiset",
+                    "transliteration": "pí-sèet",
                     "translation": "special"
                 }
             ],
@@ -744,8 +1026,20 @@
                     "translation": "special; extra"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "พิ",
+                    "transliteration": "pí",
+                    "translation": "(part of 'special')"
+                },
+                {
+                    "thai": "เศษ",
+                    "transliteration": "sèet",
+                    "translation": "(part of 'special')"
+                }
+            ],
             "category": "Customer Actions/Requests",
-            "details": "Say this after the dish name to request a larger portion, for example 'ผัดกระเพราพิเศษ' (phat krapao phi-set). This will usually cost a little more.",
+            "details": "Say this after the dish name to request a larger portion, for example 'ผัดกระเพราพิเศษ' (pàt grà-prao pí-sèet). This will usually cost a little more.",
             "audio_path": "assets/audio/beginner_food_vocabulary/extra_portion.wav",
             "audio_generated": true,
             "azure_pron_mapping_verified": true
@@ -753,24 +1047,36 @@
         {
             "english": "Separate the sauce",
             "thai": "แยกน้ำ",
-            "transliteration": "Yaek nam",
+            "transliteration": "yâek-nám",
             "azure_pron_mapping": [
                 {
                     "thai": "แยกน้ำ",
-                    "transliteration": "yaek nam",
+                    "transliteration": "yâek nám",
                     "translation": "separate water"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "แยก",
-                    "transliteration": "yɛ̂ɛk",
+                    "transliteration": "yâek",
                     "translation": "to separate"
                 },
                 {
                     "thai": "น้ำ",
                     "transliteration": "nám",
                     "translation": "sauce; liquid"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "แยก",
+                    "transliteration": "yâek",
+                    "translation": "to separate"
+                },
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "sauce"
                 }
             ],
             "category": "Customer Actions/Requests",

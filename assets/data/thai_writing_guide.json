@@ -1,519 +1,818 @@
 {
   "writing_system_info": {
-    "description": "Thai script writing guide with traditional names, component analysis, and cultural context",
-    "version": "1.0",
-    "created_for": "BabbleOn Thai learning game"
+    "description": "A comprehensive guide to the Thai script, designed for programmatic use and tailored for English-speaking learners.",
+    "version": "5.1"
+  },
+  "pronunciation_system": {
+    "consonant_position_rules": {
+      "initial": {
+        "description": "Consonants at the beginning of syllables use their initial pronunciation",
+        "rule": "Use the 'initial' pronunciation value from consonant data"
+      },
+      "final": {
+        "description": "Consonants at the end of syllables use their final pronunciation (if available)",
+        "rule": "Use the 'final' pronunciation value from consonant data, or null if not allowed in final position"
+      },
+      "cluster": {
+        "description": "Consonants in clusters may have modified pronunciation",
+        "common_clusters": {
+          "กร": "gr → g (silent ร)",
+          "กล": "gl → g (silent ล)", 
+          "คร": "khr → kh (silent ร)",
+          "คล": "khl → kh (silent ล)",
+          "ปร": "pr → p (silent ร)",
+          "ปล": "pl → p (silent ล)",
+          "ทร": "thr → s (ร becomes s sound)",
+          "ผล": "phl → phon (ล becomes on)",
+          "พร": "phr → ph (silent ร)",
+          "พล": "phl → phon (ล becomes on)",
+          "สร": "sr → s (silent ร)",
+          "หร": "hr → r (silent ห)",
+          "หล": "hl → l (silent ห)",
+          "หม": "hm → m (silent ห)",
+          "หน": "hn → n (silent ห)",
+          "หย": "hy → y (silent ห)",
+          "หว": "hw → w (silent ห)"
+        }
+      }
+    },
+    "vowel_position_rules": {
+      "before": {
+        "description": "Vowels written before the consonant but pronounced after",
+        "characters": ["เ", "แ", "โ", "ใ", "ไ"],
+        "pronunciation_tip": "Written first, but pronounced AFTER the consonant"
+      },
+      "above": {
+        "description": "Vowels and tone marks written above the consonant", 
+        "characters": ["ิ", "ี", "ึ", "ื", "ั", "ํ", "่", "้", "๊", "๋"],
+        "pronunciation_tip": "Pronounced immediately after the consonant sound"
+      },
+      "below": {
+        "description": "Vowels written below the consonant",
+        "characters": ["ุ", "ู"],
+        "pronunciation_tip": "Pronounced immediately after the consonant sound"
+      },
+      "after": {
+        "description": "Vowels written after the consonant",
+        "characters": ["ะ", "า", "ำ"],
+        "pronunciation_tip": "Pronounced in the order written"
+      },
+      "surrounding": {
+        "description": "Complex vowels that surround the consonant",
+        "examples": ["เ◌า", "เ◌ะ", "แ◌ะ", "โ◌ะ", "เ◌อ", "เ◌ือ"],
+        "pronunciation_tip": "Follow the vowel's complete pronunciation pattern"
+      }
+    },
+    "tone_mark_rules": {
+      "mai_ek": {
+        "character": "่",
+        "effect_by_consonant_class": {
+          "mid": "low_tone",
+          "high": "low_tone", 
+          "low": "falling_tone"
+        }
+      },
+      "mai_tho": {
+        "character": "้",
+        "effect_by_consonant_class": {
+          "mid": "falling_tone",
+          "high": "falling_tone",
+          "low": "high_tone"
+        }
+      },
+      "mai_tri": {
+        "character": "๊", 
+        "effect_by_consonant_class": {
+          "mid": "high_tone",
+          "high": "high_tone",
+          "low": "high_tone"
+        }
+      },
+      "mai_chattawa": {
+        "character": "๋",
+        "effect_by_consonant_class": {
+          "mid": "rising_tone",
+          "high": "rising_tone", 
+          "low": "rising_tone"
+        }
+      }
+    }
   },
   "writing_principles": {
-    "thai_writing_guidelines": [
-      "Write from left to right across the page",
-      "If there are marks above or below a character, write those first before continuing right",
-      "Start with circles and main shapes, then add lines and details",
-      "Keep characters the same height and evenly spaced"
+    "title": "Core Principles of Writing Thai",
+    "guidelines": [
+      "Write from left to right across the page.",
+      "The Consonant is the Anchor: Always write the main consonant of a syllable first. Then, add any vowel or tone marks that go above, below, or to the right of it.",
+      "Circles First: For any character that has a circle (or 'loop'), always start by drawing the circle before drawing any attached lines or curves.",
+      "Consistent Sizing: Aim to keep the main body of all consonants at a consistent height for clean, readable text."
     ]
   },
-  "consonant_interaction_rules": {
-    "silent_modifiers": {
-      "description": "High-class consonants that become silent when placed before certain consonants, but change the tone.",
-      "steps": [
-        "When you see 'ห' (hɔ̌ɔ hìip) before a low or mid-class consonant, the 'ห' itself is not pronounced.",
-        "Instead, it raises the tone of the consonant that follows it.",
-        "For example, in 'หมอ' (mɔ̌ɔ - doctor), 'ห' (hɔ̌ɔ) makes 'ม' (mɔɔ) have a rising tone, so it's pronounced 'mɔ̌ɔ'."
-      ]
-    },
-    "consonant_clusters": {
-      "description": "Consonant combinations that create new sounds, not simple addition.",
-      "steps": [
-        "When 'ท' (thɔɔ) is followed by 'ร' (rɔɔ), the pair makes an 's' sound, as in 'ทราย' (saai - sand).",
-        "When 'ก' (kɔɔ) is followed by 'ร' (rɔɔ), they form a 'gr' cluster, as in 'กรอบ' (grɔ̀ɔp - frame).",
-        "When 'ป' (pɔɔ) is followed by 'ร' (rɔɔ), they form a 'pr' cluster, as in 'ปรุง' (prung - to season)."
-      ]
-    },
-    "tone_interaction": {
-      "description": "How consonant classes affect tone rules",
-      "high_class": ["ข", "ฃ", "ฉ", "ฐ", "ถ", "ผ", "ฝ", "ศ", "ษ", "ส", "ห"],
-      "mid_class": ["ก", "จ", "ฎ", "ฏ", "ด", "ต", "บ", "ป", "อ"],
-      "low_class": ["ค", "ฆ", "ง", "ช", "ซ", "ฌ", "ญ", "ฑ", "ฒ", "ณ", "น", "พ", "ฟ", "ภ", "ม", "ย", "ร", "ล", "ว", "ฬ", "ฮ"],
-      "rules": [
-        {
-          "description": "High-class consonants can make mid-tone words rising tone",
-          "application": "When ห appears before low/mid consonants"
-        }
-      ]
-    }
-  },
-  "contextual_tips": {
-    "in_compound_words": {
-      "description": "Special guidance for characters in compound words.",
-      "steps": [
-        "If a character is at the beginning, it starts a key meaning.",
-        "If it's in the middle, it often connects two ideas.",
-        "If it's at the end, it usually completes the word's meaning."
-      ]
-    },
-    "sound_vs_meaning": {
-      "description": "Guidance for understanding when characters have different roles.",
-      "steps": [
-        "A 'silent modifier' like 'ห' (hɔ̌ɔ) changes a tone but has no sound itself.",
-        "In a 'cluster transformation' like 'ทร' (thɔɔ-rɔɔ → s), two consonants team up to make one new sound.",
-        "Otherwise, a character will usually have its 'normal pronunciation'."
-      ]
-    }
-  },
+
   "consonants": {
     "ก": {
-      "romanization": "g/k",
-      "sound_description": "g sound at start, k at end",
-      "steps": [
-        "Start with a small top-left circle, go down into a dip, then right, and end with an upward hook."
-      ],
-      "cultural_context": "Named 'ko kai' (gɔɔ gài), where 'kai' (gài) means chicken. Its shape resembles a chicken's head.",
-      "stroke_order_principle": "Left to right, smooth connected strokes"
+      "name": "ko kai",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "g",
+        "final": "k",
+        "english_guide": "Starts like the 'g' in 'go'. Ends with a hard 'k' sound."
+      },
+      "writing_steps": "Start low, draw a vertical line up, create a small indentation (a 'beak') on the right, then curve down."
     },
     "ข": {
-      "romanization": "kh/k",
-      "sound_description": "kh sound (like 'k' with a puff of air)",
-      "steps": [
-        "Start with a small circle at the bottom, draw a line up, then curve right and down into a large loop."
-      ],
-      "cultural_context": "Named 'kho khai' (khɔ̌ɔ khài), where 'khai' (khài) means egg. The circle at the bottom can be thought of as an egg."
+      "name": "kho khai",
+      "class": "high",
+      "pronunciation": {
+        "initial": "kh",
+        "final": "k",
+        "english_guide": "An aspirated 'k' sound, like saying 'k' with a strong puff of air. Imagine saying 'k-ha'."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line straight down, then curve up to the right in a 'U' shape."
+    },
+    "ฃ": {
+      "name": "kho khuat",
+      "class": "high",
+      "is_obsolete": true,
+      "pronunciation": {
+        "initial": "kh",
+        "final": "k",
+        "english_guide": "(Obsolete) Same sound as ข. You will not need to write this character."
+      },
+      "writing_steps": "Start with a loop at the top, draw down with a small zig-zag notch, then curve up to the right."
     },
     "ค": {
-      "romanization": "kh/k",
-      "sound_description": "kh sound (breathy k)",
-      "steps": [
-        "Start with a top-left circle, draw a line curving down and right, and finish with a smooth upward curve like a wave."
-      ],
-      "cultural_context": "Named 'kho khwai' (khɔɔ khwaai), meaning 'water buffalo'. The shape can be seen as a buffalo's head and horn.",
-      "circle_guidance": "Circle-first principle: draw circular component before any straight lines"
+      "name": "kho khwai",
+      "class": "low",
+      "pronunciation": {
+        "initial": "kh",
+        "final": "k",
+        "english_guide": "An aspirated 'k' sound, same as ข. Imagine saying 'k-ha'."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, and then curve up and to the right."
+    },
+    "ฅ": {
+      "name": "kho khon",
+      "class": "low",
+      "is_obsolete": true,
+      "pronunciation": {
+        "initial": "kh",
+        "final": "k",
+        "english_guide": "(Obsolete) Same sound as ค. You will not need to write this character."
+      },
+      "writing_steps": "Start with a loop at the top, create a small zig-zag notch, draw down, and then curve up and to the right."
+    },
+    "ฆ": {
+      "name": "kho rakhang",
+      "class": "low",
+      "pronunciation": {
+        "initial": "kh",
+        "final": "k",
+        "english_guide": "An aspirated 'k' sound, same as ค."
+      },
+      "writing_steps": "Start with a loop at the top, draw down with a sharp zig-zag notch in the middle, then curve up and to the right."
     },
     "ง": {
-      "romanization": "ng",
-      "sound_description": "ng sound (like in 'sing')",
-      "steps": [
-        "Start with a top-left circle, then draw a line down and loop it back up to form a small open circle at the bottom."
-      ],
-      "cultural_context": "Named 'ngo ngu' (ngɔɔ nguu), which means 'snake'. The shape resembles a coiled snake."
+      "name": "ngo ngu",
+      "class": "low",
+      "pronunciation": {
+        "initial": "ng",
+        "final": "ng",
+        "english_guide": "The 'ng' sound from the end of the word 'sing'."
+      },
+      "writing_steps": "Start with a loop at the top left, draw a line diagonally down to the right, and then slant up to the right."
     },
     "จ": {
-      "romanization": "j/t",
-      "sound_description": "j sound at start, t at end",
-      "steps": [
-        "Start with a top-center circle, draw a line straight down, and curve it into a hook pointing left."
-      ],
-      "cultural_context": "Named 'jo jan' (jɔɔ jaan), meaning 'plate'. The circular top can represent a plate.",
-      "circle_guidance": "Circle at top must be complete before adding descender"
+      "name": "cho chan",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "j",
+        "final": "t",
+        "english_guide": "Starts like the 'j' in 'jet'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop in the middle, draw straight down, then curve up to the left into a wide hook."
+    },
+    "ฉ": {
+      "name": "cho ching",
+      "class": "high",
+      "pronunciation": {
+        "initial": "ch",
+        "final": null,
+        "english_guide": "An aspirated 'ch' sound, like saying 'ch' with a puff of air."
+      },
+      "writing_steps": "Start with a loop in the middle, draw down, make a clockwise loop at the bottom, and then draw a line up to the right."
     },
     "ช": {
-      "romanization": "ch/t",
-      "sound_description": "ch sound (like 'chair')",
-      "steps": [
-        "Start with a top-left circle, draw a U-shape down and to the right, then add a small upward tail on the top right."
-      ],
-      "cultural_context": "Named 'cho chang' (chɔɔ cháang), meaning 'elephant'. The tail at the end can be imagined as an elephant's trunk."
+      "name": "cho chang",
+      "class": "low",
+      "pronunciation": {
+        "initial": "ch",
+        "final": "t",
+        "english_guide": "Starts like the 'ch' in 'chair'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down and curve up to the right, then add a small upward tail at the top right."
+    },
+    "ซ": {
+      "name": "so so",
+      "class": "low",
+      "pronunciation": {
+        "initial": "s",
+        "final": "t",
+        "english_guide": "Starts like the 's' in 'see'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, create a small zig-zag notch as you draw down and curve up to the right, then add a small upward tail at the top right."
+    },
+    "ฌ": {
+      "name": "cho choe",
+      "class": "low",
+      "pronunciation": {
+        "initial": "ch",
+        "final": null,
+        "english_guide": "Same 'ch' sound as ช."
+      },
+      "writing_steps": "Start with a loop at the bottom, draw up, make a small knot in the middle by looping right, continue up, and then curve down to the right."
+    },
+    "ญ": {
+      "name": "yo ying",
+      "class": "low",
+      "pronunciation": {
+        "initial": "y",
+        "final": "n",
+        "english_guide": "Starts like the 'y' in 'yes'. Ends with an 'n' sound."
+      },
+      "writing_steps": "Draw the top part first: start with a loop at the top left, then draw a wavy line to the right. Separately, draw a small 'U' shape with a tail underneath."
+    },
+    "ฎ": {
+      "name": "do chada",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "d",
+        "final": "t",
+        "english_guide": "Starts like the 'd' in 'do'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, curve right and then left into a 'U' shape, and then loop inward clockwise at the very bottom."
+    },
+    "ฏ": {
+      "name": "to patak",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "t",
+        "final": "t",
+        "english_guide": "An unaspirated 't' sound, like the 't' in 'stop'."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, curve right and then left into a 'U' shape, then add two small zig-zag notches at the very bottom."
+    },
+    "ฐ": {
+      "name": "tho than",
+      "class": "high",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, like saying 't' with a puff of air."
+      },
+      "writing_steps": "This character is drawn in two parts. First, draw a loop at the bottom and a wavy line up to the right. Second, draw a separate 'U' shape with a small line inside it underneath."
+    },
+    "ฑ": {
+      "name": "tho montho",
+      "class": "low",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, same as ฐ."
+      },
+      "writing_steps": "Start with a loop at the top, create a small zig-zag notch as you draw down and to the right, and then finish with a smooth upward curve."
+    },
+    "ฒ": {
+      "name": "tho phuthao",
+      "class": "low",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, same as ฐ."
+      },
+      "writing_steps": "Start with a loop at the top, create a small knot by looping around, then draw a line down, curve right, and finish with a line going up."
+    },
+    "ณ": {
+      "name": "no nen",
+      "class": "low",
+      "pronunciation": {
+        "initial": "n",
+        "final": "n",
+        "english_guide": "Same 'n' sound as น."
+      },
+      "writing_steps": "Start with a loop at the bottom, draw up, curve over to the right and back down, then create a clockwise loop on the right side pointing inward."
+    },
+    "ด": {
+      "name": "do dek",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "d",
+        "final": "t",
+        "english_guide": "Starts like the 'd' in 'do'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, and then curve up and to the right."
+    },
+    "ต": {
+      "name": "to tao",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "t",
+        "final": "t",
+        "english_guide": "An unaspirated 't' sound, like the 't' in 'stop'."
+      },
+      "writing_steps": "Start with a loop at the top, draw down with a small zig-zag notch, then curve up and to the right."
+    },
+    "ถ": {
+      "name": "tho thung",
+      "class": "high",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, like saying 't' with a puff of air."
+      },
+      "writing_steps": "Start with a loop in the middle, draw a line up, create a small indentation (a 'beak') on the right, then curve down."
+    },
+    "ท": {
+      "name": "tho thahan",
+      "class": "low",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, same as ถ."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, then slant up to the right."
+    },
+    "ธ": {
+      "name": "tho thong",
+      "class": "low",
+      "pronunciation": {
+        "initial": "th",
+        "final": "t",
+        "english_guide": "An aspirated 't' sound, same as ถ."
+      },
+      "writing_steps": "Start with a loop in the middle, draw a line down, curve up to the right, then draw a second curve above it."
     },
     "น": {
-      "romanization": "n",
-      "sound_description": "n sound",
-      "steps": [
-        "Start with a top-left circle, draw a line down, curve it right, and finish with a vertical line going up to create a bottom loop."
-      ],
-      "cultural_context": "Named 'no nu' (nɔɔ nǔu), meaning 'mouse'. The loop at the bottom can look like a mouse's tail."
+      "name": "no nu",
+      "class": "low",
+      "pronunciation": {
+        "initial": "n",
+        "final": "n",
+        "english_guide": "Like the 'n' in 'no'."
+      },
+      "writing_steps": "Start with a loop at the top, draw straight down, then make a clockwise loop at the bottom right and finish with a line going straight up."
     },
     "บ": {
-      "romanization": "b/p",
-      "sound_description": "b sound at start, p at end",
-      "steps": [
-        "Start with a top-left circle, draw a vertical line down, a horizontal line right, and a final vertical line up, forming an open-topped box."
-      ],
-      "cultural_context": "Named 'bo baimai' (bɔɔ bai máai), meaning 'leaf'. The shape is simple and foundational."
+      "name": "bo baimai",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "b",
+        "final": "p",
+        "english_guide": "Starts like the 'b' in 'boy'. Ends with a 'p' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, then right, then up, to form a box that is open at the top."
     },
     "ป": {
-      "romanization": "p",
-      "sound_description": "p sound",
-      "steps": [
-        "Start with a top-left circle, draw a long vertical line down, a horizontal line right, and a final vertical line up, forming an open-topped box."
-      ],
-      "cultural_context": "Named 'po pla' (pɔɔ plaa), meaning 'fish'. The longer line can be seen as a fishing hook."
-    },
-    "ม": {
-      "romanization": "m",
-      "sound_description": "m sound",
-      "steps": [
-        "Start with a top-left circle, draw a line down, loop it forward to the right and back up, then finish with a line going straight down."
-      ],
-      "cultural_context": "Named 'mo ma' (mɔɔ máa), meaning 'horse'. The shape is complex and flowing."
-    },
-    "ย": {
-      "romanization": "y",
-      "sound_description": "y sound",
-      "steps": [
-        "Start with a bottom-left circle, draw a wavy line up and to the right, then finish with a horizontal line at the bottom."
-      ],
-      "cultural_context": "Named 'yo yak' (yɔɔ yák), meaning 'giant' or 'yaksha'. The shape is intricate and flowing."
-    },
-    "ร": {
-      "romanization": "r/n",
-      "sound_description": "r sound at start, n at end",
-      "steps": [
-        "Start with a top-left circle, then draw a smooth, S-shaped curve down and to the right."
-      ],
-      "cultural_context": "Named 'ro ruea' (rɔɔ rʉʉa), meaning 'boat'. The shape can look like the prow of a boat."
-    },
-    "ล": {
-      "romanization": "l/n",
-      "sound_description": "l sound at start, n at end",
-      "steps": [
-        "Start with a top-left circle, draw a line straight down, then curve it up and to the right to form an open loop."
-      ],
-      "cultural_context": "Named 'lo ling' (lɔɔ ling), meaning 'monkey'. The upward curve can be seen as a monkey's tail."
-    },
-    "ว": {
-      "romanization": "w",
-      "sound_description": "w sound",
-      "steps": [
-        "Start with a small circle at the top-left, then draw a large, smooth curve up and to the right, like an open 'C' shape."
-      ],
-      "cultural_context": "Named 'wo waen' (wɔɔ wɛɛn), meaning 'ring'. The character is circular and open, like a ring."
-    },
-    "ส": {
-      "romanization": "s/t",
-      "sound_description": "s sound at start, t at end",
-      "steps": [
-        "Start with a top-left circle, draw a line down and curve it up to the right, then add a small, separate upward-curving tail at the top right."
-      ],
-      "cultural_context": "Named 'so suea' (sɔ̌ɔ sʉ̌ʉa), meaning 'tiger'. The tail is a key feature."
-    },
-    "ห": {
-      "romanization": "h",
-      "sound_description": "h sound (only at beginning)",
-      "steps": [
-        "Start with a top-left circle, draw a line straight down, then create a loop at the bottom by drawing a line right, up, and down again."
-      ],
-      "cultural_context": "Named 'ho hip' (hɔ̌ɔ hìip), meaning 'chest' or 'box'. The shape is contained, like a box.",
-      "special_rules": [
-        "Often becomes silent when placed before other consonants",
-        "Acts as a tone modifier - raises the tone of following consonants",
-        "Very important for tone rules in Thai"
-      ]
+      "name": "po pla",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "p",
+        "final": "p",
+        "english_guide": "An unaspirated 'p' sound, like the 'p' in 'spin'."
+      },
+      "writing_steps": "Start with a loop at the top, draw a long line down, then right, then a long line up. The vertical lines should be taller than the width."
     },
     "ผ": {
-      "romanization": "ph/p",
-      "sound_description": "ph sound (like 'p' with a puff of air)",
-      "steps": [
-        "Start with a top-left circle, draw a line down, then curve right and up to form a base. Add a separate small circle on the top right."
-      ],
-      "cultural_context": "Named 'pho phung' (phɔ̌ɔ phǔung), meaning 'bee'. The shape can be seen as a bee with its body and head.",
-      "stroke_order_principle": "Circle first, then base structure, finally the top-right detail"
+      "name": "pho phueng",
+      "class": "high",
+      "pronunciation": {
+        "initial": "ph",
+        "final": null,
+        "english_guide": "An aspirated 'p' sound, like saying 'p' with a strong puff of air."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, slant up to the right, and then draw straight down."
+    },
+    "ฝ": {
+      "name": "fo fa",
+      "class": "high",
+      "pronunciation": {
+        "initial": "f",
+        "final": null,
+        "english_guide": "Like the 'f' in 'four'."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, slant up to the right, and then draw a straight line down that extends higher than the starting loop."
+    },
+    "พ": {
+      "name": "pho phan",
+      "class": "low",
+      "pronunciation": {
+        "initial": "ph",
+        "final": "p",
+        "english_guide": "An aspirated 'p' sound, same as ผ. Ends with a 'p' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, dip to the right, and then curve down."
+    },
+    "ฟ": {
+      "name": "fo fan",
+      "class": "low",
+      "pronunciation": {
+        "initial": "f",
+        "final": "p",
+        "english_guide": "Like the 'f' in 'four'. Ends with a 'p' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, dip to the right, curve down, and then extend the final line upwards."
+    },
+    "ภ": {
+      "name": "pho samphao",
+      "class": "low",
+      "pronunciation": {
+        "initial": "ph",
+        "final": "p",
+        "english_guide": "An aspirated 'p' sound, same as พ. Ends with a 'p' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line up slightly, create an indentation (a 'beak') pointing left, curve down, and then loop inward clockwise at the bottom."
+    },
+    "ม": {
+      "name": "mo ma",
+      "class": "low",
+      "pronunciation": {
+        "initial": "m",
+        "final": "m",
+        "english_guide": "Like the 'm' in 'me'."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, make a clockwise loop at the bottom right, and then continue the line down."
+    },
+    "ย": {
+      "name": "yo yak",
+      "class": "low",
+      "pronunciation": {
+        "initial": "y",
+        "final": "y",
+        "english_guide": "Like the 'y' in 'yes'."
+      },
+      "writing_steps": "Start with a loop at the top, draw down with an indentation, then curve down and to the right."
+    },
+    "ร": {
+      "name": "ro ruea",
+      "class": "low",
+      "pronunciation": {
+        "initial": "r",
+        "final": "n",
+        "english_guide": "A rolled or flapped 'r', similar to Spanish. Ends with an 'n' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw down, then slant up to the right."
+    },
+    "ล": {
+      "name": "lo ling",
+      "class": "low",
+      "pronunciation": {
+        "initial": "l",
+        "final": "n",
+        "english_guide": "Like the 'l' in 'love'. Ends with an 'n' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, then curve up and to the right."
+    },
+    "ว": {
+      "name": "wo waen",
+      "class": "low",
+      "pronunciation": {
+        "initial": "w",
+        "final": "w",
+        "english_guide": "Like the 'w' in 'we'."
+      },
+      "writing_steps": "Start with a loop at the top and draw a large, smooth curve up and to the right."
+    },
+    "ศ": {
+      "name": "so sala",
+      "class": "high",
+      "pronunciation": {
+        "initial": "s",
+        "final": "t",
+        "english_guide": "Like the 's' in 'see'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down and curve up to the right, then add a small upward tail at the top right."
+    },
+    "ษ": {
+      "name": "so ruesi",
+      "class": "high",
+      "pronunciation": {
+        "initial": "s",
+        "final": "t",
+        "english_guide": "Like the 's' in 'see'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a 'U' shape down and up, and then add a small inward-curling tail at the bottom right."
+    },
+    "ส": {
+      "name": "so suea",
+      "class": "high",
+      "pronunciation": {
+        "initial": "s",
+        "final": "t",
+        "english_guide": "Like the 's' in 'see'. Ends with a 't' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, curve up and to the right, and then add a small separate tail curving up from the top right."
+    },
+    "ห": {
+      "name": "ho hip",
+      "class": "high",
+      "pronunciation": {
+        "initial": "h",
+        "final": null,
+        "english_guide": "Like the 'h' in 'hello'. Often acts as a silent tone modifier."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line straight down, then from the bottom, slant up to the right, create a knot by looping clockwise, and finish with a line straight down."
+    },
+    "ฬ": {
+      "name": "lo chula",
+      "class": "low",
+      "pronunciation": {
+        "initial": "l",
+        "final": "n",
+        "english_guide": "Like the 'l' in 'love'. Ends with an 'n' sound."
+      },
+      "writing_steps": "Start with a loop at the top, draw a 'U' shape down and up, but do not close the top, letting the final line extend higher than the start."
     },
     "อ": {
-      "romanization": "o",
-      "sound_description": "o sound (only at beginning)",
-      "steps": [
-        "Start with a top-left circle, draw a line to the right, then down, then left to form a three-sided box open at the bottom."
-      ],
-      "cultural_context": "Named 'o ang' (ɔɔ àang), meaning 'basin'. The shape is open and round like a basin."
+      "name": "o ang",
+      "class": "mid",
+      "pronunciation": {
+        "initial": "o",
+        "final": null,
+        "english_guide": "Acts as a silent carrier for vowels (e.g., in 'อัน'), or makes an 'aw' sound as in 'saw' when acting as a vowel itself (e.g., in 'รอ')."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line to the right, then down, then left, to form a three-sided box open at the bottom."
+    },
+    "ฮ": {
+      "name": "ho nok huk",
+      "class": "low",
+      "pronunciation": {
+        "initial": "h",
+        "final": null,
+        "english_guide": "Like the 'h' in 'hello'."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line to the right, down, and left, then add a small clockwise loop on top of the top-right corner."
     }
   },
   "vowels": {
     "◌ะ": {
-      "romanization": "a",
-      "sound_description": "short 'a' sound (like 'cat')",
+      "name": "sara a",
       "position": "after",
-      "steps": [
-        "To the right of the consonant, draw two small stacked circles, like a colon."
-      ],
-      "cultural_context": "This is a simple short vowel, very common in spoken Thai."
+      "pronunciation": {
+        "romanization": "a",
+        "english_guide": "A short 'ah' sound, like the 'a' in 'sofa'."
+      },
+      "writing_steps": "To the right of the consonant, draw two small, comma-like dashes, one above the other."
     },
     "◌า": {
-      "romanization": "aa",
-      "sound_description": "long 'a' sound (like 'father')",
+      "name": "sara aa",
       "position": "after",
-      "steps": [
-        "To the right of the consonant, draw a single, straight downward stroke."
-      ],
-      "cultural_context": "One of the most common vowels in Thai."
+      "pronunciation": {
+        "romanization": "aa",
+        "english_guide": "A long 'aa' sound, like in 'father'."
+      },
+      "writing_steps": "To the right of the consonant, draw a single, downward curving hook."
     },
     "◌ิ": {
-      "romanization": "i",
-      "sound_description": "short 'i' sound (like 'bit')",
+      "name": "sara i",
       "position": "above",
-      "steps": [
-        "Directly above the consonant, draw a small, downward-facing arc."
-      ],
-      "cultural_context": "A common vowel placed above consonants.",
-      "positioning_rule": "Vowels come after consonants are complete - consonants are the foundation"
+      "pronunciation": {
+        "romanization": "i",
+        "english_guide": "A short 'i' sound, as in 'it'."
+      },
+      "writing_steps": "Directly above the consonant, draw a small, downward-facing arc."
     },
     "◌ี": {
-      "romanization": "ii",
-      "sound_description": "long 'i' sound (like 'bee')",
+      "name": "sara ii",
       "position": "above",
-      "steps": [
-        "Above the consonant, draw a downward-facing arc with a small vertical dash on top, like a hat."
-      ],
-      "cultural_context": "The long version of the 'i' vowel."
+      "pronunciation": {
+        "romanization": "ee",
+        "english_guide": "A long 'ee' sound, as in 'see'."
+      },
+      "writing_steps": "Directly above the consonant, draw a downward-facing arc with a small vertical line on top of it."
+    },
+    "◌ึ": {
+      "name": "sara ue",
+      "position": "above",
+      "pronunciation": {
+        "romanization": "eu",
+        "english_guide": "A short, throaty sound not in English. Like trying to say 'uh' with your jaw wide."
+      },
+      "writing_steps": "Directly above the consonant, draw a downward-facing arc with a tiny clockwise loop on top of it."
+    },
+    "◌ื": {
+      "name": "sara uee",
+      "position": "above",
+      "pronunciation": {
+        "romanization": "euu",
+        "english_guide": "A long version of the ◌ึ sound."
+      },
+      "writing_steps": "Directly above the consonant, draw a downward-facing arc with a small vertical line on top of it."
     },
     "◌ุ": {
-      "romanization": "u",
-      "sound_description": "short 'u' sound (like 'put')",
+      "name": "sara u",
       "position": "below",
-      "steps": [
-        "Directly below the consonant, draw a small, upward-facing hook, like a tiny 'u'."
-      ],
-      "cultural_context": "A common vowel placed below consonants.",
-      "positioning_rule": "Below vowels require completed consonant foundation first"
+      "pronunciation": {
+        "romanization": "u",
+        "english_guide": "A short 'oo' sound, as in 'foot'."
+      },
+      "writing_steps": "Directly below the consonant, start with a loop and draw a short line straight down."
     },
     "◌ู": {
-      "romanization": "uu",
-      "sound_description": "long 'u' sound (like 'moon')",
+      "name": "sara uu",
       "position": "below",
-      "steps": [
-        "Below the consonant, draw an upward-facing hook with a small downward line on its right side, like a tiny 'q'."
-      ],
-      "cultural_context": "The long version of the 'u' vowel."
+      "pronunciation": {
+        "romanization": "oo",
+        "english_guide": "A long 'oo' sound, as in 'moon'."
+      },
+      "writing_steps": "Directly below the consonant, draw a small hook pointing up and then curling down to the right."
     },
     "เ◌": {
-      "romanization": "ee",
-      "sound_description": "long 'e' sound (like 'way')",
+      "name": "sara e",
       "position": "before",
-      "steps": [
-        "Before the consonant, draw a small circle at the top with a vertical line extending straight down."
-      ],
-      "cultural_context": "A 'leading vowel' that appears before the consonant in writing, but is pronounced after.",
-      "planning_tip": "Leading vowels require planning - reserve space for the consonant"
+      "pronunciation": {
+        "romanization": "e",
+        "english_guide": "A long 'ay' sound, as in 'say'."
+      },
+      "writing_steps": "Start with a loop at the top and draw a straight line down."
     },
     "แ◌": {
-      "romanization": "aee",
-      "sound_description": "long 'ae' sound (like 'air')",
+      "name": "sara ae",
       "position": "before",
-      "steps": [
-        "Before the consonant, draw two small circles at the top with vertical lines extending straight down from each, side-by-side."
-      ],
-      "cultural_context": "A doubled leading vowel, creating a different sound."
+      "pronunciation": {
+        "romanization": "ae",
+        "english_guide": "A long 'a' sound, as in 'air' or 'cat'."
+      },
+      "writing_steps": "Draw two 'เ' shapes side-by-side."
     },
     "โ◌": {
-      "romanization": "oo",
-      "sound_description": "long 'o' sound (like 'go')",
+      "name": "sara o",
       "position": "before",
-      "steps": [
-        "Before the consonant, start with a bottom circle, then draw a tall, S-shaped line looping up and over to the right."
-      ],
-      "cultural_context": "Another leading vowel with a unique, flowing shape."
+      "pronunciation": {
+        "romanization": "o",
+        "english_guide": "A long 'o' sound, as in 'go'."
+      },
+      "writing_steps": "Start with a loop near the bottom, draw a tall line up, then curve it over to the right."
     },
     "ใ◌": {
-      "romanization": "ai",
-      "sound_description": "'ai' sound (like 'eye')",
+      "name": "sara ai mai muan",
       "position": "before",
-      "steps": [
-        "Before the consonant, start with a top circle, then draw a line down that curls inward to the left to form a loop."
-      ],
-      "cultural_context": "A special 'ai' vowel with a loop that turns inward (mai muuan - ใหม่)."
+      "pronunciation": {
+        "romanization": "ai",
+        "english_guide": "An 'ai' sound, as in 'eye'. Used in only 20 words."
+      },
+      "writing_steps": "Start with a loop at the top and draw a line that curls inward at the bottom."
     },
     "ไ◌": {
-      "romanization": "ai",
-      "sound_description": "'ai' sound (like 'eye')",
+      "name": "sara ai mai malai",
       "position": "before",
-      "steps": [
-        "Before the consonant, start with a top circle, then draw a line down that slants up and to the right, like a checkmark."
-      ],
-      "cultural_context": "The standard 'ai' vowel (mai malai), much more common than 'ใ' (mai muuan)."
+      "pronunciation": {
+        "romanization": "ai",
+        "english_guide": "An 'ai' sound, as in 'eye'. This is the common version."
+      },
+      "writing_steps": "Start with a loop at the top, draw a line down, then slant up to the right."
     },
     "◌ั": {
-      "romanization": "a",
-      "sound_description": "short 'a' sound (like 'cut')",
+      "name": "mai han akat",
       "position": "above",
-      "steps": [
-        "Above the consonant, draw a small curved line like a tiny 'c' facing right."
-      ],
-      "cultural_context": "Sara A - one of the most common vowel marks in Thai, placed above consonants.",
-      "positioning_rule": "Always written above the consonant it modifies"
+      "pronunciation": {
+        "romanization": "a",
+        "english_guide": "A short 'ah' sound, like the 'u' in 'cut'. This is the form '◌ะ' takes when a final consonant is added."
+      },
+      "writing_steps": "Above the consonant, draw a small, downward-facing arc."
     },
     "◌ำ": {
-      "romanization": "am",
-      "sound_description": "'am' sound (like 'some')",
+      "name": "sara am",
       "position": "after",
-      "steps": [
-        "After the consonant, draw a small circle above followed by a short curved line below, like a miniature 'o' with a tail."
-      ],
-      "cultural_context": "Sara Am - a special vowel that combines the sounds 'a' and 'm', very common in Thai.",
-      "positioning_rule": "Always written after the consonant it modifies"
+      "pronunciation": {
+        "romanization": "am",
+        "english_guide": "An 'am' sound, like in the word 'some'."
+      },
+      "writing_steps": "This character is a combination: draw a small loop above the consonant's final position, and a 'า' (sara aa) shape to its right."
+    },
+    "เ◌า": {
+      "name": "sara ao",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "ao",
+        "english_guide": "An 'ow' sound, as in 'cow'."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant and a 'า' shape after it."
+    },
+    "เ◌ะ": {
+      "name": "sara e short",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "e",
+        "english_guide": "A short 'e' sound, as in 'bet'."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant and a 'ะ' shape after it."
+    },
+    "แ◌ะ": {
+      "name": "sara ae short",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "ae",
+        "english_guide": "A short 'a' sound, as in 'cat'."
+      },
+      "writing_steps": "Write a 'แ' shape before the consonant and a 'ะ' shape after it."
+    },
+    "โ◌ะ": {
+      "name": "sara o short",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "o",
+        "english_guide": "A short 'o' sound, as in 'pot'."
+      },
+      "writing_steps": "Write a 'โ' shape before the consonant and a 'ะ' shape after it."
+    },
+    "เ◌อ": {
+      "name": "sara oe",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "oe",
+        "english_guide": "A neutral vowel sound, like the 'u' in 'fur'."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant and an 'อ' shape after it."
+    },
+    "เ◌อะ": {
+      "name": "sara oe short",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "oe",
+        "english_guide": "A short neutral vowel sound."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant and an 'อะ' shape after it."
+    },
+    "เ◌ีย": {
+      "name": "sara ia",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "ia",
+        "english_guide": "An 'ia' sound, as in 'maria'."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant, a 'ี' shape above it, and a 'ย' shape after it."
+    },
+    "เ◌ือ": {
+      "name": "sara uea",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "uea",
+        "english_guide": "A complex vowel sound unique to Thai."
+      },
+      "writing_steps": "Write a 'เ' shape before the consonant, a 'ื' shape above it, and an 'อ' shape after it."
+    },
+    "◌ัย": {
+      "name": "sara ai (with final y)",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "ai",
+        "english_guide": "An 'ai' sound, as in 'my'."
+      },
+      "writing_steps": "Write a 'ั' shape above the consonant and a 'ย' shape after it."
+    },
+    "◌ัว": {
+      "name": "sara ua",
+      "position": "surrounding",
+      "pronunciation": {
+        "romanization": "ua",
+        "english_guide": "A 'ua' sound, as in 'suave'."
+      },
+      "writing_steps": "Write a 'ั' shape above the consonant and a 'ว' shape after it."
     }
   },
   "tone_marks": {
     "่": {
-      "romanization": "low tone",
-      "sound_description": "makes low tone (voice goes down)",
-      "steps": [
-        "Above the consonant, draw a small diagonal line from top-left to bottom-right. Add this mark last."
-      ],
-      "cultural_context": "The 'mai ek' is one of the most common tone markers, used to create a low tone.",
-      "writing_order_rule": "Always write tone marks last - they go on top of everything."
+      "name": "Mai Ek",
+      "pronunciation_guide": "The first tone mark. It changes the natural tone of a syllable based on the consonant's class.",
+      "writing_steps": "Above the main consonant, draw a short vertical dash."
     },
     "้": {
-      "romanization": "falling tone",
-      "sound_description": "makes falling tone (voice falls down)",
-       "steps": [
-        "Above the consonant, draw a small, curved stroke that dips down and comes back up, like a tiny number '2'. Add this mark last."
-      ],
-      "cultural_context": "The 'mai tho' indicates a falling tone. Its shape is more complex than 'mai ek'.",
-      "writing_order_rule": "Always write tone marks last - they go on top of everything."
+      "name": "Mai Tho",
+      "pronunciation_guide": "The second tone mark. Its effect on tone depends on the consonant's class.",
+      "writing_steps": "Above the main consonant, draw a small hook that starts high, dips down, and curls up slightly to the right."
     },
     "๊": {
-      "romanization": "high tone",
-      "sound_description": "makes high tone (voice goes up)",
-      "steps": [
-        "Above the consonant, draw a small, circular loop that looks like a tiny number '9'. Add this mark last."
-      ],
-      "cultural_context": "The 'mai tri' indicates a high tone. It is less frequently used than the first two marks."
+      "name": "Mai Tri",
+      "pronunciation_guide": "The third tone mark. Primarily used with Mid-Class consonants to create a High tone.",
+      "writing_steps": "Above the main consonant, draw a small loop at the top, then a short line slanting down to the right."
     },
     "๋": {
-      "romanization": "rising tone",
-      "sound_description": "makes rising tone (voice rises up)",
-      "steps": [
-        "Above the consonant, draw a small mark that looks like a plus sign (+). Add this mark last."
-      ],
-      "cultural_context": "The 'mai jattawa' indicates a rising tone and is the rarest of the four tone marks."
+      "name": "Mai Jattawa",
+      "pronunciation_guide": "The fourth tone mark. Primarily used with Mid-Class consonants to create a Rising tone.",
+      "writing_steps": "Above the main consonant, draw a small mark like a plus sign (+)."
     }
   },
-  "component_colors": {
-    "consonants": "#4A90E2",
-    "vowels": "#7ED321", 
-    "tone_marks": "#F5A623",
-    "other_marks": "#9013FE"
-  },
-  "complex_vowels": {
-    "เ–ีย": {
-      "romanization": "ia",
-      "sound_description": "long 'ia' sound (like 'Mia')",
-      "components": [
-        {"part": "เ", "position": "before", "description": "leading vowel component"},
-        {"part": "ี", "position": "above", "description": "long i vowel mark"},
-        {"part": "ย", "position": "after", "description": "final y consonant component"}
-      ],
-      "writing_order": ["before", "consonant", "above", "after"],
-      "example": "เทียม (thiiam - to compare)",
-      "steps": [
-        "Write the leading vowel component on the left, then the consonant, then the vowel mark above, and finally the ending consonant component on the right."
-      ],
-      "thai_principle_application": "Follows all principles: left-to-right, consonant foundation, vowels after, smooth flow"
+  "other_marks": {
+    "ๆ": {
+      "name": "Mai Yamok",
+      "function": "Repetition Mark",
+      "pronunciation_guide": "This mark is not pronounced. It signals that the preceding word or phrase should be repeated.",
+      "writing_steps": "To the right of the word to be repeated, draw a small character that loops at the top and has a short tail pointing down."
     },
-    "เ–ือ": {
-      "romanization": "ue",
-      "sound_description": "long 'ue' sound",
-      "components": [
-        {"part": "เ", "position": "before", "description": "leading vowel component"},
-        {"part": "ื", "position": "above", "description": "ue vowel mark"},
-        {"part": "อ", "position": "after", "description": "final o component"}
-      ],
-      "writing_order": ["before", "consonant", "above", "after"],
-      "example": "เคือง (khʉʉang - to be annoyed)",
-       "steps": [
-        "Write the leading vowel component on the left, then the consonant, then the vowel mark above, and finally the ending vowel component on the right."
-      ]
-    },
-    "–ไ": {
-      "romanization": "ai",
-      "sound_description": "'ai' sound (like 'eye')",
-      "components": [
-        {"part": "ไ", "position": "before", "description": "leading ai vowel"}
-      ],
-      "writing_order": ["before", "consonant"],
-      "example": "ไก่ (gài - chicken)",
-      "steps": [
-        "Start with a small circle at the top, draw a line down and then slant it up to the right, like a checkmark. Then, write the consonant to its right."
-      ]
+    "์": {
+      "name": "Thanthakhat",
+      "function": "Silencing Mark",
+      "pronunciation_guide": "This mark is not pronounced. It silences the consonant it is placed above, and often any vowel attached to that consonant.",
+      "writing_steps": "Above the consonant to be silenced, draw a small downward arc, then add a second curve above it that loops back to the right."
     }
-  },
-  "consonant_clusters": {
-    "กร": {
-      "sound": "kr",
-      "romanization": "gr",
-      "components": ["ก", "ร"],
-      "steps": ["Write the first consonant, then write the second consonant immediately after it."],
-      "example": "กระ (gra)",
-      "sound_change": "ก (gɔɔ) retains k sound, ร (rɔɔ) makes r sound as cluster"
-    },
-    "ปร": {
-      "sound": "pr", 
-      "romanization": "pr",
-      "components": ["ป", "ร"],
-      "steps": ["Write the first consonant, then write the second consonant closely following it."],
-      "example": "ปรุง (prung)",
-      "sound_change": "ป (pɔɔ) retains p sound, ร (rɔɔ) makes r sound as cluster"
-    },
-    "ทร": {
-      "sound": "s",
-      "romanization": "s", 
-      "components": ["ท", "ร"],
-      "steps": ["Write the first consonant, then write the second. Together, they create a new sound."],
-      "example": "ทราย (saai)",
-      "sound_change": "ทร (thɔɔ and rɔɔ) transforms to 's' sound, not 't' + 'r'"
-    }
-  },
-  "tone_rules": {
-    "mid_class_dead_syllable": {
-      "result": "low_tone",
-      "explanation": "Mid Class Consonant + Dead Syllable = Low Tone",
-      "example": "กะ (ga - low tone)"
-    },
-    "mid_class_live_syllable": {
-      "result": "mid_tone", 
-      "explanation": "Mid Class Consonant + Live Syllable = Mid Tone",
-      "example": "กา (gaa - mid tone)"
-    },
-    "low_class_dead_syllable": {
-      "result": "high_tone",
-      "explanation": "Low Class Consonant + Dead Syllable = High Tone", 
-      "example": "คะ (kha - high tone)"
-    },
-    "low_class_live_syllable": {
-      "result": "mid_tone",
-      "explanation": "Low Class Consonant + Live Syllable = Mid Tone",
-      "example": "คา (khaa - mid tone)"
-    },
-    "high_class_dead_syllable": {
-      "result": "low_tone",
-      "explanation": "High Class Consonant + Dead Syllable = Low Tone",
-      "example": "ขะ (kha - low tone)"
-    },
-    "high_class_live_syllable": {
-      "result": "rising_tone",
-      "explanation": "High Class Consonant + Live Syllable = Rising Tone", 
-      "example": "ขา (khǎa - rising tone)"
-    }
-  },
-  "syllable_types": {
-    "dead_syllable": {
-      "definition": "Short vowel with no final consonant OR ends in stop consonant (ก, จ, ด, ต, บ, ป)",
-      "examples": ["กะ (ga)", "กก (gòk)", "กจ (gòt)", "กด (gòt)", "กต (gàt)", "กบ (gòp)", "กป (gàp)"],
-      "characteristics": "Abrupt ending sound"
-    },
-    "live_syllable": {
-      "definition": "Long vowel OR ends in sonorant consonant (ง, น, ม, ย, ร, ล, ว)",
-      "examples": ["กา (gaa)", "กง (gong)", "กน (gon)", "กม (gom)", "กย (gai)", "กร (gon)", "กล (gon)", "กว (guua)"], 
-      "characteristics": "Sustained or flowing ending sound"
-    }
-  },
-  "consonant_classes": {
-    "mid_class": {
-      "consonants": ["ก", "จ", "ฎ", "ฏ", "ด", "ต", "บ", "ป", "อ"],
-      "tone_behavior": "Natural tone reference point",
-      "examples": ["ก (gɔɔ gài)", "ด (dɔɔ dèk)", "บ (bɔɔ bai máai)"]
-    },
-    "high_class": {
-      "consonants": ["ข", "ฃ", "ฉ", "ฐ", "ถ", "ผ", "ฝ", "ศ", "ษ", "ส", "ห"],
-      "tone_behavior": "Raises tone in live syllables",
-      "examples": ["ข (khɔ̌ɔ khài)", "ส (sɔ̌ɔ sʉ̌ʉa)", "ห (hɔ̌ɔ hìip)"]
-    },
-    "low_class": {
-      "consonants": ["ค", "ฆ", "ง", "ช", "ซ", "ฌ", "ญ", "ฑ", "ฒ", "ณ", "น", "พ", "ฟ", "ภ", "ม", "ย", "ร", "ล", "ว", "ฬ", "ฮ"],
-      "tone_behavior": "Lowers tone in dead syllables", 
-      "examples": ["ค (khɔɔ khwaai)", "น (nɔɔ nǔu)", "ม (mɔɔ máa)"]
-    }
-  },
-  "learning_progression": {
-    "level_1_characters": ["ก", "ข", "ง", "น", "บ", "ม", "ร", "ว", "อ"],
-    "level_2_characters": ["ค", "จ", "ช", "ป", "ย", "ล", "ส", "ห"],
-    "level_3_characters": ["ฆ", "ฉ", "ซ", "ฌ", "ญ", "ฎ", "ฏ", "ฐ", "ฑ", "ฒ", "ณ", "ถ", "ท", "ธ", "ผ", "ฝ", "พ", "ฟ", "ภ", "ศ", "ษ", "ฬ", "ฮ"]
   }
 }

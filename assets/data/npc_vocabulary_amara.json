@@ -18,6 +18,13 @@
                     "translation": "chicken"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ไก่",
+                    "transliteration": "gài",
+                    "translation": "chicken"
+                }
+            ],
             "category": "Proteins",
             "details": "A ubiquitous protein in Thai cuisine, found in everything from street food skewers to curries and stir-fries.",
             "formal": "",
@@ -32,7 +39,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "หมู",
-                    "transliteration": "mu",
+                    "transliteration": "mŏo",
                     "translation": "pork; pig"
                 }
             ],
@@ -41,6 +48,13 @@
                     "thai": "หมู",
                     "transliteration": "mŏo",
                     "translation": "pork; pig"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "mŏo",
+                    "translation": "pork"
                 }
             ],
             "category": "Proteins",
@@ -53,28 +67,40 @@
         {
             "english": "Crispy Pork",
             "thai": "หมูกรอบ",
-            "transliteration": "moo krop",
+            "transliteration": "mŏo gròp",
             "azure_pron_mapping": [
                 {
                     "thai": "หมู",
-                    "transliteration": "moo",
+                    "transliteration": "mŏo",
                     "translation": "pork; pig"
                 },
                 {
                     "thai": "กรอบ",
-                    "transliteration": "krop",
+                    "transliteration": "gròp",
                     "translation": "crispy"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "หมู",
-                    "transliteration": "moo",
+                    "transliteration": "mŏo",
                     "translation": "pork; pig"
                 },
                 {
                     "thai": "กรอบ",
-                    "transliteration": "krop",
+                    "transliteration": "gròp",
+                    "translation": "crispy"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "หมู",
+                    "transliteration": "mŏo",
+                    "translation": "pork"
+                },
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "gròp",
                     "translation": "crispy"
                 }
             ],
@@ -92,7 +118,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เนื้อ",
-                    "transliteration": "nûea",
+                    "transliteration": "néua",
                     "translation": "meat"
                 }
             ],
@@ -101,6 +127,13 @@
                     "thai": "เนื้อ",
                     "transliteration": "néua",
                     "translation": "meat; flesh"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เนื้อ",
+                    "transliteration": "néua",
+                    "translation": "meat"
                 }
             ],
             "category": "Proteins",
@@ -128,9 +161,18 @@
                     "translation": "duck"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "เป็ด",
+                    "transliteration": "bpèt",
+                    "translation": "duck"
+                }
+            ],
             "category": "Proteins",
             "details": "Often roasted, called เป็ดย่าง (bpèt yâang), or served in noodle soups.",
-            "formal": ""
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/duck.wav",
+            "audio_generated": true
         },
         {
             "english": "Shrimp / Prawns",
@@ -150,6 +192,13 @@
                     "translation": "shrimp; prawn"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "กุ้ง",
+                    "transliteration": "gûng",
+                    "translation": "shrimp"
+                }
+            ],
             "category": "Proteins",
             "details": "A very popular seafood choice, central to dishes like Tom Yum Goong (ต้มยำกุ้ง).",
             "formal": ""
@@ -161,11 +210,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ปลา",
-                    "transliteration": "plaa",
+                    "transliteration": "bplaa",
                     "translation": "fish"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ปลา",
+                    "transliteration": "bplaa",
+                    "translation": "fish"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ปลา",
                     "transliteration": "bplaa",
@@ -186,7 +242,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "หมึก",
-                    "transliteration": "muěk",
+                    "transliteration": "mèuk",
                     "translation": "ink; squid; cuttlefish"
                 }
             ],
@@ -195,6 +251,13 @@
                     "thai": "หมึก",
                     "transliteration": "mèuk",
                     "translation": "squid; cuttlefish; ink"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "หมึก",
+                    "transliteration": "mèuk",
+                    "translation": "squid"
                 }
             ],
             "category": "Proteins",
@@ -211,11 +274,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ปู",
-                    "transliteration": "pu",
+                    "transliteration": "bpoo",
                     "translation": "crab"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ปู",
+                    "transliteration": "bpoo",
+                    "translation": "crab"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ปู",
                     "transliteration": "bpoo",
@@ -236,11 +306,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ไข่",
-                    "transliteration": "khài",
+                    "transliteration": "kài",
                     "translation": "egg"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ไข่",
+                    "transliteration": "kài",
+                    "translation": "egg"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ไข่",
                     "transliteration": "kài",
@@ -261,12 +338,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เต้า",
-                    "transliteration": "tao",
+                    "transliteration": "dtâo",
                     "translation": "bean curd (prefix); block"
                 },
                 {
                     "thai": "หู้",
-                    "transliteration": "hu",
+                    "transliteration": "hûu",
                     "translation": "bean curd; tofu (as in เต้าหู้)"
                 }
             ],
@@ -275,6 +352,18 @@
                     "thai": "เต้าหู้",
                     "transliteration": "dtâo-hûu",
                     "translation": "tofu"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เต้า",
+                    "transliteration": "dtâo",
+                    "translation": "bean (prefix)"
+                },
+                {
+                    "thai": "หู้",
+                    "transliteration": "hûu",
+                    "translation": "curd (part of tofu)"
                 }
             ],
             "category": "Proteins",
@@ -287,16 +376,16 @@
         {
             "english": "Morning Glory",
             "thai": "ผักบุ้ง",
-            "transliteration": "pàk bûng",
+            "transliteration": "pàk-bûng",
             "azure_pron_mapping": [
                 {
                     "thai": "ผัก",
-                    "transliteration": "phak",
+                    "transliteration": "pàk",
                     "translation": "vegetable"
                 },
                 {
                     "thai": "บุ้ง",
-                    "transliteration": "bung",
+                    "transliteration": "bûng",
                     "translation": "water spinach (as in ผักบุ้ง)"
                 }
             ],
@@ -312,8 +401,20 @@
                     "translation": "morning glory (plant)"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "pàk",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "บุ้ง",
+                    "transliteration": "bûng",
+                    "translation": "morning glory"
+                }
+            ],
             "category": "Vegetables",
-            "details": "A popular leafy green, famously stir-fried as ผัดผักบุ้งไฟแดง (pàt pàk bûng fai daeng).",
+            "details": "A popular leafy green, famously stir-fried as ผัดผักบุ้งไฟแดง (pàt pàk-bûng fai daeng).",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/morning_glory.wav",
             "audio_generated": true,
@@ -326,7 +427,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "คะน้า",
-                    "transliteration": "khana",
+                    "transliteration": "ká-náa",
                     "translation": "Chinese broccoli; kale"
                 }
             ],
@@ -335,6 +436,18 @@
                     "thai": "คะน้า",
                     "transliteration": "ká-náa",
                     "translation": "Chinese broccoli; kale"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "คะ",
+                    "transliteration": "ká",
+                    "translation": "(part of 'broccoli')"
+                },
+                {
+                    "thai": "น้า",
+                    "transliteration": "náa",
+                    "translation": "(part of 'broccoli')"
                 }
             ],
             "category": "Vegetables",
@@ -351,12 +464,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กะ",
-                    "transliteration": "ka",
+                    "transliteration": "gà",
                     "translation": "a prefix; approximately"
                 },
                 {
                     "thai": "หล่ำ",
-                    "transliteration": "lam",
+                    "transliteration": "làm",
                     "translation": "stout; plump"
                 }
             ],
@@ -365,6 +478,18 @@
                     "thai": "กะหล่ำ",
                     "transliteration": "gà-làm",
                     "translation": "cabbage"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "กะ",
+                    "transliteration": "gà",
+                    "translation": "(syllable prefix)"
+                },
+                {
+                    "thai": "หล่ำ",
+                    "transliteration": "làm",
+                    "translation": "(part of 'cabbage')"
                 }
             ],
             "category": "Vegetables",
@@ -381,17 +506,17 @@
             "azure_pron_mapping": [
                 {
                     "thai": "มะ",
-                    "transliteration": "ma",
+                    "transliteration": "má",
                     "translation": "prefix for fruits (e.g., mango, lime)"
                 },
                 {
                     "thai": "ละ",
-                    "transliteration": "la",
+                    "transliteration": "lá",
                     "translation": "each; every; per"
                 },
                 {
                     "thai": "กอ",
-                    "transliteration": "ko",
+                    "transliteration": "gɔɔ",
                     "translation": "clump; bush"
                 }
             ],
@@ -400,6 +525,23 @@
                     "thai": "มะละกอ",
                     "transliteration": "má-lá-gɔɔ",
                     "translation": "papaya"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "มะ",
+                    "transliteration": "má",
+                    "translation": "fruit prefix"
+                },
+                {
+                    "thai": "ละ",
+                    "transliteration": "lá",
+                    "translation": "(part of 'papaya')"
+                },
+                {
+                    "thai": "กอ",
+                    "transliteration": "gɔɔ",
+                    "translation": "(part of 'papaya')"
                 }
             ],
             "category": "Vegetables",
@@ -416,7 +558,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "หน่อไม้",
-                    "transliteration": "no mai",
+                    "transliteration": "nòr-máai",
                     "translation": "bamboo shoot"
                 }
             ],
@@ -430,6 +572,18 @@
                     "thai": "ไม้",
                     "transliteration": "máai",
                     "translation": "wood; plant"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "หน่อ",
+                    "transliteration": "nòr",
+                    "translation": "shoot"
+                },
+                {
+                    "thai": "ไม้",
+                    "transliteration": "máai",
+                    "translation": "plant"
                 }
             ],
             "category": "Vegetables",
@@ -446,12 +600,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ถั่ว",
-                    "transliteration": "thua",
+                    "transliteration": "tùa",
                     "translation": "bean; peanut"
                 },
                 {
                     "thai": "งอก",
-                    "transliteration": "ngok",
+                    "transliteration": "ngôk",
                     "translation": "to sprout; sprout"
                 }
             ],
@@ -465,6 +619,18 @@
                     "thai": "งอก",
                     "transliteration": "ngôk",
                     "translation": "to sprout"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "tùa",
+                    "translation": "bean"
+                },
+                {
+                    "thai": "งอก",
+                    "transliteration": "ngôk",
+                    "translation": "sprout"
                 }
             ],
             "category": "Vegetables",
@@ -481,7 +647,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ตะไคร้",
-                    "transliteration": "takhrai",
+                    "transliteration": "dtà-krái",
                     "translation": "lemongrass"
                 }
             ],
@@ -490,6 +656,18 @@
                     "thai": "ตะไคร้",
                     "transliteration": "dtà-krái",
                     "translation": "lemongrass"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ตะ",
+                    "transliteration": "dtà",
+                    "translation": "(part of 'lemongrass')"
+                },
+                {
+                    "thai": "ไคร้",
+                    "transliteration": "krái",
+                    "translation": "(part of 'lemongrass')"
                 }
             ],
             "category": "Aromatics",
@@ -506,11 +684,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ข่า",
-                    "transliteration": "kha",
+                    "transliteration": "kàa",
                     "translation": "galangal"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ข่า",
+                    "transliteration": "kàa",
+                    "translation": "galangal"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ข่า",
                     "transliteration": "kàa",
@@ -531,11 +716,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ขิง",
-                    "transliteration": "khing",
+                    "transliteration": "kĭng",
                     "translation": "ginger"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "ขิง",
+                    "transliteration": "kĭng",
+                    "translation": "ginger"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "ขิง",
                     "transliteration": "kĭng",
@@ -561,12 +753,12 @@
                 },
                 {
                     "thai": "มะ",
-                    "transliteration": "ma",
+                    "transliteration": "má",
                     "translation": "prefix for fruits (e.g., mango, lime)"
                 },
                 {
                     "thai": "กรูด",
-                    "transliteration": "krut",
+                    "transliteration": "gròot",
                     "translation": "kaffir lime (as in มะกรูด)"
                 }
             ],
@@ -580,6 +772,23 @@
                     "thai": "มะกรูด",
                     "transliteration": "má-gròot",
                     "translation": "makrut lime"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ใบ",
+                    "transliteration": "bai",
+                    "translation": "leaf"
+                },
+                {
+                    "thai": "มะ",
+                    "transliteration": "má",
+                    "translation": "fruit prefix"
+                },
+                {
+                    "thai": "กรูด",
+                    "transliteration": "gròot",
+                    "translation": "lime (part of 'makrut')"
                 }
             ],
             "category": "Aromatics",
@@ -607,9 +816,18 @@
                     "translation": "chili"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                }
+            ],
             "category": "Aromatics",
             "details": "The foundation of spiciness in Thai cuisine, used fresh and dried. A common small but very spicy variety is called พริกขี้หนู (prík kee noo).",
-            "formal": ""
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/chili.wav",
+            "audio_generated": true
         },
         {
             "english": "Garlic",
@@ -618,7 +836,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กระเทียม",
-                    "transliteration": "krathiam",
+                    "transliteration": "grà-tiam",
                     "translation": "garlic"
                 }
             ],
@@ -627,6 +845,18 @@
                     "thai": "กระเทียม",
                     "transliteration": "grà-tiam",
                     "translation": "garlic"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "กระ",
+                    "transliteration": "grà",
+                    "translation": "(syllable prefix)"
+                },
+                {
+                    "thai": "เทียม",
+                    "transliteration": "tiam",
+                    "translation": "(part of 'garlic')"
                 }
             ],
             "category": "Aromatics",
@@ -639,11 +869,11 @@
         {
             "english": "Shallots",
             "thai": "หอมแดง",
-            "transliteration": "hŏm daeng",
+            "transliteration": "hŏm-daeng",
             "azure_pron_mapping": [
                 {
                     "thai": "หอม",
-                    "transliteration": "hom",
+                    "transliteration": "hŏm",
                     "translation": "shallot / onion; fragrant"
                 },
                 {
@@ -657,6 +887,18 @@
                     "thai": "หอม",
                     "transliteration": "hŏm",
                     "translation": "onion; shallot; fragrant"
+                },
+                {
+                    "thai": "แดง",
+                    "transliteration": "daeng",
+                    "translation": "red"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hŏm",
+                    "translation": "fragrant"
                 },
                 {
                     "thai": "แดง",
@@ -678,7 +920,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กะเพรา",
-                    "transliteration": "kaphao",
+                    "transliteration": "gà-prao",
                     "translation": "holy basil"
                 }
             ],
@@ -687,6 +929,18 @@
                     "thai": "กะเพรา",
                     "transliteration": "gà-prao",
                     "translation": "holy basil"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "กะ",
+                    "transliteration": "gà",
+                    "translation": "(syllable prefix)"
+                },
+                {
+                    "thai": "เพรา",
+                    "transliteration": "prao",
+                    "translation": "(part of 'basil')"
                 }
             ],
             "category": "Aromatics",
@@ -699,19 +953,36 @@
         {
             "english": "Sweet Basil",
             "thai": "โหระพา",
-            "transliteration": "hŏrápáa",
+            "transliteration": "hŏ-rá-paa",
             "azure_pron_mapping": [
                 {
                     "thai": "โหระพา",
-                    "transliteration": "horapha",
+                    "transliteration": "hŏ-rá-paa",
                     "translation": "sweet basil"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "โหระพา",
-                    "transliteration": "hŏrápáa",
+                    "transliteration": "hŏ-rá-paa",
                     "translation": "sweet basil"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "โห",
+                    "transliteration": "hŏ",
+                    "translation": "(part of 'basil')"
+                },
+                {
+                    "thai": "ระ",
+                    "transliteration": "rá",
+                    "translation": "(part of 'basil')"
+                },
+                {
+                    "thai": "พา",
+                    "transliteration": "paa",
+                    "translation": "(part of 'basil')"
                 }
             ],
             "category": "Aromatics",
@@ -724,16 +995,16 @@
         {
             "english": "Coriander/Cilantro Root",
             "thai": "รากผักชี",
-            "transliteration": "râak pàk chee",
+            "transliteration": "râak pàk-chee",
             "azure_pron_mapping": [
                 {
                     "thai": "ราก",
-                    "transliteration": "rak",
+                    "transliteration": "râak",
                     "translation": "root"
                 },
                 {
                     "thai": "ผักชี",
-                    "transliteration": "phak chi",
+                    "transliteration": "pàk-chee",
                     "translation": "coriander"
                 }
             ],
@@ -745,8 +1016,25 @@
                 },
                 {
                     "thai": "ผักชี",
-                    "transliteration": "pàk chee",
+                    "transliteration": "pàk-chee",
                     "translation": "coriander; cilantro"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ราก",
+                    "transliteration": "râak",
+                    "translation": "root"
+                },
+                {
+                    "thai": "ผัก",
+                    "transliteration": "pàk",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "ชี",
+                    "transliteration": "chee",
+                    "translation": "coriander (identifier)"
                 }
             ],
             "category": "Aromatics",
@@ -763,7 +1051,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ขมิ้น",
-                    "transliteration": "khamin",
+                    "transliteration": "kà-mîn",
                     "translation": "turmeric"
                 }
             ],
@@ -772,6 +1060,18 @@
                     "thai": "ขมิ้น",
                     "transliteration": "kà-mîn",
                     "translation": "turmeric"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ข",
+                    "transliteration": "kà",
+                    "translation": "(part of 'turmeric')"
+                },
+                {
+                    "thai": "มิ้น",
+                    "transliteration": "mîn",
+                    "translation": "(part of 'turmeric')"
                 }
             ],
             "category": "Aromatics",
@@ -784,11 +1084,11 @@
         {
             "english": "Fish Sauce",
             "thai": "น้ำปลา",
-            "transliteration": "nám bplaa",
+            "transliteration": "nám-bplaa",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำปลา",
-                    "transliteration": "nam pla",
+                    "transliteration": "nám-bplaa",
                     "translation": "fish sauce"
                 }
             ],
@@ -804,8 +1104,20 @@
                     "translation": "fish"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "water"
+                },
+                {
+                    "thai": "ปลา",
+                    "transliteration": "bplaa",
+                    "translation": "fish"
+                }
+            ],
             "category": "Sauces/Flavors",
-            "details": "The primary source of saltiness in Thai cuisine, used in countless dishes. A popular chili dipping sauce made with it is พริกน้ำปลา (prík nám bplaa).",
+            "details": "The primary source of saltiness in Thai cuisine, used in countless dishes. A popular chili dipping sauce made with it is พริกน้ำปลา (prík nám-bplaa).",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/fish_sauce.wav",
             "audio_generated": true,
@@ -814,29 +1126,46 @@
         {
             "english": "Oyster Sauce",
             "thai": "น้ำมันหอย",
-            "transliteration": "nám man hŏi",
+            "transliteration": "nám-man hŏi",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำมัน",
-                    "transliteration": "nam man",
+                    "transliteration": "nám-man",
                     "translation": "oil"
                 },
                 {
                     "thai": "หอย",
-                    "transliteration": "hoi",
+                    "transliteration": "hŏi",
                     "translation": "shellfish"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "น้ำมัน",
-                    "transliteration": "nám man",
+                    "transliteration": "nám-man",
                     "translation": "oil"
                 },
                 {
                     "thai": "หอย",
                     "transliteration": "hŏi",
                     "translation": "shellfish; oyster"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "liquid"
+                },
+                {
+                    "thai": "มัน",
+                    "transliteration": "man",
+                    "translation": "oil"
+                },
+                {
+                    "thai": "หอย",
+                    "transliteration": "hŏi",
+                    "translation": "oyster"
                 }
             ],
             "category": "Sauces/Flavors",
@@ -849,35 +1178,44 @@
         {
             "english": "Soy Sauce",
             "thai": "ซีอิ๊ว",
-            "transliteration": "see éw",
+            "transliteration": "see-éw",
             "azure_pron_mapping": [
                 {
                     "thai": "ซีอิ๊ว",
-                    "transliteration": "see éw",
+                    "transliteration": "see-éw",
                     "translation": "soy sauce"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "ซีอิ๊ว",
-                    "transliteration": "see éw",
+                    "transliteration": "see-éw",
                     "translation": "soy sauce"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ซี",
+                    "transliteration": "see",
+                    "translation": "(part of 'soy sauce')"
+                },
+                {
+                    "thai": "อิ๊ว",
+                    "transliteration": "éw",
+                    "translation": "(part of 'soy sauce')"
+                }
+            ],
             "category": "Sauces/Flavors",
-            "details": "A loanword from Teochew Chinese. Comes in a light, salty version called ซีอิ๊วขาว (see éw kăao), 'white soy sauce', and a dark, sweet version called ซีอิ๊วดำ (see éw dam), 'black soy sauce'.",
-            "formal": ""
+            "details": "A loanword from Teochew Chinese. Comes in a light, salty version called ซีอิ๊วขาว (see-éw kăao), 'white soy sauce', and a dark, sweet version called ซีอิ๊วดำ (see-éw dam), 'black soy sauce'.",
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/soy_sauce.wav",
+            "audio_generated": true
         },
         {
             "english": "Fermented Soybean Paste",
             "thai": "เต้าเจี้ยว",
             "transliteration": "dtâo-jîao",
             "azure_pron_mapping": [
-                {
-                    "thai": "เต้า",
-                    "transliteration": "dtâo",
-                    "translation": "bean (in compounds); breast"
-                },
                 {
                     "thai": "เต้า",
                     "transliteration": "dtâo",
@@ -899,6 +1237,18 @@
                     "thai": "เจี้ยว",
                     "transliteration": "jîao",
                     "translation": "paste; sauce"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เต้า",
+                    "transliteration": "dtâo",
+                    "translation": "bean (prefix)"
+                },
+                {
+                    "thai": "เจี้ยว",
+                    "transliteration": "jîao",
+                    "translation": "paste"
                 }
             ],
             "category": "Sauces/Flavors",
@@ -926,9 +1276,23 @@
                     "translation": "coconut milk"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "กะ",
+                    "transliteration": "gà",
+                    "translation": "(syllable prefix)"
+                },
+                {
+                    "thai": "ทิ",
+                    "transliteration": "tí",
+                    "translation": "(part of 'coconut milk')"
+                }
+            ],
             "category": "Sauces/Flavors",
             "details": "The creamy base for most Thai curries and many desserts.",
-            "formal": ""
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/coconut_milk.wav",
+            "audio_generated": true
         },
         {
             "english": "Palm Sugar",
@@ -937,12 +1301,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำตาล",
-                    "transliteration": "nam tan",
+                    "transliteration": "nám-dtaan",
                     "translation": "sugar"
                 },
                 {
                     "thai": "ปี๊บ",
-                    "transliteration": "pip",
+                    "transliteration": "bpíip",
                     "translation": "tin can; container"
                 }
             ],
@@ -951,6 +1315,23 @@
                     "thai": "น้ำตาล",
                     "transliteration": "nám-dtaan",
                     "translation": "sugar"
+                },
+                {
+                    "thai": "ปี๊บ",
+                    "transliteration": "bpíip",
+                    "translation": "tin can"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "liquid"
+                },
+                {
+                    "thai": "ตาล",
+                    "transliteration": "dtaan",
+                    "translation": "palm tree"
                 },
                 {
                     "thai": "ปี๊บ",
@@ -972,12 +1353,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำมะ",
-                    "transliteration": "nam ma",
+                    "transliteration": "nám má",
                     "translation": "juice of / water of (prefix for fruits)"
                 },
                 {
                     "thai": "ขาม",
-                    "transliteration": "kham",
+                    "transliteration": "kăam",
                     "translation": "tamarind (as in มะขาม)"
                 }
             ],
@@ -990,6 +1371,23 @@
                 {
                     "thai": "มะขาม",
                     "transliteration": "má-kăam",
+                    "translation": "tamarind"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "juice"
+                },
+                {
+                    "thai": "มะ",
+                    "transliteration": "má",
+                    "translation": "fruit prefix"
+                },
+                {
+                    "thai": "ขาม",
+                    "transliteration": "kăam",
                     "translation": "tamarind"
                 }
             ],
@@ -1007,11 +1405,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "หวาน",
-                    "transliteration": "wǎan",
+                    "transliteration": "wăan",
                     "translation": "sweet"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "หวาน",
+                    "transliteration": "wăan",
+                    "translation": "sweet"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "หวาน",
                     "transliteration": "wăan",
@@ -1028,18 +1433,25 @@
         {
             "english": "Sour",
             "thai": "เปรี้ยว",
-            "transliteration": "bprîeow",
+            "transliteration": "bprîao",
             "azure_pron_mapping": [
                 {
                     "thai": "เปรี้ยว",
-                    "transliteration": "prîao",
+                    "transliteration": "bprîao",
                     "translation": "sour"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "เปรี้ยว",
-                    "transliteration": "bprîeow",
+                    "transliteration": "bprîao",
+                    "translation": "sour"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "เปรี้ยว",
+                    "transliteration": "bprîao",
                     "translation": "sour"
                 }
             ],
@@ -1057,11 +1469,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เค็ม",
-                    "transliteration": "khem",
+                    "transliteration": "kem",
                     "translation": "salty"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "เค็ม",
+                    "transliteration": "kem",
+                    "translation": "salty"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "เค็ม",
                     "transliteration": "kem",
@@ -1082,11 +1501,18 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เผ็ด",
-                    "transliteration": "phèt",
+                    "transliteration": "pèt",
                     "translation": "spicy"
                 }
             ],
             "word_mapping": [
+                {
+                    "thai": "เผ็ด",
+                    "transliteration": "pèt",
+                    "translation": "spicy"
+                }
+            ],
+            "syllable_mapping": [
                 {
                     "thai": "เผ็ด",
                     "transliteration": "pèt",
@@ -1103,16 +1529,16 @@
         {
             "english": "Dipping Sauce",
             "thai": "น้ำจิ้ม",
-            "transliteration": "nám jím",
+            "transliteration": "nám-jîm",
             "azure_pron_mapping": [
                 {
                     "thai": "น้ำ",
-                    "transliteration": "nam",
+                    "transliteration": "nám",
                     "translation": "water; liquid; juice"
                 },
                 {
                     "thai": "จิ้ม",
-                    "transliteration": "chim",
+                    "transliteration": "jîm",
                     "translation": "to dip; dipping sauce"
                 }
             ],
@@ -1124,8 +1550,20 @@
                 },
                 {
                     "thai": "จิ้ม",
-                    "transliteration": "jím",
+                    "transliteration": "jîm",
                     "translation": "to dip"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "น้ำ",
+                    "transliteration": "nám",
+                    "translation": "sauce"
+                },
+                {
+                    "thai": "จิ้ม",
+                    "transliteration": "jîm",
+                    "translation": "dip"
                 }
             ],
             "category": "Sauces/Flavors",
@@ -1153,6 +1591,13 @@
                     "translation": "crispy"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "กรอบ",
+                    "transliteration": "gròp",
+                    "translation": "crispy"
+                }
+            ],
             "category": "Textures/Garnishes",
             "details": "A desirable texture in many fried dishes and some salads.",
             "formal": ""
@@ -1164,12 +1609,12 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กระเทียม",
-                    "transliteration": "krathiam",
+                    "transliteration": "grà-tiam",
                     "translation": "garlic"
                 },
                 {
                     "thai": "เจียว",
-                    "transliteration": "chiao",
+                    "transliteration": "jieow",
                     "translation": "to fry (in oil); fried"
                 }
             ],
@@ -1185,6 +1630,23 @@
                     "translation": "to deep-fry (until crispy)"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "กระ",
+                    "transliteration": "grà",
+                    "translation": "(syllable prefix)"
+                },
+                {
+                    "thai": "เทียม",
+                    "transliteration": "tiam",
+                    "translation": "(part of 'garlic')"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "jieow",
+                    "translation": "fried"
+                }
+            ],
             "category": "Textures/Garnishes",
             "details": "A common garnish that adds a crunchy, savory flavor.",
             "formal": "",
@@ -1195,16 +1657,16 @@
         {
             "english": "Fried Shallots",
             "thai": "หอมเจียว",
-            "transliteration": "hŏm jieow",
+            "transliteration": "hŏm-jieow",
             "azure_pron_mapping": [
                 {
                     "thai": "หอม",
-                    "transliteration": "hom",
+                    "transliteration": "hŏm",
                     "translation": "shallot / onion; fragrant"
                 },
                 {
                     "thai": "เจียว",
-                    "transliteration": "chiao",
+                    "transliteration": "jieow",
                     "translation": "to fry (in oil); fried"
                 }
             ],
@@ -1220,6 +1682,18 @@
                     "translation": "to deep-fry (until crispy)"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "หอม",
+                    "transliteration": "hŏm",
+                    "translation": "shallot"
+                },
+                {
+                    "thai": "เจียว",
+                    "transliteration": "jieow",
+                    "translation": "fried"
+                }
+            ],
             "category": "Textures/Garnishes",
             "details": "Another popular crispy garnish, adding a sweet and savory crunch.",
             "formal": "",
@@ -1230,19 +1704,31 @@
         {
             "english": "Cilantro/Coriander Leaves",
             "thai": "ผักชี",
-            "transliteration": "pàk chee",
+            "transliteration": "pàk-chee",
             "azure_pron_mapping": [
                 {
                     "thai": "ผักชี",
-                    "transliteration": "phak chi",
+                    "transliteration": "pàk-chee",
                     "translation": "coriander"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "ผักชี",
-                    "transliteration": "pàk chee",
+                    "transliteration": "pàk-chee",
                     "translation": "coriander; cilantro"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "pàk",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "ชี",
+                    "transliteration": "chee",
+                    "translation": "coriander (identifier)"
                 }
             ],
             "category": "Textures/Garnishes",
@@ -1255,34 +1741,51 @@
         {
             "english": "Culantro / Sawtooth Coriander",
             "thai": "ผักชีฝรั่ง",
-            "transliteration": "pàk chee fà-ràng",
+            "transliteration": "pàk-chee fà-ràng",
             "azure_pron_mapping": [
                 {
                     "thai": "ผัก",
-                    "transliteration": "phak",
+                    "transliteration": "pàk",
                     "translation": "vegetable"
                 },
                 {
                     "thai": "ชี",
-                    "transliteration": "chi",
+                    "transliteration": "chee",
                     "translation": "coriander (as in ผักชี)"
                 },
                 {
                     "thai": "ฝรั่ง",
-                    "transliteration": "farang",
+                    "transliteration": "fà-ràng",
                     "translation": "guava; Westerner"
                 }
             ],
             "word_mapping": [
                 {
                     "thai": "ผักชี",
-                    "transliteration": "pàk chee",
+                    "transliteration": "pàk-chee",
                     "translation": "coriander; cilantro"
                 },
                 {
                     "thai": "ฝรั่ง",
                     "transliteration": "fà-ràng",
                     "translation": "foreign; Western"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "ผัก",
+                    "transliteration": "pàk",
+                    "translation": "vegetable"
+                },
+                {
+                    "thai": "ชี",
+                    "transliteration": "chee",
+                    "translation": "coriander (identifier)"
+                },
+                {
+                    "thai": "ฝรั่ง",
+                    "transliteration": "fà-ràng",
+                    "translation": "foreign"
                 }
             ],
             "category": "Textures/Garnishes",
@@ -1295,16 +1798,16 @@
         {
             "english": "Roasted Peanuts",
             "thai": "ถั่วคั่ว",
-            "transliteration": "tùa kûa",
+            "transliteration": "tùa-kûa",
             "azure_pron_mapping": [
                 {
                     "thai": "ถั่ว",
-                    "transliteration": "thua",
+                    "transliteration": "tùa",
                     "translation": "bean; peanut"
                 },
                 {
                     "thai": "คั่ว",
-                    "transliteration": "khua",
+                    "transliteration": "kûa",
                     "translation": "to roast; to pan-fry"
                 }
             ],
@@ -1320,6 +1823,18 @@
                     "translation": "to roast (in a pan)"
                 }
             ],
+            "syllable_mapping": [
+                {
+                    "thai": "ถั่ว",
+                    "transliteration": "tùa",
+                    "translation": "peanut"
+                },
+                {
+                    "thai": "คั่ว",
+                    "transliteration": "kûa",
+                    "translation": "roasted"
+                }
+            ],
             "category": "Textures/Garnishes",
             "details": "Often crushed and sprinkled on top of salads and noodle dishes for texture and flavor. The full, formal term is ถั่วลิสงคั่ว (tùa lí-sŏng kûa), where ลิสง (lí-sŏng) specifically means 'peanut'.",
             "formal": "ถั่วลิสงคั่ว",
@@ -1330,16 +1845,16 @@
         {
             "english": "Chili Flakes",
             "thai": "พริกป่น",
-            "transliteration": "prík bpòn",
+            "transliteration": "prík-bpòn",
             "azure_pron_mapping": [
                 {
                     "thai": "พริก",
-                    "transliteration": "phrik",
+                    "transliteration": "prík",
                     "translation": "chili; pepper"
                 },
                 {
                     "thai": "ป่น",
-                    "transliteration": "pon",
+                    "transliteration": "bpòn",
                     "translation": "powdered; ground"
                 }
             ],
@@ -1353,6 +1868,18 @@
                     "thai": "ป่น",
                     "transliteration": "bpòn",
                     "translation": "powdered; ground"
+                }
+            ],
+            "syllable_mapping": [
+                {
+                    "thai": "พริก",
+                    "transliteration": "prík",
+                    "translation": "chili"
+                },
+                {
+                    "thai": "ป่น",
+                    "transliteration": "bpòn",
+                    "translation": "powdered"
                 }
             ],
             "category": "Textures/Garnishes",
