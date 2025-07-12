@@ -1749,32 +1749,28 @@ Note: For detailed analysis, check your connection and try again.
         };
       }
       
-      // Check tone marks using the correct path
-      final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
-      final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
-      if (toneMarkRules != null) {
-        for (final markData in toneMarkRules.values) {
-          final markInfo = markData as Map<String, dynamic>;
-          if (markInfo['character'] == cleanCharacter) {
-            print('Found tone mark data for: $cleanCharacter');
-            
-            // Extract writing steps for tone marks
-            final writingSteps = markInfo['writing_steps'] as String? ?? '';
-            final description = markInfo['description'] as String? ?? '';
-            final mainTip = writingSteps.isNotEmpty ? writingSteps : description;
-            
-            return {
-              'character': cleanCharacter,
-              'type': 'tone',
-              'romanization': '', // Tone marks don't have romanization
-              'main_tip': mainTip,
-              'english_guide': description,
-              'pronunciation_guide': description,
-              'writing_steps': writingSteps,
-              'name': markInfo['name'],
-            };
-          }
-        }
+      // Check tone marks in the top-level tone_marks section
+      final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+      if (toneMarks != null && toneMarks.containsKey(cleanCharacter)) {
+        final markInfo = toneMarks[cleanCharacter] as Map<String, dynamic>;
+        print('Found tone mark data for: $cleanCharacter');
+        
+        // Extract writing steps for tone marks
+        final writingSteps = markInfo['writing_steps'] as String? ?? '';
+        final name = markInfo['name'] as String? ?? '';
+        final pronunciationGuide = markInfo['pronunciation_guide'] as String? ?? '';
+        final mainTip = writingSteps.isNotEmpty ? writingSteps : pronunciationGuide;
+        
+        return {
+          'character': cleanCharacter,
+          'type': 'tone',
+          'romanization': '', // Tone marks don't have romanization
+          'main_tip': mainTip,
+          'english_guide': pronunciationGuide,
+          'pronunciation_guide': pronunciationGuide,
+          'writing_steps': writingSteps,
+          'name': name,
+        };
       }
       
       print('No detailed character info found for: "$cleanCharacter"');
@@ -2838,17 +2834,17 @@ Note: For detailed analysis, check your connection and try again.
     if (complexVowelGuide.isNotEmpty && character == 'อ') {
       print('DEBUG CONSONANT: Character "$character" is part of complex vowel');
       
-      // For อ as part of เ◌ือ, show original consonant name but note it's part of complex vowel
-      final charInfo = _getDetailedCharacterInfo(character);
-      final originalName = charInfo?['name'] as String? ?? 'o ang';
-      final originalSound = charInfo?['romanization'] as String? ?? 'o';
+      // For อ as part of เ◌ือ, show the complex vowel sound it makes
+      final complexVowelData = _getComplexVowelData(currentSemanticWord);
+      final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+      final complexVowelSound = complexVowelData['romanization'] as String? ?? complexVowelGuide;
       
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            originalName,
+            complexVowelName,
             style: const TextStyle(
               color: Color(0xFF4ECCA3),
               fontSize: 14,
@@ -2856,7 +2852,7 @@ Note: For detailed analysis, check your connection and try again.
             ),
           ),
           Text(
-            "'$originalSound'",
+            "'$complexVowelSound'",
             style: const TextStyle(
               color: Color(0xFF4ECCA3),
               fontSize: 14,
@@ -4099,21 +4095,10 @@ Note: For detailed analysis, check your connection and try again.
                   ),
                 ),
               
-              // Type badge at top right
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: typeColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _getFullTypeLabel(characterType, character),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
+              // Separate colored tag boxes at top right
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: _buildSeparateTypeTags(characterType, character),
               ),
             ],
           ),
@@ -4202,8 +4187,31 @@ Note: For detailed analysis, check your connection and try again.
   String _getFullTypeLabel(String type, [String? character]) {
     switch (type) {
       case 'consonant':
-        // Add consonant class to the label if character is provided
+        // Check if consonant is part of complex vowel first
         if (character != null) {
+          final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+              ? _currentCharacters[_currentCharacterIndex] 
+              : '';
+          final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+          
+          if (complexVowelGuide.isNotEmpty && character == 'อ') {
+            // This consonant is part of a complex vowel - create multi-line label
+            final complexVowelData = _getComplexVowelData(currentSemanticWord);
+            final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+            final charInfo = _getDetailedCharacterInfo(character);
+            final consonantClass = charInfo?['consonant_class'] as String? ?? '';
+            
+            // Create multi-line label: Consonant \n Class \n Complex Vowel
+            final lines = <String>[];
+            lines.add('Consonant');
+            if (consonantClass.isNotEmpty) {
+              lines.add('${_capitalize(consonantClass)} Class');
+            }
+            lines.add('Complex Vowel');
+            return lines.join('\n');
+          }
+          
+          // Regular consonant with class
           final charInfo = _getDetailedCharacterInfo(character);
           final consonantClass = charInfo?['consonant_class'] as String? ?? '';
           if (consonantClass.isNotEmpty) {
@@ -4212,6 +4220,21 @@ Note: For detailed analysis, check your connection and try again.
         }
         return 'Consonant';
       case 'vowel':
+        // Check if vowel is part of complex vowel first
+        if (character != null) {
+          final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+              ? _currentCharacters[_currentCharacterIndex] 
+              : '';
+          final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+          
+          if (complexVowelGuide.isNotEmpty) {
+            // This vowel is part of a complex vowel - create multi-line label
+            final lines = <String>[];
+            lines.add('Vowel');
+            lines.add('Complex Vowel');
+            return lines.join('\n');
+          }
+        }
         return 'Vowel';
       case 'tone':
         return 'Tone Mark';
@@ -4221,6 +4244,97 @@ Note: For detailed analysis, check your connection and try again.
         return 'Number';
       default:
         return 'Symbol'; // For any non-Thai script characters or unrecognized symbols
+    }
+  }
+  
+  /// Build separate colored tag boxes for type information
+  List<Widget> _buildSeparateTypeTags(String characterType, String character) {
+    final tags = <Widget>[];
+    
+    switch (characterType) {
+      case 'consonant':
+        // Add main consonant tag
+        tags.add(_buildSingleTag('Consonant', const Color(0xFF2196F3))); // Blue for consonants
+        
+        // Add consonant class tag (second)
+        final charInfo = _getDetailedCharacterInfo(character);
+        final consonantClass = charInfo?['consonant_class'] as String? ?? '';
+        if (consonantClass.isNotEmpty) {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('${_capitalize(consonantClass)} Class', _getConsonantClassColor(consonantClass)));
+        }
+        
+        // Check if consonant is part of complex vowel (last)
+        final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+            ? _currentCharacters[_currentCharacterIndex] 
+            : '';
+        final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+        
+        if (complexVowelGuide.isNotEmpty && character == 'อ') {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('Complex Vowel', const Color(0xFF9C27B0))); // Purple for complex vowels
+        }
+        break;
+        
+      case 'vowel':
+        // Add main vowel tag
+        tags.add(_buildSingleTag('Vowel', const Color(0xFF4CAF50))); // Green for vowels
+        
+        // Check if vowel is part of complex vowel
+        final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+            ? _currentCharacters[_currentCharacterIndex] 
+            : '';
+        final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+        
+        if (complexVowelGuide.isNotEmpty) {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('Complex Vowel', const Color(0xFF9C27B0))); // Purple for complex vowels
+        }
+        break;
+        
+      case 'tone':
+        // Add tone mark tag
+        tags.add(_buildSingleTag('Tone Mark', const Color(0xFFFFC107))); // Amber for tone marks
+        break;
+        
+      default:
+        tags.add(_buildSingleTag(_capitalize(characterType), const Color(0xFF607D8B))); // Gray for others
+        break;
+    }
+    
+    return tags;
+  }
+  
+  /// Build a single colored tag
+  Widget _buildSingleTag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+  
+  /// Get color for consonant class tags
+  Color _getConsonantClassColor(String consonantClass) {
+    switch (consonantClass.toLowerCase()) {
+      case 'high':
+        return const Color(0xFFE91E63); // Pink for high class
+      case 'mid':
+        return const Color(0xFF00BCD4); // Cyan for mid class  
+      case 'low':
+        return const Color(0xFF795548); // Brown for low class
+      default:
+        return const Color(0xFF607D8B); // Gray default
     }
   }
   
@@ -5914,9 +6028,17 @@ Note: For detailed analysis, check your connection and try again.
     
     // Check if this consonant is part of a complex vowel using synchronous JSON lookup
     final complexVowelGuide = _getComplexVowelSoundGuide(character, syllable);
-    if (complexVowelGuide.isNotEmpty) {
-      tips.add('Sound: $complexVowelGuide');
-      print('Added complex vowel sound tip for consonant: "Sound: $complexVowelGuide"');
+    if (complexVowelGuide.isNotEmpty && character == 'อ') {
+      // This consonant is part of a complex vowel - explain the transformation
+      final originalSound = charInfo['romanization'] as String? ?? '';
+      final originalName = charInfo['name'] as String? ?? '';
+      final complexVowelData = _getComplexVowelData(syllable);
+      final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+      final complexVowelSound = complexVowelData['romanization'] as String? ?? complexVowelGuide;
+      
+      final explanation = 'Sound: Originally "$originalSound" ($originalName), but as part of $complexVowelName complex vowel, it combines to make "$complexVowelSound" sound.';
+      tips.add(explanation);
+      print('Added complex vowel transformation explanation for consonant: "$character"');
     } else {
       // Regular consonant sound information
       final englishGuide = charInfo['english_guide'] as String? ?? '';
@@ -5943,15 +6065,21 @@ Note: For detailed analysis, check your connection and try again.
       final initialSound = pronunciation['initial'] as String? ?? '';
       final finalSound = pronunciation['final'] as String?;
       
+      // Determine syllable type for current word
+      final syllableType = _determineSyllableType(syllable);
+      final syllableExplanation = syllableType == 'live' 
+          ? 'This is a live syllable (ends with long vowel or sonorant consonant - sound flows).'
+          : 'This is a dead syllable (ends with short vowel or stop consonant - sound cuts off).';
+      
       if (initialSound.isNotEmpty && finalSound != null && finalSound.isNotEmpty && finalSound != initialSound) {
         // Can be both initial and final
-        tips.add('Role: This consonant can start syllables (initial - affects tone) or end them (final - affects syllable flow).');
+        tips.add('Role: This consonant can start syllables (initial "$initialSound" - affects tone) or end them (final "$finalSound" - affects syllable flow). $syllableExplanation');
       } else if (initialSound.isNotEmpty && (finalSound == null || finalSound.isEmpty)) {
         // Initial only
-        tips.add('Role: Initial consonant - starts syllables and carries the consonant class that affects tone.');
+        tips.add('Role: Initial consonant ("$initialSound") - starts syllables and carries the consonant class that affects tone. $syllableExplanation');
       } else if (finalSound != null && finalSound.isNotEmpty) {
         // Final only (rare)
-        tips.add('Role: Final consonant - ends syllables and affects whether the syllable is live or dead.');
+        tips.add('Role: Final consonant ("$finalSound") - ends syllables and affects whether the syllable is live or dead. $syllableExplanation');
       }
     }
 
@@ -6232,8 +6360,8 @@ Note: For detailed analysis, check your connection and try again.
       }
     }
     
-    // Don't add writing steps here - they'll be handled separately like consonant cards
-    // to match the white text format
+    // Writing instructions are handled in the main step card area as white text
+    // (not in contextual tips to match consonant card formatting)
 
     return tips.join('\n');
   }
