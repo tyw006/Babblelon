@@ -117,7 +117,7 @@
         "final": "k",
         "english_guide": "Starts like the 'g' in 'go'. Ends with a hard 'k' sound."
       },
-      "writing_steps": "Start low, draw a vertical line up, create a small indentation (a 'beak') on the right, then curve down."
+      "writing_steps": "Draw a vertical line from bottom to top, then add a small hook pointing right at the top."
     },
     "ข": {
       "name": "kho khai",
@@ -127,7 +127,7 @@
         "final": "k",
         "english_guide": "An aspirated 'k' sound, like saying 'k' with a strong puff of air. Imagine saying 'k-ha'."
       },
-      "writing_steps": "Start with a loop at the top, draw a line straight down, then curve up to the right in a 'U' shape."
+      "writing_steps": "Draw a clockwise circle at the top, then a vertical line down, finishing with a curve up and right."
     },
     "ฃ": {
       "name": "kho khuat",
@@ -179,7 +179,7 @@
         "final": "ng",
         "english_guide": "The 'ng' sound from the end of the word 'sing'."
       },
-      "writing_steps": "Start with a loop at the top left, draw a line diagonally down to the right, and then slant up to the right."
+      "writing_steps": "Draw a small circle at top left, then a diagonal line down-right, finishing with a curved tail up-right."
     },
     "จ": {
       "name": "cho chan",
@@ -189,7 +189,7 @@
         "final": "t",
         "english_guide": "Starts like the 'j' in 'jet'. Ends with a 't' sound."
       },
-      "writing_steps": "Start with a loop in the middle, draw straight down, then curve up to the left into a wide hook."
+      "writing_steps": "Draw a circle in the middle, then a vertical line down, finishing with a hook curving left."
     },
     "ฉ": {
       "name": "cho ching",
@@ -199,7 +199,7 @@
         "final": null,
         "english_guide": "An aspirated 'ch' sound, like saying 'ch' with a puff of air."
       },
-      "writing_steps": "Start with a loop in the middle, draw down, make a clockwise loop at the bottom, and then draw a line up to the right."
+      "writing_steps": "Draw a circle in the middle, then a vertical line down, make a small loop at bottom, then a line up-right."
     },
     "ช": {
       "name": "cho chang",
@@ -359,7 +359,7 @@
         "final": "n",
         "english_guide": "Like the 'n' in 'no'."
       },
-      "writing_steps": "Start with a loop at the top, draw straight down, then make a clockwise loop at the bottom right and finish with a line going straight up."
+      "writing_steps": "Draw a circle at top, then a vertical line down, add a small circle at bottom-right, then a short line up."
     },
     "บ": {
       "name": "bo baimai",
@@ -369,7 +369,7 @@
         "final": "p",
         "english_guide": "Starts like the 'b' in 'boy'. Ends with a 'p' sound."
       },
-      "writing_steps": "Start with a loop at the top, draw a line down, then right, then up, to form a box that is open at the top."
+      "writing_steps": "Draw a circle at top, then make a rectangular box below it: down, right, up."
     },
     "ป": {
       "name": "po pla",
@@ -379,7 +379,7 @@
         "final": "p",
         "english_guide": "An unaspirated 'p' sound, like the 'p' in 'spin'."
       },
-      "writing_steps": "Start with a loop at the top, draw a long line down, then right, then a long line up. The vertical lines should be taller than the width."
+      "writing_steps": "Draw a circle at top, then make a tall rectangular box below it: long line down, right, long line up."
     },
     "ผ": {
       "name": "pho phueng",
@@ -457,7 +457,7 @@
       "pronunciation": {
         "initial": "r",
         "final": "n",
-        "english_guide": "A rolled or flapped 'r', similar to Spanish. Ends with an 'n' sound."
+        "english_guide": "A rolled or flapped 'r', similar to Spanish. If at the end, has an 'n' sound."
       },
       "writing_steps": "Start with a loop at the top, draw down, then slant up to the right."
     },
@@ -539,7 +539,7 @@
         "final": null,
         "english_guide": "Acts as a silent carrier for vowels (e.g., in 'อัน'), or makes an 'aw' sound as in 'saw' when acting as a vowel itself (e.g., in 'รอ')."
       },
-      "writing_steps": "Start with a loop at the top, draw a line to the right, then down, then left, to form a three-sided box open at the bottom."
+      "writing_steps": "Draw a circle at top, then form a U-shape below it: right, down, left."
     },
     "ฮ": {
       "name": "ho nok huk",
@@ -603,7 +603,7 @@
       "position": "above",
       "pronunciation": {
         "romanization": "euu",
-        "english_guide": "A long version of the ◌ึ sound."
+        "english_guide": "A long, throaty sound not found in English. Like trying to say 'uh' with your jaw wide open and tongue pulled back."
       },
       "writing_steps": "Directly above the consonant, draw a downward-facing arc with a small vertical line on top of it."
     },
@@ -632,7 +632,7 @@
         "romanization": "e",
         "english_guide": "A long 'ay' sound, as in 'say'."
       },
-      "writing_steps": "Start with a loop at the top and draw a straight line down."
+      "writing_steps": "Start with a loop at the bottom and draw a straight line up."
     },
     "แ◌": {
       "name": "sara ae",
@@ -781,7 +781,7 @@
   },
   "tone_marks": {
     "่": {
-      "name": "Mai Ek",
+    "name": "Mai Ek",
       "pronunciation_guide": "The first tone mark. It changes the natural tone of a syllable based on the consonant's class.",
       "writing_steps": "Above the main consonant, draw a short vertical dash."
     },

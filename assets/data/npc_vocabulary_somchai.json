@@ -878,8 +878,8 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เผ็ดๆ",
-                    "transliteration": "pèt pèt",
-                    "translation": "extra spicy; very spicy"
+                    "transliteration": "phêt phêt",
+                    "translation": "very spicy"
                 }
             ],
             "word_mapping": [
@@ -904,7 +904,8 @@
             "category": "Customer Actions/Requests",
             "details": "Repeating the word 'เผ็ด' (phet) to say 'เผ็ดๆ' (phet phet) is a very common, local way to ask for it to be made extra spicy. The more standard way is to use the formal version, 'เผ็ดมาก' (phet mak), which means 'very spicy'.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/extra_spicy.wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Don't add (ingredient)",
@@ -914,12 +915,12 @@
                 {
                     "thai": "ไม่",
                     "transliteration": "mâi",
-                    "translation": "not"
+                    "translation": "not; no"
                 },
                 {
                     "thai": "ใส่",
                     "transliteration": "sài",
-                    "translation": "to put in/add"
+                    "translation": "to put in; to wear; to add"
                 }
             ],
             "word_mapping": [
@@ -949,7 +950,8 @@
             "category": "Customer Actions/Requests",
             "details": "A crucial structure for dietary restrictions. For example, 'ไม่ใส่ผักชี' (mâi sài pàk-chee) for 'Don't add coriander'.",
             "audio_path": "assets/audio/npc_vocabulary_somchai/don't_add_(ingredient).wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Request a fried egg",

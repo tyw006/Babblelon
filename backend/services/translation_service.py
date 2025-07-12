@@ -1414,6 +1414,35 @@ async def analyze_character_components(character: str, target_language: str = "t
                 
             result["breakdown"].append(char_analysis)
         
+        # COMPLEX VOWEL PATTERN DETECTION
+        complex_vowels = detect_complex_vowel_patterns(character)
+        if complex_vowels:
+            result["complex_vowels"] = []
+            for vowel_pattern in complex_vowels:
+                complex_vowel_info = {
+                    "pattern": vowel_pattern.pattern_key,
+                    "name": vowel_pattern.name,
+                    "components": vowel_pattern.components,
+                    "positions": vowel_pattern.positions,
+                    "consonant_position": vowel_pattern.consonant_pos,
+                    "romanization": vowel_pattern.romanization,
+                    "reading_explanation": vowel_pattern.reading_explanation,
+                    "component_explanation": vowel_pattern.component_explanation,
+                    "educational_tip": generate_complex_vowel_explanation(character, vowel_pattern)
+                }
+                result["complex_vowels"].append(complex_vowel_info)
+            
+            # Mark characters that are part of complex vowels
+            for i, char_info in enumerate(result["breakdown"]):
+                for vowel_pattern in complex_vowels:
+                    if i in vowel_pattern.positions or i == vowel_pattern.consonant_pos:
+                        char_info["complex_vowel_member"] = {
+                            "pattern": vowel_pattern.pattern_key,
+                            "name": vowel_pattern.name,
+                            "role": "component" if i in vowel_pattern.positions else "consonant"
+                        }
+                        break
+
         # Add analysis for the whole word using PyThaiNLP
         try:
             # Tokenize to see if it's a complete word
@@ -1473,108 +1502,266 @@ def _determine_learning_level(character: str, writing_guide: dict) -> str:
         return "unknown"
 
 def _generate_enhanced_writing_tips(analysis: dict, writing_guide: dict) -> list:
-    """Generate enhanced writing tips using writing guide data."""
+    """Generate enhanced writing tips using writing guide data and pronunciation system."""
     tips = []
     
     # Add writing principles from guide
     principles = writing_guide.get("writing_principles", {})
-    if principles.get("general_order"):
-        tips.extend(["Writing Order:"] + principles["general_order"])
+    if principles.get("guidelines"):
+        tips.extend(["📝 Writing Principles:"] + [f"• {tip}" for tip in principles["guidelines"]])
     
-    # Tips based on consonants with cultural context
+    # Get pronunciation system rules
+    pronunciation_system = writing_guide.get("pronunciation_system", {})
+    consonant_rules = pronunciation_system.get("consonant_position_rules", {})
+    vowel_rules = pronunciation_system.get("vowel_position_rules", {})
+    tone_rules = pronunciation_system.get("tone_mark_rules", {})
+    
+    # Enhanced tips based on consonants with pronunciation context
     if analysis["consonants"]:
-        tips.append(f"Contains {len(analysis['consonants'])} consonant(s)")
+        tips.append(f"🔤 Contains {len(analysis['consonants'])} consonant(s)")
         for consonant in analysis["consonants"]:
             char = consonant["character"]
-            if consonant.get("traditional_name"):
-                tips.append(f"'{char}' is '{consonant['traditional_name']}' ({consonant.get('meaning', 'unknown meaning')})")
-            if consonant.get("consonant_class"):
-                tips.append(f"'{char}' is {consonant['consonant_class']} class consonant")
+            
+            # Get consonant data from guide
+            consonant_data = writing_guide.get("consonants", {}).get(char, {})
+            if consonant_data:
+                name = consonant_data.get("name", "unknown")
+                pronunciation = consonant_data.get("pronunciation", {})
+                initial_sound = pronunciation.get("initial", "")
+                final_sound = pronunciation.get("final", "")
+                english_guide = pronunciation.get("english_guide", "")
+                
+                tips.append(f"• '{char}' ({name})")
+                if english_guide:
+                    tips.append(f"  🔊 {english_guide}")
+                if initial_sound and final_sound:
+                    tips.append(f"  📍 Initial: '{initial_sound}', Final: '{final_sound}'")
+                elif initial_sound:
+                    tips.append(f"  📍 Sound: '{initial_sound}'")
+                
+                consonant_class = consonant_data.get("class", "unknown")
+                tips.append(f"  📊 {consonant_class.title()}-class consonant")
+                
+                # Add writing steps
+                writing_steps = consonant_data.get("writing_steps", "")
+                if writing_steps:
+                    tips.append(f"  ✍️ {writing_steps}")
     
-    # Tips based on vowels
+    # Enhanced tips based on vowels with position-based pronunciation
     if analysis["vowels"]:
-        tips.append(f"Contains {len(analysis['vowels'])} vowel(s)")
+        tips.append(f"🎵 Contains {len(analysis['vowels'])} vowel(s)")
         for vowel in analysis["vowels"]:
             char = vowel["character"]
-            if vowel.get("name"):
-                tips.append(f"'{char}' is '{vowel['name']}' (sound: {vowel.get('sound', 'unknown')})")
             pos_type = vowel.get("position_type", "unknown")
-            if pos_type == "leading":
-                tips.append(f"Vowel '{vowel['character']}' goes BEFORE the consonant in writing order")
-            elif pos_type == "above":
-                tips.append(f"Vowel '{vowel['character']}' goes ABOVE the consonant")
-            elif pos_type == "below":
-                tips.append(f"Vowel '{vowel['character']}' goes BELOW the consonant")
+            
+            # Find vowel in the guide (handling placeholder notation)
+            vowel_data = None
+            for vowel_pattern, vowel_info in writing_guide.get("vowels", {}).items():
+                if char in vowel_pattern:
+                    vowel_data = vowel_info
+                    break
+            
+            if vowel_data:
+                name = vowel_data.get("name", "unknown")
+                pronunciation = vowel_data.get("pronunciation", {})
+                romanization = pronunciation.get("romanization", "")
+                english_guide = pronunciation.get("english_guide", "")
+                position = vowel_data.get("position", "unknown")
+                
+                tips.append(f"• '{char}' ({name})")
+                if english_guide:
+                    tips.append(f"  🔊 {english_guide}")
+                if romanization:
+                    tips.append(f"  📍 Sound: '{romanization}'")
+                
+                # Add position-specific tips
+                position_rule = vowel_rules.get(position, {})
+                if position_rule:
+                    tip = position_rule.get("pronunciation_tip", "")
+                    if tip:
+                        tips.append(f"  📍 Position: {tip}")
+                
+                # Add writing steps
+                writing_steps = vowel_data.get("writing_steps", "")
+                if writing_steps:
+                    tips.append(f"  ✍️ {writing_steps}")
     
-    # Tips based on tone marks
+    # Enhanced tips based on tone marks with class-specific effects
     if analysis["tone_marks"]:
-        tips.append(f"Contains {len(analysis['tone_marks'])} tone mark(s)")
+        tips.append(f"🎶 Contains {len(analysis['tone_marks'])} tone mark(s)")
         for tone in analysis["tone_marks"]:
-            tips.append(f"Tone mark '{tone['character']}' ({tone.get('tone_name', 'unknown')}) goes above")
+            char = tone["character"]
+            tone_name = tone.get("tone_name", "unknown")
+            
+            # Get tone data from guide
+            tone_data = writing_guide.get("tone_marks", {}).get(char, {})
+            if tone_data:
+                name = tone_data.get("name", "unknown")
+                pronunciation_guide = tone_data.get("pronunciation_guide", "")
+                writing_steps = tone_data.get("writing_steps", "")
+                
+                tips.append(f"• '{char}' ({name})")
+                if pronunciation_guide:
+                    tips.append(f"  🔊 {pronunciation_guide}")
+                
+                # Add tone effect based on consonant class
+                tone_rule_key = tone_name.replace("_", "")  # mai_ek -> maiek
+                if tone_rule_key in ["maiek", "maitho", "maitri", "maichattawa"]:
+                    rule_mapping = {
+                        "maiek": "mai_ek",
+                        "maitho": "mai_tho", 
+                        "maitri": "mai_tri",
+                        "maichattawa": "mai_chattawa"
+                    }
+                    rule_key = rule_mapping.get(tone_rule_key)
+                    if rule_key and rule_key in tone_rules:
+                        effect_map = tone_rules[rule_key].get("effect_by_consonant_class", {})
+                        if effect_map:
+                            tips.append(f"  📊 Tone effects by consonant class:")
+                            for cls, effect in effect_map.items():
+                                tips.append(f"    - {cls.title()}: {effect.replace('_', ' ')}")
+                
+                if writing_steps:
+                    tips.append(f"  ✍️ {writing_steps}")
     
-    # General writing order tips
+    # Pronunciation order tips with enhanced guidance
     if len(analysis["breakdown"]) > 1:
-        tips.append("Write consonants first, then add vowels and tone marks")
-        tips.append("Follow left-to-right, top-to-bottom order")
+        tips.append("📋 Writing Order Guidelines:")
+        tips.append("• 1. Write consonants first (foundation)")
+        tips.append("• 2. Add vowels in their designated positions")
+        tips.append("• 3. Place tone marks above")
+        tips.append("• 4. Remember: some vowels are written BEFORE but pronounced AFTER the consonant")
     
     return tips
 
 def _generate_comprehensive_guidance(character: str, analysis: dict, writing_guide: dict) -> dict:
-    """Generate comprehensive writing guidance for the character."""
+    """Generate comprehensive writing guidance for the character with pronunciation system."""
     guidance = {
         "character": character,
         "component_breakdown": [],
-        "writing_steps": []
+        "writing_steps": [],
+        "pronunciation_guidance": {}
     }
     
-    # Create component breakdown with colors
+    # Get pronunciation system rules
+    pronunciation_system = writing_guide.get("pronunciation_system", {})
+    
+    # Create enhanced component breakdown with colors and pronunciation
     component_colors = writing_guide.get("component_colors", {})
     for component in analysis.get("breakdown", []):
         comp_type = component.get("type", "unknown")
         color = component_colors.get(f"{comp_type}s", "#000000")  # consonants, vowels, etc.
+        char = component.get("character", "")
         
         component_info = {
-            "character": component.get("character"),
+            "character": char,
             "type": comp_type,
             "color": color,
             "writing_tips": component.get("writing_tips", []),
-            "position": component.get("position", 0)
+            "position": component.get("position", 0),
+            "pronunciation": {}
         }
         
         if comp_type == "consonant":
+            consonant_data = writing_guide.get("consonants", {}).get(char, {})
+            pronunciation = consonant_data.get("pronunciation", {})
+            
             component_info.update({
-                "traditional_name": component.get("traditional_name"),
-                "sound_initial": component.get("sound_initial"),
-                "sound_final": component.get("sound_final"),
-                "class": component.get("consonant_class")
+                "name": consonant_data.get("name", "unknown"),
+                "class": consonant_data.get("class", "unknown"),
+                "traditional_name": consonant_data.get("traditional_name", ""),
+                "pronunciation": {
+                    "initial": pronunciation.get("initial", ""),
+                    "final": pronunciation.get("final", ""),
+                    "english_guide": pronunciation.get("english_guide", ""),
+                    "ipa_initial": pronunciation.get("ipa_initial", ""),
+                    "ipa_final": pronunciation.get("ipa_final", "")
+                }
             })
+            
         elif comp_type == "vowel":
-            component_info.update({
-                "name": component.get("name"),
-                "sound": component.get("sound"),
-                "position_type": component.get("position_type"),
-                "length": component.get("length")
-            })
+            # Find vowel data in guide
+            vowel_data = None
+            for vowel_pattern, vowel_info in writing_guide.get("vowels", {}).items():
+                if char in vowel_pattern:
+                    vowel_data = vowel_info
+                    break
+            
+            if vowel_data:
+                pronunciation = vowel_data.get("pronunciation", {})
+                component_info.update({
+                    "name": vowel_data.get("name", "unknown"),
+                    "position_type": vowel_data.get("position", "unknown"),
+                    "length": vowel_data.get("length", "unknown"),
+                    "pronunciation": {
+                        "romanization": pronunciation.get("romanization", ""),
+                        "english_guide": pronunciation.get("english_guide", ""),
+                        "ipa": pronunciation.get("ipa", "")
+                    }
+                })
+                
         elif comp_type == "tone_mark":
+            tone_data = writing_guide.get("tone_marks", {}).get(char, {})
             component_info.update({
-                "name": component.get("name"),
-                "tone_name": component.get("tone_name")
+                "name": tone_data.get("name", "unknown"),
+                "tone_name": component.get("tone_name", "unknown"),
+                "pronunciation_guide": tone_data.get("pronunciation_guide", "")
             })
             
         guidance["component_breakdown"].append(component_info)
     
-    # Generate writing steps based on components
+    # Generate enhanced writing steps based on components and pronunciation rules
+    writing_steps = []
     if analysis.get("consonants"):
-        guidance["writing_steps"].append("1. Write the consonant(s) first (foundation)")
+        consonant_rule = pronunciation_system.get("consonant_position_rules", {}).get("initial", {})
+        step = "1. Write the consonant(s) first (foundation)"
+        if consonant_rule.get("description"):
+            step += f" - {consonant_rule['description']}"
+        writing_steps.append(step)
+        
     if analysis.get("vowels"):
-        guidance["writing_steps"].append("2. Add vowels in their designated positions")
+        step = "2. Add vowels in their designated positions"
+        # Add position-specific guidance
+        for vowel in analysis.get("vowels", []):
+            pos_type = vowel.get("position_type", "unknown")
+            if pos_type == "leading":
+                writing_steps.append("   → Leading vowels: write BEFORE the consonant")
+            elif pos_type == "above":
+                writing_steps.append("   → Above vowels: write ABOVE the consonant")
+            elif pos_type == "below":
+                writing_steps.append("   → Below vowels: write BELOW the consonant")
+            elif pos_type == "trailing":
+                writing_steps.append("   → Trailing vowels: write AFTER the consonant")
+                
     if analysis.get("tone_marks"):
-        guidance["writing_steps"].append("3. Place tone marks above consonants or vowels")
+        step = "3. Place tone marks above consonants or vowels"
+        tone_rule = pronunciation_system.get("tone_mark_rules", {})
+        if tone_rule:
+            step += " (tone affects pronunciation based on consonant class)"
+        writing_steps.append(step)
+    
+    guidance["writing_steps"] = writing_steps
+    
+    # Add pronunciation guidance summary
+    pronunciation_guidance = {
+        "reading_order": "Read components in logical order, not necessarily writing order",
+        "tone_system": "Thai uses 5 tones: mid, low, falling, high, rising",
+        "consonant_classes": "Consonant class (low/mid/high) affects tone pronunciation"
+    }
+    
+    # Add specific pronunciation examples if applicable
+    if analysis.get("consonants") and analysis.get("vowels"):
+        pronunciation_guidance["combination_tip"] = "Consonant + vowel combination determines syllable sound"
+    
+    if analysis.get("tone_marks"):
+        pronunciation_guidance["tone_tip"] = "Tone marks modify the basic tone based on consonant class"
+        
+    guidance["pronunciation_guidance"] = pronunciation_guidance
     
     # Add specific writing tips from guide
     principles = writing_guide.get("writing_principles", {})
-    if principles.get("cultural_guidelines"):
-        guidance["cultural_guidelines"] = principles["cultural_guidelines"]
+    if principles.get("guidelines"):
+        guidance["cultural_guidelines"] = principles["guidelines"]
     
     return guidance
 
@@ -1679,4 +1866,581 @@ async def filter_drawable_items_from_translation(word_mappings: List, target_lan
         "filtered_items": filtered_items,
         "total_filtered": len(filtered_items),
         "original_count": len(word_mappings)
-    } 
+    }
+
+# --- NEW SYLLABLE-BASED WRITING GUIDE FUNCTIONS ---
+
+async def generate_syllable_writing_guide(word: str, target_language: str = "th") -> dict:
+    """
+    Main function to generate syllable-based writing guide using PyThaiNLP TCC engine.
+    
+    Process:
+    1. Break word into syllables using TCC engine
+    2. Parse each syllable into grammatical components
+    3. Assemble writing tips in correct Thai writing order
+    4. Return structured data for frontend consumption
+    
+    Returns:
+    {
+        "word": "เครื่องปรุง",
+        "syllables": [
+            {
+                "syllable": "เครื่อง",
+                "components": {...},
+                "writing_order": [...],
+                "tips": {...}
+            },
+            ...
+        ],
+        "traceable_canvases": ["เครื่อง", "ปรุง"]
+    }
+    """
+    if target_language.lower() != "th":
+        return {"error": f"Syllable-based writing guide not supported for {target_language}"}
+    
+    try:
+        from pythainlp.tokenize import subword_tokenize
+        
+        # Load Thai writing guide data
+        thai_writing_guide = load_thai_writing_guide()
+        if not thai_writing_guide:
+            return {"error": "Failed to load Thai writing guide data"}
+        
+        # Step 1: Break word into syllables using TCC engine
+        syllables = subword_tokenize(word, engine="tcc")
+        
+        # Filter out empty syllables
+        syllables = [s for s in syllables if s.strip()]
+        
+        if not syllables:
+            return {"error": f"Failed to tokenize word: {word}"}
+        
+        # Step 2: Process each syllable
+        syllable_data = []
+        
+        for syllable in syllables:
+            # Parse syllable components
+            components = parse_syllable_components(syllable)
+            
+            # Assemble tips in correct writing order
+            tips = assemble_tips_in_order(components, thai_writing_guide)
+            
+            # Determine writing order sequence
+            writing_order = _determine_writing_order(components)
+            
+            syllable_info = {
+                "syllable": syllable,
+                "components": components,
+                "writing_order": writing_order,
+                "tips": tips
+            }
+            
+            syllable_data.append(syllable_info)
+        
+        # Step 3: Prepare final response
+        result = {
+            "word": word,
+            "syllables": syllable_data,
+            "traceable_canvases": syllables,  # Each syllable is a separate canvas
+            "total_syllables": len(syllables)
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error generating syllable writing guide for '{word}': {e}")
+        return {
+            "error": str(e),
+            "word": word,
+            "fallback": True
+        }
+
+def parse_syllable_components(syllable: str) -> dict:
+    """
+    Parse a single syllable into its grammatical components.
+    
+    Process:
+    1. Identify vowels that come before consonants (เ, แ, โ, ใ, ไ)
+    2. Identify initial consonants and clusters
+    3. Identify vowels above/below consonants
+    4. Identify vowels that come after consonants
+    5. Identify final consonants
+    6. Identify tone marks
+    
+    Returns component dictionary with positions
+    """
+    
+    # Define component categories
+    BEFORE_VOWELS = ["เ", "แ", "โ", "ใ", "ไ"]
+    ABOVE_VOWELS = ["◌ิ", "◌ี", "◌ึ", "◌ื", "◌ั", "◌ํ", "ิ", "ี", "ึ", "ื", "ั", "ํ"]
+    BELOW_VOWELS = ["◌ุ", "◌ู", "◌ฺ", "ุ", "ู", "ฺ"]
+    AFTER_VOWELS = ["◌ะ", "◌า", "◌ำ", "◌ๅ", "ะ", "า", "ำ", "ๅ", "อ", "ย", "ว"]
+    TONE_MARKS = ["◌่", "◌้", "◌๊", "◌๋", "่", "้", "๊", "๋"]
+    
+    # Thai consonants range
+    CONSONANTS = "กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ"
+    
+    # Common consonant clusters
+    CONSONANT_CLUSTERS = ["กร", "กล", "คร", "คล", "ปร", "ปล", "ทร", "ผล", "พร", "พล", "สร", "หร", "หล", "หม", "หน", "หย", "หว"]
+    
+    components = {
+        "before_vowels": [],
+        "initial_consonants": [],
+        "consonant_clusters": [],
+        "above_vowels": [],
+        "below_vowels": [],
+        "after_vowels": [],
+        "final_consonants": [],
+        "tone_marks": []
+    }
+    
+    i = 0
+    while i < len(syllable):
+        char = syllable[i]
+        
+        # Check for consonant clusters first (2-character sequences)
+        if i < len(syllable) - 1:
+            cluster = syllable[i:i+2]
+            if cluster in CONSONANT_CLUSTERS:
+                components["consonant_clusters"].append(cluster)
+                components["initial_consonants"].extend(list(cluster))
+                i += 2
+                continue
+        
+        # Individual character analysis
+        if char in BEFORE_VOWELS:
+            components["before_vowels"].append(char)
+        elif char in ABOVE_VOWELS:
+            components["above_vowels"].append(char)
+        elif char in BELOW_VOWELS:
+            components["below_vowels"].append(char)
+        elif char in AFTER_VOWELS:
+            components["after_vowels"].append(char)
+        elif char in TONE_MARKS:
+            components["tone_marks"].append(char)
+        elif char in CONSONANTS:
+            # Determine if initial or final consonant based on position
+            remaining_chars = syllable[i+1:]
+            
+            # If there are more consonants or vowels after this, it's likely initial
+            has_vowels_after = any(c in ABOVE_VOWELS + BELOW_VOWELS + AFTER_VOWELS for c in remaining_chars)
+            has_consonants_after = any(c in CONSONANTS for c in remaining_chars)
+            
+            if has_vowels_after or has_consonants_after:
+                components["initial_consonants"].append(char)
+            else:
+                components["final_consonants"].append(char)
+        
+        i += 1
+    
+    return components
+
+def assemble_tips_in_order(components: dict, thai_writing_guide: dict) -> dict:
+    """
+    Assemble writing tips following Thai writing order.
+    
+    Order:
+    1. Leading vowels (before)
+    2. Initial consonants (including clusters)
+    3. Vowels above/below
+    4. Following vowels (after)
+    5. Final consonants
+    6. Tone marks
+    
+    Returns tips organized by category (general, step_by_step, pronunciation)
+    """
+    
+    tips = {
+        "general": [],
+        "step_by_step": [],
+        "pronunciation": []
+    }
+    
+    step_number = 1
+    
+    # Get character data from writing guide
+    consonants_data = thai_writing_guide.get("consonants", {})
+    vowels_data = thai_writing_guide.get("vowels", {})
+    tone_marks_data = thai_writing_guide.get("tone_marks", {})
+    
+    # 1. Leading vowels (before)
+    for vowel in components.get("before_vowels", []):
+        vowel_info = _find_vowel_info(vowel, vowels_data)
+        if vowel_info:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": vowel,
+                "instruction": f"Write the leading vowel '{vowel}' first",
+                "details": vowel_info.get("steps", []),
+                "sound": vowel_info.get("sound_description", "")
+            })
+            tips["pronunciation"].append(f"'{vowel}' makes {vowel_info.get('sound_description', 'vowel sound')}")
+            step_number += 1
+    
+    # 2. Initial consonants (including clusters)
+    if components.get("consonant_clusters"):
+        for cluster in components["consonant_clusters"]:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": cluster,
+                "instruction": f"Write the consonant cluster '{cluster}'",
+                "details": [f"Write {cluster[0]} then {cluster[1]} close together"],
+                "sound": f"Makes {cluster} sound as a unit"
+            })
+            step_number += 1
+    else:
+        for consonant in components.get("initial_consonants", []):
+            consonant_info = consonants_data.get(consonant, {})
+            if consonant_info:
+                tips["step_by_step"].append({
+                    "step": step_number,
+                    "character": consonant,
+                    "instruction": f"Write the consonant '{consonant}'",
+                    "details": consonant_info.get("steps", []),
+                    "sound": consonant_info.get("sound_description", "")
+                })
+                tips["pronunciation"].append(f"'{consonant}' makes {consonant_info.get('sound_description', 'consonant sound')}")
+                step_number += 1
+    
+    # 3. Vowels above/below
+    for vowel in components.get("above_vowels", []) + components.get("below_vowels", []):
+        vowel_info = _find_vowel_info(vowel, vowels_data)
+        position = "above" if vowel in components.get("above_vowels", []) else "below"
+        if vowel_info:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": vowel,
+                "instruction": f"Add vowel mark '{vowel}' {position} the consonant",
+                "details": vowel_info.get("steps", []),
+                "sound": vowel_info.get("sound_description", "")
+            })
+            step_number += 1
+    
+    # 4. Following vowels (after)
+    for vowel in components.get("after_vowels", []):
+        vowel_info = _find_vowel_info(vowel, vowels_data)
+        if vowel_info:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": vowel,
+                "instruction": f"Write the following vowel '{vowel}'",
+                "details": vowel_info.get("steps", []),
+                "sound": vowel_info.get("sound_description", "")
+            })
+            step_number += 1
+    
+    # 5. Final consonants
+    for consonant in components.get("final_consonants", []):
+        consonant_info = consonants_data.get(consonant, {})
+        if consonant_info:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": consonant,
+                "instruction": f"Write the final consonant '{consonant}'",
+                "details": consonant_info.get("steps", []),
+                "sound": consonant_info.get("sound_description", "")
+            })
+            step_number += 1
+    
+    # 6. Tone marks (always last)
+    for tone in components.get("tone_marks", []):
+        tone_info = tone_marks_data.get(tone, {})
+        if tone_info:
+            tips["step_by_step"].append({
+                "step": step_number,
+                "character": tone,
+                "instruction": f"Add tone mark '{tone}' above",
+                "details": tone_info.get("steps", []),
+                "sound": tone_info.get("sound_description", "")
+            })
+            step_number += 1
+    
+    # Add general tips
+    if components.get("consonant_clusters"):
+        tips["general"].append("This syllable contains consonant clusters that work together")
+    
+    if components.get("before_vowels"):
+        tips["general"].append("Leading vowels are written first but pronounced after consonants")
+    
+    if components.get("tone_marks"):
+        tips["general"].append("Tone marks are always written last")
+    
+    return tips
+
+def _determine_writing_order(components: dict) -> list:
+    """Determine the correct writing order for all components in a syllable."""
+    order = []
+    
+    # 1. Leading vowels first
+    order.extend(components.get("before_vowels", []))
+    
+    # 2. Initial consonants (respecting clusters)
+    if components.get("consonant_clusters"):
+        order.extend(components["consonant_clusters"])
+    else:
+        order.extend(components.get("initial_consonants", []))
+    
+    # 3. Vowels above/below
+    order.extend(components.get("above_vowels", []))
+    order.extend(components.get("below_vowels", []))
+    
+    # 4. Following vowels
+    order.extend(components.get("after_vowels", []))
+    
+    # 5. Final consonants
+    order.extend(components.get("final_consonants", []))
+    
+    # 6. Tone marks always last
+    order.extend(components.get("tone_marks", []))
+    
+    return order
+
+def _find_vowel_info(vowel: str, vowels_data: dict) -> dict:
+    """Find vowel information from the Thai writing guide."""
+    # Direct lookup with ◌ placeholder
+    if f"◌{vowel}" in vowels_data:
+        return vowels_data[f"◌{vowel}"]
+    
+    # Lookup with vowel as prefix
+    if f"{vowel}◌" in vowels_data:
+        return vowels_data[f"{vowel}◌"]
+    
+    # Direct lookup
+    if vowel in vowels_data:
+        return vowels_data[vowel]
+    
+    # Search in all vowel patterns
+    for pattern, data in vowels_data.items():
+        if vowel in pattern:
+            return data
+    
+    # Return empty dict if not found
+    return {} 
+
+# ============================================================================
+# COMPLEX VOWEL PATTERN DETECTION SYSTEM
+# ============================================================================
+
+import re
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Tuple
+
+@dataclass
+class ComplexVowelMatch:
+    """Represents a detected complex vowel pattern in Thai text."""
+    pattern_key: str          # e.g., "เ◌ือ"
+    name: str                # e.g., "Sara Uea"
+    components: List[str]     # e.g., ["เ", "ื", "อ"]
+    positions: List[int]      # Character positions in word
+    consonant_pos: int        # Position of consonant in pattern
+    romanization: str         # e.g., "uea"
+    reading_explanation: str  # Educational explanation
+    component_explanation: str # How components work together
+
+# Complex vowel patterns with their regex patterns and metadata
+# Updated regex patterns to handle tone marks (่ ้ ๊ ๋) and cluster consonants properly
+COMPLEX_VOWEL_PATTERNS = {
+    "เ◌ือ": {
+        "name": "Sara Uea",
+        "regex": r"เ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ื([์่้๊๋]?)อ",
+        "components": ["เ", "ื", "อ"],
+        "romanization": "uea",
+        "position": "surrounding",
+        "description": "A complex vowel sound unique to Thai"
+    },
+    "เ◌า": {
+        "name": "Sara Ao", 
+        "regex": r"เ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)า",
+        "components": ["เ", "า"],
+        "romanization": "ao",
+        "position": "surrounding",
+        "description": "An 'ow' sound, as in 'cow'"
+    },
+    "เ◌ะ": {
+        "name": "Sara E Short",
+        "regex": r"เ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ะ",
+        "components": ["เ", "ะ"],
+        "romanization": "e",
+        "position": "surrounding", 
+        "description": "A short 'e' sound, as in 'bet'"
+    },
+    "แ◌ะ": {
+        "name": "Sara Ae Short",
+        "regex": r"แ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ะ",
+        "components": ["แ", "ะ"],
+        "romanization": "ae",
+        "position": "surrounding",
+        "description": "A short 'a' sound, as in 'cat'"
+    },
+    "โ◌ะ": {
+        "name": "Sara O Short",
+        "regex": r"โ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ะ",
+        "components": ["โ", "ะ"],
+        "romanization": "o",
+        "position": "surrounding",
+        "description": "A short 'o' sound, as in 'pot'"
+    },
+    "เ◌อ": {
+        "name": "Sara Oe",
+        "regex": r"เ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)อ",
+        "components": ["เ", "อ"],
+        "romanization": "oe",
+        "position": "surrounding",
+        "description": "A neutral vowel sound, like the 'u' in 'fur'"
+    },
+    "เ◌ีย": {
+        "name": "Sara Ia",
+        "regex": r"เ([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ีย",
+        "components": ["เ", "ี", "ย"],
+        "romanization": "ia", 
+        "position": "surrounding",
+        "description": "An 'ia' sound, as in 'maria'"
+    },
+    "◌ัย": {
+        "name": "Sara Ai",
+        "regex": r"([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ัย",
+        "components": ["ั", "ย"],
+        "romanization": "ai",
+        "position": "surrounding",
+        "description": "An 'ai' sound, as in 'my'"
+    },
+    "◌ัว": {
+        "name": "Sara Ua",
+        "regex": r"([ก-ฮ]+(?:[์่้๊๋]?[ก-ฮ]*)*[์่้๊๋]?)ัว",
+        "components": ["ั", "ว"],
+        "romanization": "ua",
+        "position": "surrounding",
+        "description": "A 'ua' sound, as in 'suave'"
+    }
+}
+
+# Educational explanation templates
+VOWEL_READING_EXPLANATIONS = {
+    "เ◌ือ": "Even though เ is written before the consonant, the full vowel เ◌ือ is pronounced after. The three parts (เ + ื + อ) work together to create the 'uea' sound. Always read the vowel after the consonant, even if เ is written first!",
+    "เ◌า": "The เ is written before the consonant but pronounced after it. Together with า, they create the 'ao' sound that comes after the consonant.",
+    "เ◌ะ": "The เ leads but is pronounced after the consonant, combining with ะ to make a short 'e' sound.",
+    "แ◌ะ": "The แ comes first visually but sounds after the consonant, joining with ะ for a short 'ae' sound.",
+    "โ◌ะ": "The โ is written first but pronounced after the consonant, working with ะ to create a short 'o' sound.",
+    "เ◌อ": "The เ leads in writing but follows in pronunciation, combining with อ for the neutral 'oe' sound.",
+    "เ◌ีย": "The เ starts the pattern but is pronounced after the consonant, along with ี and ย creating the 'ia' sound.",
+    "◌ัย": "The ั sits above the consonant and ย follows it, together making the 'ai' sound.",
+    "◌ัว": "The ั goes above the consonant and ว comes after, creating the 'ua' sound together."
+}
+
+def detect_complex_vowel_patterns(word: str) -> List[ComplexVowelMatch]:
+    """
+    Detect complex vowel patterns in Thai text.
+    
+    Args:
+        word: Thai text to analyze
+        
+    Returns:
+        List of detected complex vowel patterns with positions and metadata
+    """
+    detected_patterns = []
+    
+    for pattern_key, pattern_info in COMPLEX_VOWEL_PATTERNS.items():
+        regex_pattern = pattern_info["regex"]
+        
+        # Find all matches for this pattern
+        matches = re.finditer(regex_pattern, word)
+        
+        for match in matches:
+            # Extract consonant group and build component positions
+            consonant_group = match.group(1)  # The consonant(s) in the pattern
+            start_pos = match.start()
+            end_pos = match.end()
+            
+            # Calculate exact positions of each component
+            positions = []
+            components = pattern_info["components"]
+            
+            # Map components to their actual positions in the word
+            if pattern_key.startswith("เ"):
+                # Leading vowel patterns: เ + consonant + other components
+                positions.append(start_pos)  # เ position
+                consonant_pos = start_pos + 1
+                
+                # Add positions for components after consonant
+                current_pos = start_pos + 1 + len(consonant_group)
+                for component in components[1:]:  # Skip เ, already added
+                    positions.append(current_pos)
+                    current_pos += len(component)
+                    
+            elif pattern_key.startswith("แ") or pattern_key.startswith("โ"):
+                # Leading vowel patterns: แ/โ + consonant + ะ
+                positions.append(start_pos)  # แ/โ position
+                consonant_pos = start_pos + 1
+                positions.append(start_pos + 1 + len(consonant_group))  # ะ position
+                
+            else:
+                # Patterns starting with ◌ (consonant first)
+                consonant_pos = start_pos
+                current_pos = start_pos + len(consonant_group)
+                for component in components:
+                    positions.append(current_pos)
+                    current_pos += len(component)
+            
+            # Create explanation with actual word context
+            reading_explanation = VOWEL_READING_EXPLANATIONS[pattern_key]
+            component_explanation = f"In {word}: {' + '.join(components)} around {consonant_group} = {pattern_info['romanization']} sound"
+            
+            # Create the match object
+            complex_match = ComplexVowelMatch(
+                pattern_key=pattern_key,
+                name=pattern_info["name"],
+                components=components,
+                positions=positions,
+                consonant_pos=consonant_pos,
+                romanization=pattern_info["romanization"],
+                reading_explanation=reading_explanation,
+                component_explanation=component_explanation
+            )
+            
+            detected_patterns.append(complex_match)
+    
+    return detected_patterns
+
+def get_complex_vowel_info(word: str, character_position: int) -> Optional[ComplexVowelMatch]:
+    """
+    Get complex vowel information for a character at a specific position.
+    
+    Args:
+        word: Thai text containing the character
+        character_position: Position of character to check
+        
+    Returns:
+        ComplexVowelMatch if character is part of a complex vowel, None otherwise
+    """
+    detected_patterns = detect_complex_vowel_patterns(word)
+    
+    for pattern in detected_patterns:
+        # Check if the character position is part of this complex vowel
+        if character_position in pattern.positions or character_position == pattern.consonant_pos:
+            return pattern
+    
+    return None
+
+def generate_complex_vowel_explanation(word: str, complex_vowel: ComplexVowelMatch) -> str:
+    """
+    Generate educational explanation for a complex vowel pattern.
+    
+    Args:
+        word: The word containing the pattern
+        complex_vowel: The detected complex vowel pattern
+        
+    Returns:
+        Detailed educational explanation
+    """
+    explanation_parts = [
+        f"**{complex_vowel.name} ({complex_vowel.pattern_key})**",
+        "",
+        f"🔤 **Components:** {' + '.join(complex_vowel.components)}",
+        f"🔊 **Sound:** {complex_vowel.romanization}",
+        "",
+        f"📖 **Reading Order:** {complex_vowel.reading_explanation}",
+        "",
+        f"💡 **In this word:** {complex_vowel.component_explanation}"
+    ]
+    
+    return "\n".join(explanation_parts)

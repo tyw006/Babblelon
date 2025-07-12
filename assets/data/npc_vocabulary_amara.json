@@ -150,7 +150,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "เป็ด",
-                    "transliteration": "bpèt",
+                    "transliteration": "pèt",
                     "translation": "duck"
                 }
             ],
@@ -172,7 +172,8 @@
             "details": "Often roasted, called เป็ดย่าง (bpèt yâang), or served in noodle soups.",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/duck.wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Shrimp / Prawns",
@@ -181,8 +182,8 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กุ้ง",
-                    "transliteration": "gûng",
-                    "translation": "shrimp/prawns"
+                    "transliteration": "kûng",
+                    "translation": "shrimp; prawn"
                 }
             ],
             "word_mapping": [
@@ -201,7 +202,10 @@
             ],
             "category": "Proteins",
             "details": "A very popular seafood choice, central to dishes like Tom Yum Goong (ต้มยำกุ้ง).",
-            "formal": ""
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/shrimp__prawns.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Fish",
@@ -805,7 +809,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "พริก",
-                    "transliteration": "prík",
+                    "transliteration": "prik",
                     "translation": "chili"
                 }
             ],
@@ -827,7 +831,8 @@
             "details": "The foundation of spiciness in Thai cuisine, used fresh and dried. A common small but very spicy variety is called พริกขี้หนู (prík kee noo).",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/chili.wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Garlic",
@@ -1182,7 +1187,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "ซีอิ๊ว",
-                    "transliteration": "see-éw",
+                    "transliteration": "si-io",
                     "translation": "soy sauce"
                 }
             ],
@@ -1209,7 +1214,8 @@
             "details": "A loanword from Teochew Chinese. Comes in a light, salty version called ซีอิ๊วขาว (see-éw kăao), 'white soy sauce', and a dark, sweet version called ซีอิ๊วดำ (see-éw dam), 'black soy sauce'.",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/soy_sauce.wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Fermented Soybean Paste",
@@ -1265,7 +1271,7 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กะทิ",
-                    "transliteration": "gà-tí",
+                    "transliteration": "ka-thí",
                     "translation": "coconut milk"
                 }
             ],
@@ -1292,7 +1298,8 @@
             "details": "The creamy base for most Thai curries and many desserts.",
             "formal": "",
             "audio_path": "assets/audio/npc_vocabulary_amara/coconut_milk.wav",
-            "audio_generated": true
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Palm Sugar",
@@ -1580,8 +1587,8 @@
             "azure_pron_mapping": [
                 {
                     "thai": "กรอบ",
-                    "transliteration": "gròp",
-                    "translation": "crispy"
+                    "transliteration": "kròp",
+                    "translation": "crispy; crunchy"
                 }
             ],
             "word_mapping": [
@@ -1600,7 +1607,10 @@
             ],
             "category": "Textures/Garnishes",
             "details": "A desirable texture in many fried dishes and some salads.",
-            "formal": ""
+            "formal": "",
+            "audio_path": "assets/audio/npc_vocabulary_amara/crispy.wav",
+            "audio_generated": true,
+            "azure_pron_mapping_verified": true
         },
         {
             "english": "Fried Garlic",

@@ -36,7 +36,7 @@ else:
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse
 from services.stt_service import transcribe_audio
-from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, analyze_character_components, split_compound_word, split_word_for_tracing, filter_drawable_items_from_translation, analyze_word_syllables
+from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
 
 app = FastAPI()
@@ -218,147 +218,9 @@ async def generate_npc_response_endpoint(
 async def health_check():
     return {"status": "healthy"}
 
-# --- Character Analysis Endpoint for PyThaiNLP Integration ---
-class CharacterAnalysisRequest(BaseModel):
-    character: str
 
-@app.post("/analyze-character")
-async def analyze_character_endpoint(request: CharacterAnalysisRequest):
-    """
-    Analyze a Thai character using PyThaiNLP to provide writing tips
-    based on consonants, vowels, and tones.
-    """
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /analyze-character endpoint hit for character: '{request.character}'")
-    
-    try:
-        # Add timeout to prevent hanging requests
-        import asyncio
-        analysis = await asyncio.wait_for(
-            analyze_character_components(request.character, "th"),
-            timeout=10.0  # 10 second timeout
-        )
-        print(f"[{datetime.datetime.now()}] DEBUG: Character analysis result: {analysis}")
-        return analysis
-    except asyncio.TimeoutError:
-        print(f"[{datetime.datetime.now()}] ERROR: Character analysis timeout for: '{request.character}'")
-        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing character: {request.character}")
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: Character analysis failed: {e}")
-        # Return fallback analysis
-        return {
-            "character": request.character,
-            "consonant_class": None,
-            "consonant_sound": None,
-            "vowels": [],
-            "tone": None,
-            "error": str(e)
-        }
 
-# --- Compound Word Splitting Endpoint ---
-class CompoundWordRequest(BaseModel):
-    word: str
-    target_language: Optional[str] = "th"
 
-@app.post("/split-compound-word")
-async def split_compound_word_endpoint(request: CompoundWordRequest):
-    """
-    Split compound Thai words into constituent words using PyThaiNLP subword tokenization.
-    Example: เครื่องปรุง -> [เครื่อง, ปรุง]
-    """
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /split-compound-word endpoint hit for word: '{request.word}'")
-    
-    try:
-        # Use the new compound word splitting function
-        split_result = await split_compound_word(request.word, request.target_language)
-        print(f"[{datetime.datetime.now()}] DEBUG: Compound word split result: {split_result}")
-        return split_result
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: Compound word splitting failed: {e}")
-        # Return fallback result
-        return {
-            "original_word": request.word,
-            "is_compound": False,
-            "constituent_words": [request.word],
-            "subword_clusters": [],
-            "method": "error_fallback",
-            "error": str(e)
-        }
-
-# --- Word Splitting for Character Tracing Endpoint ---
-class WordTracingRequest(BaseModel):
-    word: str
-    target_language: Optional[str] = "th"
-
-@app.post("/split-word-for-tracing")
-async def split_word_for_tracing_endpoint(request: WordTracingRequest):
-    """
-    Split Thai words for character tracing using PyThaiNLP subword tokenization.
-    Returns optimal tracing sequence and constituent word boundaries.
-    """
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /split-word-for-tracing endpoint hit for word: '{request.word}'")
-    
-    try:
-        # Add timeout to prevent hanging requests
-        import asyncio
-        split_result = await asyncio.wait_for(
-            split_word_for_tracing(request.word, request.target_language),
-            timeout=15.0  # 15 second timeout for more complex processing
-        )
-        print(f"[{datetime.datetime.now()}] DEBUG: Word tracing split result: {split_result}")
-        return split_result
-    except asyncio.TimeoutError:
-        print(f"[{datetime.datetime.now()}] ERROR: Word tracing split timeout for: '{request.word}'")
-        raise HTTPException(status_code=408, detail=f"Request timeout while processing word: {request.word}")
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: Word tracing split failed: {e}")
-        # Return fallback result
-        return {
-            "original_word": request.word,
-            "subword_clusters": [request.word],
-            "constituent_words": [request.word],
-            "is_compound": False,
-            "tracing_sequence": list(request.word),
-            "error": str(e)
-        }
-
-# --- Comprehensive Syllable Analysis Endpoint ---
-class SyllableAnalysisRequest(BaseModel):
-    word: str
-    target_language: Optional[str] = "th"
-
-@app.post("/analyze-word-syllables")
-async def analyze_word_syllables_endpoint(request: SyllableAnalysisRequest):
-    """
-    Comprehensive syllable analysis for Thai words following educational format.
-    Provides detailed breakdown including tone rules, component roles, and writing guidance.
-    """
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /analyze-word-syllables endpoint hit for word: '{request.word}'")
-    
-    try:
-        # Add timeout to prevent hanging requests
-        import asyncio
-        analysis_result = await asyncio.wait_for(
-            analyze_word_syllables(request.word, request.target_language),
-            timeout=20.0  # 20 second timeout for comprehensive analysis
-        )
-        print(f"[{datetime.datetime.now()}] DEBUG: Word syllable analysis result: {analysis_result}")
-        return analysis_result
-    except asyncio.TimeoutError:
-        print(f"[{datetime.datetime.now()}] ERROR: Word syllable analysis timeout for: '{request.word}'")
-        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing word: {request.word}")
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: Word syllable analysis failed: {e}")
-        # Return fallback result
-        return {
-            "word": request.word,
-            "error": str(e),
-            "syllable_count": 1,
-            "fallback": True
-        }
 
 @app.post("/transcribe-audio/")
 async def transcribe_audio_endpoint(
@@ -468,37 +330,6 @@ async def pronunciation_assessment_endpoint(
 
 # --- Thai Character Tracing Endpoints ---
 
-@app.get("/writing-guidance/{character}")
-async def get_writing_guidance_endpoint(
-    character: str,
-    target_language: str = Query("th", description="Target language code")
-):
-    """Get comprehensive writing guidance for a Thai character including traditional names, cultural context, and component analysis."""
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /writing-guidance/ received request for character: '{character}' in {target_language}")
-    try:
-        # Add timeout to prevent hanging requests
-        import asyncio
-        guidance = await asyncio.wait_for(
-            analyze_character_components(character, target_language),
-            timeout=10.0  # 10 second timeout
-        )
-        
-        # Add response metadata
-        guidance["request_timestamp"] = request_time.isoformat()
-        guidance["endpoint"] = "/writing-guidance/"
-        
-        print(f"[{datetime.datetime.now()}] INFO: /writing-guidance/ successful for '{character}'. Components: {len(guidance.get('breakdown', []))}")
-        return JSONResponse(content=guidance)
-    except asyncio.TimeoutError:
-        print(f"[{datetime.datetime.now()}] ERROR: /writing-guidance/ timeout for character: '{character}'")
-        raise HTTPException(status_code=408, detail=f"Request timeout while analyzing character: {character}")
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: in /writing-guidance/: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Writing guidance error: {str(e)}")
-
 @app.get("/thai-writing-tips/{character}")
 async def get_writing_tips_endpoint(
     character: str,
@@ -552,21 +383,8 @@ async def get_character_analysis_endpoint(
         print(f"[{datetime.datetime.now()}] ERROR: in /character-analysis/: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-class DrawableItemsFilterRequest(BaseModel):
-    word_mappings: List[Dict]
-    target_language: str = "th"
-
-@app.post("/filter-drawable-items/")
-async def filter_drawable_items_endpoint(request: DrawableItemsFilterRequest):
-    """Filter word mappings to show only drawable items."""
-    request_time = datetime.datetime.now()
-    print(f"[{request_time}] INFO: /filter-drawable-items/ received request with {len(request.word_mappings)} mappings in {request.target_language}")
-    try:
-        filtered_result = await filter_drawable_items_from_translation(request.word_mappings, request.target_language)
-        return JSONResponse(content=filtered_result)
-    except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: in /filter-drawable-items/: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Removed redundant filter-drawable-items endpoint 
+# All vocabulary items should be drawable in a language learning context
 
 class SynthesizeSpeechRequest(BaseModel):
     text: str
@@ -593,6 +411,145 @@ async def synthesize_speech_endpoint(request: SynthesizeSpeechRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Speech synthesis error: {str(e)}")
+
+# --- NEW SYLLABLE-BASED WRITING GUIDE ENDPOINT ---
+
+class WritingGuideRequest(BaseModel):
+    word: str
+    target_language: str = "th"
+
+@app.post("/generate-writing-guide")
+async def generate_writing_guide_endpoint(request: WritingGuideRequest):
+    """
+    Generate comprehensive writing guide for Thai words using syllable-based analysis.
+    Uses PyThaiNLP TCC engine to break words into syllables and provide ordered writing tips.
+    
+    Process:
+    1. Break word into syllables using TCC engine
+    2. Parse each syllable into grammatical components  
+    3. Assemble tips in correct Thai writing order
+    4. Return structured data for frontend consumption
+    
+    Returns syllable-by-syllable writing guidance with:
+    - Component analysis (before_vowels, consonants, clusters, etc.)
+    - Step-by-step writing instructions
+    - Pronunciation guidance
+    - Traceable canvas splitting by syllable
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /generate-writing-guide endpoint hit for word: '{request.word}' in {request.target_language}")
+    
+    try:
+        # Add timeout to prevent hanging requests
+        import asyncio
+        guide_result = await asyncio.wait_for(
+            generate_syllable_writing_guide(request.word, request.target_language),
+            timeout=15.0  # 15 second timeout for syllable processing
+        )
+        
+        print(f"[{datetime.datetime.now()}] DEBUG: Syllable writing guide result: {guide_result}")
+        return JSONResponse(content=guide_result)
+        
+    except asyncio.TimeoutError:
+        print(f"[{datetime.datetime.now()}] ERROR: Syllable writing guide timeout for: '{request.word}'")
+        raise HTTPException(status_code=408, detail=f"Request timeout while processing word: {request.word}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Syllable writing guide failed: {e}")
+        # Return fallback result
+        return JSONResponse(content={
+            "word": request.word,
+            "error": str(e),
+            "fallback": True,
+            "syllables": [],
+            "traceable_canvases": [request.word]  # Fallback to whole word
+        })
+
+# --- COMPLEX VOWEL ANALYSIS ENDPOINT ---
+
+class ComplexVowelAnalysisRequest(BaseModel):
+    word: str
+    target_language: str = "th"
+
+@app.post("/analyze-complex-vowels/")
+async def analyze_complex_vowels_endpoint(request: ComplexVowelAnalysisRequest):
+    """
+    Analyze complex vowel patterns in Thai words.
+    
+    Detects patterns like เ◌ือ (sara uea), เ◌า (sara ao), etc. and provides:
+    - Pattern identification and components
+    - Educational explanations about reading order
+    - Component breakdown and positions
+    - Pronunciation guidance
+    
+    Returns comprehensive data for educational vowel pattern display.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /analyze-complex-vowels/ received request for word: '{request.word}' in {request.target_language}")
+    
+    try:
+        if request.target_language.lower() != "th":
+            raise HTTPException(status_code=400, detail=f"Complex vowel analysis only supported for Thai (th), not {request.target_language}")
+        
+        # Detect complex vowel patterns
+        complex_vowels = detect_complex_vowel_patterns(request.word)
+        
+        result = {
+            "word": request.word,
+            "target_language": request.target_language,
+            "complex_vowels_detected": len(complex_vowels),
+            "patterns": []
+        }
+        
+        # Build detailed information for each detected pattern
+        for vowel_pattern in complex_vowels:
+            pattern_info = {
+                "pattern_key": vowel_pattern.pattern_key,
+                "name": vowel_pattern.name,
+                "components": vowel_pattern.components,
+                "component_positions": vowel_pattern.positions,
+                "consonant_position": vowel_pattern.consonant_pos,
+                "romanization": vowel_pattern.romanization,
+                "reading_explanation": vowel_pattern.reading_explanation,
+                "component_explanation": vowel_pattern.component_explanation,
+                "educational_content": generate_complex_vowel_explanation(request.word, vowel_pattern)
+            }
+            result["patterns"].append(pattern_info)
+        
+        # Add character-by-character analysis with complex vowel context
+        character_analysis = []
+        for i, char in enumerate(request.word):
+            char_info = {
+                "character": char,
+                "position": i,
+                "complex_vowel_info": None
+            }
+            
+            # Check if this character is part of a complex vowel
+            complex_vowel_info = get_complex_vowel_info(request.word, i)
+            if complex_vowel_info:
+                char_info["complex_vowel_info"] = {
+                    "pattern": complex_vowel_info.pattern_key,
+                    "name": complex_vowel_info.name,
+                    "role": "consonant" if i == complex_vowel_info.consonant_pos else "vowel_component",
+                    "full_pronunciation": complex_vowel_info.romanization
+                }
+            
+            character_analysis.append(char_info)
+        
+        result["character_analysis"] = character_analysis
+        
+        print(f"[{datetime.datetime.now()}] INFO: /analyze-complex-vowels/ successful for '{request.word}'. Found {len(complex_vowels)} complex patterns")
+        return JSONResponse(content=result)
+        
+    except HTTPException as e:
+        # Re-raise HTTPException to let FastAPI handle it
+        print(f"[{datetime.datetime.now()}] ERROR: in /analyze-complex-vowels/: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /analyze-complex-vowels/: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during complex vowel analysis: {str(e)}")
 
 if __name__ == "__main__":
     # Changed host from "127.0.0.1" to "0.0.0.0" to allow connections

@@ -525,8 +525,9 @@ def get_azure_tokens_from_audio(audio_file_path: str, speech_key: str, speech_re
             tqdm.write(f"    - Azure Speech: Recognition canceled for {audio_file_path}")
             tqdm.write(f"    - Cancellation reason: {cancellation_details.reason}")
             tqdm.write(f"    - Error details: {cancellation_details.error_details}")
-            if cancellation_details.error_code:
-                tqdm.write(f"    - Error code: {cancellation_details.error_code}")
+            # Check if error code attribute exists before accessing it
+            if hasattr(cancellation_details, 'code') and cancellation_details.code:
+                tqdm.write(f"    - Error code: {cancellation_details.code}")
     except Exception as e:
         tqdm.write(f"    - ERROR during Azure Speech pronunciation assessment for {audio_file_path}: {str(e)}")
         tqdm.write(f"    - Exception type: {type(e).__name__}")

@@ -2374,6 +2374,13 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         'english': vocabItem['english'], // Add the parent english field to each word mapping
         'audio_path': item['audio_path'], // Preserve audio_path in mappings too
       }).toList(),
+      'syllable_mapping': vocabItem['syllable_mapping']?.map<Map<String, dynamic>>((item) => {
+        'target': item['thai'] ?? item['target'],
+        'transliteration': item['transliteration'],
+        'translation': item['translation'],
+        'english': vocabItem['english'], // Add the parent english field to each syllable mapping
+        'audio_path': item['audio_path'], // Preserve audio_path in mappings too
+      }).toList(),
     };
   }
 
@@ -2381,12 +2388,17 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // Map vocabulary format to app format
     final mappedItemData = _mapVocabularyToAppFormat(itemData);
     
-    // Use semantic word boundaries from word_mapping for tracing
+    // Use syllable boundaries from syllable_mapping for NPC vocabulary, fallback to word_mapping
     List<Map<String, dynamic>> wordMapping;
     
-    if (mappedItemData['word_mapping'] != null && mappedItemData['word_mapping'] is List) {
+    if (mappedItemData['syllable_mapping'] != null && mappedItemData['syllable_mapping'] is List) {
+      // Prioritize syllable_mapping for NPC vocabulary words (better granularity for tracing)
+      wordMapping = List<Map<String, dynamic>>.from(mappedItemData['syllable_mapping']);
+      print('Using syllable_mapping for tracing: ${wordMapping.length} syllables');
+    } else if (mappedItemData['word_mapping'] != null && mappedItemData['word_mapping'] is List) {
       // Use the semantic word breakdown for tracing (e.g., เครื่องปรุง → เครื่อง, ปรุง)
       wordMapping = List<Map<String, dynamic>>.from(mappedItemData['word_mapping']);
+      print('Using word_mapping for tracing: ${wordMapping.length} words');
     } else if (mappedItemData['target'] != null && mappedItemData['target'].toString().isNotEmpty) {
       // Fallback: create mapping with the full word
       final fullWordMapping = {
@@ -2395,9 +2407,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         'translation': mappedItemData['english'] ?? '',
       };
       wordMapping = [fullWordMapping];
+      print('Using fallback single word mapping for tracing');
     } else {
       // Final fallback
       wordMapping = [mappedItemData];
+      print('Using final fallback mapping for tracing');
     }
     
     return Dialog(
@@ -3289,22 +3303,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     }
     
-    // If not cached, try to get PyThaiNLP analysis from backend
+    // If not cached, try to get syllable-based analysis from backend
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8000/analyze-character'),
+        Uri.parse('http://localhost:8000/generate-writing-guide'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'character': character}),
+        body: json.encode({'word': character, 'target_language': 'th'}),
       );
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // Cache the result for future use
+        // Cache the result for future use (convert syllable data to character format)
+        if (data.containsKey('syllables') && data['syllables'] is List) {
+          final syllables = data['syllables'] as List;
+          // Find the syllable containing this character
+          for (var syllable in syllables) {
+            if (syllable['syllable']?.contains(character) == true) {
+              _characterAnalysisCache[character] = syllable;
+              return _buildTipsFromSyllableAnalysis(character, syllable);
+            }
+          }
+        }
+        // Fallback: cache the whole response for single character
         _characterAnalysisCache[character] = data;
-        return _buildTipsFromAnalysis(character, data);
+        return _buildTipsFromSyllableData(character, data);
       }
     } catch (e) {
-      print("Failed to get PyThaiNLP analysis: $e");
+      print("Failed to get syllable-based analysis: $e");
     }
     
     // Fallback to static tips
@@ -3386,6 +3411,73 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
 
+  /// Build tips from syllable analysis data (new syllable-based approach)
+  String _buildTipsFromSyllableAnalysis(String character, Map<String, dynamic> syllableData) {
+    final List<String> practicalTips = [];
+    
+    // Extract tips from syllable data structure
+    if (syllableData['tips'] != null) {
+      final tips = syllableData['tips'] as Map<String, dynamic>;
+      
+      // Add step-by-step tips
+      if (tips['step_by_step'] != null) {
+        final stepTips = tips['step_by_step'] as List;
+        for (var step in stepTips) {
+          if (step['instruction'] != null) {
+            practicalTips.add('• ${step['instruction']}');
+          }
+        }
+      }
+      
+      // Add general tips
+      if (tips['general'] != null) {
+        final generalTips = tips['general'] as List;
+        for (var tip in generalTips) {
+          practicalTips.add('• $tip');
+        }
+      }
+    }
+    
+    // Fallback to directional tips
+    if (practicalTips.isEmpty) {
+      practicalTips.add('• ${_getDirectionalTips(character)}');
+    }
+    
+    return practicalTips.join('\n');
+  }
+
+  /// Build tips from complete syllable data (when character is a full syllable)
+  String _buildTipsFromSyllableData(String character, Map<String, dynamic> syllableData) {
+    final List<String> practicalTips = [];
+    
+    // Extract tips from syllables array
+    if (syllableData['syllables'] != null) {
+      final syllables = syllableData['syllables'] as List;
+      for (var syllable in syllables) {
+        if (syllable['tips'] != null) {
+          final tips = syllable['tips'] as Map<String, dynamic>;
+          
+          // Add step-by-step tips
+          if (tips['step_by_step'] != null) {
+            final stepTips = tips['step_by_step'] as List;
+            for (var step in stepTips) {
+              if (step['instruction'] != null) {
+                practicalTips.add('• ${step['instruction']}');
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback to directional tips
+    if (practicalTips.isEmpty) {
+      practicalTips.add('• ${_getDirectionalTips(character)}');
+    }
+    
+    return practicalTips.join('\n');
+  }
+
   void _analyzeAllCharactersInParallel() async {
     // Extract all unique characters from the current word mapping
     Set<String> uniqueCharacters = {};
@@ -3396,19 +3488,31 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     }
 
-    // Create parallel analysis tasks for all unique characters
+    // Create parallel analysis tasks for all unique characters using syllable-based approach
     List<Future<void>> analysisTasks = uniqueCharacters.map((character) async {
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:8000/analyze-character'),
+          Uri.parse('http://localhost:8000/generate-writing-guide'),
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'character': character}),
+          body: json.encode({'word': character, 'target_language': 'th'}),
         );
         
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
-          _characterAnalysisCache[character] = data;
-          print('Analyzed character: $character');
+          // Convert syllable data to character format for caching
+          if (data.containsKey('syllables') && data['syllables'] is List) {
+            final syllables = data['syllables'] as List;
+            // Find the syllable containing this character
+            for (var syllable in syllables) {
+              if (syllable['syllable']?.contains(character) == true) {
+                _characterAnalysisCache[character] = syllable;
+                break;
+              }
+            }
+          } else {
+            _characterAnalysisCache[character] = data;
+          }
+          print('Analyzed character using syllable data: $character');
         }
       } catch (e) {
         print('Failed to analyze character $character: $e');
