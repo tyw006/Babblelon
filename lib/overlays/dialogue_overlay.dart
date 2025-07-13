@@ -253,6 +253,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   final ValueNotifier<String> _translationAudioNotifier = ValueNotifier<String>("");
   final ValueNotifier<bool> _translationIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _translationErrorNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> _customItemIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Language Tools'); // Default title
   final ValueNotifier<bool> _isTranscribing = ValueNotifier<bool>(false);
 
@@ -453,6 +454,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _translationAudioNotifier.dispose();
     _translationIsLoadingNotifier.dispose();
     _translationErrorNotifier.dispose();
+    _customItemIsLoadingNotifier.dispose();
     _translationDialogTitleNotifier.dispose();
     
     // Dispose practice recording state
@@ -624,9 +626,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         Uint8List npcAudioBytes = response.bodyBytes;
         String? npcResponseDataJsonB64 = response.headers['x-npc-response-data'];
 
-        print("--- Frontend Received from Backend ---");
-        print("NPC Audio Bytes Length: ${npcAudioBytes.lengthInBytes}");
-        print("X-NPC-Response-Data (Base64): $npcResponseDataJsonB64");
+            // Backend response received
 
         if (npcResponseDataJsonB64 == null) {
           print("Error: X-NPC-Response-Data header is missing.");
@@ -635,8 +635,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
         
         String npcResponseDataJson = utf8.decode(base64Decode(npcResponseDataJsonB64));
-        print("Decoded X-NPC-Response-Data (JSON): $npcResponseDataJson");
-        print("-------------------------------------");
+        
 
         var responsePayload = json.decode(npcResponseDataJson);
         
@@ -647,9 +646,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
 
-        print("Received Player Transcription: $playerTranscription");
-        print("Received NPC Text: $npcText");
-        print("Received Player Input Mappings: ${playerInputMappings.length} words");
+                  // Processing NPC response data
 
         int charmDelta = 0;
         String charmReason = '';
@@ -667,7 +664,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
             
             charmNotifier.state = newCharm;
-            print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider(widget.npcId))}");
+            // Charm level updated
         }
 
         // Save NPC audio to a temporary file
@@ -824,6 +821,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     try {
       if (audioPath.startsWith('assets/')) {
         await player.setAsset(audioPath);
+      } else if (audioPath.startsWith('data:') || audioPath.length > 1000) {
+        // Handle base64 audio data
+        String base64Data = audioPath;
+        if (audioPath.startsWith('data:')) {
+          // Extract base64 part from data URL
+          base64Data = audioPath.split(',').last;
+        }
+        
+        try {
+          final audioBytes = base64Decode(base64Data);
+          await player.setAudioSource(_MyCustomStreamAudioSource.fromBytes(audioBytes));
+        } catch (e) {
+          print("Error decoding base64 audio: $e");
+          return;
+        }
       } else {
         await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPath)));
       }
@@ -1697,13 +1709,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Enter English word...',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.language),
-                    onPressed: () => _translateCustomItem(targetLanguage),
+                  suffixIcon: ValueListenableBuilder<bool>(
+                    valueListenable: _customItemIsLoadingNotifier,
+                    builder: (context, isLoading, child) {
+                      return IconButton(
+                        icon: isLoading 
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            )
+                          : Icon(Icons.language),
+                        onPressed: isLoading ? null : () => _translateCustomItem(targetLanguage),
+                      );
+                    },
                   ),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                onSubmitted: (_) => _translateCustomItem(targetLanguage),
+                onSubmitted: (value) {
+                  if (!_customItemIsLoadingNotifier.value) {
+                    _translateCustomItem(targetLanguage);
+                  }
+                },
               ),
             ],
           ),
@@ -1714,39 +1746,52 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             child: ValueListenableBuilder<Map<String, dynamic>?>(
               valueListenable: _customItemDataNotifier,
               builder: (context, itemData, child) {
-                if (itemData == null) {
-                  return Center(
-                    child: Text(
-                      'Enter a word above to see translation',
-                      style: TextStyle(color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
-                
-                return SingleChildScrollView(
-                  child: Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Translation:',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                return ValueListenableBuilder<bool>(
+                  valueListenable: _customItemIsLoadingNotifier,
+                  builder: (context, isLoading, child) {
+                    if (isLoading && itemData == null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Processing your word...',
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
+                          ],
+                        ),
+                      );
+                    }
+                    if (itemData == null) {
+                      return Center(
+                        child: Text(
+                          'Enter a word above to see translation',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    
+                    return SingleChildScrollView(
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Translation:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: Text(
                                   itemData['target'] ?? itemData['thai'] ?? '',
                                   style: TextStyle(
                                     fontSize: 32,
@@ -1754,71 +1799,52 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                // Audio icon if audio_path is present
-                                if (itemData['audio_path'] != null && itemData['audio_path'].toString().isNotEmpty) ...[
-                                  const SizedBox(width: 12),
-                                  GestureDetector(
-                                    onTap: () => _playVocabularyAudio(itemData['audio_path']),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.teal.shade100,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Icon(
-                                        Icons.volume_up,
-                                        color: Colors.teal.shade700,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  itemData['english'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                Text(
-                                  itemData['romanized'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          // Only show Trace Character button for custom translations
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
-                              icon: Icon(Icons.edit, size: 18),
-                              label: Text('Trace Character', style: TextStyle(fontSize: 14)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4ECCA3),
-                                foregroundColor: Colors.black,
-                                padding: EdgeInsets.symmetric(vertical: 12),
                               ),
-                            ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      itemData['english'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    Text(
+                                      itemData['transliteration'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              // Only show Trace Character button for custom translations
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
+                                  icon: Icon(Icons.edit, size: 18),
+                                  label: Text('Trace Character', style: TextStyle(fontSize: 14)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4ECCA3),
+                                    foregroundColor: Colors.black,
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -2229,6 +2255,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final String englishText = _customItemController.text.trim();
     if (englishText.isEmpty) return;
 
+    _customItemIsLoadingNotifier.value = true;
+
     try {
       final response = await http.post(
         Uri.parse('http://127.0.0.1:8000/gcloud-translate-tts/'),
@@ -2242,34 +2270,66 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Transform word_mappings from backend format to app format
+        // Transform word_mappings from backend format to app format, handling compound words
         List<Map<String, dynamic>> transformedMappings = [];
         if (data['word_mappings'] != null) {
-          transformedMappings = (data['word_mappings'] as List).map<Map<String, dynamic>>((mapping) => {
-            'target': mapping['target'] ?? '',
-            'transliteration': mapping['romanized'] ?? '',
-            'translation': mapping['english'] ?? '',
-          }).toList();
+          for (var mapping in data['word_mappings'] as List) {
+            final isCompound = mapping['is_compound'] == true;
+            final wordTranslation = mapping['translation'] as String? ?? '';
+            
+            if (mapping['syllable_mappings'] != null && (mapping['syllable_mappings'] as List).isNotEmpty) {
+              for (var syl in mapping['syllable_mappings']) {
+                String syllableTranslation;
+                
+                if (isCompound) {
+                  // For compound words, show contextual translation like "(part of Korea)"
+                  syllableTranslation = '(part of $wordTranslation)';
+                } else {
+                  // For non-compound words, show individual syllable translation
+                  syllableTranslation = syl['translation'] as String? ?? '';
+                }
+                
+                transformedMappings.add({
+                  'target': syl['syllable'] ?? '',
+                  'transliteration': syl['romanization'] ?? '',
+                  'translation': syllableTranslation,
+                  'is_compound': isCompound,
+                  'word_translation': wordTranslation, // Keep the full word translation for reference
+                });
+              }
+            } else {
+              transformedMappings.add({
+                'target': mapping['target'] ?? '',
+                'transliteration': mapping['romanized'] ?? '',
+                'translation': wordTranslation,
+                'is_compound': isCompound,
+                'word_translation': wordTranslation,
+              });
+            }
+          }
         }
         
         // Format the data for item giving and character tracing
-        final Map<String, dynamic> itemData = {
-          'english': englishText,
-          'thai': data['target_text'] ?? '', // Keep for backward compatibility
-          'target': data['target_text'] ?? '', // Add target field for app logic
-          'target_language': targetLanguage,
-          'romanized': data['romanized_text'] ?? '',
-          'transliteration': data['romanized_text'] ?? '',
+        _customItemDataNotifier.value = {
+          'target': data['translated_text'] ?? '',
+          'thai': data['translated_text'] ?? '',
+          'transliteration': data['transliteration'] ?? '',
           'translation': englishText,
-          'word_mapping': transformedMappings,
+          'english': englishText,
+          'audio_path': data['audio_base64'] ?? '', // This will be base64 data for custom items
+          'target_language': targetLanguage,
+          'syllable_mapping': transformedMappings,
+          'word_mapping': transformedMappings, // Use same data for both
         };
         
-        _customItemDataNotifier.value = itemData;
+        print('Custom item processed: ${_customItemDataNotifier.value}');
       } else {
-        print("Translation error: ${response.statusCode}");
+        print('Translation failed: ${response.statusCode}');
       }
     } catch (e) {
-      print("Error translating custom item: $e");
+      print('Translation error: $e');
+    } finally {
+      _customItemIsLoadingNotifier.value = false;
     }
   }
 

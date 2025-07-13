@@ -9,7 +9,13 @@ from google.cloud import translate_v3
 from google.cloud import texttospeech
 from typing import List, Dict, Optional
 from pythainlp.transliterate import romanize
-from pythainlp.tokenize import subword_tokenize, word_tokenize
+from pythainlp.tokenize import subword_tokenize, word_tokenize, syllable_tokenize
+import pythainlp
+
+# Import compound words from data file
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from data.language_data import KNOWN_THAI_COMPOUNDS
 
 # Language-specific configurations
 LANGUAGE_CONFIGS = {
@@ -88,29 +94,24 @@ def get_google_cloud_project_id():
         raise HTTPException(status_code=500, detail="Server is not configured for Google Cloud services (missing project ID).")
     return project_id
 
-async def translate_text(text: str, target_language: str = "th") -> dict:
-    """Translates text into the target language using Google Cloud Translate API."""
+async def translate_text(text: str, target_language: str = "th", source_language: str = "en-US") -> dict:
+    """Translates text from source to target language using Google Cloud Translate API."""
     try:
         project_id = get_google_cloud_project_id()
         client = translate_v3.TranslationServiceClient()
         parent = f"projects/{project_id}/locations/global"
-        
-        lang_config = get_language_config(target_language)
-
         response = client.translate_text(
             request={
                 "parent": parent,
                 "contents": [text],
                 "mime_type": "text/plain",
-                "source_language_code": "en-US",
-                "target_language_code": lang_config["code"],
+                "source_language_code": source_language,
+                "target_language_code": target_language,
             }
         )
-        
         translated_text = response.translations[0].translated_text
-        print(f"Successfully translated '{text}' to '{translated_text}' in {target_language}")
+        print(f"Successfully translated '{text}' from {source_language} to {target_language}: '{translated_text}'")
         return {"translated_text": translated_text}
-
     except Exception as e:
         print(f"Error during Google Cloud translation: {e}")
         raise HTTPException(status_code=500, detail=f"Google Cloud Translation API error: {e}")
@@ -315,16 +316,75 @@ async def create_word_level_translation_mapping(english_text: str, target_langua
         else:
             romanized_words = {word: word for word in target_words}
         
-        # Create word mappings
+        # Create word mappings with syllable-level translations for Thai
         for target_word in target_words:
             english_mapping = back_translations.get(target_word, "")
             romanized_word = romanized_words.get(target_word, target_word)
 
-            word_mappings.append({
+            word_mapping = {
                 "english": english_mapping,
                 "target": target_word,
                 "romanized": romanized_word
-            })
+            }
+            
+            # Add syllable-level translations for Thai words
+            if target_language.lower() == "th" and target_word.strip():
+                try:
+                    from pythainlp.tokenize import syllable_tokenize
+                    syllables = syllable_tokenize(target_word, engine="dict")
+                    if syllables and len(syllables) > 1:  # Only add if we got multiple syllables
+                        syllable_translations = []
+                        
+                        # Translate each syllable individually 
+                        for syllable in syllables:
+                            if syllable.strip():
+                                try:
+                                    syllable_response = client.translate_text(
+                                        request={
+                                            "parent": parent,
+                                            "contents": [syllable],
+                                            "mime_type": "text/plain",
+                                            "source_language_code": "th",
+                                            "target_language_code": "en-US",
+                                        }
+                                    )
+                                    syllable_translation = syllable_response.translations[0].translated_text
+                                    
+                                    # Generate individual syllable romanization
+                                    try:
+                                        from pythainlp.transliterate import romanize
+                                        syllable_romanization = romanize(syllable, engine="thai2rom")
+                                    except Exception:
+                                        syllable_romanization = syllable
+                                    
+                                    syllable_translations.append({
+                                        "syllable": syllable,
+                                        "translation": syllable_translation,
+                                        "romanization": syllable_romanization
+                                    })
+                                except Exception as syl_e:
+                                    print(f"Failed to translate syllable '{syllable}': {syl_e}")
+                                    # Generate romanization for fallback case too
+                                    try:
+                                        from pythainlp.transliterate import romanize
+                                        fallback_romanization = romanize(syllable, engine="thai2rom")
+                                    except Exception:
+                                        fallback_romanization = syllable
+                                        
+                                    syllable_translations.append({
+                                        "syllable": syllable,
+                                        "translation": english_mapping,  # fallback to full word translation
+                                        "romanization": fallback_romanization
+                                    })
+                        
+                        if syllable_translations:
+                            word_mapping["syllable_mappings"] = syllable_translations
+                            print(f"Added syllable mappings for '{target_word}': {syllable_translations}")
+                            
+                except Exception as e:
+                    print(f"Error creating syllable mappings for '{target_word}': {e}")
+            
+            word_mappings.append(word_mapping)
 
         # 7. Finalize texts for the response
         target_text_spaced = " ".join(target_words)
@@ -1353,7 +1413,7 @@ async def analyze_character_components(character: str, target_language: str = "t
                 # Determine consonant class
                 if char in 'กจดตบปอ':
                     char_analysis["consonant_class"] = "middle"
-                elif char in 'ขฃคฅฆงฉชซฌญฎฏฐฑฒณถทธนพฟภมยรลวศษสหฬฮ':
+                elif char in 'ขฃคฅฆงฉชซฌญฎฏฐฑฒณถทธนบปผฝพฟภมยรลวศษสหฬฮ':
                     char_analysis["consonant_class"] = "high"
                 else:
                     char_analysis["consonant_class"] = "low"
@@ -1872,10 +1932,10 @@ async def filter_drawable_items_from_translation(word_mappings: List, target_lan
 
 async def generate_syllable_writing_guide(word: str, target_language: str = "th") -> dict:
     """
-    Main function to generate syllable-based writing guide using PyThaiNLP TCC engine.
+    Main function to generate syllable-based writing guide using PyThaiNLP syllable tokenization.
     
     Process:
-    1. Break word into syllables using TCC engine
+    1. Break word into syllables using dictionary-based syllable tokenization
     2. Parse each syllable into grammatical components
     3. Assemble writing tips in correct Thai writing order
     4. Return structured data for frontend consumption
@@ -1899,15 +1959,24 @@ async def generate_syllable_writing_guide(word: str, target_language: str = "th"
         return {"error": f"Syllable-based writing guide not supported for {target_language}"}
     
     try:
-        from pythainlp.tokenize import subword_tokenize
+        from pythainlp.tokenize import syllable_tokenize, word_tokenize
+        from pythainlp.transliterate import romanize
         
         # Load Thai writing guide data
         thai_writing_guide = load_thai_writing_guide()
         if not thai_writing_guide:
             return {"error": "Failed to load Thai writing guide data"}
         
-        # Step 1: Break word into syllables using TCC engine
-        syllables = subword_tokenize(word, engine="tcc")
+        # Step 1: Break word into proper syllables using dictionary-based engine
+        try:
+            syllables = syllable_tokenize(word, engine="dict")
+            # Fallback to word tokenization if syllable tokenization fails or returns empty
+            if not syllables:
+                syllables = word_tokenize(word, engine="newmm")
+                print(f"Fallback to word tokenization for: {word} -> {syllables}")
+        except Exception as e:
+            print(f"Syllable tokenization failed for {word}: {e}, using word tokenization")
+            syllables = word_tokenize(word, engine="newmm")
         
         # Filter out empty syllables
         syllables = [s for s in syllables if s.strip()]
@@ -1922,6 +1991,9 @@ async def generate_syllable_writing_guide(word: str, target_language: str = "th"
             # Parse syllable components
             components = parse_syllable_components(syllable)
             
+            # Generate romanization for individual syllable
+            syllable_romanization = romanize(syllable, engine="thai2rom")
+            
             # Assemble tips in correct writing order
             tips = assemble_tips_in_order(components, thai_writing_guide)
             
@@ -1930,6 +2002,7 @@ async def generate_syllable_writing_guide(word: str, target_language: str = "th"
             
             syllable_info = {
                 "syllable": syllable,
+                "romanization": syllable_romanization,
                 "components": components,
                 "writing_order": writing_order,
                 "tips": tips
@@ -2444,3 +2517,45 @@ def generate_complex_vowel_explanation(word: str, complex_vowel: ComplexVowelMat
     ]
     
     return "\n".join(explanation_parts)
+
+async def translate_and_syllabify(english_text: str, target_language: str = 'th') -> dict:
+    # 1. Translate full English text to target
+    full_translation = await translate_text(english_text, target_language)
+    target_text = full_translation['translated_text']
+    
+    # 2. Tokenize target text into words
+    words = word_tokenize(target_text, engine='newmm')
+    
+    word_mappings = []
+    for word in words:
+        # 3. Translate target word back to English
+        back_translation = await translate_text(word, 'en', source_language=target_language)
+        whole_translation = back_translation['translated_text']
+        
+        # 4. Syllabify and romanize
+        syllables = syllable_tokenize(word)
+        
+        # 5. Determine if this is a known compound
+        is_compound = len(syllables) > 1 and is_known_compound(word)
+        
+        syllable_mappings = []
+        for syl in syllables:
+            syl_roman = romanize(syl)
+            syllable_mappings.append({
+                'syllable': syl,
+                'romanization': syl_roman,
+                'translation': None if is_compound else syl  # Don't translate syllables for compounds
+            })
+        
+        word_mappings.append({
+            'target': word,
+            'transliteration': '-'.join([m['romanization'] for m in syllable_mappings]),
+            'translation': whole_translation,
+            'syllable_mappings': syllable_mappings,
+            'is_compound': is_compound
+        })
+    return {'word_mappings': word_mappings}
+
+def is_known_compound(word: str) -> bool:
+    """Checks if a word is in our predefined list of compounds."""
+    return word in KNOWN_THAI_COMPOUNDS

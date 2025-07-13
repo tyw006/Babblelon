@@ -7,8 +7,29 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
 import '../services/character_audio_service.dart';
 import '../services/game_initialization_service.dart';
+
+/// Custom StreamAudioSource for playing base64 audio data on iOS
+class Base64AudioSource extends just_audio.StreamAudioSource {
+  final List<int> _bytes;
+
+  Base64AudioSource(this._bytes);
+
+  @override
+  Future<just_audio.StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= _bytes.length;
+    return just_audio.StreamAudioResponse(
+      sourceLength: _bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(_bytes.sublist(start, end)),
+      contentType: 'audio/wav',
+    );
+  }
+}
 
 /// A reusable character tracing widget that provides live stroke rendering
 /// and character tracing functionality.
@@ -90,7 +111,13 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   
   // Audio services
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final just_audio.AudioPlayer _justAudioPlayer = just_audio.AudioPlayer();
   final CharacterAudioService _audioService = CharacterAudioService();
+  
+  // TTS loading state for custom words
+  bool _isGeneratingTTS = false;
+  bool _ttsGenerationFailed = false;
+  Map<String, String> _ttsAudioCache = {};
 
   // Add Thai writing guide data cache
   Map<String, dynamic>? _thaiWritingGuideData;
@@ -173,6 +200,9 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     _characterScrollController.dispose();
     _stepPageController.dispose();
     _audioPlayer.dispose();
+    _justAudioPlayer.dispose();
+    // Clear TTS audio cache
+    _ttsAudioCache.clear();
     // Don't dispose the singleton _audioService as it's shared across widgets
     super.dispose();
   }
@@ -222,45 +252,125 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
   }
 
-  /// Get word segments using semantic word boundaries from word_mapping
+  /// Get word segments using syllable-based tokenization from backend
   Future<void> _getWordSegments() async {
-    // Since the dialogue overlay now passes semantic words directly,
-    // widget.wordMapping contains the semantic word breakdown
     _constituentWordData = [];
-    _currentCharacters = []; // This will store semantic words, not TCC clusters
+    _currentCharacters = []; // This will store syllables
     
-    // Process each semantic word from the passed wordMapping
+    // Process each word from the word mapping and get its syllables
     for (final mapping in widget.wordMapping) {
-      // Use 'target' field (which is mapped from 'thai' in NPC vocabulary)
       final semanticWord = mapping['target'] as String? ?? mapping['thai'] as String? ?? '';
       final transliteration = mapping['transliteration'] as String? ?? '';
       final translation = mapping['translation'] as String? ?? '';
-      final english = mapping['english'] as String? ?? ''; // Extract english field
+      final english = mapping['english'] as String? ?? '';
       
-      // Store semantic word for tracing (each semantic word gets its own canvas)
       if (semanticWord.isNotEmpty) {
-        _currentCharacters.add(semanticWord);
+        // Call backend to get proper syllable splitting
+        try {
+          final response = await http.post(
+            Uri.parse('http://localhost:8000/generate-writing-guide'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'word': semanticWord,
+              'target_language': 'th'
+            }),
+          ).timeout(const Duration(seconds: 10));
+          
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            
+            // Extract syllables from backend response
+            if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
+              final syllables = List<String>.from(data['traceable_canvases']);
+              final syllableData = data['syllables'] as List? ?? [];
+              
+              _currentCharacters.addAll(syllables);
+              
+              // Create constituent word data for each syllable with individual romanization and translations
+              for (int i = 0; i < syllables.length; i++) {
+                final syllable = syllables[i];
+                
+                // Get individual syllable romanization from backend if available
+                String syllableRomanization = transliteration; // fallback
+                if (i < syllableData.length) {
+                  final sylData = syllableData[i] as Map<String, dynamic>;
+                  syllableRomanization = sylData['romanization'] as String? ?? transliteration;
+                }
+                
+                // Check if syllable mappings are available from word mapping
+                String syllableTranslation = translation; // fallback to full word translation
+                String syllableEnglish = english; // fallback to full word english
+                
+                final syllableMappings = mapping['syllable_mappings'] as List<dynamic>?;
+                if (syllableMappings != null) {
+                  // Find the matching syllable in the mappings
+                  for (final sylMapping in syllableMappings) {
+                    if (sylMapping is Map<String, dynamic> && 
+                        sylMapping['syllable'] == syllable) {
+                      syllableTranslation = sylMapping['translation'] as String? ?? translation;
+                      syllableEnglish = sylMapping['translation'] as String? ?? english;
+                      // Also use the syllable-specific romanization if available
+                      syllableRomanization = sylMapping['romanization'] as String? ?? syllableRomanization;
+              
+                      break;
+                    }
+                  }
+                }
+                
+                _constituentWordData.add({
+                  'word': syllable,
+                  'romanized': syllableRomanization,
+                  'translation': syllableTranslation,
+                  'english': syllableEnglish,
+                });
+              }
+              
+              
+            } else {
+              // Fallback: treat as single unit
+              _currentCharacters.add(semanticWord);
+              _constituentWordData.add({
+                'word': semanticWord,
+                'romanized': transliteration,
+                'translation': translation,
+                'english': english,
+              });
+              // Backend response missing traceable_canvases data
+            }
+          } else {
+            // Backend failed, use original word as single unit
+            _currentCharacters.add(semanticWord);
+            _constituentWordData.add({
+              'word': semanticWord,
+              'romanized': transliteration,
+              'translation': translation,
+              'english': english,
+            });
+            // Backend request failed
+          }
+        } catch (e) {
+          // Error occurred, use original word as single unit
+          _currentCharacters.add(semanticWord);
+          _constituentWordData.add({
+            'word': semanticWord,
+            'romanized': transliteration,
+            'translation': translation,
+            'english': english,
+          });
+          print('Error getting syllables for $semanticWord: $e');
+        }
       }
-      
-      // Store constituent word data for display
-      _constituentWordData.add({
-        'word': semanticWord,
-        'romanized': transliteration,
-        'translation': translation,
-        'english': english, // Include english field
-      });
     }
     
-    // Set original word as concatenation of all semantic words
+    // Set original word as concatenation of all syllables
     _originalWord = _currentCharacters.join('');
     
-    print('Using semantic word boundaries: $_currentCharacters');
-    print('Constituent word data: $_constituentWordData');
+    
   }
 
   /// Pre-load comprehensive analysis for all semantic words to avoid API calls during word switching
   Future<void> _preloadAllWordAnalysis() async {
-    print('Starting word analysis pre-processing for ${_currentCharacters.length} words');
+
     
     // Skip backend analysis for performance and use Thai writing guide directly
     for (final semanticWord in _currentCharacters) {
@@ -275,7 +385,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
     
     _isPreprocessingComplete = true;
-    print('Word analysis pre-processing completed using Thai writing guide. Cached ${_wordAnalysisCache.length} words');
+
     
     // Load initial writing tips (will use Thai writing guide data)
     await _loadWritingTipsFromCache();
@@ -288,7 +398,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
     
     try {
-      print('Pre-processing syllable analysis for: $semanticWord');
+      
       
       final response = await http.post(
         Uri.parse('http://localhost:8000/generate-writing-guide'),
@@ -302,9 +412,9 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       if (response.statusCode == 200) {
         final analysisData = json.decode(response.body);
         _wordAnalysisCache[semanticWord] = analysisData;
-        print('Successfully cached syllable analysis for: $semanticWord');
+        
       } else {
-        print('Failed to get syllable analysis for $semanticWord: ${response.statusCode}');
+        // Failed to get syllable analysis from backend
         _storeFallbackAnalysis(semanticWord);
       }
     } catch (e) {
@@ -374,8 +484,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         }
       }
       
-      print('Vocabulary word syllable tokenization result: $_currentCharacters');
-      print('Romanizations: $_romanizationByCluster');
+      
       
     } catch (e) {
       print('Error tokenizing vocabulary words: $e');
@@ -405,7 +514,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         // Use traceable_canvases for syllable boundaries
         if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
           _currentCharacters = List<String>.from(data['traceable_canvases']);
-          print('Using syllables from backend: $_currentCharacters');
+  
         } else {
           // Fallback to original word as single syllable
           _currentCharacters = [targetWord];
@@ -425,7 +534,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         }
         
       } else {
-        print('Backend semantic word tokenization failed with status: ${response.statusCode}');
+        // Backend semantic word tokenization failed
         _currentCharacters = [targetWord]; // Treat as single semantic word
       }
     } catch (e) {
@@ -472,20 +581,20 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         // Use the syllable-based tracing sequence
         if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
           _currentCharacters = List<String>.from(data['traceable_canvases']);
-          print('Using syllable-based tracing sequence: $_currentCharacters');
+  
         } else {
           // Last resort: split into individual characters
           _currentCharacters = targetWord.split('');
-          print('Fallback to character splitting: $_currentCharacters');
+  
         }
         
-        print('Backend tokenization result with enhanced data: ${data.toString()}');
+
       } else {
-        print('Backend tokenization failed with status: ${response.statusCode}');
+        // Backend tokenization failed
         _currentCharacters = targetWord.split('');
       }
     } on TimeoutException catch (e) {
-      print('Backend tokenization timed out: $e');
+              // Backend tokenization timed out
       _currentCharacters = targetWord.split('');
     } catch (e) {
       print('Error tokenizing word using backend: $e');
@@ -599,8 +708,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Load writing tips from pre-processed cache (no API calls during word switching)
   Future<void> _loadWritingTipsFromCache() async {
-    print('_loadWritingTipsFromCache called, showWritingTips: ${widget.showWritingTips}');
-    print('_currentCharacters length: ${_currentCharacters.length}');
+
     if (_currentCharacters.isEmpty || !widget.showWritingTips) return;
     
     setState(() {
@@ -613,8 +721,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       if (_wordAnalysisCache.containsKey(semanticWord)) {
         // Use cached analysis (comprehensive or fallback)
         final analysisData = _wordAnalysisCache[semanticWord]!;
-        print('>>> CACHE HIT for word: $semanticWord, fallback: ${analysisData['fallback'] ?? false}');
-        print('Cache data keys: ${analysisData.keys}');
+
         
         setState(() {
           _writingGuidance = analysisData;
@@ -624,8 +731,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         });
       } else {
         // Cache miss - create enhanced fallback directly
-        print('>>> CACHE MISS for word: $semanticWord. Creating enhanced fallback.');
-        print('Available cache keys: ${_wordAnalysisCache.keys.toList()}');
+
         setState(() {
           _writingTips = _buildEnhancedFallbackTips(semanticWord);
           _isLoadingTips = false;
@@ -676,7 +782,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         });
       }
     } on TimeoutException catch (e) {
-      print('Fallback tips request timed out: $e');
+              // Fallback tips request timed out
       setState(() {
         _writingTips = 'Request timed out. Using basic tips for this character.';
         _isLoadingTips = false;
@@ -699,20 +805,17 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Build comprehensive educational writing tips with tabbed structure
   String _buildComprehensiveEducationalTips(String semanticWord, Map<String, dynamic> analysisData) {
-    print('=== Building comprehensive tips for: $semanticWord ===');
-    print('Analysis data keys: ${analysisData.keys}');
-    print('Has fallback flag: ${analysisData.containsKey('fallback')} = ${analysisData['fallback']}');
-    print('Thai writing guide loaded: ${_thaiWritingGuideData != null}');
+
     
     // Check if this is fallback data (backend failed)
     if (analysisData.containsKey('fallback') && analysisData['fallback'] == true) {
-      print('>>> USING FALLBACK TIPS for: $semanticWord (backend failed)');
+      
       return _buildEnhancedFallbackTips(semanticWord);
     }
     
     // Check if we should use Thai writing guide (our preferred method)
     if (analysisData.containsKey('use_thai_guide') && analysisData['use_thai_guide'] == true) {
-      print('>>> USING THAI GUIDE TIPS for: $semanticWord');
+      
       return _buildEnhancedFallbackTips(semanticWord);
     }
     
@@ -1534,8 +1637,7 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Build enhanced fallback tips that include Thai guidelines plus character-specific guidance
   String _buildEnhancedFallbackTips(String semanticWord) {
-    print('Building enhanced fallback tips for: $semanticWord');
-    print('Thai writing guide data available: ${_thaiWritingGuideData != null}');
+
     final List<String> sections = [];
     
     // Start with Thai Writing Guidelines from JSON or fallback
@@ -1619,7 +1721,7 @@ Note: For detailed analysis, check your connection and try again.
     }
     
     final result = sections.join('\n');
-    print('Enhanced fallback tips result length: ${result.length} characters');
+
     
     // Ensure we always return something useful
     if (result.trim().isEmpty) {
@@ -1660,14 +1762,14 @@ Note: For detailed analysis, check your connection and try again.
     if (_thaiWritingGuideData == null) return null;
     
     final cleanCharacter = character.trim();
-    print('_getDetailedCharacterInfo called for: "$cleanCharacter"');
+
     
     try {
       // Check consonants
       final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
       if (consonants?.containsKey(cleanCharacter) == true) {
         final charData = consonants![cleanCharacter] as Map<String, dynamic>;
-        print('Found consonant data for: $cleanCharacter');
+        
         
         // Extract pronunciation information
         final pronunciation = charData['pronunciation'] as Map<String, dynamic>?;
@@ -1726,7 +1828,7 @@ Note: For detailed analysis, check your connection and try again.
       }
       
       if (vowelData != null) {
-        print('Found vowel data for: $cleanCharacter (key: $foundVowelKey)');
+        
         
         // Extract pronunciation information
         final pronunciation = vowelData['pronunciation'] as Map<String, dynamic>?;
@@ -1753,7 +1855,7 @@ Note: For detailed analysis, check your connection and try again.
       final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
       if (toneMarks != null && toneMarks.containsKey(cleanCharacter)) {
         final markInfo = toneMarks[cleanCharacter] as Map<String, dynamic>;
-        print('Found tone mark data for: $cleanCharacter');
+        
         
         // Extract writing steps for tone marks
         final writingSteps = markInfo['writing_steps'] as String? ?? '';
@@ -1899,7 +2001,7 @@ Note: For detailed analysis, check your connection and try again.
       if (wordData.containsKey('english') && 
           wordData['english'] != null && 
           wordData['english'].toString().isNotEmpty) {
-        print('Using english field from NPC vocabulary: ${wordData['english']}');
+
         return wordData['english'].toString();
       }
       
@@ -1907,7 +2009,7 @@ Note: For detailed analysis, check your connection and try again.
       if (wordData.containsKey('translation') && 
           wordData['translation'] != null && 
           wordData['translation'].toString().isNotEmpty) {
-        print('Using translation field as fallback: ${wordData['translation']}');
+
         return wordData['translation'].toString();
       }
     }
@@ -1918,18 +2020,16 @@ Note: For detailed analysis, check your connection and try again.
   String _getCharacterTipsFromJSON(String character) {
     // Strip whitespace and normalize character
     final cleanCharacter = character.trim();
-    print('Getting JSON tips for character: "$character" (cleaned: "$cleanCharacter")');
     if (_thaiWritingGuideData == null) {
-      print('No Thai writing guide data available');
       return '';
     }
     
     try {
       final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
-      print('Looking for "$cleanCharacter" in consonants: ${consonants?.containsKey(cleanCharacter)}');
+
       if (consonants != null && consonants.containsKey(cleanCharacter)) {
         final charData = consonants[cleanCharacter] as Map<String, dynamic>;
-        print('Found character data keys: ${charData.keys}');
+
         
         // Use writing_steps and pronunciation fields
         final writingSteps = charData['writing_steps'] as String? ?? '';
@@ -1938,13 +2038,13 @@ Note: For detailed analysis, check your connection and try again.
         
         if (writingSteps.isNotEmpty && englishGuide.isNotEmpty) {
           final result = '$englishGuide\n\nHow to write: $writingSteps';
-          print('Using writing_steps + english_guide: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (englishGuide.isNotEmpty) {
-          print('Using english_guide: $englishGuide');
+          
           return englishGuide;
         }
         
@@ -1952,7 +2052,7 @@ Note: For detailed analysis, check your connection and try again.
         final romanization = pronunciation?['initial'] as String? ?? '';
         if (romanization.isNotEmpty) {
           final result = '$romanization sound';
-          print('Using romanization tip: $result');
+          
           return result;
         }
       }
@@ -1975,10 +2075,10 @@ Note: For detailed analysis, check your connection and try again.
         }
       }
       
-      print('Looking for "$cleanCharacter" in vowels (trying "$vowelKey"): $foundInVowels');
+      
       if (foundInVowels) {
         final vowelData = vowels![vowelKey] as Map<String, dynamic>;
-        print('Found vowel data keys: ${vowelData.keys}');
+        
         
         // Use writing_steps and pronunciation.english_guide fields for vowels
         final writingSteps = vowelData['writing_steps'] as String? ?? '';
@@ -1987,13 +2087,13 @@ Note: For detailed analysis, check your connection and try again.
         
         if (writingSteps.isNotEmpty && englishGuide.isNotEmpty) {
           final result = '$englishGuide\n\nHow to write: $writingSteps';
-          print('Using vowel writing_steps + english_guide: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found vowel writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (englishGuide.isNotEmpty) {
-          print('Using vowel english_guide: $englishGuide');
+          
           return englishGuide;
         }
         
@@ -2002,24 +2102,24 @@ Note: For detailed analysis, check your connection and try again.
         final position = vowelData['position'] as String? ?? '';
         if (romanization.isNotEmpty) {
           final result = '$romanization sound' + (position.isNotEmpty ? ' (placed $position consonant)' : '');
-          print('Using vowel romanization tip: $result');
+          
           return result;
         }
       } else {
         // Check if this character appears as a component in complex vowels
         final complexVowelTip = _findInComplexVowels(cleanCharacter);
         if (complexVowelTip.isNotEmpty) {
-          print('Found character in complex vowels: $complexVowelTip');
+
           return complexVowelTip;
         }
       }
       
       // Check tone marks section
       final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
-      print('Looking for "$cleanCharacter" in tone_marks: ${toneMarks?.containsKey(cleanCharacter)}');
+      
       if (toneMarks != null && toneMarks.containsKey(cleanCharacter)) {
         final toneData = toneMarks[cleanCharacter] as Map<String, dynamic>;
-        print('Found tone mark data keys: ${toneData.keys}');
+        
         
         // Use writing_steps and pronunciation_guide fields for tone marks (simplified for beginners)
         final writingSteps = toneData['writing_steps'] as String? ?? '';
@@ -2029,15 +2129,15 @@ Note: For detailed analysis, check your connection and try again.
           // Simplify tone description for beginners
           final simplifiedTone = pronunciationGuide.replaceAll('makes ', '').replaceAll(' tone', '');
           final result = 'Makes your voice $simplifiedTone\n\nHow to write: $writingSteps';
-          print('Using tone mark writing_steps + simplified description: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found tone mark writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (pronunciationGuide.isNotEmpty) {
           final simplifiedTone = pronunciationGuide.replaceAll('makes ', '').replaceAll(' tone', '');
           final result = 'Makes your voice $simplifiedTone';
-          print('Using simplified tone description: $result');
+          
           return result;
         }
         
@@ -2048,7 +2148,7 @@ Note: For detailed analysis, check your connection and try again.
       print('Error getting character tips from JSON for "$character" (cleaned: "$cleanCharacter"): $e');
     }
     
-    print('No tips found for character: "$character" (cleaned: "$cleanCharacter")');
+    
     return '';
   }
 
@@ -2129,17 +2229,47 @@ Note: For detailed analysis, check your connection and try again.
   Future<void> _playVocabularyAudio(Map<String, dynamic> wordData) async {
     try {
       if (_hasAudioPath(wordData)) {
-        // For NPC vocabulary with existing audio_path
         final audioPath = wordData['audio_path'] as String;
-        print('Playing vocabulary audio: $audioPath');
+
         
         // Play audio file using audioplayers
         await _audioPlayer.stop(); // Stop any currently playing audio
         
-        // Fix double assets/ prefix issue
-        final cleanPath = audioPath.startsWith('assets/') ? audioPath.substring(7) : audioPath;
-        await _audioPlayer.play(AssetSource(cleanPath));
-        print('Successfully started playing: $cleanPath');
+        // Check if this is base64 audio data (for custom words) or file path (for NPC words)
+        if (audioPath.startsWith('assets/')) {
+          // For NPC vocabulary with existing audio_path
+          final cleanPath = audioPath.substring(7); // Remove 'assets/' prefix
+          await _audioPlayer.play(AssetSource(cleanPath));
+
+        } else if (audioPath.startsWith('data:') || audioPath.length > 1000) {
+          // For custom words with base64 audio data
+          String base64Data = audioPath;
+          if (audioPath.startsWith('data:')) {
+            // Extract base64 part from data URL
+            base64Data = audioPath.split(',').last;
+          }
+          
+          try {
+            final audioBytes = base64Decode(base64Data);
+            // Use just_audio for base64 data (iOS compatible)
+            await _justAudioPlayer.stop();
+            final audioSource = Base64AudioSource(audioBytes);
+            await _justAudioPlayer.setAudioSource(audioSource);
+            await _justAudioPlayer.play();
+
+          } catch (e) {
+            // Failed to decode base64 audio, fallback to TTS
+            // Fallback to TTS
+            final targetText = wordData['target'] as String? ?? '';
+            if (targetText.isNotEmpty) {
+              await _generateAndPlayTTS(targetText);
+            }
+          }
+        } else {
+          // Assume it's a regular file path
+          await _audioPlayer.play(AssetSource(audioPath));
+
+        }
       } else {
         // For custom words, use TTS from backend
         final targetText = wordData['target'] as String? ?? '';
@@ -2154,9 +2284,26 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Generate TTS audio using backend service for custom words
   Future<void> _generateAndPlayTTS(String text) async {
+    // Check cache first
+    if (_ttsAudioCache.containsKey(text)) {
+      final cachedAudio = _ttsAudioCache[text]!;
+      final bytes = base64Decode(cachedAudio);
+      await _justAudioPlayer.stop();
+      final audioSource = Base64AudioSource(bytes);
+      await _justAudioPlayer.setAudioSource(audioSource);
+      await _justAudioPlayer.play();
+
+      return;
+    }
+
+    setState(() {
+      _isGeneratingTTS = true;
+      _ttsGenerationFailed = false;
+    });
+
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8000/gcloud-translate-tts/'),
+        Uri.parse('http://localhost:8000/synthesize-speech/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'text': text,
@@ -2169,19 +2316,78 @@ Note: For detailed analysis, check your connection and try again.
         final audioBase64 = data['audio_base64'] as String?;
         
         if (audioBase64 != null && audioBase64.isNotEmpty) {
-          print('Generated TTS audio for: $text');
+
+          
+          // Cache the audio for future use
+          _ttsAudioCache[text] = audioBase64;
           
           // Decode base64 and play the audio
           final bytes = base64Decode(audioBase64);
           
-          // Create a temporary file from bytes and play it
-          await _audioPlayer.stop();
-          await _audioPlayer.play(BytesSource(bytes));
-          print('Successfully started playing TTS audio');
+          // Use just_audio for base64 data (iOS compatible)
+          await _justAudioPlayer.stop();
+          final audioSource = Base64AudioSource(bytes);
+          await _justAudioPlayer.setAudioSource(audioSource);
+          await _justAudioPlayer.play();
+
         }
+      } else {
+        // TTS generation failed
+        setState(() {
+          _ttsGenerationFailed = true;
+        });
       }
     } catch (e) {
-      print('Error generating TTS: $e');
+      // Error generating TTS
+      setState(() {
+        _ttsGenerationFailed = true;
+      });
+    } finally {
+      setState(() {
+        _isGeneratingTTS = false;
+      });
+    }
+  }
+
+  /// Handle audio playback with retry logic for failed TTS
+  Future<void> _handleAudioPlayback(Map<String, dynamic> wordData, bool hasNPCAudio) async {
+    if (_ttsGenerationFailed && !hasNPCAudio) {
+      // Reset the failed state and retry TTS generation
+      setState(() {
+        _ttsGenerationFailed = false;
+      });
+    }
+    
+    // Call the original playback method
+    await _playVocabularyAudio(wordData);
+  }
+
+  /// Build dynamic audio icon based on TTS loading state
+  Widget _buildAudioIcon(bool hasNPCAudio) {
+    if (_isGeneratingTTS) {
+      // Show loading spinner for TTS generation
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4ECCA3)),
+        ),
+      );
+    } else if (_ttsGenerationFailed) {
+      // Show retry icon for failed TTS generation
+      return const Icon(
+        Icons.refresh,
+        color: Colors.red,
+        size: 20,
+      );
+    } else {
+      // Show volume icon for normal state (both NPC and custom words)
+      return const Icon(
+        Icons.volume_up,
+        color: Color(0xFF4ECCA3),
+        size: 20,
+      );
     }
   }
 
@@ -2494,9 +2700,7 @@ Note: For detailed analysis, check your connection and try again.
         .join(' ');
     
     // Use main English translation from first word mapping instead of combined translations
-    print('DEBUG HEADER: widget.wordMapping[0] keys: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0].keys : "empty"}');
-    print('DEBUG HEADER: english field value: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0]['english'] : "N/A"}');
-    print('DEBUG HEADER: translation field value: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0]['translation'] : "N/A"}');
+
     
     final mainTranslation = widget.wordMapping.isNotEmpty && 
                            widget.wordMapping[0].containsKey('english') &&
@@ -2510,16 +2714,19 @@ Note: For detailed analysis, check your connection and try again.
           ? widget.wordMapping[0]['translation'].toString()
           : '';
     
-    print('DEBUG HEADER: Using translation: "$mainTranslation"');
+
     
-    // Check original vocabulary item for audio path first, then word mapping
-    final hasAudio = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
+    // Show audio icon for all words (NPC words with audio_path OR custom words for TTS)
+    final hasNPCAudio = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
         widget.originalVocabularyItem!['audio_path'] != null &&
         widget.originalVocabularyItem!['audio_path'].toString().isNotEmpty) ||
         widget.wordMapping.any((mapping) => 
             mapping.containsKey('audio_path') && 
             mapping['audio_path'] != null && 
             mapping['audio_path'].toString().isNotEmpty);
+    
+    // Show audio icon for ALL words (NPC vocabulary + custom words via TTS)
+    final hasAudio = hasNPCAudio || widget.wordMapping.isNotEmpty;
     
     // Use original vocabulary item for audio playback if available, otherwise fallback to word mapping
     final wordData = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
@@ -2565,7 +2772,7 @@ Note: For detailed analysis, check your connection and try again.
                     right: 0,
                     top: 0,
                     child: GestureDetector(
-                      onTap: () => _playVocabularyAudio(wordData),
+                      onTap: () => _handleAudioPlayback(wordData, hasNPCAudio),
                       child: Container(
                         width: 36,
                         height: 36,
@@ -2577,11 +2784,7 @@ Note: For detailed analysis, check your connection and try again.
                             width: 1,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.volume_up,
-                          color: Color(0xFF4ECCA3),
-                          size: 20,
-                        ),
+                        child: _buildAudioIcon(hasNPCAudio),
                       ),
                     ),
                   ),
@@ -2752,7 +2955,7 @@ Note: For detailed analysis, check your connection and try again.
   /// Get complex vowel information for the current character and word
   Future<Map<String, dynamic>?> _getComplexVowelInfo(String character, String word) async {
     try {
-      print('DEBUG: _getComplexVowelInfo called for character "$character" in word "$word"');
+  
       final response = await http.post(
         Uri.parse('http://localhost:8000/analyze-complex-vowels/'),
         headers: {'Content-Type': 'application/json'},
@@ -2762,7 +2965,7 @@ Note: For detailed analysis, check your connection and try again.
         }),
       );
 
-      print('DEBUG: Complex vowel API response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('DEBUG: Complex vowel API response data: $data');
@@ -3235,7 +3438,23 @@ Note: For detailed analysis, check your connection and try again.
     if (_constituentWordData.isNotEmpty && _currentCharacterIndex < _constituentWordData.length) {
       final wordData = _constituentWordData[_currentCharacterIndex];
       currentRomanization = wordData['romanized'] as String? ?? '';
-      currentTranslation = wordData['translation'] as String? ?? '';
+      
+      // Handle compound word syllables
+      final rawTranslation = wordData['translation'] as String?;
+      final isCompound = wordData['is_compound'] == true;
+      final wordTranslation = wordData['word_translation'] as String?;
+      
+      if (rawTranslation == null || rawTranslation.isEmpty || rawTranslation == 'null' || rawTranslation == 'None') {
+        if (isCompound && wordTranslation != null && wordTranslation.isNotEmpty) {
+          // For compound words, show contextual information
+          currentTranslation = '(part of $wordTranslation)';
+        } else {
+          // For non-compound words or missing word translation, show syllable romanization
+          currentTranslation = currentRomanization.isNotEmpty ? '($currentRomanization)' : '';
+        }
+      } else {
+        currentTranslation = rawTranslation;
+      }
     }
     
     // Calculate progress
@@ -3245,8 +3464,8 @@ Note: For detailed analysis, check your connection and try again.
     
     return Container(
       width: double.infinity,
-      // Removed fixed height to allow expansion
       margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF1F1F1F),
         borderRadius: BorderRadius.circular(12),
@@ -3257,115 +3476,71 @@ Note: For detailed analysis, check your connection and try again.
       ),
       child: Column(
         children: [
-          // Scrollable content area (includes basic info + character tips)
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Basic info section (now scrollable)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      children: [
-                        // Current semantic word display
-                        if (currentSemanticWord.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(flex: 1, child: Container()),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  currentSemanticWord,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              Expanded(
-                                flex: 1,
-                                child: progress.isNotEmpty
-                                    ? Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            progress,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Color(0xFF4ECCA3),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : Container(),
-                              ),
-                            ],
-                          ),
-                          
-                          if (currentRomanization.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              currentRomanization,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF4ECCA3),
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                          
-                          if (currentTranslation.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              currentTranslation,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2, // Allow wrapping for better readability
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ],
-                    ),
+          // Current syllable display with three separate lines (centered)
+          if (currentSemanticWord.isNotEmpty) ...[
+            // Line 1: Thai syllable (centered)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  currentSemanticWord,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  
-                  // Divider
+                  textAlign: TextAlign.center,
+                ),
+                if (progress.isNotEmpty) ...[
+                  const SizedBox(width: 12),
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
-                          width: 1,
-                        ),
+                      color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      progress,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF4ECCA3),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  
-                  // Character tips section (now also scrollable)
-                  _buildCurrentCharacterTip(currentSemanticWord),
                 ],
-              ),
+              ],
             ),
-          ),
-          
-          // Fixed navigation bar at bottom
-          _buildCharacterNavigationBar(),
+            
+            // Line 2: Transliteration 
+            if (currentRomanization.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                currentRomanization,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Color(0xFF4ECCA3),
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            
+            // Line 3: Translation
+            if (currentTranslation.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                currentTranslation,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -4933,7 +5108,23 @@ Note: For detailed analysis, check your connection and try again.
     if (_constituentWordData.isNotEmpty && _currentCharacterIndex < _constituentWordData.length) {
       final syllableData = _constituentWordData[_currentCharacterIndex];
       currentRomanization = syllableData['romanized'] as String? ?? '';
-      currentTranslation = syllableData['translation'] as String? ?? '';
+      
+      // Handle compound word syllables
+      final rawTranslation = syllableData['translation'] as String?;
+      final isCompound = syllableData['is_compound'] == true;
+      final wordTranslation = syllableData['word_translation'] as String?;
+      
+      if (rawTranslation == null || rawTranslation.isEmpty || rawTranslation == 'null' || rawTranslation == 'None') {
+        if (isCompound && wordTranslation != null && wordTranslation.isNotEmpty) {
+          // For compound words, show contextual information
+          currentTranslation = '(part of $wordTranslation)';
+        } else {
+          // For non-compound words or missing word translation, show syllable romanization
+          currentTranslation = currentRomanization.isNotEmpty ? '($currentRomanization)' : '';
+        }
+      } else {
+        currentTranslation = rawTranslation;
+      }
     }
     
     // Calculate progress

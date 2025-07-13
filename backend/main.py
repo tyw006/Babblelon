@@ -36,7 +36,7 @@ else:
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse
 from services.stt_service import transcribe_audio
-from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation
+from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation, translate_and_syllabify
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
 
 app = FastAPI()
@@ -255,15 +255,24 @@ async def gcloud_translate_tts_endpoint(request: TranslationRequest):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /gcloud-translate-tts/ received request for text: '{request.english_text[:50]}...' in {request.target_language}")
     try:
-        # Use the new optimized and parallelized mapping function
-        translation_result = await create_word_level_translation_mapping(request.english_text, request.target_language)
-
+        # Use the new translate_and_syllabify function for better compound word handling
+        syllable_result = await translate_and_syllabify(request.english_text, request.target_language)
+        
+        # Extract target text from word mappings
+        target_text = ' '.join([mapping['target'] for mapping in syllable_result['word_mappings']])
+        
+        # Generate audio for the full target text
+        audio_result = await synthesize_speech(target_text, request.target_language)
+        
+        # Build response in the expected format
         response_payload = {
             "english_text": request.english_text,
-            "target_text": translation_result["target_text_spaced"],
-            "romanized_text": translation_result["romanized_text"],
-            "audio_base64": translation_result["audio_base64"],
-            "word_mappings": translation_result["word_mappings"],
+            "target_text": target_text,
+            "translated_text": target_text,  # Add this field for frontend compatibility
+            "romanized_text": ' '.join([mapping['transliteration'] for mapping in syllable_result['word_mappings']]),
+            "transliteration": ' '.join([mapping['transliteration'] for mapping in syllable_result['word_mappings']]),  # Add this field for frontend compatibility
+            "audio_base64": audio_result.get("audio_base64", ""),
+            "word_mappings": syllable_result['word_mappings'],
             "target_language_name": get_language_name(request.target_language)
         }
         
