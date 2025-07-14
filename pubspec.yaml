@@ -39,6 +39,13 @@ dependencies:
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   google_mlkit_digital_ink_recognition: ^0.14.1
+  flutter_earth_globe: ^1.0.0
+  flutter_map: ^7.0.2
+  particles_flutter: ^0.1.4
+  glass_kit: ^3.0.0
+  shimmer: ^3.0.0
+  flutter_3d_controller: ^2.2.0
+  textuality: ^0.0.4
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +73,7 @@ flutter:
     - assets/audio/npc_vocabulary_amara/
     - assets/audio/npc_vocabulary_somchai/
     - assets/images/bosses/tuktuk/
+    - assets/images/main_screen/
     - assets/data/
     - assets/lottie/
     - .env 

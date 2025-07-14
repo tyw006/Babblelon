@@ -118,7 +118,7 @@ class MainMenuScreen extends ConsumerWidget {
                         bossData: tuktukBoss,
                         attackItem: testAttackItem,
                         defenseItem: testDefenseItem,
-                        game: BabblelonGame(),
+                        game: BabblelonGame(character: 'male'), // Add character parameter for test
                       ),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return AnimatedBuilder(

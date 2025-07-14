@@ -12,12 +12,12 @@ import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
 class GameScreen extends StatefulWidget {
-  GameScreen({super.key});
-  final BabblelonGame _game = BabblelonGame();
+  const GameScreen({super.key});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -26,6 +26,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late WidgetRef _ref;
   late final AppLifecycleListener _listener;
+  BabblelonGame? _game;
 
   @override
   void initState() {
@@ -33,11 +34,19 @@ class _GameScreenState extends State<GameScreen> {
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
-    
+    _initializeGame();
     // Start background initialization (non-blocking)
     _initializeGameAssetsInBackground();
   }
-  
+
+  Future<void> _initializeGame() async {
+    final prefs = await SharedPreferences.getInstance();
+    final character = prefs.getString('selected_character') ?? 'male';
+    setState(() {
+      _game = BabblelonGame(character: character);
+    });
+  }
+
   /// Initialize game assets in the background without blocking the game
   void _initializeGameAssetsInBackground() {
     final initService = GameInitializationService();
@@ -80,63 +89,66 @@ class _GameScreenState extends State<GameScreen> {
         return Scaffold(
           body: Stack(
             children: [
-              RiverpodAwareGameWidget(
-                key: gameWidgetKey,
-                game: widget._game,
-                loadingBuilder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                errorBuilder: (context, error) => Center(
-                  child: Text(
-                    'Error loading game: $error',
-                    style: const TextStyle(color: Colors.red, fontSize: 20),
+              if (_game == null)
+                const Center(child: CircularProgressIndicator()),
+              if (_game != null)
+                RiverpodAwareGameWidget(
+                  key: gameWidgetKey,
+                  game: _game!,
+                  loadingBuilder: (context) => const Center(
+                    child: CircularProgressIndicator(),
                   ),
-                ),
-                overlayBuilderMap: {
-                  'main_menu': (context, game) => MainMenu(
-                    game: game as BabblelonGame,
-                    onClose: _closeMenuAndResume,
+                  errorBuilder: (context, error) => Center(
+                    child: Text(
+                      'Error loading game: $error',
+                      style: const TextStyle(color: Colors.red, fontSize: 20),
+                    ),
                   ),
-                  'dialogue': (context, game) {
-                    final babblelonGame = game as BabblelonGame;
-                    final npcId = babblelonGame.activeNpcIdForOverlay;
-
-                    if (npcId == null) {
-                      // This is a fallback, should not happen in normal flow
-                      return const Center(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Text(
-                            "Error: No NPC selected for dialogue.",
-                            style: TextStyle(color: Colors.red, fontSize: 24),
-                          ),
-                        ),
-                      );
-                    }
-                    return DialogueOverlay(game: babblelonGame, npcId: npcId);
-                  },
-                  'game_over': (context, game) {
-                    return GameOverMenu(
+                  overlayBuilderMap: {
+                    'main_menu': (context, game) => MainMenu(
                       game: game as BabblelonGame,
-                      onRestart: () => (game as BabblelonGame).reset(),
-                    );
+                      onClose: _closeMenuAndResume,
+                    ),
+                    'dialogue': (context, game) {
+                      final babblelonGame = game as BabblelonGame;
+                      final npcId = babblelonGame.activeNpcIdForOverlay;
+
+                      if (npcId == null) {
+                        // This is a fallback, should not happen in normal flow
+                        return const Center(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Text(
+                              "Error: No NPC selected for dialogue.",
+                              style: TextStyle(color: Colors.red, fontSize: 24),
+                            ),
+                          ),
+                        );
+                      }
+                      return DialogueOverlay(game: babblelonGame, npcId: npcId);
+                    },
+                    'game_over': (context, game) {
+                      return GameOverMenu(
+                        game: game as BabblelonGame,
+                        onRestart: () => (game as BabblelonGame).reset(),
+                      );
+                    },
+                    'info_popup': (context, game) {
+                      final config = ref.watch(popupConfigProvider);
+                      if (config == null) {
+                        return const SizedBox.shrink();
+                      }
+                      return InfoPopupOverlay(
+                        title: config.title,
+                        message: config.message,
+                        confirmText: config.confirmText,
+                        onConfirm: config.onConfirm,
+                        cancelText: config.cancelText,
+                        onCancel: config.onCancel,
+                      );
+                    },
                   },
-                  'info_popup': (context, game) {
-                    final config = ref.watch(popupConfigProvider);
-                    if (config == null) {
-                      return const SizedBox.shrink();
-                    }
-                    return InfoPopupOverlay(
-                      title: config.title,
-                      message: config.message,
-                      confirmText: config.confirmText,
-                      onConfirm: config.onConfirm,
-                      cancelText: config.cancelText,
-                      onCancel: config.onCancel,
-                    );
-                  },
-                },
-              ),
+                ),
               // Hamburger menu icon (always visible)
               SafeArea(
                 child: Align(
@@ -193,19 +205,21 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _openMenu() {
+    if (_game == null) return;
     final isPaused = _ref.read(gameStateProvider).isPaused;
     // Only add overlay if not already present
-    if (!widget._game.overlays.isActive('main_menu')) {
+    if (!_game!.overlays.isActive('main_menu')) {
       if (!isPaused) {
-        widget._game.pauseGame(_ref);
+        _game!.pauseGame(_ref);
       }
-      widget._game.overlays.add('main_menu');
+      _game!.overlays.add('main_menu');
     }
   }
 
   void _closeMenuAndResume() {
-    widget._game.overlays.remove('main_menu');
-    widget._game.resumeGame(_ref);
+    if (_game == null) return;
+    _game!.overlays.remove('main_menu');
+    _game!.resumeGame(_ref);
   }
 }
 

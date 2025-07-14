@@ -13,16 +13,16 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
 
   double backgroundWidth = 0.0; // Will be set from game.backgroundWidth
 
-  PlayerComponent(){
-    // Size and anchor will be set in onLoad
-  }
+  final String character;
+
+  PlayerComponent({required this.character});
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     this.backgroundWidth = game.backgroundWidth; // Initialize backgroundWidth from the game
 
-    final playerImage = await game.images.load('player/sprite_male_tourist.png');
+    final playerImage = await game.images.load('player/sprite_${character}_tourist.png');
     sprite = Sprite(playerImage);
 
     const double scaleFactor = 0.20; // Slightly smaller scale for 1080p, adjust as needed

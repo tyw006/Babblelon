@@ -26,6 +26,10 @@ class BabblelonGame extends FlameGame with
     KeyboardEvents,
     HasCollisionDetection {
   
+  final String character;
+
+  BabblelonGame({required this.character});
+  
   // UI Components
   
   // World and Camera
@@ -107,7 +111,7 @@ class BabblelonGame extends FlameGame with
     );
     gameWorld.add(background..priority = -2); // Add background to the world
     
-    player = PlayerComponent();
+    player = PlayerComponent(character: character);
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
 

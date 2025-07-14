@@ -1,4 +1,5 @@
 import 'package:babblelon/screens/main_menu_screen.dart';
+import 'package:babblelon/screens/main_screen/earth_globe_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/game_screen.dart';
@@ -51,7 +52,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Babblelon',
       theme: AppStyles.mainTheme,
-      home: const MainMenuScreen(),
+      home: const EarthGlobeScreen(),
+      // home: const MainMenuScreen(), // Old main menu
       // home: const DebugDialogTest(), // Temporarily set to debug screen
     );
   }
