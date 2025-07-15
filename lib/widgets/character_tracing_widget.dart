@@ -10,6 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import '../services/character_audio_service.dart';
 import '../services/game_initialization_service.dart';
+import '../services/character_recognition_service.dart';
+import '../widgets/tracing_confirmation_dialog.dart';
+import '../widgets/character_assessment_dialog.dart';
 
 /// Custom StreamAudioSource for playing base64 audio data on iOS
 class Base64AudioSource extends just_audio.StreamAudioSource {
@@ -97,11 +100,12 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   // Canvas overflow detection
   bool _isOverflowing = false;
   
-  // Drawing state  
-  final mlkit.Ink _ink = mlkit.Ink();
-  mlkit.Stroke? _currentStroke;
+  // Drawing state - Per-character isolation
+  final Map<int, mlkit.Ink> _characterInks = {};
+  final Map<int, List<mlkit.Stroke>> _characterStrokeHistory = {};
+  final Map<int, mlkit.Stroke?> _currentStrokes = {};
+  final Map<int, bool> _characterHasStrokes = {};
   final List<mlkit.StrokePoint> _currentStrokePoints = [];
-  final List<mlkit.Stroke> _strokeHistory = []; // For undo functionality
   
   // Writing tips and guidance
   String _writingTips = "";
@@ -191,6 +195,182 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       } catch (e) {
         print('⚠️ Error parsing writing principles from JSON: $e');
         // Keep default fallback tips
+      }
+    }
+  }
+
+  // Canvas isolation helper methods
+  
+  /// Get or create ink object for the current character
+  mlkit.Ink _getCurrentCharacterInk() {
+    if (!_characterInks.containsKey(_currentCharacterIndex)) {
+      _characterInks[_currentCharacterIndex] = mlkit.Ink();
+      _characterStrokeHistory[_currentCharacterIndex] = [];
+      _currentStrokes[_currentCharacterIndex] = null;
+      _characterHasStrokes[_currentCharacterIndex] = false;
+    }
+    return _characterInks[_currentCharacterIndex]!;
+  }
+  
+  /// Get current stroke for the current character
+  mlkit.Stroke? _getCurrentCharacterStroke() {
+    return _currentStrokes[_currentCharacterIndex];
+  }
+  
+  /// Set current stroke for the current character
+  void _setCurrentCharacterStroke(mlkit.Stroke? stroke) {
+    _currentStrokes[_currentCharacterIndex] = stroke;
+  }
+  
+  /// Get stroke history for the current character
+  List<mlkit.Stroke> _getCurrentCharacterStrokeHistory() {
+    if (!_characterStrokeHistory.containsKey(_currentCharacterIndex)) {
+      _characterStrokeHistory[_currentCharacterIndex] = [];
+    }
+    return _characterStrokeHistory[_currentCharacterIndex]!;
+  }
+  
+  /// Check if current character has strokes
+  bool _currentCharacterHasStrokes() {
+    return _characterHasStrokes[_currentCharacterIndex] ?? false;
+  }
+  
+  /// Mark current character as having strokes
+  void _markCurrentCharacterHasStrokes(bool hasStrokes) {
+    _characterHasStrokes[_currentCharacterIndex] = hasStrokes;
+  }
+
+  /// Build visual indicators showing which characters have strokes
+  Widget _buildCharacterStatusIndicators() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_currentCharacters.length, (index) {
+        final hasStrokes = _characterHasStrokes[index] ?? false;
+        final isCurrentCharacter = index == _currentCharacterIndex;
+        
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: isCurrentCharacter ? 12 : 8,
+          height: isCurrentCharacter ? 12 : 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: hasStrokes 
+                ? (isCurrentCharacter ? const Color(0xFF4ECCA3) : Colors.green[300])
+                : (isCurrentCharacter ? Colors.blue[300] : Colors.grey[300]),
+            border: isCurrentCharacter 
+                ? Border.all(color: Colors.white, width: 2)
+                : null,
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Show confirmation dialog before proceeding with assessment
+  Future<void> _showTracingConfirmationDialog() async {
+    // Prepare character names and stroke status
+    final characterNames = <int, String>{};
+    final charactersWithStrokes = <int, bool>{};
+    
+    for (int i = 0; i < _currentCharacters.length; i++) {
+      characterNames[i] = _currentCharacters[i];
+      charactersWithStrokes[i] = _characterHasStrokes[i] ?? false;
+    }
+    
+    // Show confirmation dialog
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return TracingConfirmationDialog(
+          characterNames: characterNames,
+          charactersWithStrokes: charactersWithStrokes,
+          onConfirm: () {
+            Navigator.of(context).pop();
+            _proceedWithAssessment();
+          },
+          onCancel: () {
+            Navigator.of(context).pop();
+          },
+        );
+      },
+    );
+  }
+
+  /// Proceed with ML Kit assessment and show results
+  Future<void> _proceedWithAssessment() async {
+    // Initialize character recognition service
+    try {
+      await characterRecognitionService.initialize();
+    } catch (e) {
+      print('Failed to initialize character recognition: $e');
+      // Fallback: just call completion without assessment
+      if (widget.onComplete != null) {
+        widget.onComplete!();
+      }
+      return;
+    }
+
+    // Show loading indicator
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    try {
+      // Perform assessment
+      final assessmentResult = await characterRecognitionService.assessAllCharacters(
+        _characterInks,
+        _currentCharacters,
+      );
+
+      // Dismiss loading indicator and show results
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show assessment results dialog
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return CharacterAssessmentDialog(
+              assessmentResult: assessmentResult,
+              characterNames: _currentCharacters,
+              originalVocabularyItem: widget.originalVocabularyItem,
+              onDismiss: () {
+                Navigator.of(context).pop();
+                // Call completion callback after assessment
+                if (widget.onComplete != null) {
+                  widget.onComplete!();
+                }
+              },
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print('Assessment failed: $e');
+      
+      // Dismiss loading indicator
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show error and fallback to completion
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Assessment failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        
+        if (widget.onComplete != null) {
+          widget.onComplete!();
+        }
       }
     }
   }
@@ -2153,7 +2333,7 @@ Note: For detailed analysis, check your connection and try again.
   }
 
   void _onPanStart(DragStartDetails details) {
-    _currentStroke = mlkit.Stroke();
+    _setCurrentCharacterStroke(mlkit.Stroke());
     _currentStrokePoints.clear();
     
     final point = mlkit.StrokePoint(
@@ -2162,7 +2342,7 @@ Note: For detailed analysis, check your connection and try again.
       t: DateTime.now().millisecondsSinceEpoch,
     );
     
-    _currentStroke!.points.add(point);
+    _getCurrentCharacterStroke()!.points.add(point);
     _currentStrokePoints.add(point);
     
     setState(() {});
@@ -2170,14 +2350,14 @@ Note: For detailed analysis, check your connection and try again.
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (_currentStroke != null) {
+    if (_getCurrentCharacterStroke() != null) {
       final point = mlkit.StrokePoint(
         x: details.localPosition.dx,
         y: details.localPosition.dy,
         t: DateTime.now().millisecondsSinceEpoch,
       );
       
-      _currentStroke!.points.add(point);
+      _getCurrentCharacterStroke()!.points.add(point);
       _currentStrokePoints.add(point);
       
       setState(() {});
@@ -2185,13 +2365,18 @@ Note: For detailed analysis, check your connection and try again.
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (_currentStroke != null) {
-      if (!_ink.strokes.contains(_currentStroke!)) {
-        _ink.strokes.add(_currentStroke!);
-        _strokeHistory.add(_currentStroke!);
+    final currentStroke = _getCurrentCharacterStroke();
+    if (currentStroke != null) {
+      final currentInk = _getCurrentCharacterInk();
+      final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+      
+      if (!currentInk.strokes.contains(currentStroke)) {
+        currentInk.strokes.add(currentStroke);
+        currentStrokeHistory.add(currentStroke);
+        _markCurrentCharacterHasStrokes(true);
       }
       
-      _currentStroke = null;
+      _setCurrentCharacterStroke(null);
       _currentStrokePoints.clear();
       
       setState(() {});
@@ -2200,19 +2385,26 @@ Note: For detailed analysis, check your connection and try again.
 
   void _clearCanvas() {
     setState(() {
-      _ink.strokes.clear();
-      _strokeHistory.clear();
+      final currentInk = _getCurrentCharacterInk();
+      final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+      
+      currentInk.strokes.clear();
+      currentStrokeHistory.clear();
       _currentStrokePoints.clear();
-      _currentStroke = null;
+      _setCurrentCharacterStroke(null);
+      _markCurrentCharacterHasStrokes(false);
     });
   }
 
   void _undoLastStroke() {
-    if (_ink.strokes.isNotEmpty) {
+    final currentInk = _getCurrentCharacterInk();
+    if (currentInk.strokes.isNotEmpty) {
       setState(() {
-        _ink.strokes.removeLast();
-        _strokeHistory.clear();
-        _strokeHistory.addAll(_ink.strokes);
+        currentInk.strokes.removeLast();
+        final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+        currentStrokeHistory.clear();
+        currentStrokeHistory.addAll(currentInk.strokes);
+        _markCurrentCharacterHasStrokes(currentInk.strokes.isNotEmpty);
       });
     }
   }
@@ -2890,7 +3082,7 @@ Note: For detailed analysis, check your connection and try again.
           onPanUpdate: _onPanUpdate,
           onPanEnd: _onPanEnd,
           child: CustomPaint(
-            painter: _TracingPainter(_ink, currentStrokePoints: _currentStrokePoints),
+            painter: _TracingPainter(_getCurrentCharacterInk(), currentStrokePoints: _currentStrokePoints),
             size: Size.infinite,
           ),
         ),
@@ -5234,7 +5426,7 @@ Note: For detailed analysis, check your connection and try again.
           _buildActionButton(
             icon: Icons.check,
             color: const Color(0xFF4ECCA3),
-            onPressed: widget.onComplete,
+            onPressed: _showTracingConfirmationDialog,
             tooltip: 'Complete',
             iconColor: Colors.black,
           ),
@@ -5262,11 +5454,11 @@ Note: For detailed analysis, check your connection and try again.
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: _ink.strokes.isNotEmpty ? _undoLastStroke : null,
+          onTap: _getCurrentCharacterInk().strokes.isNotEmpty ? _undoLastStroke : null,
           child: Icon(
             Icons.undo,
             size: 22,
-            color: _ink.strokes.isNotEmpty ? Colors.black87 : Colors.black54,
+            color: _getCurrentCharacterInk().strokes.isNotEmpty ? Colors.black87 : Colors.black54,
           ),
         ),
       ),
