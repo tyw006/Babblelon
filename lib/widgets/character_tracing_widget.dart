@@ -148,16 +148,10 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Initialize widget with proper async sequencing
   Future<void> _initializeAsync() async {
-    print('DEBUG INIT: Starting initialization');
-    print('DEBUG INIT: wordMapping length: ${widget.wordMapping.length}');
-    for (int i = 0; i < widget.wordMapping.length && i < 3; i++) {
-      print('DEBUG INIT: wordMapping[$i]: ${widget.wordMapping[i]}');
-    }
     // Load Thai writing guide first
     await _loadThaiWritingGuide();
     // Then initialize characters (which will load writing tips)
     await _initializeCharacters();
-    print('DEBUG INIT: Initialization complete');
   }
 
   /// Load Thai writing guide data from cached service or JSON file as fallback
@@ -440,20 +434,17 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Get word segments using syllable-based tokenization from backend
   Future<void> _getWordSegments() async {
-    print('DEBUG SEGMENTS: Starting _getWordSegments()');
     _constituentWordData = [];
     _currentCharacters = []; // This will store syllables
     
     // Process each word from the word mapping and get its syllables
     for (final mapping in widget.wordMapping) {
-      print('DEBUG SEGMENTS: Processing mapping: $mapping');
       final semanticWord = mapping['target'] as String? ?? mapping['thai'] as String? ?? '';
       final transliteration = mapping['transliteration'] as String? ?? '';
       final translation = mapping['translation'] as String? ?? '';
       final english = mapping['english'] as String? ?? '';
       
       if (semanticWord.isNotEmpty) {
-        print('DEBUG SEGMENTS: Calling backend for word: "$semanticWord"');
         // Call backend to get proper syllable splitting
         try {
           final response = await http.post(
@@ -467,14 +458,12 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
           
           if (response.statusCode == 200) {
             final data = json.decode(response.body);
-            print('DEBUG SEGMENTS: Backend response received');
             
             // Extract syllables from backend response
             if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
               final syllables = List<String>.from(data['traceable_canvases']);
               final syllableData = data['syllables'] as List? ?? [];
               
-              print('DEBUG SEGMENTS: Found traceable_canvases: $syllables');
               _currentCharacters.addAll(syllables);
               
               // Create constituent word data for each syllable with individual romanization and translations
@@ -541,7 +530,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
           }
         } catch (e) {
           // Error occurred, use original word as single unit
-          print('DEBUG SEGMENTS: Error occurred calling backend: $e');
           _currentCharacters.add(semanticWord);
           _constituentWordData.add({
             'word': semanticWord,
@@ -3856,23 +3844,16 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Build sound breakdown strip showing character components with pronunciation
   Widget _buildSoundBreakdownStrip() {
-    print('DEBUG BREAKDOWN: Building sound breakdown strip');
     // Get current syllable only (per traceable canvas)
     final currentSyllable = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
         ? _currentCharacters[_currentCharacterIndex]
         : '';
     
-    print('DEBUG BREAKDOWN: currentSyllable = "$currentSyllable"');
-    print('DEBUG BREAKDOWN: _currentCharacters = $_currentCharacters');
-    print('DEBUG BREAKDOWN: _currentCharacterIndex = $_currentCharacterIndex');
-    
     if (currentSyllable.isEmpty) {
-      print('DEBUG BREAKDOWN: Current syllable is empty, returning shrink');
       return const SizedBox.shrink();
     }
     
     // If preprocessing is not complete, show a loading indicator
-    print('DEBUG BREAKDOWN: _isPreprocessingComplete = $_isPreprocessingComplete');
     if (!_isPreprocessingComplete) {
       return Container(
         width: double.infinity,
@@ -3954,25 +3935,13 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Build individual character sound cards for the breakdown strip using proper syllable analysis
   List<Widget> _buildCharacterSoundCards(String syllable) {
-    print('DEBUG CARDS: Building sound cards for syllable: "$syllable"');
     final List<Widget> cards = [];
-    
     
     // Use the same backend analysis that writing tips use
     final components = _analyzeSyllableComponents(syllable);
-    print('DEBUG CARDS: Components analyzed: ${components.length}');
-    for (int i = 0; i < components.length; i++) {
-      print('DEBUG CARDS: Component $i: ${components[i]}');
-    }
     
-    // Calculate spacing based on available width and number of cards
-    final screenWidth = MediaQuery.of(context).size.width;
-    final availableWidth = screenWidth - 32; // Account for padding
-    const cardWidth = 80.0; // Updated to match new card width
-    final totalCardWidth = components.length * cardWidth;
-    final spacing = components.length > 1 
-        ? ((availableWidth - totalCardWidth) / (components.length - 1)).clamp(8.0, 24.0)
-        : 0.0;
+    // Use standardized spacing for consistent appearance across all traceable canvases
+    const double spacing = 12.0; // Fixed spacing between cards for uniformity
     
     for (int i = 0; i < components.length; i++) {
       final component = components[i];
@@ -3996,14 +3965,11 @@ Note: For detailed analysis, check your connection and try again.
       }
     }
     
-    print('DEBUG CARDS: Returning ${cards.length} cards');
     return cards;
   }
 
   /// Analyze syllable components using backend analysis data (same as writing tips)
   List<Map<String, dynamic>> _analyzeSyllableComponents(String syllable) {
-    print('DEBUG ANALYZE: Analyzing syllable: "$syllable"');
-    print('DEBUG ANALYZE: Cache keys: ${_wordAnalysisCache.keys.toList()}');
     final List<Map<String, dynamic>> components = [];
     
     
@@ -4012,26 +3978,19 @@ Note: For detailed analysis, check your connection and try again.
     
     if (backendAnalysis != null) {
       // Use backend analysis for complex vowel detection (same as writing tips)
-      print('DEBUG ANALYZE: Using backend analysis for "$syllable"');
       components.addAll(_analyzeFromBackendData(syllable, backendAnalysis));
     } else {
       // Fallback to JSON-based analysis
-      print('DEBUG ANALYZE: Using fallback JSON analysis for "$syllable"');
       components.addAll(_analyzeFromThaiGuideJson(syllable));
     }
     
-    print('DEBUG ANALYZE: Final components count: ${components.length}');
     return components;
   }
   
   /// Get backend syllable analysis from cache (same source as writing tips)
   Map<String, dynamic>? _getBackendSyllableAnalysis(String syllable) {
-    print('DEBUG BACKEND: Looking for syllable: "$syllable"');
-    print('DEBUG BACKEND: Cache keys: ${_wordAnalysisCache.keys.toList()}');
-    
     // Check if we have cached analysis for this syllable
     if (_wordAnalysisCache.containsKey(syllable)) {
-      print('DEBUG BACKEND: Found direct match for "$syllable"');
       final wordData = _wordAnalysisCache[syllable]!;
       
       // If this is word-level data, extract the syllable data
@@ -4040,7 +3999,6 @@ Note: For detailed analysis, check your connection and try again.
         for (final syllableData in syllables) {
           final syllableMap = syllableData as Map<String, dynamic>;
           if (syllableMap['syllable'] == syllable) {
-            print('DEBUG BACKEND: Extracted syllable data from word-level cache');
             return syllableMap;
           }
         }
@@ -4055,11 +4013,9 @@ Note: For detailed analysis, check your connection and try again.
       if (analysisData.containsKey('syllables')) {
         final syllables = analysisData['syllables'] as List?;
         if (syllables != null) {
-          print('DEBUG BACKEND: Checking syllables: ${syllables.map((s) => s['syllable']).toList()}');
           for (final syllableData in syllables) {
             final syllableMap = syllableData as Map<String, dynamic>;
             if (syllableMap['syllable'] == syllable) {
-              print('DEBUG BACKEND: Found syllable "$syllable" in nested analysis');
               return syllableMap;
             }
           }
@@ -4067,7 +4023,6 @@ Note: For detailed analysis, check your connection and try again.
       }
     }
     
-    print('DEBUG BACKEND: No analysis found for syllable "$syllable"');
     return null;
   }
   
@@ -4075,12 +4030,8 @@ Note: For detailed analysis, check your connection and try again.
   List<Map<String, dynamic>> _analyzeFromBackendData(String syllable, Map<String, dynamic> backendData) {
     final List<Map<String, dynamic>> components = [];
     
-    print('DEBUG BACKEND DATA: Keys in backendData: ${backendData.keys.toList()}');
-    print('DEBUG BACKEND DATA: Full backendData: $backendData');
-    
     // Extract character analysis from new backend structure
     final characters = backendData['characters'] as List? ?? [];
-    print('DEBUG BACKEND DATA: Characters count: ${characters.length}');
     
     // Process each character using backend analysis
     for (int i = 0; i < characters.length; i++) {
@@ -5623,7 +5574,7 @@ Note: For detailed analysis, check your connection and try again.
       } else if (typeTag == 'T') {
         backgroundColor = const Color(0xFF3498DB).withValues(alpha: 0.15); // Blue for tone marks
       } else if (typeTag == 'CV') {
-        backgroundColor = const Color(0xFFF39C12).withValues(alpha: 0.15); // Orange for complex vowels
+        backgroundColor = const Color(0xFFF39C12).withValues(alpha: 0.3); // Orange for complex vowels - more visible
       } else if (isSilent || typeTag == 'S' || typeTag == 'CV-S') {
         backgroundColor = const Color(0xFF95A5A6).withValues(alpha: 0.10); // Gray for silent
       }
@@ -5648,8 +5599,8 @@ Note: For detailed analysis, check your connection and try again.
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
+                  const Color(0xFFF39C12).withValues(alpha: 0.4),
                   const Color(0xFFF39C12).withValues(alpha: 0.2),
-                  const Color(0xFFF39C12).withValues(alpha: 0.1),
                 ],
               )
             : null,
@@ -5669,7 +5620,7 @@ Note: For detailed analysis, check your connection and try again.
           Text(
             character,
             style: TextStyle(
-              fontSize: 24, // Reduced to prevent overflow
+              fontSize: 28, // Increased for better readability
               fontWeight: FontWeight.w600,
               color: isSilent 
                   ? const Color(0xFF95A5A6)
@@ -5685,7 +5636,7 @@ Note: For detailed analysis, check your connection and try again.
           Text(
             romanization,
             style: TextStyle(
-              fontSize: 11, // Reduced to prevent overflow
+              fontSize: 12, // Increased for better readability
               color: isSilent 
                   ? const Color(0xFF95A5A6)
                   : const Color(0xFF4ECCA3), // More prominent color
