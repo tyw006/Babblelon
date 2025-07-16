@@ -1930,6 +1930,68 @@ async def filter_drawable_items_from_translation(word_mappings: List, target_lan
 
 # --- NEW SYLLABLE-BASED WRITING GUIDE FUNCTIONS ---
 
+def _get_character_type(char: str, thai_writing_guide: dict) -> str:
+    """Get the type of a Thai character from the writing guide."""
+    consonants = thai_writing_guide.get("consonants", {})
+    vowels = thai_writing_guide.get("vowels", {})
+    tone_marks = thai_writing_guide.get("tone_marks", {})
+    
+    if char in consonants:
+        return "Consonant"
+    elif char in tone_marks:
+        return "Tone Mark"
+    else:
+        # Check vowels (some have ◌ placeholder)
+        for vowel_key in vowels:
+            if char in vowel_key.replace("◌", ""):
+                return "Vowel"
+        return "Unknown"
+
+def _get_character_romanization(char: str, thai_writing_guide: dict) -> str:
+    """Get the romanization of a Thai character from the writing guide."""
+    consonants = thai_writing_guide.get("consonants", {})
+    vowels = thai_writing_guide.get("vowels", {})
+    
+    if char in consonants:
+        # Use initial pronunciation for consonants
+        return consonants[char].get("pronunciation", {}).get("initial", "")
+    else:
+        # Check vowels (some have ◌ placeholder)
+        for vowel_key, vowel_data in vowels.items():
+            if char in vowel_key.replace("◌", ""):
+                return vowel_data.get("pronunciation", {}).get("romanization", "")
+    
+    return ""
+
+def _get_tone_effect(tone_mark: str, consonant_class: str, thai_writing_guide: dict) -> str:
+    """Get the tone effect based on tone mark and consonant class."""
+    pronunciation_system = thai_writing_guide.get("pronunciation_system", {})
+    tone_marks = pronunciation_system.get("tone_mark_rules", {})
+    
+    # Map tone marks to their keys
+    tone_map = {
+        "่": "mai_ek",
+        "้": "mai_tho", 
+        "๊": "mai_tri",
+        "๋": "mai_chattawa"
+    }
+    
+    tone_key = tone_map.get(tone_mark)
+    if not tone_key:
+        return ""
+        
+    tone_rule = tone_marks.get(tone_key, {})
+    effects = tone_rule.get("effect_by_consonant_class", {})
+    
+    return effects.get(consonant_class, "")
+
+def _get_consonant_class(consonant: str, thai_writing_guide: dict) -> str:
+    """Get the class of a Thai consonant."""
+    consonants = thai_writing_guide.get("consonants", {})
+    if consonant in consonants:
+        return consonants[consonant].get("class", "")
+    return ""
+
 async def generate_syllable_writing_guide(word: str, target_language: str = "th") -> dict:
     """
     Main function to generate syllable-based writing guide using PyThaiNLP syllable tokenization.
@@ -2000,12 +2062,65 @@ async def generate_syllable_writing_guide(word: str, target_language: str = "th"
             # Determine writing order sequence
             writing_order = _determine_writing_order(components)
             
+            # IMPORTANT: Add character-level analysis with complex vowel detection
+            characters = []
+            complex_vowels = detect_complex_vowel_patterns(syllable)
+            
+            for i, char in enumerate(syllable):
+                # Get basic character information from thai_writing_guide
+                char_type = _get_character_type(char, thai_writing_guide)
+                char_romanization = _get_character_romanization(char, thai_writing_guide)
+                
+                # Special handling for tone marks - calculate tone effect
+                if char_type == "Tone Mark":
+                    # Find the consonant this tone mark applies to (usually previous consonant)
+                    affected_consonant = None
+                    for j in range(i-1, -1, -1):  # Look backwards for consonant
+                        prev_char = syllable[j]
+                        if _get_character_type(prev_char, thai_writing_guide) == "Consonant":
+                            affected_consonant = prev_char
+                            break
+                    
+                    if affected_consonant:
+                        consonant_class = _get_consonant_class(affected_consonant, thai_writing_guide)
+                        tone_effect = _get_tone_effect(char, consonant_class, thai_writing_guide)
+                        char_romanization = tone_effect.replace("_", " ")  # "falling_tone" -> "falling tone"
+                
+                char_info = {
+                    "character": char,
+                    "position": i,
+                    "type": char_type,
+                    "romanization": char_romanization,
+                    "complex_vowel_member": False
+                }
+                
+                # Mark complex vowel members (ONLY the vowel components, not consonants)
+                for vowel_pattern in complex_vowels:
+                    if i in vowel_pattern.positions:  # Only vowel components, not consonant_pos
+                        char_info["complex_vowel_member"] = True
+                        char_info["complex_vowel_pattern"] = vowel_pattern.pattern_key
+                        char_info["complex_vowel_role"] = "component"
+                        # For the sound carrier (final position), use complex vowel sound with original in parentheses
+                        if i == vowel_pattern.positions[-1]:  # Last component (sound carrier)
+                            original_sound = char_info["romanization"] or ""
+                            char_info["romanization"] = f"{vowel_pattern.romanization}({original_sound})" if original_sound else vowel_pattern.romanization
+                            char_info["type"] = "Complex Vowel"
+                        # For silent components, add (silent) annotation
+                        elif i in vowel_pattern.positions[:-1]:  # Other components (silent)
+                            original_sound = char_info["romanization"] or ""
+                            char_info["romanization"] = f"{original_sound}(silent)" if original_sound else "(silent)"
+                            char_info["type"] = "Complex Vowel"
+                        break
+                
+                characters.append(char_info)
+            
             syllable_info = {
                 "syllable": syllable,
                 "romanization": syllable_romanization,
                 "components": components,
                 "writing_order": writing_order,
-                "tips": tips
+                "tips": tips,
+                "characters": characters  # Add character-level analysis
             }
             
             syllable_data.append(syllable_info)
@@ -2434,11 +2549,26 @@ def detect_complex_vowel_patterns(word: str) -> List[ComplexVowelMatch]:
                 positions.append(start_pos)  # เ position
                 consonant_pos = start_pos + 1
                 
-                # Add positions for components after consonant
-                current_pos = start_pos + 1 + len(consonant_group)
-                for component in components[1:]:  # Skip เ, already added
-                    positions.append(current_pos)
-                    current_pos += len(component)
+                # Find actual positions of remaining vowel components in the matched text
+                matched_text = match.group(0)
+                
+                # For เ◌ือ pattern, find ื and อ positions
+                if pattern_key == "เ◌ือ":
+                    # Find ื position
+                    ue_pos = word.find("ื", start_pos)
+                    if ue_pos != -1:
+                        positions.append(ue_pos)
+                    
+                    # Find อ position  
+                    o_pos = word.find("อ", ue_pos if ue_pos != -1 else start_pos)
+                    if o_pos != -1:
+                        positions.append(o_pos)
+                else:
+                    # Fallback for other patterns
+                    current_pos = start_pos + 1 + len(consonant_group)
+                    for component in components[1:]:  # Skip เ, already added
+                        positions.append(current_pos)
+                        current_pos += len(component)
                     
             elif pattern_key.startswith("แ") or pattern_key.startswith("โ"):
                 # Leading vowel patterns: แ/โ + consonant + ะ

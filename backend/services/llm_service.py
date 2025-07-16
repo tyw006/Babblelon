@@ -5,6 +5,7 @@ from typing import Literal, Dict, List, Optional # Added List, Optional
 from fastapi import HTTPException
 import pathlib # For path manipulation
 import json # Added for JSON parsing
+import random # Added for vocabulary selection
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -37,11 +38,101 @@ def load_prompt_from_file(npc_id: str) -> str | None:
         print(f"Error loading prompt for NPC '{npc_id}' from {prompt_file}: {e}")
         return None
 
+# --- Helper functions for vocabulary selection ---
+def load_vocabulary_data(npc_id: str) -> dict | None:
+    """Load vocabulary data for a specific NPC from JSON file."""
+    current_dir = pathlib.Path(__file__).parent # backend/services
+    assets_dir = current_dir.parent.parent / "assets" / "data" # ../../assets/data
+    vocab_file = assets_dir / f"npc_vocabulary_{npc_id.lower()}.json"
+    
+    if not vocab_file.exists():
+        print(f"Warning: Vocabulary file not found for NPC '{npc_id}' at {vocab_file}")
+        return None
+    
+    try:
+        with open(vocab_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading vocabulary for NPC '{npc_id}' from {vocab_file}: {e}")
+        return None
+
+def get_categories_by_npc(vocab_data: dict) -> List[str]:
+    """Extract unique categories from vocabulary data."""
+    if not vocab_data or 'vocabulary' not in vocab_data:
+        return []
+    
+    categories = set()
+    for item in vocab_data['vocabulary']:
+        if 'category' in item:
+            categories.add(item['category'])
+    return list(categories)
+
+def select_random_vocabulary_from_category(vocab_data: dict, category: str, count: int = 1) -> List[dict]:
+    """Select random vocabulary items from a specific category."""
+    if not vocab_data or 'vocabulary' not in vocab_data:
+        return []
+    
+    category_items = [
+        item for item in vocab_data['vocabulary'] 
+        if item.get('category') == category
+    ]
+    
+    if not category_items:
+        return []
+    
+    # Return random selection (up to count items)
+    return random.sample(category_items, min(count, len(category_items)))
+
+def initialize_npc_vocabulary(npc_id: str) -> dict:
+    """Initialize NPC with random vocabulary from each category."""
+    vocab_data = load_vocabulary_data(npc_id)
+    if not vocab_data:
+        print(f"Warning: Could not load vocabulary data for NPC '{npc_id}'")
+        return {}
+    
+    categories = get_categories_by_npc(vocab_data)
+    selected_vocab = {}
+    
+    print(f"🎲 Initializing {npc_id} with random vocabulary from {len(categories)} categories:")
+    
+    for category in categories:
+        # Select 1 random item from each category
+        selected_items = select_random_vocabulary_from_category(vocab_data, category, 1)
+        if selected_items:
+            selected_vocab[category] = selected_items[0]
+            item = selected_items[0]
+            print(f"  🎯 {category}: {item['english']} ({item['thai']}) - {item['transliteration']}")
+    
+    return selected_vocab
+
+def regenerate_npc_vocabulary(npc_id: str) -> dict:
+    """Regenerate vocabulary for an NPC and clear the cache."""
+    # Clear the cache for this NPC
+    if npc_id.lower() in NPC_VOCABULARY_CACHE:
+        del NPC_VOCABULARY_CACHE[npc_id.lower()]
+    
+    # Generate new vocabulary
+    return initialize_npc_vocabulary(npc_id)
+
+def format_vocabulary_context(selected_vocab: dict) -> str:
+    """Format selected vocabulary for inclusion in the LLM prompt."""
+    if not selected_vocab:
+        return ""
+    
+    vocab_context = "\n\n## CURRENT SESSION VOCABULARY\n"
+    vocab_context += "You have access to these vocabulary items for this conversation:\n"
+    for category, item in selected_vocab.items():
+        vocab_context += f"- **{category}**: {item['english']} = {item['thai']} ({item['transliteration']})\n"
+    vocab_context += "\nFeel free to naturally incorporate these terms when appropriate.\n"
+    
+    return vocab_context
+
 # --- Load prompts dynamically ---
 # We'll load them on demand in the get_llm_response function or cache them if preferred.
 # For simplicity now, we load them when requested.
 
 NPC_PROMPTS_CACHE: Dict[str, str] = {} # Optional: For caching loaded prompts
+NPC_VOCABULARY_CACHE: Dict[str, dict] = {} # Cache for NPC vocabulary selections
 
 class POSMapping(BaseModel):
     word_target: str = Field(description = "A single word in the target language (e.g., Thai)")
@@ -87,12 +178,26 @@ async def get_llm_response(
     if not openai_client:
         raise HTTPException(status_code=500, detail="OpenAI client not initialized. Check API key.")
 
+    # Load base system prompt
     system_prompt_for_npc = NPC_PROMPTS_CACHE.get(npc_id.lower())
     if not system_prompt_for_npc:
         system_prompt_for_npc = load_prompt_from_file(npc_id)
         if not system_prompt_for_npc:
             raise HTTPException(status_code=404, detail=f"NPC with ID '{npc_id}' not found or prompt file missing/unreadable.")
         NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc
+
+    # Initialize vocabulary for this NPC session (or use cached)
+    selected_vocab = NPC_VOCABULARY_CACHE.get(npc_id.lower())
+    if not selected_vocab:
+        selected_vocab = initialize_npc_vocabulary(npc_id)
+        if selected_vocab:
+            NPC_VOCABULARY_CACHE[npc_id.lower()] = selected_vocab
+
+    # Enhance system prompt with vocabulary context
+    enhanced_prompt = system_prompt_for_npc
+    if selected_vocab:
+        vocab_context = format_vocabulary_context(selected_vocab)
+        enhanced_prompt += vocab_context
 
     # Format the input to match the desired structure
     llm_input = f"""Target Language: {target_language}
@@ -108,7 +213,7 @@ Player: {latest_player_message}"""
         # Using client.responses.parse based on user's example
         response = openai_client.responses.parse(
             model="gpt-4.1-nano-2025-04-14", # Ensure this model is appropriate for .responses.parse
-            instructions=system_prompt_for_npc,
+            instructions=enhanced_prompt,
             input=llm_input,
             text_format=NPCResponse, # This tells the client how to parse the text output from LLM into a Pydantic model
         )

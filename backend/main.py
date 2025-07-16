@@ -34,7 +34,7 @@ else:
 # --- End .env loading ---
 
 from services.tts_service import text_to_speech_full
-from services.llm_service import get_llm_response, NPCResponse
+from services.llm_service import get_llm_response, NPCResponse, regenerate_npc_vocabulary
 from services.stt_service import transcribe_audio
 from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation, translate_and_syllabify
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
@@ -472,6 +472,41 @@ async def generate_writing_guide_endpoint(request: WritingGuideRequest):
             "syllables": [],
             "traceable_canvases": [request.word]  # Fallback to whole word
         })
+
+@app.post("/regenerate-npc-vocabulary/")
+async def regenerate_npc_vocabulary_endpoint(
+    npc_id: str = Form(...),
+):
+    """Regenerate vocabulary selection for an NPC. Useful for testing different vocabulary combinations."""
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /regenerate-npc-vocabulary/ received request for NPC: {npc_id}")
+    
+    try:
+        selected_vocab = regenerate_npc_vocabulary(npc_id)
+        
+        if not selected_vocab:
+            raise HTTPException(status_code=404, detail=f"No vocabulary found for NPC '{npc_id}'")
+        
+        # Format response with category info
+        categories_info = {}
+        for category, item in selected_vocab.items():
+            categories_info[category] = {
+                "english": item["english"],
+                "thai": item["thai"], 
+                "transliteration": item["transliteration"],
+                "category": item["category"]
+            }
+        
+        return JSONResponse(content={
+            "npc_id": npc_id,
+            "total_categories": len(selected_vocab),
+            "vocabulary": categories_info,
+            "message": f"Successfully regenerated vocabulary for {npc_id}"
+        })
+        
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /regenerate-npc-vocabulary/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- COMPLEX VOWEL ANALYSIS ENDPOINT ---
 
