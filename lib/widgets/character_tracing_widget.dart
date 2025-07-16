@@ -2082,6 +2082,31 @@ Note: For detailed analysis, check your connection and try again.
         };
       }
       
+      // Check other marks (thanthakhat, mai yamok, etc.)
+      final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+      if (otherMarks != null && otherMarks.containsKey(cleanCharacter)) {
+        final markInfo = otherMarks[cleanCharacter] as Map<String, dynamic>;
+        
+        // Extract information for other marks
+        final writingSteps = markInfo['writing_steps'] as String? ?? '';
+        final name = markInfo['name'] as String? ?? '';
+        final pronunciationGuide = markInfo['pronunciation_guide'] as String? ?? '';
+        final function = markInfo['function'] as String? ?? '';
+        final mainTip = writingSteps.isNotEmpty ? writingSteps : pronunciationGuide;
+        
+        return {
+          'character': cleanCharacter,
+          'type': 'other_mark',
+          'romanization': 'Silent', // Other marks are silent
+          'main_tip': mainTip,
+          'english_guide': pronunciationGuide,
+          'pronunciation_guide': pronunciationGuide,
+          'writing_steps': writingSteps,
+          'name': name,
+          'function': function,
+        };
+      }
+      
       print('No detailed character info found for: "$cleanCharacter"');
       
     } catch (e) {
@@ -3140,6 +3165,15 @@ Note: For detailed analysis, check your connection and try again.
   String _getCharacterName(String character) {
     final charType = _getCharacterType(character);
     
+    // For other marks, get the correct name from the other mark info
+    if (charType == 'other_mark') {
+      final otherMarkInfo = _getOtherMarkInfo(character);
+      final name = otherMarkInfo['name'] as String?;
+      if (name != null && name.isNotEmpty) {
+        return name;
+      }
+    }
+    
     // For tone marks, get the correct name from the tone mark info
     if (charType == 'tone') {
       final toneMarkInfo = _getToneMarkInfoFromJSON(character);
@@ -4033,13 +4067,27 @@ Note: For detailed analysis, check your connection and try again.
     // Extract character analysis from new backend structure
     final characters = backendData['characters'] as List? ?? [];
     
+    // Detect consonants silenced by thanthakhat
+    final silencedConsonants = _detectSilencedConsonants(syllable);
+    
     // Process each character using backend analysis
     for (int i = 0; i < characters.length; i++) {
       final charData = characters[i] as Map<String, dynamic>;
       final char = charData['character'] as String? ?? '';
       
       if (char.isNotEmpty) {
-        components.add(_buildCharacterFromNewBackendAnalysis(charData));
+        final componentData = _buildCharacterFromNewBackendAnalysis(charData);
+        
+        // Apply silencing if this consonant is affected by thanthakhat
+        if (silencedConsonants.containsKey(i)) {
+          componentData['isSilent'] = true;
+          final currentRomanization = componentData['romanization'] as String? ?? '';
+          if (!currentRomanization.contains('(silent)')) {
+            componentData['romanization'] = '$currentRomanization(silent)';
+          }
+        }
+        
+        components.add(componentData);
       }
     }
     
@@ -4049,18 +4097,37 @@ Note: For detailed analysis, check your connection and try again.
   /// Build character data from new backend analysis structure
   Map<String, dynamic> _buildCharacterFromNewBackendAnalysis(Map<String, dynamic> charData) {
     final character = charData['character'] as String? ?? '';
-    final type = charData['type'] as String? ?? 'Unknown';
+    var type = charData['type'] as String? ?? 'Unknown';
     final romanization = charData['romanization'] as String? ?? '';
     final complexVowelMember = charData['complex_vowel_member'] as bool? ?? false;
     
-    // Determine if it's silent based on romanization
-    final isSilent = romanization.contains('(silent)');
+    // Fix backend "Unknown" types by checking against JSON data
+    if (type == 'Unknown' && character.isNotEmpty) {
+      final actualType = _getCharacterType(character);
+      if (actualType == 'other_mark') {
+        type = 'Other Mark';
+      } else if (actualType == 'tone') {
+        type = 'Tone Mark';
+      } else if (actualType == 'consonant') {
+        type = 'Consonant';
+      } else if (actualType == 'vowel') {
+        type = 'Vowel';
+      }
+    }
+    
+    // Determine if it's silent based on romanization or type
+    final isSilent = romanization.contains('(silent)') || type == 'Other Mark';
     final isComplexVowel = complexVowelMember;
     
     // Clean romanization for display
     String displayRomanization = romanization;
     if (displayRomanization.isEmpty && type == 'Tone Mark') {
-      displayRomanization = type; // Show "Tone Mark" if no specific tone
+      // Get tone mark name from JSON for display
+      final toneInfo = _getToneMarkInfoFromJSON(character);
+      displayRomanization = toneInfo['name'] as String? ?? 'Tone Mark';
+    } else if (displayRomanization.isEmpty && type == 'Other Mark') {
+      // For sound breakdown, just show "Silent" for other marks
+      displayRomanization = 'Silent';
     }
     
     // Color coding and type tag mapping
@@ -4083,6 +4150,10 @@ Note: For detailed analysis, check your connection and try again.
         case 'Tone Mark':
           tagColor = const Color(0xFFF39C12);
           typeTag = 'T';
+          break;
+        case 'Other Mark':
+          tagColor = const Color(0xFF9B59B6);
+          typeTag = 'O';
           break;
         default:
           tagColor = const Color(0xFF95A5A6);
@@ -4307,6 +4378,11 @@ Note: For detailed analysis, check your connection and try again.
         fullTypeLabel = 'Tone Mark';
         tagColor = const Color(0xFF3498DB);
         break;
+      case 'other_mark':
+        typeTag = 'O';
+        fullTypeLabel = 'Other Mark';
+        tagColor = const Color(0xFF9B59B6);
+        break;
       default:
         typeTag = '?';
         fullTypeLabel = 'Unknown';
@@ -4374,10 +4450,12 @@ Note: For detailed analysis, check your connection and try again.
       final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
       final vowels = _thaiWritingGuideData!['vowels'] as Map<String, dynamic>?;
       final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+      final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
       
       if (consonants?.containsKey(char) == true) return 'consonant';
       if (vowels?.values.any((v) => (v as Map<String, dynamic>)['name']?.toString().contains(char) == true) == true) return 'vowel';
       if (toneMarks?.containsKey(char) == true) return 'tone_mark';
+      if (otherMarks?.containsKey(char) == true) return 'other_mark';
     }
     
     return _getCharacterType(char); // Ultimate fallback
@@ -5567,14 +5645,14 @@ Note: For detailed analysis, check your connection and try again.
     // Determine background color based on character type
     Color backgroundColor = const Color(0xFF2D2D2D);
     if (!isHighlighted) {
-      if (typeTag == 'C' && !isSilent) {
+      if (typeTag == 'CV' || isComplexVowel) {
+        backgroundColor = const Color(0xFFF39C12).withValues(alpha: 0.3); // Orange for complex vowels - more visible
+      } else if (typeTag == 'C' && !isSilent) {
         backgroundColor = const Color(0xFF4ECDC4).withValues(alpha: 0.15); // Teal for consonants
       } else if (typeTag == 'V') {
         backgroundColor = const Color(0xFF9B59B6).withValues(alpha: 0.15); // Purple for vowels
       } else if (typeTag == 'T') {
         backgroundColor = const Color(0xFF3498DB).withValues(alpha: 0.15); // Blue for tone marks
-      } else if (typeTag == 'CV') {
-        backgroundColor = const Color(0xFFF39C12).withValues(alpha: 0.3); // Orange for complex vowels - more visible
       } else if (isSilent || typeTag == 'S' || typeTag == 'CV-S') {
         backgroundColor = const Color(0xFF95A5A6).withValues(alpha: 0.10); // Gray for silent
       }
@@ -5622,10 +5700,10 @@ Note: For detailed analysis, check your connection and try again.
             style: TextStyle(
               fontSize: 28, // Increased for better readability
               fontWeight: FontWeight.w600,
-              color: isSilent 
+              color: (isSilent && !isComplexVowel) 
                   ? const Color(0xFF95A5A6)
                   : Colors.white,
-              decoration: isSilent ? TextDecoration.lineThrough : null,
+              decoration: (isSilent && !isComplexVowel) ? TextDecoration.lineThrough : null,
               decorationColor: const Color(0xFF95A5A6),
               decorationThickness: 2,
             ),
@@ -5637,7 +5715,7 @@ Note: For detailed analysis, check your connection and try again.
             romanization,
             style: TextStyle(
               fontSize: 12, // Increased for better readability
-              color: isSilent 
+              color: (isSilent && !isComplexVowel)
                   ? const Color(0xFF95A5A6)
                   : const Color(0xFF4ECCA3), // More prominent color
               fontWeight: FontWeight.w600, // Bold for better visibility
@@ -5655,7 +5733,7 @@ Note: For detailed analysis, check your connection and try again.
                 : fullTypeLabel,
             style: TextStyle(
               fontSize: 8, // Reduced to prevent overflow
-              color: isSilent 
+              color: (isSilent && !isComplexVowel)
                   ? const Color(0xFF95A5A6)
                   : tagColor, // Use the same color as the tag
               fontWeight: FontWeight.w500,
@@ -6502,6 +6580,11 @@ Note: For detailed analysis, check your connection and try again.
       case 'tone':
         // Add tone mark tag
         tags.add(_buildSingleTag('Tone Mark', const Color(0xFFFFC107))); // Amber for tone marks
+        break;
+        
+      case 'other_mark':
+        // Add other mark tag (thanthakhat, mai yamok)
+        tags.add(_buildSingleTag('Other Mark', const Color(0xFF795548))); // Brown for other marks
         break;
         
       default:
@@ -7597,11 +7680,23 @@ Note: For detailed analysis, check your connection and try again.
     return '';
   }
 
-  /// Get character type (consonant, vowel, tone mark)
+  /// Get character type (consonant, vowel, tone mark, other mark)
   String _getCharacterType(String character) {
     if (_thaiWritingGuideData == null) return 'character';
     
-    // Check tone marks FIRST to prevent misidentification
+    // Check other marks section FIRST (thanthakhat, mai yamok)
+    final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+    if (otherMarks?.containsKey(character) == true) {
+      return 'other_mark';
+    }
+    
+    // Check general tone marks section
+    final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+    if (toneMarks?.containsKey(character) == true) {
+      return 'tone';
+    }
+    
+    // Check tone marks in pronunciation system rules
     final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
     final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
     if (toneMarkRules != null) {
@@ -8232,6 +8327,9 @@ Note: For detailed analysis, check your connection and try again.
       case 'tone':
         tips.add(_getToneContextualTip(character, charInfo, syllable));
         break;
+      case 'other_mark':
+        tips.add(_getOtherMarkContextualTip(character, charInfo, syllable));
+        break;
     }
 
     return tips.where((tip) => tip.isNotEmpty).join('\n');
@@ -8606,6 +8704,38 @@ Note: For detailed analysis, check your connection and try again.
     }
   }
 
+  /// Generate other mark contextual tips (thanthakhat, mai yamok, etc.)
+  String _getOtherMarkContextualTip(String character, Map<String, dynamic> charInfo, String syllable) {
+    final tips = <String>[];
+
+    // Get other mark information from JSON
+    final otherMarkInfo = _getOtherMarkInfo(character);
+    final name = otherMarkInfo['name'] as String? ?? '';
+    final function = otherMarkInfo['function'] as String? ?? '';
+    
+    if (name.isNotEmpty && function.isNotEmpty) {
+      // Consolidated sound explanation with specific effects
+      if (character == '์') { // Thanthakhat
+        final silencedConsonants = _detectSilencedConsonants(syllable);
+        if (silencedConsonants.isNotEmpty) {
+          final consonantList = silencedConsonants.values.join(', ');
+          tips.add('Sound: $name ($function). Silent mark that silences the consonant(s) it appears above: $consonantList');
+        } else {
+          tips.add('Sound: $name ($function). Silent mark that silences the consonant it is placed above');
+        }
+      } else if (character == 'ๆ') { // Mai Yamok
+        tips.add('Sound: $name ($function). Silent mark that signals repetition of the preceding word or phrase');
+      } else {
+        tips.add('Sound: $name ($function). This mark is silent and not pronounced');
+      }
+    } else {
+      // Fallback if JSON data not found
+      tips.add('Sound: Silent mark - not pronounced');
+    }
+
+    return tips.join('\n');
+  }
+
   /// Get pronunciation information for display next to character
   String _getPronunciationForDisplay(String character, [String? contextWord]) {
     final charType = _getCharacterType(character);
@@ -8633,6 +8763,10 @@ Note: For detailed analysis, check your connection and try again.
         } else {
           return '';
         }
+        
+      case 'other_mark':
+        // Other marks (thanthakhat, mai yamok) are silent
+        return 'Silent';
         
       default:
         return '';
@@ -8868,6 +9002,79 @@ Note: For detailed analysis, check your connection and try again.
       }
     }
     return {};
+  }
+
+  /// Get other mark information from JSON (thanthakhat, mai yamok)
+  Map<String, dynamic> _getOtherMarkInfo(String otherMark) {
+    if (_thaiWritingGuideData == null) return {};
+    
+    final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+    if (otherMarks != null && otherMarks.containsKey(otherMark)) {
+      return otherMarks[otherMark] as Map<String, dynamic>;
+    }
+    
+    return {};
+  }
+
+  /// Detect consonants silenced by thanthakhat marks
+  Map<int, String> _detectSilencedConsonants(String syllable) {
+    final Map<int, String> silencedConsonants = {};
+    final characters = syllable.split('');
+    
+    for (int i = 0; i < characters.length; i++) {
+      final char = characters[i];
+      
+      // Check if this is a thanthakhat
+      if (char == '์') {
+        // Find the consonant it silences (usually the preceding consonant)
+        for (int j = i - 1; j >= 0; j--) {
+          final prevChar = characters[j];
+          if (_getCharacterType(prevChar) == 'consonant') {
+            silencedConsonants[j] = prevChar;
+            break;
+          }
+        }
+      }
+    }
+    
+    return silencedConsonants;
+  }
+
+  /// Generate silencing explanation for pronunciation guide
+  String _generateSilencingExplanation(String consonant, String syllable) {
+    final otherMarkInfo = _getOtherMarkInfo('์');
+    final function = otherMarkInfo['function'] as String? ?? 'Silencing Mark';
+    final effect = otherMarkInfo['pronunciation_guide'] as String? ?? 'This mark silences the consonant';
+    
+    return 'The consonant "$consonant" is silenced by thanthakhat (์). $effect';
+  }
+
+  /// Detect repetition marks (Mai Yamok) and generate explanations
+  Map<int, String> _detectRepetitionMarks(String syllable) {
+    final Map<int, String> repetitionMarks = {};
+    final characters = syllable.split('');
+    
+    for (int i = 0; i < characters.length; i++) {
+      final char = characters[i];
+      
+      // Check if this is a Mai Yamok
+      if (char == 'ๆ') {
+        // Find the word or phrase to be repeated (usually everything before this mark)
+        final precedingText = characters.take(i).join('');
+        repetitionMarks[i] = precedingText;
+      }
+    }
+    
+    return repetitionMarks;
+  }
+
+  /// Generate repetition explanation for pronunciation guide
+  String _generateRepetitionExplanation(String repeatedText) {
+    final otherMarkInfo = _getOtherMarkInfo('ๆ');
+    final function = otherMarkInfo['function'] as String? ?? 'Repetition Mark';
+    final effect = otherMarkInfo['pronunciation_guide'] as String? ?? 'This mark signals repetition';
+    
+    return 'Mai Yamok (ๆ) indicates that "$repeatedText" should be repeated. $effect';
   }
 
   /// Get tone mark name from JSON
