@@ -105,32 +105,26 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   overlayBuilderMap: {
-                    'main_menu': (context, game) => MainMenu(
-                      game: game as BabblelonGame,
-                      onClose: _closeMenuAndResume,
+                    'main_menu': (context, game) => SafeArea(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return MainMenu(
+                            game: game as BabblelonGame,
+                            onClose: _closeMenuAndResume,
+                          );
+                        },
+                      ),
                     ),
-                    'dialogue': (context, game) {
-                      final babblelonGame = game as BabblelonGame;
-                      final npcId = babblelonGame.activeNpcIdForOverlay;
-
-                      if (npcId == null) {
-                        // This is a fallback, should not happen in normal flow
-                        return const Center(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: Text(
-                              "Error: No NPC selected for dialogue.",
-                              style: TextStyle(color: Colors.red, fontSize: 24),
-                            ),
-                          ),
-                        );
-                      }
-                      return DialogueOverlay(game: babblelonGame, npcId: npcId);
-                    },
                     'game_over': (context, game) {
-                      return GameOverMenu(
-                        game: game as BabblelonGame,
-                        onRestart: () => (game as BabblelonGame).reset(),
+                      return SafeArea(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return GameOverMenu(
+                              game: game as BabblelonGame,
+                              onRestart: () => (game as BabblelonGame).reset(),
+                            );
+                          },
+                        ),
                       );
                     },
                     'info_popup': (context, game) {
@@ -138,17 +132,37 @@ class _GameScreenState extends State<GameScreen> {
                       if (config == null) {
                         return const SizedBox.shrink();
                       }
-                      return InfoPopupOverlay(
-                        title: config.title,
-                        message: config.message,
-                        confirmText: config.confirmText,
-                        onConfirm: config.onConfirm,
-                        cancelText: config.cancelText,
-                        onCancel: config.onCancel,
+                      return SafeArea(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return InfoPopupOverlay(
+                              title: config.title,
+                              message: config.message,
+                              confirmText: config.confirmText,
+                              onConfirm: config.onConfirm,
+                              cancelText: config.cancelText,
+                              onCancel: config.onCancel,
+                            );
+                          },
+                        ),
                       );
                     },
                   },
                 ),
+              // DialogueOverlay outside GameWidget for full-screen access
+              Consumer(
+                builder: (context, ref, child) {
+                  final isDialogueOpen = ref.watch(dialogueOverlayVisibilityProvider);
+                  final activeNpcId = ref.watch(activeNpcIdProvider);
+                  
+                  if (isDialogueOpen && activeNpcId != null && _game != null) {
+                    return Positioned.fill(
+                      child: DialogueOverlay(game: _game!, npcId: activeNpcId),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
               // Hamburger menu icon (always visible)
               SafeArea(
                 child: Align(

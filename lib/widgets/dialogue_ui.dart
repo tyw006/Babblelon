@@ -91,7 +91,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
             child: Image.asset(widget.npcData.dialogueBackgroundPath, fit: BoxFit.cover),
           ),
           SafeArea(
-            bottom: false,
+            bottom: true, // Respect bottom safe area for home indicator
             top: true,
             child: Stack(
               children: <Widget>[
@@ -179,13 +179,16 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
               ],
             ),
           ),
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 Align(
                   alignment: Alignment.center,
                   child: CustomPaint(
@@ -258,7 +261,10 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-              ],
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],

@@ -134,7 +134,7 @@ class _RunningCapybaraAnimationState extends State<RunningCapybaraAnimation>
                           top: index * 8.0,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.7 - (index * 0.2)),
+                          color: Colors.white.withValues(alpha: (0.7 - (index * 0.2)).clamp(0.0, 1.0)),
                           borderRadius: BorderRadius.circular(1),
                         ),
                       );

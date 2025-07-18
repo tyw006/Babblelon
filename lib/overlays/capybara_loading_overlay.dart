@@ -62,11 +62,11 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
   }
   
   Future<void> _startLoading() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 200));
     
-    // Start timing to enforce minimum 5-second duration
+    // Start timing to enforce minimum 2-second duration
     final startTime = DateTime.now();
-    const minimumDuration = Duration(seconds: 5);
+    const minimumDuration = Duration(seconds: 2);
     
     final success = await _preloadService.preloadAssets(
       context: mounted ? context : null,
@@ -96,10 +96,10 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
         await Future.delayed(remainingTime);
       }
       
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 500));
       _fadeController.forward();
       
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 400));
       widget.onComplete();
     }
   }
@@ -169,9 +169,9 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
                   const Spacer(flex: 2),
                   
                   // Title
-                  Text(
+                  const Text(
                     'BabbleOn',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -189,16 +189,36 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
                   
                   const SizedBox(height: 16),
                   
-                  // Subtitle
-                  Text(
-                    'Learn Languages Through Adventure',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      letterSpacing: 1.2,
-                    ),
+                  // Subtitle - removed since tagline replaces it
+                  const SizedBox.shrink(),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Tagline - Live the City, Learn the Language
+                  Column(
+                    children: [
+                      Text(
+                        'Live the City',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Learn the Language',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
                   ).animate()
-                    .fadeIn(duration: 1500.ms, delay: 500.ms)
+                    .fadeIn(duration: 1500.ms, delay: 800.ms)
                     .slideY(begin: 20, duration: 1200.ms),
                   
                   const Spacer(flex: 3),
@@ -287,12 +307,16 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
                   const Spacer(flex: 2),
                   
                   // Loading tips
-                  AnimatedOpacity(
-                    opacity: _isComplete ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: LoadingTipsWidget(
-                      tips: _loadingTips,
-                    ),
+                  AnimatedBuilder(
+                    animation: _fadeController,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _isComplete ? 0.0 : 1.0,
+                        child: LoadingTipsWidget(
+                          tips: _loadingTips,
+                        ),
+                      );
+                    },
                   ).animate()
                     .fadeIn(duration: 1200.ms, delay: 2000.ms),
                   

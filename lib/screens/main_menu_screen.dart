@@ -1,6 +1,5 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
-import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
@@ -50,7 +49,7 @@ class MainMenuScreen extends ConsumerWidget {
                               return Container(
                                 color: Colors.black.withValues(alpha: animation.value * 2),
                                 child: Opacity(
-                                  opacity: 1 - (animation.value * 2),
+                                  opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
                                   child: const SizedBox.expand(),
                                 ),
                               );
@@ -58,9 +57,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
+                                color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
                                 child: Opacity(
-                                  opacity: (animation.value - 0.5) * 2,
+                                  opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
                                   child: child,
                                 ),
                               );
@@ -116,7 +115,7 @@ class MainMenuScreen extends ConsumerWidget {
                               return Container(
                                 color: Colors.black.withValues(alpha: animation.value * 2),
                                 child: Opacity(
-                                  opacity: 1 - (animation.value * 2),
+                                  opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
                                   child: const SizedBox.expand(),
                                 ),
                               );
@@ -124,9 +123,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
+                                color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
                                 child: Opacity(
-                                  opacity: (animation.value - 0.5) * 2,
+                                  opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
                                   child: child,
                                 ),
                               );

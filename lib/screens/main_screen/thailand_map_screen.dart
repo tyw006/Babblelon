@@ -24,21 +24,21 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     const LocationData(
       name: 'Bangkok (Yaowarat)',
       id: 'yaowarat',
-      position: Offset(0.50, 0.65), // Adjusted for 1280x1920 resolution - central Thailand
+      position: Offset(0.50, 0.55), // Moved up from 0.65 to 0.58
       isAvailable: true,
       description: 'Explore the vibrant Chinatown district',
     ),
     const LocationData(
       name: 'Chiang Mai',
       id: 'chiang_mai',
-      position: Offset(0.45, 0.25), // Adjusted for northern Thailand positioning
+      position: Offset(0.35, 0.35), // Keep northern Thailand positioning
       isAvailable: false,
       description: 'Northern cultural capital',
     ),
     const LocationData(
       name: 'Phuket',
       id: 'phuket',
-      position: Offset(0.32, 0.85), // Adjusted for southern island positioning
+      position: Offset(0.30, 0.72), // Moved up from 0.85 to 0.78, and left from 0.32 to 0.28
       isAvailable: false,
       description: 'Beautiful island paradise',
     ),
@@ -89,10 +89,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     // Stop background music before transitioning to game
     _audioService.stopBackgroundMusic();
     
-    // Play portal sound effect when transitioning to game
-    _audioService.playPortalSound();
-    
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => const GameScreen(),
@@ -100,29 +97,23 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
           return AnimatedBuilder(
             animation: animation,
             builder: (context, child) {
-              // Zoom transition effect
+              // First half: fade to black
               if (animation.value < 0.5) {
                 return Container(
                   color: Colors.black.withValues(alpha: animation.value * 2),
-                  child: Transform.scale(
-                    scale: 1 + (animation.value * 0.2),
-                    child: AnimatedOpacity(
-                      opacity: 1 - (animation.value * 2),
-                      duration: Duration.zero,
-                      child: const SizedBox.expand(),
-                    ),
+                  child: Opacity(
+                    opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
+                    child: const SizedBox.expand(),
                   ),
                 );
-              } else {
+              }
+              // Second half: fade in new screen
+              else {
                 return Container(
-                  color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
-                  child: Transform.scale(
-                    scale: 1.2 - ((animation.value - 0.5) * 0.2),
-                    child: AnimatedOpacity(
-                      opacity: (animation.value - 0.5) * 2,
-                      duration: Duration.zero,
-                      child: child,
-                    ),
+                  color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
+                  child: Opacity(
+                    opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
+                    child: child,
                   ),
                 );
               }
@@ -130,7 +121,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
             child: child,
           );
         },
-        transitionDuration: const Duration(milliseconds: 1500),
+        transitionDuration: const Duration(milliseconds: 1200),
       ),
     );
   }
@@ -154,9 +145,9 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'This adventure is coming soon!',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
               ),
@@ -190,11 +181,11 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2D4A7A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.flight_takeoff, color: Colors.orange),
-            const SizedBox(width: 10),
-            const Text(
+            Icon(Icons.flight_takeoff, color: Colors.orange),
+            SizedBox(width: 10),
+            Text(
               'Travel Confirmation',
               style: TextStyle(color: Colors.white),
             ),
@@ -293,9 +284,8 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                 builder: (context, child) {
                   final screenSize = MediaQuery.of(context).size;
                   
-                  return AnimatedOpacity(
-                    opacity: _mapController.value,
-                    duration: Duration.zero,
+                  return FadeTransition(
+                    opacity: _mapController,
                     child: Stack(
                       children: [
                         // Thailand map image (Full Screen with BoxFit.cover, optimized for 1280x1920)
@@ -353,21 +343,24 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                             animation: _markersController,
                             builder: (context, child) {
                               final delay = _locations.indexOf(location) * 0.3;
-                              final progress = (_markersController.value - delay).clamp(0.0, 1.0);
                               
                               // Calculate pin position based on screen size and location proportions
                               // Center the 60x60 pin widget
                               final pinX = (location.position.dx * screenSize.width) - 30;
                               final pinY = (location.position.dy * screenSize.height) - 30;
                               
+                              final fade = CurvedAnimation(
+                                parent: _markersController,
+                                curve: Interval(delay, 1.0),
+                              );
+                              
                               return Positioned(
                                 left: pinX,
                                 top: pinY,
-                                child: Transform.scale(
-                                  scale: progress,
-                                  child: AnimatedOpacity(
-                                    opacity: progress,
-                                    duration: Duration.zero,
+                                child: ScaleTransition(
+                                  scale: fade,
+                                  child: FadeTransition(
+                                    opacity: fade,
                                     child: GestureDetector(
                                       onTap: () => _onLocationSelected(location),
                                       child: LocationMarkerWidget(

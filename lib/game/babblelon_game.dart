@@ -3,7 +3,7 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flame/events.dart';
 import 'package:flame/components.dart';
-import 'package:flame/experimental.dart'; 
+import 'package:flame/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'components/player_component.dart';
@@ -42,17 +42,14 @@ class BabblelonGame extends FlameGame with
   double backgroundWidth = 0.0;
   double backgroundHeight = 0.0;
   Vector2 gameResolution = Vector2.zero();
-  late double groundY;
   
   // Portal proximity tracking
   PortalComponent? _portal;
-  bool _allowPortalSound = false; // Prevent portal sound on startup
 
   // --- Refactored NPC Management ---
   final Map<String, SpriteComponent> _npcs = {};
   final Map<String, SpeechBubbleComponent> _speechBubbles = {};
   String? _activeNpcId; // Tracks which NPC is currently interactable
-  String? activeNpcIdForOverlay; // Used to pass the ID to the overlay
   // --- End Refactored NPC Management ---
 
   just_audio.AudioPlayer? _portalSoundPlayer;
@@ -69,7 +66,7 @@ class BabblelonGame extends FlameGame with
     final isPaused = ref.read(gameStateProvider).isPaused;
     if (overlays.isActive('main_menu')) {
       overlays.remove('main_menu');
-      if (!overlays.isActive('dialogue') && isPaused) {
+      if (!ref.read(dialogueOverlayVisibilityProvider) && isPaused) {
         resumeGame(ref);
       }
     } else {
@@ -84,30 +81,22 @@ class BabblelonGame extends FlameGame with
   Future<void> onLoad() async {
     await super.onLoad(); // Call super.onLoad first
     
-    // Use actual device screen size for dynamic resolution
-    gameResolution = size; 
-    // If size is not available, fallback to iPhone 14 Pro resolution
-    if (gameResolution.x == 0 || gameResolution.y == 0) {
-      gameResolution = Vector2(393, 852); // iPhone 14 Pro logical resolution
-    }
-    
-    // Calculate device scale factor based on target resolution (iPhone 14 Pro)
-    final Vector2 baseResolution = Vector2(393, 852); // iPhone 14 Pro logical resolution
-    final double deviceScaleFactor = (gameResolution.y / baseResolution.y).clamp(0.7, 1.5);
+    // Set gameResolution for iPhone Plus portrait
+    gameResolution = Vector2(414, 896); 
+    // camera.viewport = FixedResolutionViewport(resolution: gameResolution); // Remove this line
     
     // Initialize World and CameraComponent
     gameWorld = World();
     cameraComponent = CameraComponent(world: gameWorld);
-    // Use MaxViewport for adaptive scaling instead of FixedResolutionViewport
+    cameraComponent.viewport = FixedResolutionViewport(resolution: gameResolution); // Set viewport on custom camera
     cameraComponent.viewfinder.anchor = Anchor.topLeft;
     addAll([cameraComponent, gameWorld]);
 
-    final backgroundImageAsset = await images.load('background/yaowarat_bg2_1927x1080.png');
+    final backgroundImageAsset = await images.load('background/yaowarat_bg2.png');
     final backgroundSprite = Sprite(backgroundImageAsset);
     
     final double imgAspectRatio = backgroundSprite.srcSize.x / backgroundSprite.srcSize.y;
-    // Fill screen height exactly - no device scale factor needed with properly sized image
-    final double bgHeight = gameResolution.y;
+    final double bgHeight = gameResolution.y; // Fill the screen vertically
     final double bgWidth = bgHeight * imgAspectRatio; // Maintain aspect ratio
     backgroundWidth = bgWidth;
     backgroundHeight = bgHeight;
@@ -118,23 +107,19 @@ class BabblelonGame extends FlameGame with
       anchor: Anchor.bottomLeft, 
       position: Vector2(0, gameResolution.y), 
     );
-    background.paint = Paint()..filterQuality = FilterQuality.none;
-    gameWorld.add(background..priority = -2);
-    groundY = gameResolution.y;
+    gameWorld.add(background..priority = -2); // Add background to the world
     
-    player = PlayerComponent(character: character, deviceScaleFactor: deviceScaleFactor);
-    player.backgroundWidth = backgroundWidth;
-    player.position.y = groundY;
-    gameWorld.add(player);
+    player = PlayerComponent(character: character, deviceScaleFactor: 1.0);
+    player.backgroundWidth = backgroundWidth; // Pass background width to player
+    gameWorld.add(player); // Add player to the world
 
     // Add capybara companion after player is created
-    capybara = CapybaraCompanion(player: player, deviceScaleFactor: deviceScaleFactor);
+    capybara = CapybaraCompanion(player: player, deviceScaleFactor: 1.0);
     capybara.backgroundWidth = backgroundWidth;
-    capybara.position.y = groundY;
     gameWorld.add(capybara);
 
     // --- Add all NPCs from the data map ---
-    await _addNpcs(deviceScaleFactor);
+    await _addNpcs();
     // --- End NPC addition ---
 
     // Define the boss for this level
@@ -158,13 +143,7 @@ class BabblelonGame extends FlameGame with
     );
     gameWorld.add(_portal!);
 
-    final worldBounds = Rectangle.fromLTWH(
-      0,
-      0,
-      backgroundWidth,
-      backgroundHeight,
-    );
-    cameraComponent.setBounds(worldBounds); // Set bounds on the CameraComponent
+    // Camera bounds handled manually in _updateCameraPosition()
 
     // Start camera at the left edge
     cameraComponent.viewfinder.position = Vector2(0, 0);
@@ -182,14 +161,6 @@ class BabblelonGame extends FlameGame with
     _portalSoundPlayer = just_audio.AudioPlayer();
     await _portalSoundPlayer?.setAsset('assets/audio/bg/soundeffect_portal_v2.mp3');
     await _portalSoundPlayer?.setLoopMode(just_audio.LoopMode.one);
-    
-    // Initialize portal distance to prevent sound on startup
-    _initializePortalDistance();
-    
-    // Enable portal sound after a delay to ensure game is fully loaded
-    Future.delayed(const Duration(seconds: 2), () {
-      _allowPortalSound = true;
-    });
     // --- End pre-load ---
     
     // --- Pre-load ML Kit Thai model for character tracing ---
@@ -201,21 +172,18 @@ class BabblelonGame extends FlameGame with
     // --- End ML Kit preload ---
   }
   
-  Future<void> _addNpcs(double deviceScaleFactor) async {
+  Future<void> _addNpcs() async {
     final bubbleImage = await images.load('ui/speech_bubble_interact.png');
     final bubbleSprite = Sprite(bubbleImage);
-    const double baseNpcScaleFactor = 0.25; // Base scale for iPhone 14 Pro
-    final double npcScaleFactor = baseNpcScaleFactor * deviceScaleFactor;
+    const double npcScaleFactor = 0.25;
 
     // Manually define positions for now
     // You can adjust the X and Y coordinates here to move the NPCs.
     // X is the horizontal position, Y is the vertical position.
     // Smaller X moves the NPC to the left.
-    // Manually define positions using percentage-based Y coordinates
-    // This matches the working code from feature/npc-chat branch
     final npcPositions = {
-      'amara': Vector2(500, backgroundHeight * 0.93),
-      'somchai': Vector2(1000, backgroundHeight * 0.93),
+      'amara': Vector2(500, backgroundHeight * 0.93), // Was 900
+      'somchai': Vector2(1000, backgroundHeight * 0.93), // Was 1400
     };
 
     for (var entry in npcDataMap.entries) {
@@ -299,7 +267,7 @@ class BabblelonGame extends FlameGame with
   }
 
   void _updateNpcProximity() {
-    if (ref.read(gameStateProvider).isPaused || overlays.activeOverlays.isNotEmpty) {
+    if (ref.read(gameStateProvider).isPaused || overlays.activeOverlays.isNotEmpty || ref.read(dialogueOverlayVisibilityProvider)) {
       return;
     }
 
@@ -364,21 +332,14 @@ class BabblelonGame extends FlameGame with
     bubble.position = npcComponent.position - Vector2(0, npcComponent.size.y) + npcData.speechBubbleOffset;
   }
 
-  void _initializePortalDistance() {
-    if (_portal == null || !player.isMounted || !_portal!.isMounted) return;
-    
-    // Calculate initial distance to prevent false trigger on first update
-    final distance = player.position.distanceTo(_portal!.position);
-    _lastPortalDistance = distance;
-  }
-
   void _updatePortalProximity() {
     if (_portal == null || !player.isMounted || !_portal!.isMounted) return;
 
     final isPaused = ref.read(gameStateProvider).isPaused;
     final isOverlayActive = overlays.activeOverlays.isNotEmpty;
+    final isDialogueActive = ref.read(dialogueOverlayVisibilityProvider);
     
-    if (isPaused || isOverlayActive) {
+    if (isPaused || isOverlayActive || isDialogueActive) {
       if (_portalSoundPlayer?.playing == true) {
         _portalSoundPlayer?.pause();
       }
@@ -390,7 +351,7 @@ class BabblelonGame extends FlameGame with
 
     // Performance optimization: Only update audio if distance changed significantly
     if ((distance - _lastPortalDistance).abs() > 10.0) {
-      if (distance < maxDistance && _allowPortalSound) {
+      if (distance < maxDistance) {
         if (_portalSoundPlayer?.playing == false) {
           _portalSoundPlayer?.play();
         }
@@ -408,8 +369,9 @@ class BabblelonGame extends FlameGame with
   void _startDialogue(String npcId) {
     if (_activeNpcId == npcId) {
       pauseGame(ref);
-      activeNpcIdForOverlay = npcId; // Set the ID for the overlay builder
-      overlays.add('dialogue');
+      // Use providers instead of overlay system
+      ref.read(activeNpcIdProvider.notifier).state = npcId;
+      ref.read(dialogueOverlayVisibilityProvider.notifier).state = true;
     }
   }
   
@@ -504,7 +466,7 @@ class BabblelonGame extends FlameGame with
 
   void resumeGame(WidgetRef ref) {
     if (!ref.read(gameStateProvider).isPaused) return;
-    if (overlays.isActive('dialogue')) return;
+    if (ref.read(dialogueOverlayVisibilityProvider)) return;
 
     ref.read(gameStateProvider.notifier).resumeGame();
     // Resume BGM only if it was playing and music is enabled
@@ -572,4 +534,4 @@ class BabblelonGame extends FlameGame with
     _portalSoundPlayer = null;
     super.onRemove();
   }
-} 
+}

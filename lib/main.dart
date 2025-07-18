@@ -17,9 +17,9 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // Set full screen mode
+  // Set system UI mode for games without interfering with device scaling
   await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
+    SystemUiMode.immersive,
   );
   
   // Load environment variables

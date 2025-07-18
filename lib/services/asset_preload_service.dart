@@ -25,7 +25,6 @@ class AssetPreloadService {
   ];
   
   final List<String> _gameImages = [
-    'background/yaowarat_bg2_1927x1080.png',
     'player/sprite_male_tourist.png',
     'player/sprite_female_tourist.png',
     'player/capybara.png',

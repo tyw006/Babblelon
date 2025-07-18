@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
 
 class LocationMarkerWidget extends StatefulWidget {
@@ -78,19 +77,23 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Pulse effect for available locations
+              // Pulse effect for available locations - optimized for Impeller
               if (widget.location.isAvailable)
                 AnimatedBuilder(
                   animation: _pulseController,
                   builder: (context, child) {
-                    return Container(
-                      width: 30 + (_pulseController.value * 25), // Larger pulse effect
-                      height: 30 + (_pulseController.value * 25), // Larger pulse effect
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(
-                          alpha: 0.4 * (1 - _pulseController.value), // Stronger pulse opacity
+                    final pulseOpacity = 0.4 * (1 - _pulseController.value);
+                    final pulseSize = 30 + (_pulseController.value * 25);
+                    return AnimatedOpacity(
+                      opacity: pulseOpacity,
+                      duration: const Duration(milliseconds: 50),
+                      child: Container(
+                        width: pulseSize,
+                        height: pulseSize,
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
                         ),
-                        shape: BoxShape.circle,
                       ),
                     );
                   },
@@ -100,13 +103,14 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
               AnimatedBuilder(
                 animation: _bounceController,
                 builder: (context, child) {
-                  // Enhanced bounce effect with elastic curve
-                  final scale = 1.0 + (_bounceController.value * 0.3); // More pronounced bounce
+                  // Enhanced bounce effect - even larger bounce for Bangkok
+                  final bounceMultiplier = widget.location.id == 'yaowarat' ? 0.8 : 0.3; // Much bigger bounce for Bangkok
+                  final scale = 1.0 + (_bounceController.value * bounceMultiplier);
                   return Transform.scale(
                     scale: scale,
                     child: Container(
-                      width: 45, // Increased from 30 to make pins larger
-                      height: 45, // Increased from 30 to make pins larger
+                      width: 45, // Consistent size for all markers
+                      height: 45, // Consistent size for all markers
                       decoration: BoxDecoration(
                         color: widget.location.isAvailable 
                             ? Colors.orange 
@@ -114,13 +118,13 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.white,
-                          width: 3, // Thicker border for larger pins
+                          width: 3, // Consistent border for all markers
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4), // Stronger shadow
-                            blurRadius: 8, // Larger shadow blur
-                            offset: const Offset(0, 3), // Larger shadow offset
+                            color: Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 8, // Consistent shadow blur
+                            offset: const Offset(0, 3), // Consistent shadow offset
                           ),
                         ],
                       ),
@@ -129,7 +133,7 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                             ? Icons.location_city 
                             : Icons.lock,
                         color: Colors.white,
-                        size: 24, // Increased icon size from 16 to 24
+                        size: 24, // Consistent icon size for all markers
                       ),
                     ),
                   );
@@ -170,9 +174,7 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                           ),
                       ],
                     ),
-                  ).animate()
-                    .fadeIn(duration: 200.ms)
-                    .slideY(begin: 10, duration: 200.ms),
+                  ),
                 ),
             ],
           ),

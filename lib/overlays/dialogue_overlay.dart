@@ -835,8 +835,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    // Get actual device screen size, not the game's FixedResolutionViewport size
+    final view = View.of(context);
+    final screenWidth = view.physicalSize.width / view.devicePixelRatio;
+    final screenHeight = view.physicalSize.height / view.devicePixelRatio;
 
     final dialogueSettings = ref.watch(dialogueSettingsProvider);
     final currentNpcDisplayEntry = ref.watch(currentNpcDisplayEntryProvider);
@@ -935,7 +937,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       giftIconAnimationController: _giftIconAnimationController,
       onRequestItem: () => _showRequestItemDialog(context),
       onResumeGame: () {
-        widget.game.overlays.remove('dialogue');
+        // Close dialogue using providers
+        ref.read(dialogueOverlayVisibilityProvider.notifier).state = false;
+        ref.read(activeNpcIdProvider.notifier).state = null;
         widget.game.resumeGame(ref);
       },
       onShowTranslation: () => _showEnglishToTargetLanguageTranslationDialog(context),
@@ -1172,12 +1176,17 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       context: context,
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
+        // Get screen dimensions in dialog context
+        final view = View.of(dialogContext);
+        final dialogScreenWidth = view.physicalSize.width / view.devicePixelRatio;
+        final dialogScreenHeight = view.physicalSize.height / view.devicePixelRatio;
+        
         return AlertDialog(
           title: const Text('Full Conversation History'),
           contentPadding: EdgeInsets.all(10), // Adjust padding
           content: Container(
-            width: MediaQuery.of(dialogContext).size.width * 0.8, // 80% of screen width
-            height: MediaQuery.of(dialogContext).size.height * 0.6, // 60% of screen height
+            width: dialogScreenWidth * 0.8, // 80% of actual screen width
+            height: dialogScreenHeight * 0.6, // 60% of actual screen height
             child: Scrollbar(
               thumbVisibility: true,
               controller: _historyDialogScrollController,

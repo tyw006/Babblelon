@@ -104,7 +104,7 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
                       return Container(
                         color: Colors.black.withValues(alpha: animation.value * 2),
                         child: Opacity(
-                          opacity: 1 - (animation.value * 2),
+                          opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
                           child: const SizedBox.expand(),
                         ),
                       );
@@ -112,9 +112,9 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
                     // Second half: fade in new screen
                     else {
                       return Container(
-                        color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
+                        color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
                         child: Opacity(
-                          opacity: (animation.value - 0.5) * 2,
+                          opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
                           child: child,
                         ),
                       );

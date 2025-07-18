@@ -112,6 +112,9 @@ class DialogueSettings extends _$DialogueSettings {
 // --- Dialogue Overlay Visibility ---
 final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false);
 
+// Provider to hold the active NPC ID for dialogue
+final activeNpcIdProvider = StateProvider<String?>((ref) => null);
+
 // Provider to hold the turn count in a battle
 final turnCounterProvider = StateProvider<int>((ref) => 1);
 
