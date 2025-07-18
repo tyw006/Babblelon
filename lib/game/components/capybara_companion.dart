@@ -12,8 +12,9 @@ class CapybaraCompanion extends SpriteComponent with HasGameReference<BabblelonG
   late PlayerComponent player;
   double backgroundWidth = 0.0;
   Vector2 _targetPosition = Vector2.zero();
+  final double deviceScaleFactor;
 
-  CapybaraCompanion({required this.player});
+  CapybaraCompanion({required this.player, this.deviceScaleFactor = 1.0});
 
   @override
   Future<void> onLoad() async {
@@ -24,7 +25,8 @@ class CapybaraCompanion extends SpriteComponent with HasGameReference<BabblelonG
     sprite = Sprite(capybaraImage);
 
     // EDIT THIS VALUE to change the capybara's size.
-    const double scaleFactor = 0.10; // Smaller than player
+    const double baseScaleFactor = 0.10; // Base scale smaller than player
+    final double scaleFactor = baseScaleFactor * deviceScaleFactor;
     size = sprite!.originalSize * scaleFactor;
     anchor = Anchor.bottomCenter;
 

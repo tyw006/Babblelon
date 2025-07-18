@@ -178,12 +178,12 @@ class _AnimatedHealthBarState extends State<AnimatedHealthBar>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(widget.height / 2),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -209,7 +209,7 @@ class _AnimatedHealthBarState extends State<AnimatedHealthBar>
                             gradient: LinearGradient(
                               colors: [
                                 dynamicColor,
-                                dynamicColor.withOpacity(0.8),
+                                dynamicColor.withValues(alpha: 0.8),
                               ],
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
@@ -223,7 +223,7 @@ class _AnimatedHealthBarState extends State<AnimatedHealthBar>
                         Container(
                           width: double.infinity,
                           height: double.infinity,
-                          color: Colors.white.withOpacity(_damageFlash.value * 0.6),
+                          color: Colors.white.withValues(alpha: _damageFlash.value * 0.6),
                         ),
                       
                       // Shine effect
@@ -236,9 +236,9 @@ class _AnimatedHealthBarState extends State<AnimatedHealthBar>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.white.withOpacity(0.0),
-                                Colors.white.withOpacity(0.3),
-                                Colors.white.withOpacity(0.0),
+                                Colors.white.withValues(alpha: 0.0),
+                                Colors.white.withValues(alpha: 0.3),
+                                Colors.white.withValues(alpha: 0.0),
                               ],
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,

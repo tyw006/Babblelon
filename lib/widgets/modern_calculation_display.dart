@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/game_providers.dart';
 
@@ -202,15 +201,15 @@ class _ModernCalculationDisplayState extends ConsumerState<ModernCalculationDisp
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.1),
+                Colors.black.withValues(alpha: 0.3),
+                Colors.black.withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -246,11 +245,11 @@ class _ModernCalculationDisplayState extends ConsumerState<ModernCalculationDisp
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: step.isFinal 
-                    ? step.color.withOpacity(0.2)
-                    : Colors.white.withOpacity(0.05),
+                    ? step.color.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
                 border: step.isFinal 
-                    ? Border.all(color: step.color.withOpacity(0.3), width: 1)
+                    ? Border.all(color: step.color.withValues(alpha: 0.3), width: 1)
                     : null,
               ),
               child: Row(
@@ -259,7 +258,7 @@ class _ModernCalculationDisplayState extends ConsumerState<ModernCalculationDisp
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: step.color.withOpacity(0.2),
+                      color: step.color.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(

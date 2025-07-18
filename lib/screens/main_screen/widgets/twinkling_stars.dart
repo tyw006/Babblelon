@@ -97,7 +97,7 @@ class StarPainter extends CustomPainter {
 
     for (final star in stars) {
       final opacity = (sin(animationValue * 2 * pi * star.speed + star.phase) + 1) / 2;
-      paint.color = Colors.white.withOpacity(opacity * 0.8);
+      paint.color = Colors.white.withValues(alpha: opacity * 0.8);
       
       final position = Offset(
         star.x * size.width,

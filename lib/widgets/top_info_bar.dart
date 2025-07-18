@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/animated_health_bar.dart';
 import 'package:babblelon/widgets/turn_indicator.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
 
 class TopInfoBar extends ConsumerWidget {
@@ -34,15 +33,15 @@ class TopInfoBar extends ConsumerWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Colors.black.withOpacity(0.85),
-              Colors.grey.shade900.withOpacity(0.90),
+              Colors.black.withValues(alpha: 0.85),
+              Colors.grey.shade900.withValues(alpha: 0.90),
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
           border: Border(
             bottom: BorderSide(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -61,11 +60,11 @@ class TopInfoBar extends ConsumerWidget {
                 size: 28,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withOpacity(0.3),
+                backgroundColor: Colors.black.withValues(alpha: 0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                   side: BorderSide(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),

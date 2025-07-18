@@ -235,7 +235,7 @@ class GameOverMenu extends StatelessWidget {
         width: 300,
         height: 200,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -277,7 +277,7 @@ class MainMenu extends ConsumerWidget {
             width: 320,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.85),
+              color: Colors.black.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
@@ -326,7 +326,7 @@ class MainMenu extends ConsumerWidget {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15.0),
@@ -348,7 +348,7 @@ class MainMenu extends ConsumerWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.withOpacity(0.3),
+                    backgroundColor: Colors.grey.withValues(alpha: 0.3),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15.0),
@@ -377,7 +377,7 @@ class MainMenu extends ConsumerWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15.0),
             side: BorderSide(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -405,7 +405,7 @@ class MainMenu extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.8),
+                backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
               ),
               child: const Text(
                 'Exit Level',
@@ -441,7 +441,7 @@ class _InventoryCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade800.withOpacity(0.9),
+        color: Colors.grey.shade800.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasNewItem ? Colors.amber.shade700 : Colors.black, 
@@ -503,7 +503,7 @@ class _InventorySlot extends StatelessWidget {
             boxShadow: isHighlighted
                 ? [
                     BoxShadow(
-                      color: Colors.yellowAccent.withOpacity(0.7),
+                      color: Colors.yellowAccent.withValues(alpha: 0.7),
                       blurRadius: 10,
                       spreadRadius: 2,
                     )

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/battle_providers.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:babblelon/widgets/shared/app_styles.dart';
-import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class VictoryReportDialog extends ConsumerStatefulWidget {
@@ -156,8 +154,8 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     width: double.infinity,
                     child: ElevatedButton(
                       style: AppStyles.primaryButtonStyle.copyWith(
-                        backgroundColor: MaterialStateProperty.all(Colors.green),
-                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                        backgroundColor: WidgetStateProperty.all(Colors.green),
+                        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
                       ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: Text(
@@ -500,9 +498,9 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           word,
@@ -570,7 +568,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               label: const Text('Listen', style: TextStyle(fontSize: 12)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.blue,
-                                side: BorderSide(color: Colors.blue.withOpacity(0.5)),
+                                side: BorderSide(color: Colors.blue.withValues(alpha: 0.5)),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               ),
                             ),
@@ -585,7 +583,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               label: const Text('Practice', style: TextStyle(fontSize: 12)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.orange,
-                                side: BorderSide(color: Colors.orange.withOpacity(0.5)),
+                                side: BorderSide(color: Colors.orange.withValues(alpha: 0.5)),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               ),
                             ),
@@ -794,19 +792,19 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  color.withOpacity(0.3),
-                  color.withOpacity(0.1),
+                  color.withValues(alpha: 0.3),
+                  color.withValues(alpha: 0.1),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.4)),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
             ),
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 24),
@@ -820,7 +818,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     fontSize: 16,
                     shadows: [
                       Shadow(
-                        color: color.withOpacity(0.5),
+                        color: color.withValues(alpha: 0.5),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),
@@ -851,19 +849,19 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withOpacity(0.2),
-                color.withOpacity(0.05),
+                color.withValues(alpha: 0.2),
+                color.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(icon, color: color, size: 20),

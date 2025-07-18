@@ -3,21 +3,19 @@ import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/models/npc_data.dart';
 import 'package:flame/components.dart';
-import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
 
-class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, TapCallbacks, RiverpodComponentMixin {
+class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGame>, TapCallbacks, RiverpodComponentMixin {
   // 🔧 COMPONENT IMPLEMENTATION: This handles HOW the portal looks and behaves
   // For basic configuration (size, position, boss), modify the portal creation in babblelon_game.dart
   
   final BossData bossData;
   final double desiredHeight;
   final Vector2 offsetFromBottomRight;
-  bool _hasTriggered = false; // Prevent multiple triggers
 
   PortalComponent({
     super.position,
@@ -104,7 +102,7 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
                     // First half: fade to black
                     if (animation.value < 0.5) {
                       return Container(
-                        color: Colors.black.withOpacity(animation.value * 2),
+                        color: Colors.black.withValues(alpha: animation.value * 2),
                         child: Opacity(
                           opacity: 1 - (animation.value * 2),
                           child: const SizedBox.expand(),
@@ -114,7 +112,7 @@ class PortalComponent extends SpriteComponent with HasGameRef<BabblelonGame>, Ta
                     // Second half: fade in new screen
                     else {
                       return Container(
-                        color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                        color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
                         child: Opacity(
                           opacity: (animation.value - 0.5) * 2,
                           child: child,

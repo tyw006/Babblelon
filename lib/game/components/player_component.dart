@@ -1,9 +1,8 @@
-import 'dart:math'; // For max function
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import '../babblelon_game.dart'; // Adjust if your game class file is named differently or located elsewhere
 
-class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
+class PlayerComponent extends SpriteComponent with HasGameReference<BabblelonGame> {
   final double speed = 250.0; // Slightly increased speed
   bool isMovingRight = false;
   bool isMovingLeft = false;  // Flag for moving left
@@ -14,18 +13,20 @@ class PlayerComponent extends SpriteComponent with HasGameRef<BabblelonGame> {
   double backgroundWidth = 0.0; // Will be set from game.backgroundWidth
 
   final String character;
+  final double deviceScaleFactor;
 
-  PlayerComponent({required this.character});
+  PlayerComponent({required this.character, this.deviceScaleFactor = 1.0});
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    this.backgroundWidth = game.backgroundWidth; // Initialize backgroundWidth from the game
+    backgroundWidth = game.backgroundWidth; // Initialize backgroundWidth from the game
 
     final playerImage = await game.images.load('player/sprite_${character}_tourist.png');
     sprite = Sprite(playerImage);
 
-    const double scaleFactor = 0.20; // Slightly smaller scale for 1080p, adjust as needed
+    const double baseScaleFactor = 0.20; // Base scale for iPhone 14 Pro
+    final double scaleFactor = baseScaleFactor * deviceScaleFactor;
     size = sprite!.originalSize * scaleFactor;
     anchor = Anchor.bottomCenter;
 

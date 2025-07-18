@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
 
 class InfoPopupOverlay extends ConsumerWidget {
@@ -26,7 +25,7 @@ class InfoPopupOverlay extends ConsumerWidget {
     
     return Center(
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+        color: Colors.black.withValues(alpha: 0.8),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(

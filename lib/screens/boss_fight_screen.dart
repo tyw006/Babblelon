@@ -905,7 +905,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                   builder: (context, child) {
                     if (animation.value < 0.5) {
                       return Container(
-                        color: Colors.black.withOpacity(animation.value * 2),
+                        color: Colors.black.withValues(alpha: animation.value * 2),
                         child: Opacity(
                           opacity: 1 - (animation.value * 2),
                           child: const SizedBox.expand(),
@@ -913,7 +913,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                       );
                     } else {
                       return Container(
-                        color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                        color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
                         child: Opacity(
                           opacity: (animation.value - 0.5) * 2,
                           child: child,
@@ -1169,7 +1169,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
               Divider(
                 height: 1.5,
                 thickness: 1.5,
-                color: Colors.grey.shade900.withOpacity(0.95),
+                color: Colors.grey.shade900.withValues(alpha: 0.95),
               ),
               vocabularyAsyncValue.when(
                 loading: () => const Center(child: Padding(
@@ -1198,8 +1198,8 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.grey.shade900.withOpacity(0.95),
-                          Colors.grey.shade800.withOpacity(0.98),
+                          Colors.grey.shade900.withValues(alpha: 0.95),
+                          Colors.grey.shade800.withValues(alpha: 0.98),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -1275,7 +1275,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: widget.attackItem.isSpecial ? [
                           BoxShadow(
-                            color: Colors.yellow.withOpacity(0.7),
+                            color: Colors.yellow.withValues(alpha: 0.7),
                             blurRadius: 20,
                             spreadRadius: 8,
                           ),
@@ -1309,7 +1309,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                             borderRadius: BorderRadius.circular(40),
                             boxShadow: widget.defenseItem.isSpecial ? [
                               BoxShadow(
-                                color: Colors.yellow.withOpacity(0.7),
+                                color: Colors.yellow.withValues(alpha: 0.7),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -1593,7 +1593,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
         width: 320,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.85),
+          color: Colors.black.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -1631,7 +1631,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.8),
+                backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15.0),
@@ -1653,7 +1653,7 @@ class _BossFightMenuDialog extends ConsumerWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey.withOpacity(0.3),
+                backgroundColor: Colors.grey.withValues(alpha: 0.3),
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15.0),
@@ -2181,9 +2181,9 @@ class _InteractiveFlashcardDialogState
                         fontWeight: FontWeight.bold,
                         fontSize: 36,
                         shadows: [
-                          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
-                          Shadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
-                          Shadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+                          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                          Shadow(color: Colors.cyanAccent.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                          Shadow(color: Colors.cyanAccent.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 0)),
                         ],
                       ),
                       fractionDigits: 0,
@@ -2204,7 +2204,7 @@ class _InteractiveFlashcardDialogState
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           blurRadius: 3,
                           offset: const Offset(1, 1),
                         ),
@@ -2261,7 +2261,7 @@ class _InteractiveFlashcardDialogState
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                isAttackTurn ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                isAttackTurn ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                 Colors.transparent,
               ],
             ),
@@ -2314,9 +2314,9 @@ class _InteractiveFlashcardDialogState
                       fontWeight: FontWeight.bold,
                       fontSize: 40,
                       shadows: [
-                        Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
-                        Shadow(color: actionColor.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
-                        Shadow(color: actionColor.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+                        Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                        Shadow(color: actionColor.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                        Shadow(color: actionColor.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 0)),
                       ],
                     ),
                     fractionDigits: 0,
@@ -2443,9 +2443,9 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey.shade800.withOpacity(0.3),
+              color: Colors.grey.shade800.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade600.withOpacity(0.5)),
+              border: Border.all(color: Colors.grey.shade600.withValues(alpha: 0.5)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -2584,7 +2584,7 @@ class _WordAnalysisRow extends StatelessWidget {
                 if (mapping.translation.isNotEmpty)
                   Text('"${mapping.translation}"',
                       style: TextStyle(
-                          color: Colors.cyan.shade200.withOpacity(0.8),
+                          color: Colors.cyan.shade200.withValues(alpha: 0.8),
                           fontSize: 10,
                           fontStyle: FontStyle.italic)),
               ],
@@ -2884,7 +2884,7 @@ class _RevealedCardDetails extends StatelessWidget {
             Text(
               card.slang!,
               style: GoogleFonts.lato(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 14,
               ),
             ),
@@ -2910,7 +2910,7 @@ class _RecordButton extends StatelessWidget {
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: isRecording ? Colors.redAccent.withOpacity(0.8) : Colors.red,
+          color: isRecording ? Colors.redAccent.withValues(alpha: 0.8) : Colors.red,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 3),
         ),
@@ -2947,7 +2947,7 @@ class _PlaybackButton extends StatelessWidget {
               value: progress,
               strokeWidth: 3,
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.redAccent),
-              backgroundColor: Colors.white.withOpacity(0.3),
+              backgroundColor: Colors.white.withValues(alpha: 0.3),
             ),
           ),
           const Icon(Icons.play_circle_fill, color: Colors.cyan, size: 40),
@@ -3010,9 +3010,9 @@ class _FancyAnimatedNumberDisplay extends StatelessWidget {
         fontWeight: FontWeight.bold,
         fontSize: 36,
         shadows: [
-          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
-          Shadow(color: color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
-          Shadow(color: color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4, offset: const Offset(2, 2)),
+          Shadow(color: color.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 0)),
+          Shadow(color: color.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 0)),
         ],
       ),
       fractionDigits: 0,
@@ -3039,9 +3039,9 @@ class _FancyAnimatedPercentageDisplay extends StatelessWidget {
         fontWeight: FontWeight.bold,
         fontSize: 40,
         shadows: [
-          Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
-          Shadow(color: color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
-          Shadow(color: color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+          Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4, offset: const Offset(2, 2)),
+          Shadow(color: color.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 0)),
+          Shadow(color: color.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 0)),
         ],
       ),
       fractionDigits: 0,
@@ -3100,9 +3100,9 @@ class _FancyAnimatedTextDisplayState extends State<_FancyAnimatedTextDisplay>
               fontSize: 36,
               fontWeight: FontWeight.w500,
               shadows: [
-                Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 4, offset: const Offset(2, 2)),
-                Shadow(color: widget.color.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 0)),
-                Shadow(color: widget.color.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 0)),
+                Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 4, offset: const Offset(2, 2)),
+                Shadow(color: widget.color.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 0)),
+                Shadow(color: widget.color.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 0)),
               ],
             ),
           ),
@@ -3136,9 +3136,9 @@ class _DetailedPronunciationScores extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -3217,12 +3217,12 @@ class _AzurePronunciationTips extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.blue.withOpacity(0.2),
-            Colors.purple.withOpacity(0.1),
+            Colors.blue.withValues(alpha: 0.2),
+            Colors.purple.withValues(alpha: 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -3263,7 +3263,7 @@ class _AzurePronunciationTips extends StatelessWidget {
                     child: Text(
                       tip,
                       style: TextStyle(
-                        color: AppStyles.textColor.withOpacity(0.9),
+                        color: AppStyles.textColor.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                     ),

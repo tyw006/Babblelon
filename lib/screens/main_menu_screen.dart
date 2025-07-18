@@ -11,6 +11,7 @@ import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
+import 'package:babblelon/widgets/warm_babbleon_title.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -31,21 +32,7 @@ class MainMenuScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'BabbleOn',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 10.0,
-                      color: Colors.black,
-                      offset: Offset(5.0, 5.0),
-                    ),
-                  ],
-                ),
-              ),
+              const WarmBabbleOnTitle(),
               const SizedBox(height: 50),
               ElevatedButton(
                 onPressed: () {
@@ -53,7 +40,7 @@ class MainMenuScreen extends ConsumerWidget {
                   Navigator.push(
                     context,
                     PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
+                      pageBuilder: (context, animation, secondaryAnimation) => const GameScreen(),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return AnimatedBuilder(
                           animation: animation,
@@ -61,7 +48,7 @@ class MainMenuScreen extends ConsumerWidget {
                             // First half: fade to black
                             if (animation.value < 0.5) {
                               return Container(
-                                color: Colors.black.withOpacity(animation.value * 2),
+                                color: Colors.black.withValues(alpha: animation.value * 2),
                                 child: Opacity(
                                   opacity: 1 - (animation.value * 2),
                                   child: const SizedBox.expand(),
@@ -71,7 +58,7 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                                color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
                                 child: Opacity(
                                   opacity: (animation.value - 0.5) * 2,
                                   child: child,
@@ -127,7 +114,7 @@ class MainMenuScreen extends ConsumerWidget {
                             // First half: fade to black
                             if (animation.value < 0.5) {
                               return Container(
-                                color: Colors.black.withOpacity(animation.value * 2),
+                                color: Colors.black.withValues(alpha: animation.value * 2),
                                 child: Opacity(
                                   opacity: 1 - (animation.value * 2),
                                   child: const SizedBox.expand(),
@@ -137,7 +124,7 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
+                                color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
                                 child: Opacity(
                                   opacity: (animation.value - 0.5) * 2,
                                   child: child,

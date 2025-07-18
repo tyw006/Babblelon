@@ -46,6 +46,11 @@ dependencies:
   shimmer: ^3.0.0
   flutter_3d_controller: ^2.2.0
   textuality: ^0.0.4
+  text_3d: ^0.0.4
+  confetti: ^0.7.0
+  simple_animations: ^5.0.0
+  haptic_feedback: ^0.5.1+1
+  smooth_page_indicator: ^1.2.0
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +79,7 @@ flutter:
     - assets/audio/npc_vocabulary_somchai/
     - assets/images/bosses/tuktuk/
     - assets/images/main_screen/
+    - assets/images/maps/
     - assets/data/
     - assets/lottie/
     - .env 

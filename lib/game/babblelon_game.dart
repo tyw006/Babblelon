@@ -3,7 +3,6 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flame/events.dart';
 import 'package:flame/components.dart';
-import 'package:flame/camera.dart'; // Ensuring this is uncommented and present
 import 'package:flame/experimental.dart'; 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,9 +42,11 @@ class BabblelonGame extends FlameGame with
   double backgroundWidth = 0.0;
   double backgroundHeight = 0.0;
   Vector2 gameResolution = Vector2.zero();
+  late double groundY;
   
   // Portal proximity tracking
   PortalComponent? _portal;
+  bool _allowPortalSound = false; // Prevent portal sound on startup
 
   // --- Refactored NPC Management ---
   final Map<String, SpriteComponent> _npcs = {};
@@ -83,22 +84,30 @@ class BabblelonGame extends FlameGame with
   Future<void> onLoad() async {
     await super.onLoad(); // Call super.onLoad first
     
-    // Set gameResolution for iPhone Plus portrait
-    gameResolution = Vector2(414, 896); 
-    // camera.viewport = FixedResolutionViewport(resolution: gameResolution); // Remove this line
+    // Use actual device screen size for dynamic resolution
+    gameResolution = size; 
+    // If size is not available, fallback to iPhone 14 Pro resolution
+    if (gameResolution.x == 0 || gameResolution.y == 0) {
+      gameResolution = Vector2(393, 852); // iPhone 14 Pro logical resolution
+    }
+    
+    // Calculate device scale factor based on target resolution (iPhone 14 Pro)
+    final Vector2 baseResolution = Vector2(393, 852); // iPhone 14 Pro logical resolution
+    final double deviceScaleFactor = (gameResolution.y / baseResolution.y).clamp(0.7, 1.5);
     
     // Initialize World and CameraComponent
     gameWorld = World();
     cameraComponent = CameraComponent(world: gameWorld);
-    cameraComponent.viewport = FixedResolutionViewport(resolution: gameResolution); // Set viewport on custom camera
+    // Use MaxViewport for adaptive scaling instead of FixedResolutionViewport
     cameraComponent.viewfinder.anchor = Anchor.topLeft;
     addAll([cameraComponent, gameWorld]);
 
-    final backgroundImageAsset = await images.load('background/yaowarat_bg2.png');
+    final backgroundImageAsset = await images.load('background/yaowarat_bg2_1927x1080.png');
     final backgroundSprite = Sprite(backgroundImageAsset);
     
     final double imgAspectRatio = backgroundSprite.srcSize.x / backgroundSprite.srcSize.y;
-    final double bgHeight = gameResolution.y; // Fill the screen vertically
+    // Fill screen height exactly - no device scale factor needed with properly sized image
+    final double bgHeight = gameResolution.y;
     final double bgWidth = bgHeight * imgAspectRatio; // Maintain aspect ratio
     backgroundWidth = bgWidth;
     backgroundHeight = bgHeight;
@@ -109,19 +118,23 @@ class BabblelonGame extends FlameGame with
       anchor: Anchor.bottomLeft, 
       position: Vector2(0, gameResolution.y), 
     );
-    gameWorld.add(background..priority = -2); // Add background to the world
+    background.paint = Paint()..filterQuality = FilterQuality.none;
+    gameWorld.add(background..priority = -2);
+    groundY = gameResolution.y;
     
-    player = PlayerComponent(character: character);
-    player.backgroundWidth = backgroundWidth; // Pass background width to player
-    gameWorld.add(player); // Add player to the world
+    player = PlayerComponent(character: character, deviceScaleFactor: deviceScaleFactor);
+    player.backgroundWidth = backgroundWidth;
+    player.position.y = groundY;
+    gameWorld.add(player);
 
     // Add capybara companion after player is created
-    capybara = CapybaraCompanion(player: player);
+    capybara = CapybaraCompanion(player: player, deviceScaleFactor: deviceScaleFactor);
     capybara.backgroundWidth = backgroundWidth;
+    capybara.position.y = groundY;
     gameWorld.add(capybara);
 
     // --- Add all NPCs from the data map ---
-    await _addNpcs();
+    await _addNpcs(deviceScaleFactor);
     // --- End NPC addition ---
 
     // Define the boss for this level
@@ -146,10 +159,10 @@ class BabblelonGame extends FlameGame with
     gameWorld.add(_portal!);
 
     final worldBounds = Rectangle.fromLTWH(
-      0, 
-      0, 
-      bgWidth, 
-      bgHeight,
+      0,
+      0,
+      backgroundWidth,
+      backgroundHeight,
     );
     cameraComponent.setBounds(worldBounds); // Set bounds on the CameraComponent
 
@@ -169,6 +182,14 @@ class BabblelonGame extends FlameGame with
     _portalSoundPlayer = just_audio.AudioPlayer();
     await _portalSoundPlayer?.setAsset('assets/audio/bg/soundeffect_portal_v2.mp3');
     await _portalSoundPlayer?.setLoopMode(just_audio.LoopMode.one);
+    
+    // Initialize portal distance to prevent sound on startup
+    _initializePortalDistance();
+    
+    // Enable portal sound after a delay to ensure game is fully loaded
+    Future.delayed(const Duration(seconds: 2), () {
+      _allowPortalSound = true;
+    });
     // --- End pre-load ---
     
     // --- Pre-load ML Kit Thai model for character tracing ---
@@ -180,18 +201,21 @@ class BabblelonGame extends FlameGame with
     // --- End ML Kit preload ---
   }
   
-  Future<void> _addNpcs() async {
+  Future<void> _addNpcs(double deviceScaleFactor) async {
     final bubbleImage = await images.load('ui/speech_bubble_interact.png');
     final bubbleSprite = Sprite(bubbleImage);
-    const double npcScaleFactor = 0.25;
+    const double baseNpcScaleFactor = 0.25; // Base scale for iPhone 14 Pro
+    final double npcScaleFactor = baseNpcScaleFactor * deviceScaleFactor;
 
     // Manually define positions for now
     // You can adjust the X and Y coordinates here to move the NPCs.
     // X is the horizontal position, Y is the vertical position.
     // Smaller X moves the NPC to the left.
+    // Manually define positions using percentage-based Y coordinates
+    // This matches the working code from feature/npc-chat branch
     final npcPositions = {
-      'amara': Vector2(500, backgroundHeight * 0.93), // Was 900
-      'somchai': Vector2(1000, backgroundHeight * 0.93), // Was 1400
+      'amara': Vector2(500, backgroundHeight * 0.93),
+      'somchai': Vector2(1000, backgroundHeight * 0.93),
     };
 
     for (var entry in npcDataMap.entries) {
@@ -340,6 +364,14 @@ class BabblelonGame extends FlameGame with
     bubble.position = npcComponent.position - Vector2(0, npcComponent.size.y) + npcData.speechBubbleOffset;
   }
 
+  void _initializePortalDistance() {
+    if (_portal == null || !player.isMounted || !_portal!.isMounted) return;
+    
+    // Calculate initial distance to prevent false trigger on first update
+    final distance = player.position.distanceTo(_portal!.position);
+    _lastPortalDistance = distance;
+  }
+
   void _updatePortalProximity() {
     if (_portal == null || !player.isMounted || !_portal!.isMounted) return;
 
@@ -358,7 +390,7 @@ class BabblelonGame extends FlameGame with
 
     // Performance optimization: Only update audio if distance changed significantly
     if ((distance - _lastPortalDistance).abs() > 10.0) {
-      if (distance < maxDistance) {
+      if (distance < maxDistance && _allowPortalSound) {
         if (_portalSoundPlayer?.playing == false) {
           _portalSoundPlayer?.play();
         }

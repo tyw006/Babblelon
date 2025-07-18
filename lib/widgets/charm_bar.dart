@@ -65,10 +65,10 @@ class CharmBar extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF301934),
                 borderRadius: borderRadius,
-                border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     spreadRadius: 2,
                     blurRadius: 4,
                     offset: const Offset(0, 2),

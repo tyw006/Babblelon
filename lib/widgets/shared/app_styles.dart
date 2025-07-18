@@ -13,12 +13,12 @@ class AppStyles {
     color: primaryColor,
     borderRadius: BorderRadius.circular(16.0),
     border: Border.all(
-      color: Colors.white.withOpacity(0.15),
+      color: Colors.white.withValues(alpha: 0.15),
       width: 1.0,
     ),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         blurRadius: 10,
         offset: const Offset(0, 4),
       ),
@@ -29,12 +29,12 @@ class AppStyles {
     color: const Color(0xFF2D2D2D),
     borderRadius: BorderRadius.circular(16.0),
     border: Border.all(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       width: 1.0,
     ),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),
@@ -80,12 +80,11 @@ class AppStyles {
     colorScheme: const ColorScheme.dark(
       primary: accentColor,
       secondary: secondaryColor,
-      surface: primaryColor,
+      surface: Color(0xFF121212), 
       onPrimary: Colors.black,
       onSecondary: Colors.white,
       onSurface: Colors.white,
       onError: Colors.white,
-      background: Color(0xFF121212), 
       error: Colors.redAccent,
     ),
     textTheme: TextTheme(
@@ -127,7 +126,7 @@ class AppStyles {
 
   static final ButtonStyle secondaryButtonStyle = OutlinedButton.styleFrom(
     foregroundColor: textColor,
-    side: BorderSide(color: Colors.white.withOpacity(0.3)),
+    side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(8.0),

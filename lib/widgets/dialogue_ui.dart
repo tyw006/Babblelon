@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/npc_data.dart';
 import '../providers/game_providers.dart';
 import 'charm_bar.dart';
-import '../overlays/dialogue_overlay.dart';
 
 class DialogueUI extends StatefulWidget {
   final NpcData npcData;
@@ -141,12 +140,12 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                                         return Container(
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.5),
+                                            color: Colors.black.withValues(alpha: 0.5),
                                             shape: BoxShape.circle,
                                             border: Border.all(color: Colors.white70),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: glowColor.withOpacity(0.7 * glowValue),
+                                                color: glowColor.withValues(alpha: 0.7 * glowValue),
                                                 blurRadius: maxBlur * glowValue,
                                                 spreadRadius: maxSpread * glowValue,
                                               ),
@@ -294,7 +293,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
       child: Container(
         padding: EdgeInsets.all(padding),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white70),
         ),

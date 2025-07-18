@@ -955,7 +955,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       child: Container(
         padding: EdgeInsets.all(padding),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white70),
         ),
@@ -970,7 +970,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: _isRecording ? Colors.red.withOpacity(0.8) : Colors.black.withOpacity(0.6),
+          color: _isRecording ? Colors.red.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.6),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2),
         ),
@@ -1933,7 +1933,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               color: const Color(0xFF1F1F1F),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -1987,7 +1987,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     color: const Color(0xFF2D2D2D),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -2485,12 +2485,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   style: TextStyle(
                     fontSize: characterFontSize,
                     fontWeight: FontWeight.w300,
-                    color: const Color(0xFF4ECCA3).withOpacity(0.15), // app_styles accent with opacity
+                    color: const Color(0xFF4ECCA3).withValues(alpha: 0.15), // app_styles accent with opacity
                     shadows: [
                       Shadow(
                         offset: const Offset(2, 2),
                         blurRadius: 4,
-                        color: const Color(0xFF4ECCA3).withOpacity(0.1),
+                        color: const Color(0xFF4ECCA3).withValues(alpha: 0.1),
                       ),
                     ],
                   ),
@@ -2508,10 +2508,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                  color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -2607,7 +2607,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           child: Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -2679,7 +2679,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF4ECCA3).withOpacity(0.2),
+              color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -2693,12 +2693,12 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                   style: TextStyle(
                     fontSize: wordFontSize,
                     fontWeight: FontWeight.w300,
-                    color: const Color(0xFF4ECCA3).withOpacity(0.15),
+                    color: const Color(0xFF4ECCA3).withValues(alpha: 0.15),
                     shadows: [
                       Shadow(
                         offset: const Offset(2, 2),
                         blurRadius: 4,
-                        color: const Color(0xFF4ECCA3).withOpacity(0.1),
+                        color: const Color(0xFF4ECCA3).withValues(alpha: 0.1),
                       ),
                     ],
                   ),
@@ -2716,10 +2716,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                  color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -2760,7 +2760,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4ECCA3).withOpacity(0.2),
+                        color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -2808,7 +2808,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               color: const Color(0xFF1F1F1F),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -2860,7 +2860,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     color: const Color(0xFF2D2D2D),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),

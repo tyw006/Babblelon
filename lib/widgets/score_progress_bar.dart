@@ -175,9 +175,9 @@ class _ScoreProgressBarState extends State<ScoreProgressBar>
                               borderRadius: BorderRadius.circular(6),
                               gradient: LinearGradient(
                                 colors: [
-                                  scoreColor.withOpacity(0.3), // More subtle at low values
-                                  scoreColor.withOpacity(0.8),
-                                  scoreColor.withOpacity(0.9),
+                                  scoreColor.withValues(alpha: 0.3), // More subtle at low values
+                                  scoreColor.withValues(alpha: 0.8),
+                                  scoreColor.withValues(alpha: 0.9),
                                 ],
                                 stops: const [0.0, 0.7, 1.0],
                               ),
@@ -193,7 +193,7 @@ class _ScoreProgressBarState extends State<ScoreProgressBar>
                                       end: Alignment(1.0 + 2.0 * _shimmerAnimation.value, 0),
                                       colors: [
                                         Colors.transparent,
-                                        Colors.white.withOpacity(currentProgress > 0.1 ? 0.2 : 0.1), // More subtle shimmer at low values
+                                        Colors.white.withValues(alpha: currentProgress > 0.1 ? 0.2 : 0.1), // More subtle shimmer at low values
                                         Colors.transparent,
                                       ],
                                       stops: const [0.0, 0.5, 1.0],

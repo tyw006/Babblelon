@@ -1,12 +1,11 @@
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import '../babblelon_game.dart';
 
-class SpeechBubbleComponent extends SpriteComponent with TapCallbacks, HasGameRef<BabblelonGame>, RiverpodComponentMixin {
+class SpeechBubbleComponent extends SpriteComponent with TapCallbacks, HasGameReference<BabblelonGame>, RiverpodComponentMixin {
   SpeechBubbleComponent({
     required Sprite sprite,
     required Vector2 size,

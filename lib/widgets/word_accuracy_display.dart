@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class WordAccuracyDisplay extends StatelessWidget {
   final List<WordAccuracy> words;
@@ -71,7 +70,7 @@ class WordAccuracyDisplay extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontStyle: FontStyle.italic,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                 ],

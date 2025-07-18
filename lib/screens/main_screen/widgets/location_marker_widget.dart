@@ -27,12 +27,12 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
     super.initState();
     
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000), // Slower pulse for more dramatic effect
       vsync: this,
     );
     
     _bounceController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300), // Longer bounce for more bounce effect
       vsync: this,
     );
     
@@ -73,8 +73,8 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: 60, // Increased from 40 to make pins larger
+          height: 60, // Increased from 40 to make pins larger
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -84,11 +84,11 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                   animation: _pulseController,
                   builder: (context, child) {
                     return Container(
-                      width: 20 + (_pulseController.value * 15),
-                      height: 20 + (_pulseController.value * 15),
+                      width: 30 + (_pulseController.value * 25), // Larger pulse effect
+                      height: 30 + (_pulseController.value * 25), // Larger pulse effect
                       decoration: BoxDecoration(
                         color: Colors.orange.withValues(
-                          alpha: 0.3 * (1 - _pulseController.value),
+                          alpha: 0.4 * (1 - _pulseController.value), // Stronger pulse opacity
                         ),
                         shape: BoxShape.circle,
                       ),
@@ -100,12 +100,13 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
               AnimatedBuilder(
                 animation: _bounceController,
                 builder: (context, child) {
-                  final scale = 1.0 - (_bounceController.value * 0.1);
+                  // Enhanced bounce effect with elastic curve
+                  final scale = 1.0 + (_bounceController.value * 0.3); // More pronounced bounce
                   return Transform.scale(
                     scale: scale,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 45, // Increased from 30 to make pins larger
+                      height: 45, // Increased from 30 to make pins larger
                       decoration: BoxDecoration(
                         color: widget.location.isAvailable 
                             ? Colors.orange 
@@ -113,13 +114,13 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.white,
-                          width: 2,
+                          width: 3, // Thicker border for larger pins
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 5,
-                            offset: const Offset(0, 2),
+                            color: Colors.black.withValues(alpha: 0.4), // Stronger shadow
+                            blurRadius: 8, // Larger shadow blur
+                            offset: const Offset(0, 3), // Larger shadow offset
                           ),
                         ],
                       ),
@@ -128,7 +129,7 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                             ? Icons.location_city 
                             : Icons.lock,
                         color: Colors.white,
-                        size: 16,
+                        size: 24, // Increased icon size from 16 to 24
                       ),
                     ),
                   );

@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:babblelon/screens/main_screen/character_selection_screen.dart';
 import 'package:babblelon/screens/main_screen/widgets/location_marker_widget.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babblelon/screens/game_screen.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:babblelon/screens/main_screen/earth_globe_screen.dart';
+import 'package:babblelon/services/background_audio_service.dart';
+import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
+import 'package:babblelon/theme/font_extensions.dart';
 
 class ThailandMapScreen extends ConsumerStatefulWidget {
   const ThailandMapScreen({super.key});
@@ -23,28 +18,27 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
   late AnimationController _mapController;
   late AnimationController _markersController;
   
+  final BackgroundAudioService _audioService = BackgroundAudioService();
+  
   final List<LocationData> _locations = [
-    LocationData(
+    const LocationData(
       name: 'Bangkok (Yaowarat)',
       id: 'yaowarat',
-      latLng: LatLng(13.7563, 100.5018),
-      position: const Offset(0.52, 0.65),
+      position: Offset(0.50, 0.65), // Adjusted for 1280x1920 resolution - central Thailand
       isAvailable: true,
       description: 'Explore the vibrant Chinatown district',
     ),
-    LocationData(
+    const LocationData(
       name: 'Chiang Mai',
       id: 'chiang_mai',
-      latLng: LatLng(18.7883, 98.9853),
-      position: const Offset(0.45, 0.25),
+      position: Offset(0.45, 0.25), // Adjusted for northern Thailand positioning
       isAvailable: false,
       description: 'Northern cultural capital',
     ),
-    LocationData(
+    const LocationData(
       name: 'Phuket',
       id: 'phuket',
-      latLng: LatLng(7.8804, 98.3923),
-      position: const Offset(0.4, 0.85),
+      position: Offset(0.32, 0.85), // Adjusted for southern island positioning
       isAvailable: false,
       description: 'Beautiful island paradise',
     ),
@@ -84,46 +78,24 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       return;
     }
     
-    // Check if this is the first time playing
-    final prefs = await SharedPreferences.getInstance();
-    final hasSelectedCharacter = prefs.getBool('has_selected_character') ?? false;
-    
-    if (!hasSelectedCharacter) {
-      // Navigate to character selection first
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => 
-              CharacterSelectionScreen(selectedLocation: location),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(1.0, 0.0),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeInOut,
-                )),
-                child: child,
-              ),
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
-    } else {
-      // Go directly to the game
+    // Show confirmation dialog before traveling
+    final confirmed = await _showTravelConfirmationDialog(location);
+    if (confirmed) {
       _navigateToGame(location);
     }
   }
 
   void _navigateToGame(LocationData location) {
+    // Stop background music before transitioning to game
+    _audioService.stopBackgroundMusic();
+    
+    // Play portal sound effect when transitioning to game
+    _audioService.playPortalSound();
+    
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => const GameScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return AnimatedBuilder(
             animation: animation,
@@ -134,8 +106,9 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                   color: Colors.black.withValues(alpha: animation.value * 2),
                   child: Transform.scale(
                     scale: 1 + (animation.value * 0.2),
-                    child: Opacity(
+                    child: AnimatedOpacity(
                       opacity: 1 - (animation.value * 2),
+                      duration: Duration.zero,
                       child: const SizedBox.expand(),
                     ),
                   ),
@@ -145,8 +118,9 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                   color: Colors.black.withValues(alpha: 2 - (animation.value * 2)),
                   child: Transform.scale(
                     scale: 1.2 - ((animation.value - 0.5) * 0.2),
-                    child: Opacity(
+                    child: AnimatedOpacity(
                       opacity: (animation.value - 0.5) * 2,
+                      duration: Duration.zero,
                       child: child,
                     ),
                   ),
@@ -210,6 +184,91 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     );
   }
 
+  Future<bool> _showTravelConfirmationDialog(LocationData location) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D4A7A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.flight_takeoff, color: Colors.orange),
+            const SizedBox(width: 10),
+            const Text(
+              'Travel Confirmation',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Travel to ${location.name}?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              location.description,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Are you ready to begin your Thai language adventure?',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Let\'s Go!',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  void _handleBackNavigation() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const CombinedSelectionScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,107 +286,139 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
         ),
         child: Stack(
           children: [
-            // Back button
-            Positioned(
-              top: 60,
-              left: 20,
-              child: IconButton(
-                onPressed: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const EarthGlobeScreen(),
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ).animate()
-                .fadeIn(delay: 500.ms)
-                .slideX(begin: -50, duration: 600.ms, delay: 500.ms),
-            ),
-            
-            // Title
-            Positioned(
-              top: 60,
-              left: 0,
-              right: 0,
-              child: Text(
-                'Choose Your Destination',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 10.0,
-                      color: Colors.black,
-                      offset: Offset(2.0, 2.0),
-                    ),
-                  ],
-                ),
-              ).animate()
-                .fadeIn(duration: 1000.ms)
-                .slideY(begin: -30, duration: 800.ms),
-            ),
-            
-            // Thailand map
-            Center(
+            // Thailand static map with markers (Full Screen)
+            Positioned.fill(
               child: AnimatedBuilder(
                 animation: _mapController,
                 builder: (context, child) {
-                  return Opacity(
+                  final screenSize = MediaQuery.of(context).size;
+                  
+                  return AnimatedOpacity(
                     opacity: _mapController.value,
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(15.8700, 100.9925), // Center of Thailand
-                        initialZoom: 5.0,
-                        minZoom: 4.0,
-                        maxZoom: 10.0,
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                        ),
-                      ),
+                    duration: Duration.zero,
+                    child: Stack(
                       children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.babblelon',
-                        ),
-                        MarkerLayer(
-                          markers: _locations.map((location) {
-                            return Marker(
-                              point: location.latLng,
-                              width: 80,
-                              height: 80,
-                              child: GestureDetector(
-                                onTap: () => _onLocationSelected(location),
-                                child: AnimatedBuilder(
-                                  animation: _markersController,
-                                  builder: (context, child) {
-                                    final delay = _locations.indexOf(location) * 0.3;
-                                    final progress = (_markersController.value - delay).clamp(0.0, 1.0);
-                                    return Transform.scale(
-                                      scale: progress,
-                                      child: Opacity(
-                                        opacity: progress,
-                                        child: LocationMarkerWidget(
-                                          location: location,
-                                          onTap: () => _onLocationSelected(location),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                        // Thailand map image (Full Screen with BoxFit.cover, optimized for 1280x1920)
+                        Positioned(
+                          left: -30, // Reduced shift for new aspect ratio
+                          top: 0,
+                          right: -30,
+                          bottom: 0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 8),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/maps/map_thailand.png',
+                              fit: BoxFit.cover, // Use cover to fill entire screen
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: const Color(0xFF2D5B3D),
+                                  child: const Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.map,
+                                          color: Colors.white,
+                                          size: 64,
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          'Thailand Map',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
+                        
+                        // Location markers (positioned based on screen proportions)
+                        ...(_locations.map((location) {
+                          return AnimatedBuilder(
+                            animation: _markersController,
+                            builder: (context, child) {
+                              final delay = _locations.indexOf(location) * 0.3;
+                              final progress = (_markersController.value - delay).clamp(0.0, 1.0);
+                              
+                              // Calculate pin position based on screen size and location proportions
+                              // Center the 60x60 pin widget
+                              final pinX = (location.position.dx * screenSize.width) - 30;
+                              final pinY = (location.position.dy * screenSize.height) - 30;
+                              
+                              return Positioned(
+                                left: pinX,
+                                top: pinY,
+                                child: Transform.scale(
+                                  scale: progress,
+                                  child: AnimatedOpacity(
+                                    opacity: progress,
+                                    duration: Duration.zero,
+                                    child: GestureDetector(
+                                      onTap: () => _onLocationSelected(location),
+                                      child: LocationMarkerWidget(
+                                        location: location,
+                                        onTap: () => _onLocationSelected(location),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        }).toList()),
                       ],
                     ),
                   );
                 },
+              ),
+            ),
+            
+            // Back button (positioned on top of map)
+            Positioned(
+              top: 60,
+              left: 20,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: IconButton(
+                  onPressed: _handleBackNavigation,
+                  icon: const Icon(
+                    Icons.arrow_back_ios_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Title (positioned on top of map, matching Select Language style)
+            Positioned(
+              top: 60,
+              left: 80, // Leave space for back button
+              right: 20,
+              child: Text(
+                'Choose Your Destination',
+                style: BabbleFonts.taglineVerb.copyWith(
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -340,15 +431,13 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
 class LocationData {
   final String name;
   final String id;
-  final LatLng latLng; // Add this
-  final Offset position; // Keep for compatibility if needed
+  final Offset position; // Relative position on the map (0.0 to 1.0)
   final bool isAvailable;
   final String description;
 
   const LocationData({
     required this.name,
     required this.id,
-    required this.latLng,
     required this.position,
     required this.isAvailable,
     required this.description,

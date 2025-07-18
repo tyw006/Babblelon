@@ -124,8 +124,8 @@ class _DamageIndicatorState extends State<DamageIndicator>
                     decoration: BoxDecoration(
                       gradient: RadialGradient(
                         colors: [
-                          (widget.isCritical ? Colors.orange : Colors.cyan).withOpacity(0.3),
-                          (widget.isCritical ? Colors.red : Colors.blue).withOpacity(0.1),
+                          (widget.isCritical ? Colors.orange : Colors.cyan).withValues(alpha: 0.3),
+                          (widget.isCritical ? Colors.red : Colors.blue).withValues(alpha: 0.1),
                           Colors.transparent,
                         ],
                         stops: const [0.0, 0.5, 1.0],
@@ -202,19 +202,19 @@ class _DamageIndicatorState extends State<DamageIndicator>
                 ),
                 // Glowing effect
                 Shadow(
-                  color: damageColor.withOpacity(0.8),
+                  color: damageColor.withValues(alpha: 0.8),
                   blurRadius: 12,
                   offset: Offset.zero,
                 ),
                 Shadow(
-                  color: damageColor.withOpacity(0.6),
+                  color: damageColor.withValues(alpha: 0.6),
                   blurRadius: 20,
                   offset: Offset.zero,
                 ),
                 // White inner glow for critical hits and great defense
                 if (widget.isCritical || widget.isGreatDefense)
                   Shadow(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     blurRadius: 8,
                     offset: Offset.zero,
                   ),
@@ -245,13 +245,13 @@ class _DamageIndicatorState extends State<DamageIndicator>
         borderRadius: BorderRadius.circular(6),
         gradient: LinearGradient(
           colors: [
-            Colors.red.withOpacity(0.8),
-            Colors.orange.withOpacity(0.8),
+            Colors.red.withValues(alpha: 0.8),
+            Colors.orange.withValues(alpha: 0.8),
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withOpacity(0.6),
+            color: Colors.red.withValues(alpha: 0.6),
             blurRadius: 12,
             spreadRadius: 1,
           ),
@@ -267,12 +267,12 @@ class _DamageIndicatorState extends State<DamageIndicator>
           decoration: TextDecoration.none,
           shadows: [
             Shadow(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               blurRadius: 3,
               offset: const Offset(1, 1),
             ),
             Shadow(
-              color: Colors.yellow.withOpacity(0.8),
+              color: Colors.yellow.withValues(alpha: 0.8),
               blurRadius: 6,
               offset: Offset.zero,
             ),
@@ -289,7 +289,7 @@ class _DamageIndicatorState extends State<DamageIndicator>
       )
       .shimmer(
         duration: 1200.ms,
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
       )
       .fadeOut(
         delay: 2200.ms,
@@ -304,13 +304,13 @@ class _DamageIndicatorState extends State<DamageIndicator>
         borderRadius: BorderRadius.circular(6),
         gradient: LinearGradient(
           colors: [
-            Colors.blue.withOpacity(0.8),
-            Colors.cyan.withOpacity(0.8),
+            Colors.blue.withValues(alpha: 0.8),
+            Colors.cyan.withValues(alpha: 0.8),
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.6),
+            color: Colors.blue.withValues(alpha: 0.6),
             blurRadius: 12,
             spreadRadius: 1,
           ),
@@ -326,12 +326,12 @@ class _DamageIndicatorState extends State<DamageIndicator>
           decoration: TextDecoration.none,
           shadows: [
             Shadow(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               blurRadius: 3,
               offset: const Offset(1, 1),
             ),
             Shadow(
-              color: Colors.lightBlue.withOpacity(0.8),
+              color: Colors.lightBlue.withValues(alpha: 0.8),
               blurRadius: 6,
               offset: Offset.zero,
             ),
@@ -348,7 +348,7 @@ class _DamageIndicatorState extends State<DamageIndicator>
       )
       .shimmer(
         duration: 1200.ms,
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
       )
       .fadeOut(
         delay: 2200.ms,
@@ -377,7 +377,7 @@ class _DamageIndicatorState extends State<DamageIndicator>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: (index % 2 == 0 ? Colors.yellow : Colors.white).withOpacity(0.8),
+                    color: (index % 2 == 0 ? Colors.yellow : Colors.white).withValues(alpha: 0.8),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),

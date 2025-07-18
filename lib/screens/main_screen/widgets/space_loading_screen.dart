@@ -1,0 +1,124 @@
+import 'package:flutter/material.dart';
+import 'package:babblelon/overlays/capybara_loading_overlay.dart';
+import 'package:babblelon/screens/splash_screen.dart';
+import 'package:babblelon/services/background_audio_service.dart';
+
+/// Space loading screen wrapper that shows loading overlay over 3D earth background
+class SpaceLoadingScreen extends StatefulWidget {
+  const SpaceLoadingScreen({super.key});
+
+  @override
+  State<SpaceLoadingScreen> createState() => _SpaceLoadingScreenState();
+}
+
+class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
+  bool _isLoadingComplete = false;
+  bool _earthRenderingComplete = false;
+  final BackgroundAudioService _audioService = BackgroundAudioService();
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializeAudioService();
+    _checkEarthRenderingStatus();
+  }
+  
+  Future<void> _initializeAudioService() async {
+    await _audioService.initialize();
+  }
+  
+  Future<void> _checkEarthRenderingStatus() async {
+    // Simulate 3D earth rendering completion check
+    // In a real implementation, this would wait for actual 3D model loading
+    await Future.delayed(const Duration(milliseconds: 3000));
+    
+    if (mounted) {
+      setState(() {
+        _earthRenderingComplete = true;
+      });
+    }
+  }
+  
+  void _onLoadingComplete() {
+    setState(() {
+      _isLoadingComplete = true;
+    });
+    
+    // Start playing intro music when main menu loads
+    _audioService.playIntroMusic();
+  }
+  
+  bool get _showOverlay => !_isLoadingComplete || !_earthRenderingComplete;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Background: 3D Earth renders immediately but may not be visible
+        SplashScreen(
+          key: const ValueKey('splash_screen'),
+          audioService: _audioService,
+        ),
+        
+        // Overlay: Capybara loading screen that hides until earth is ready
+        if (_showOverlay)
+          CapybaraLoadingOverlay(
+            key: const ValueKey('capybara_loading_overlay'),
+            onComplete: _onLoadingComplete,
+          ),
+      ],
+    );
+  }
+}
+
+class SpaceAssetPreloader {
+  static final SpaceAssetPreloader _instance = SpaceAssetPreloader._internal();
+  factory SpaceAssetPreloader() => _instance;
+  SpaceAssetPreloader._internal();
+
+  bool _isLoading = false;
+  bool _isLoaded = false;
+  double _progress = 0.0;
+  
+  final List<String> _criticalAssets = [
+    'assets/images/main_screen/earth_3d.glb',
+    'assets/images/player/sprite_male_tourist.png',
+    'assets/images/player/sprite_female_tourist.png',
+    'assets/images/player/capybara.png',
+  ];
+
+  bool get isLoading => _isLoading;
+  bool get isLoaded => _isLoaded;
+  double get progress => _progress;
+
+  Future<void> preloadAssets() async {
+    if (_isLoading || _isLoaded) return;
+    
+    _isLoading = true;
+    _progress = 0.0;
+    
+    try {
+      for (int i = 0; i < _criticalAssets.length; i++) {
+        // Simulate asset loading time
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        _progress = (i + 1) / _criticalAssets.length;
+        
+        // In a real implementation, you would preload actual assets here
+        // For example: await precacheImage(AssetImage(asset), context);
+      }
+      
+      _isLoaded = true;
+    } catch (e) {
+      debugPrint('Error preloading assets: $e');
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  void reset() {
+    _isLoading = false;
+    _isLoaded = false;
+    _progress = 0.0;
+  }
+}

@@ -1,14 +1,13 @@
-import 'package:babblelon/screens/main_menu_screen.dart';
-import 'package:babblelon/screens/main_screen/earth_globe_screen.dart';
+import 'package:babblelon/screens/main_screen/widgets/space_loading_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/game_screen.dart';
+import 'package:provider/provider.dart' as provider;
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/debug_dialog_test.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/providers/motion_preferences_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +40,14 @@ void main() async {
   // Initialize Isar DB
   await IsarService.init();
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(
+    provider.MultiProvider(
+      providers: [
+        provider.ChangeNotifierProvider(create: (context) => MotionPreferences()..init()),
+      ],
+      child: const ProviderScope(child: MyApp()),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -51,10 +57,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Babblelon',
-      theme: AppStyles.mainTheme,
-      home: const EarthGlobeScreen(),
-      // home: const MainMenuScreen(), // Old main menu
-      // home: const DebugDialogTest(), // Temporarily set to debug screen
+      theme: AppTheme.lightTheme, // Use modern unified theme
+      home: const SpaceLoadingScreen(), // New loading system with splash screen
     );
   }
 } 
