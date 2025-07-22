@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/modern_design_system.dart' as modern;
 import 'package:babblelon/screens/main_screen/widgets/earth_globe_widget.dart';
 import 'package:babblelon/screens/main_screen/widgets/twinkling_stars.dart';
-import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
+import 'package:babblelon/screens/onboarding_screen.dart';
+import 'package:babblelon/screens/main_navigation_screen.dart';
+import 'package:babblelon/providers/onboarding_provider.dart';
 import 'package:babblelon/widgets/modern_logo.dart';
 import 'package:babblelon/widgets/bouncing_entrance.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
@@ -99,11 +101,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 1000));
     
     if (mounted) {
+      // Check if this is the user's first time
+      final isOnboardingCompleted = ref.read(onboardingCompletedProvider);
+      
+      Widget destination;
+      if (isOnboardingCompleted) {
+        // Returning user - go to main navigation
+        destination = const MainNavigationScreen();
+      } else {
+        // First-time user - show onboarding
+        destination = const OnboardingScreen();
+      }
+      
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => 
-            const CombinedSelectionScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => destination,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(
               opacity: animation,

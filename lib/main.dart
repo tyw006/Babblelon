@@ -1,4 +1,3 @@
-import 'package:babblelon/screens/main_screen/widgets/space_loading_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart' as provider;
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
+import 'package:babblelon/app_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Babblelon',
       theme: AppTheme.lightTheme, // Use modern unified theme
-      home: const SpaceLoadingScreen(), // New loading system with splash screen
+      home: const AppController(), // New app controller with onboarding flow
     );
   }
 } 

@@ -109,25 +109,26 @@ class AssetPreloadService {
     BuildContext? context,
     Function(double, String)? onProgress,
   ) async {
-    if (context == null) return;
-    
     _updateProgress(0.05, 'Loading critical UI assets...', onProgress);
     
     // Add delay to let users read the text
     await Future.delayed(const Duration(milliseconds: 800));
     
+    // Skip Flutter precacheImage to avoid context disposal issues
+    // Use Flame's image cache instead for better reliability
     final List<Future<void>> futures = [];
     
     for (int i = 0; i < _criticalImages.length; i++) {
       final imagePath = _criticalImages[i];
       
+      // Convert full asset path to Flame-compatible path
+      final flamePath = imagePath.replaceFirst('assets/images/', '');
+      
       futures.add(
-        precacheImage(
-          AssetImage(imagePath),
-          context,
-        ).catchError((error) {
-          print('⚠️ Failed to preload critical image $imagePath: $error');
-          // Don't throw, continue with other assets
+        Flame.images.load(flamePath).catchError((error) {
+          print('⚠️ Failed to preload critical image $flamePath: $error');
+          // Return null to satisfy the return type requirement
+          return null;
         }),
       );
       

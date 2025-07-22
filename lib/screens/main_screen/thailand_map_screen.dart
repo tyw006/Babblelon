@@ -99,22 +99,32 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
             builder: (context, child) {
               // First half: fade to black
               if (animation.value < 0.5) {
+                final blackOpacity = animation.value * 2;
+                final contentOpacity = (1 - blackOpacity).clamp(0.0, 1.0);
                 return Container(
-                  color: Colors.black.withValues(alpha: animation.value * 2),
-                  child: Opacity(
-                    opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
+                  color: Colors.black,
+                  child: Transform.scale(
+                    scale: contentOpacity,
                     child: const SizedBox.expand(),
                   ),
                 );
               }
               // Second half: fade in new screen
               else {
-                return Container(
-                  color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
-                  child: Opacity(
-                    opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
-                    child: child,
-                  ),
+                final blackOpacity = (2 - (animation.value * 2)).clamp(0.0, 1.0);
+                final contentOpacity = ((animation.value - 0.5) * 2).clamp(0.0, 1.0);
+                return Stack(
+                  children: [
+                    Transform.scale(
+                      scale: contentOpacity,
+                      child: child,
+                    ),
+                    if (blackOpacity > 0)
+                      Container(
+                        color: Colors.black,
+                        child: const SizedBox.expand(),
+                      ),
+                  ],
                 );
               }
             },
@@ -155,8 +165,8 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
             const SizedBox(height: 10),
             Text(
               location.description,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
+              style: const TextStyle(
+                color: Colors.white70,
                 fontSize: 14,
               ),
             ),
@@ -205,16 +215,16 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
             const SizedBox(height: 10),
             Text(
               location.description,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
+              style: const TextStyle(
+                color: Colors.white70,
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               'Are you ready to begin your Thai language adventure?',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
+              style: const TextStyle(
+                color: Colors.white,
                 fontSize: 16,
               ),
             ),
@@ -250,10 +260,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => const CombinedSelectionScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return child!;
         },
         transitionDuration: const Duration(milliseconds: 300),
       ),
@@ -284,12 +291,10 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                 builder: (context, child) {
                   final screenSize = MediaQuery.of(context).size;
                   
-                  return FadeTransition(
-                    opacity: _mapController,
-                    child: Stack(
-                      children: [
-                        // Thailand map image (Full Screen with BoxFit.cover, optimized for 1280x1920)
-                        Positioned(
+                  return Stack(
+                    children: [
+                      // Thailand map image (Full Screen with BoxFit.cover, optimized for 1280x1920)
+                      Positioned(
                           left: -30, // Reduced shift for new aspect ratio
                           top: 0,
                           right: -30,
@@ -298,7 +303,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
+                                  color: Colors.black26,
                                   blurRadius: 15,
                                   offset: const Offset(0, 8),
                                 ),
@@ -337,45 +342,41 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                           ),
                         ),
                         
-                        // Location markers (positioned based on screen proportions)
-                        ...(_locations.map((location) {
-                          return AnimatedBuilder(
-                            animation: _markersController,
-                            builder: (context, child) {
-                              final delay = _locations.indexOf(location) * 0.3;
-                              
-                              // Calculate pin position based on screen size and location proportions
-                              // Center the 60x60 pin widget
-                              final pinX = (location.position.dx * screenSize.width) - 30;
-                              final pinY = (location.position.dy * screenSize.height) - 30;
-                              
-                              final fade = CurvedAnimation(
-                                parent: _markersController,
-                                curve: Interval(delay, 1.0),
-                              );
-                              
-                              return Positioned(
-                                left: pinX,
-                                top: pinY,
-                                child: ScaleTransition(
-                                  scale: fade,
-                                  child: FadeTransition(
-                                    opacity: fade,
-                                    child: GestureDetector(
-                                      onTap: () => _onLocationSelected(location),
-                                      child: LocationMarkerWidget(
-                                        location: location,
-                                        onTap: () => _onLocationSelected(location),
-                                      ),
-                                    ),
+                      // Location markers (positioned based on screen proportions)
+                      ...(_locations.map((location) {
+                        return AnimatedBuilder(
+                          animation: _markersController,
+                          builder: (context, child) {
+                            final delay = _locations.indexOf(location) * 0.3;
+                            
+                            // Calculate pin position based on screen size and location proportions
+                            // Center the 60x60 pin widget
+                            final pinX = (location.position.dx * screenSize.width) - 30;
+                            final pinY = (location.position.dy * screenSize.height) - 30;
+                            
+                            final fade = CurvedAnimation(
+                              parent: _markersController,
+                              curve: Interval(delay, 1.0),
+                            );
+                            
+                            return Positioned(
+                              left: pinX,
+                              top: pinY,
+                              child: ScaleTransition(
+                                scale: fade,
+                                child: GestureDetector(
+                                  onTap: () => _onLocationSelected(location),
+                                  child: LocationMarkerWidget(
+                                    location: location,
+                                    onTap: () => _onLocationSelected(location),
                                   ),
                                 ),
-                              );
-                            },
-                          );
-                        }).toList()),
-                      ],
-                    ),
+                              ),
+                            );
+                          },
+                        );
+                      }).toList()),
+                    ],
                   );
                 },
               ),
@@ -387,7 +388,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
               left: 20,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: Colors.black26,
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: IconButton(
