@@ -19,6 +19,15 @@ class CharacterAssessmentDialog extends ConsumerStatefulWidget {
   
   /// Called when user dismisses the dialog
   final VoidCallback onDismiss;
+  
+  /// NPC ID for item giving functionality
+  final String? npcId;
+  
+  /// NPC name for display in button
+  final String? npcName;
+  
+  /// Called when user wants to give item to NPC
+  final VoidCallback? onGiveItem;
 
   const CharacterAssessmentDialog({
     super.key,
@@ -26,6 +35,9 @@ class CharacterAssessmentDialog extends ConsumerStatefulWidget {
     required this.characterNames,
     this.originalVocabularyItem,
     required this.onDismiss,
+    this.npcId,
+    this.npcName,
+    this.onGiveItem,
   });
 
   @override
@@ -1891,47 +1903,140 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
   }
 
   Widget _buildNavigationControls() {
+    // Check if this is an NPC vocabulary item
+    final bool isNpcVocabulary = widget.originalVocabularyItem != null &&
+        widget.originalVocabularyItem!['category'] != null &&
+        widget.npcId != null &&
+        widget.npcName != null &&
+        widget.onGiveItem != null;
+    
+    final String? itemName = widget.originalVocabularyItem?['english'] as String?;
+    
     return Container(
       padding: const EdgeInsets.all(16.0),
-      child: SizedBox(
-        width: double.infinity,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)], // Ethereal blue to purple
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
+      child: isNpcVocabulary && itemName != null
+          ? Row(
+              children: [
+                // Give Item button
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF10B981), Color(0xFF06B6D4)], // Green to cyan
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: widget.onGiveItem,
+                      child: Text(
+                        'Give $itemName to ${widget.npcName}',
+                        style: AppStyles.bodyTextStyle.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Continue button
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)], // Ethereal blue to purple
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: widget.onDismiss,
+                      child: Text(
+                        'CONTINUE',
+                        style: AppStyles.bodyTextStyle.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)], // Ethereal blue to purple
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: widget.onDismiss,
+                  child: Text(
+                    'CONTINUE',
+                    style: AppStyles.bodyTextStyle.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
             ),
-            onPressed: widget.onDismiss,
-            child: Text(
-              'CONTINUE',
-              style: AppStyles.bodyTextStyle.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 

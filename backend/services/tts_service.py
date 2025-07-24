@@ -30,8 +30,8 @@ async def text_to_speech_stream(text_to_speak: str):
         raise HTTPException(status_code=500, detail="TTS Stream: Google GenAI client not configured. Check API key.")
 
     try:
-        # Using a client instance as it seems required for `client.models.generate_content_stream`
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        # Initialize client with vertexai=False to use Gemini Developer API
+        client = genai.Client(api_key=GEMINI_API_KEY, vertexai=False)
 
         stream = client.models.generate_content_stream(
             model="gemini-2.5-flash-preview-tts", 
@@ -82,8 +82,8 @@ async def text_to_speech_full(text_to_speak: str, voice_name: str = "Puck", resp
         final_text_to_speak = f"In a {response_tone.strip()} tone: {text_to_speak}"
 
     try:
-        # print(f"[{datetime.datetime.now()}] DEBUG: TTS Full - Requesting raw audio for: '{final_text_to_speak}' with voice '{voice_name}'") # Commented out
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        # Initialize client with vertexai=False to use Gemini Developer API
+        client = genai.Client(api_key=GEMINI_API_KEY, vertexai=False)
 
         response = client.models.generate_content(
             model="gemini-2.5-flash-preview-tts", 

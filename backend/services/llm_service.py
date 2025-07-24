@@ -56,8 +56,8 @@ def load_vocabulary_data(npc_id: str) -> dict | None:
         print(f"Error loading vocabulary for NPC '{npc_id}' from {vocab_file}: {e}")
         return None
 
-def get_categories_by_npc(vocab_data: dict) -> List[str]:
-    """Extract unique categories from vocabulary data."""
+def get_categories_by_npc_old(vocab_data: dict) -> List[str]:
+    """Extract unique categories from vocabulary data (old version)."""
     if not vocab_data or 'vocabulary' not in vocab_data:
         return []
     
@@ -90,7 +90,7 @@ def initialize_npc_vocabulary(npc_id: str) -> dict:
         print(f"Warning: Could not load vocabulary data for NPC '{npc_id}'")
         return {}
     
-    categories = get_categories_by_npc(vocab_data)
+    categories = get_categories_by_npc_old(vocab_data)
     selected_vocab = {}
     
     print(f"🎲 Initializing {npc_id} with random vocabulary from {len(categories)} categories:")
@@ -127,6 +127,121 @@ def format_vocabulary_context(selected_vocab: dict) -> str:
     
     return vocab_context
 
+# --- Quest State Management Functions (from test_LLM_v2.ipynb) ---
+
+# Define Somchai's mandatory category order
+SOMCHAI_CATEGORY_ORDER = [
+    "Tableware/Utensils",
+    "Drinks", 
+    "Condiments",
+    "Customer Actions/Requests",
+    "Service Items"
+]
+
+def initialize_quest_state(npc_vocab_data: dict, npc_name: str = None) -> dict:
+    """Initialize quest state with categories from vocabulary for dynamic quests"""
+    categories = get_categories_by_npc(npc_vocab_data, npc_name)
+    return {
+        "categories_needed": categories,  # Static list of all categories for this NPC
+        "conversation_turns": 0,
+        "scenario_complete": False
+    }
+
+def process_item_giving(npc_response: 'NPCResponse', npc_config: dict) -> dict:
+    """Process item after NPC judgment - updates external config state"""
+    print(f"DEBUG: Processing item giving - Item: {npc_response.user_item_given}, Accepted: {npc_response.user_item_accepted}, Category: {npc_response.item_category}")
+    
+    if npc_response.user_item_given:
+        # Add to items given history (external config)
+        if "items_given" not in npc_config:
+            npc_config["items_given"] = []
+        npc_config["items_given"].append(npc_response.user_item_given)
+        print(f"DEBUG: Added item '{npc_response.user_item_given}' to items_given. Total items given: {len(npc_config['items_given'])}")
+        
+        # If accepted, track the category (external config)
+        if npc_response.user_item_accepted and npc_response.item_category:
+            if "categories_accepted" not in npc_config:
+                npc_config["categories_accepted"] = {}
+            npc_config["categories_accepted"][npc_response.item_category] = npc_response.user_item_given
+            print(f"DEBUG: Accepted item '{npc_response.user_item_given}' in category '{npc_response.item_category}'. Categories satisfied: {len(npc_config['categories_accepted'])}")
+            
+            # Check if quest complete (all categories satisfied)
+            categories_needed = npc_config["quest_state"]["categories_needed"]
+            if len(npc_config["categories_accepted"]) == len(categories_needed):
+                npc_config["quest_state"]["scenario_complete"] = True
+                print(f"DEBUG: Quest complete! All {len(categories_needed)} categories satisfied.")
+            else:
+                print(f"DEBUG: Quest not complete. {len(npc_config['categories_accepted'])}/{len(categories_needed)} categories satisfied.")
+        else:
+            print(f"DEBUG: Item '{npc_response.user_item_given}' was rejected or had no category.")
+    else:
+        print(f"DEBUG: No item given in this interaction.")
+    
+    return npc_config
+
+def get_quest_summary(npc_config: dict) -> dict:
+    """Get quest progress summary for dynamic quests with current/next category guidance"""
+    # Get static categories needed
+    categories_needed = npc_config["quest_state"]["categories_needed"]
+    
+    # Get dynamic state from external config
+    categories_accepted = npc_config.get("categories_accepted", {})
+    items_given = npc_config.get("items_given", [])
+    
+    categories_satisfied = list(categories_accepted.keys())
+    categories_remaining = [c for c in categories_needed if c not in categories_accepted]
+    
+    # Calculate current and next category needed for focused guidance
+    current_category_needed = categories_remaining[0] if len(categories_remaining) > 0 else "None (quest complete)"
+    next_category_needed = categories_remaining[1] if len(categories_remaining) > 1 else "None (final category)" if len(categories_remaining) == 1 else "None (quest complete)"
+    
+    return {
+        "progress": f"{len(categories_satisfied)}/{len(categories_needed)}",
+        "categories_satisfied": categories_satisfied,
+        "categories_remaining": categories_remaining,  # Keep for debugging
+        "current_category_needed": current_category_needed,
+        "next_category_needed": next_category_needed,
+        "accepted_items": categories_accepted,
+        "all_items_given": items_given,
+        "complete": npc_config["quest_state"]["scenario_complete"]
+    }
+
+def format_conversation_history(conversation_history: str, max_turns: int = 2) -> str:
+    """Format conversation history to last N turns"""
+    if not conversation_history or not conversation_history.strip():
+        return ""
+    
+    conversation_lines = conversation_history.strip().split('\n')
+    max_lines = max_turns * 2  # Each turn has player + NPC line
+    if len(conversation_lines) >= max_lines:
+        return '\n'.join(conversation_lines[-max_lines:])
+    return conversation_history
+
+def get_categories_by_npc(vocab_data: dict, npc_name: str = None) -> List[str]:
+    """Extract categories from vocabulary data, with ordering for Somchai"""
+    if not vocab_data or 'vocabulary' not in vocab_data:
+        return []
+    
+    categories = set()
+    for item in vocab_data['vocabulary']:
+        if 'category' in item:
+            categories.add(item['category'])
+    
+    # Apply ordering for Somchai
+    if npc_name == "Somchai":
+        ordered_categories = []
+        for cat in SOMCHAI_CATEGORY_ORDER:
+            if cat in categories:
+                ordered_categories.append(cat)
+        # Add any remaining categories not in the predefined order
+        for cat in categories:
+            if cat not in ordered_categories:
+                ordered_categories.append(cat)
+        return ordered_categories
+    
+    # For Amara and others, return unordered list
+    return list(categories)
+
 # --- Load prompts dynamically ---
 # We'll load them on demand in the get_llm_response function or cache them if preferred.
 # For simplicity now, we load them when requested.
@@ -147,11 +262,46 @@ class NPCResponse(BaseModel):
     input_mapping: List[POSMapping] = Field(description="The Part-of-Speech(POS) classification for each of words in the target latest input message")
     emotion: Literal["angry", "annoyed", "content", "happy", "sad", "surprised", "laughing"]
     response_tone: str
-    response_target: str # This is the primary TargetLanguage response
-    response_english: str # This is the English response
+    response_target: str = Field(description="The response in the target language")
+    response_english: str = Field(description="The English response")
     response_mapping: List[POSMapping] = Field(description="POS tagging and word-level translations/transliterations in the response")
-    charm_delta: int
+    user_item_given: Optional[str] = Field(description="Any item given by the user", default=None)
+    user_item_accepted: bool = Field(description="Whether the NPC accepts this item for the current scenario")
+    item_category: Optional[str] = Field(description="Category of the accepted item (e.g., 'Condiments', 'Proteins')")
+    charm_delta: Literal[-10, -5, 0, 5, 10] = Field(description="The change in charm level")
     charm_reason: str = Field(description="The reason for the charm delta")
+
+# Enhanced NPC Prompts with Dynamic Quest Systems - now loaded from files in backend/prompts/
+
+def get_dynamic_prompt(npc_name: str) -> str:
+    """Get the appropriate dynamic prompt for an NPC from file"""
+    prompt = load_prompt_from_file(npc_name)
+    if prompt is not None:
+        return prompt
+    else:
+        # Fallback for unknown NPCs - try to load Amara
+        print(f"Warning: No prompt file found for NPC '{npc_name}', trying Amara as fallback")
+        fallback_prompt = load_prompt_from_file("amara")
+        if fallback_prompt is not None:
+            return fallback_prompt
+        else:
+            raise FileNotFoundError(f"Could not load prompt for NPC '{npc_name}' and fallback 'amara' prompt file not found")
+
+# LLM Input Template for Dynamic Category-Based Quests
+LLM_INPUT_TEMPLATE = """Charm score: {current_charm_level}
+Items provided so far: {items_given}
+Categories satisfied: {categories_satisfied}
+Current category needed: {current_category_needed}
+Next category needed: {next_category_needed}
+
+Conversation history:
+{conversation_history_last_2_turns}
+
+# --- PLAYER INPUT THIS TURN ---------------------------------
+Player message: {player_free_text}
+Player action: {action_type}
+Action item: {item_or_blank}
+# ------------------------------------------------------------"""
 
 async def get_llm_response(
     npc_id: str, 
@@ -159,94 +309,123 @@ async def get_llm_response(
     conversation_history: str, 
     latest_player_message: str,
     current_charm_level: int,
-    target_language: str = "Thai"
+    target_language: str = "Thai",
+    quest_state: Optional[Dict] = None,
+    action_type: str = "",
+    action_item: str = ""
 ) -> NPCResponse:
     """
-    Gets a response from the OpenAI LLM based on the conversation history, latest player message, charm level, and system prompt for the NPC.
+    Dynamic quest-aware LLM response generation.
+    Uses category tracking for quest completion with backend validation for item giving.
     
     Args:
         npc_id: The identifier for the NPC.
         npc_name: The name of the NPC.
-        conversation_history: The conversation history up to (but not including) the latest player message.
+        conversation_history: The conversation history.
         latest_player_message: The most recent message from the player.
-        current_charm_level: The current charm level of the player with this NPC.
-        target_language: The target language for the conversation (default: "Thai").
+        current_charm_level: The current charm level.
+        target_language: The target language for the conversation.
+        quest_state: Complete quest state with categories, progress, etc.
+        action_type: "GIVE_ITEM" or "" (empty if sending message)
+        action_item: Item being given (empty if sending message)
     
     Returns:
-        NPCResponse object.
+        NPCResponse object with quest fields.
     """
     if not openai_client:
         raise HTTPException(status_code=500, detail="OpenAI client not initialized. Check API key.")
 
-    # Load base system prompt
-    system_prompt_for_npc = NPC_PROMPTS_CACHE.get(npc_id.lower())
-    if not system_prompt_for_npc:
-        system_prompt_for_npc = load_prompt_from_file(npc_id)
-        if not system_prompt_for_npc:
-            raise HTTPException(status_code=404, detail=f"NPC with ID '{npc_id}' not found or prompt file missing/unreadable.")
-        NPC_PROMPTS_CACHE[npc_id.lower()] = system_prompt_for_npc
+    # Initialize or load NPC configuration with quest state
+    npc_config = quest_state if quest_state else {}
+    
+    # Ensure quest state is properly initialized
+    if not quest_state or "quest_state" not in quest_state:
+        # Initialize quest state for new conversations
+        vocab_data = load_vocabulary_data(npc_id)
+        if vocab_data:
+            npc_config = {
+                "name": npc_name,
+                "quest_state": initialize_quest_state(vocab_data, npc_name),
+                "items_given": [],
+                "categories_accepted": {}
+            }
+        else:
+            # Fallback for missing vocabulary data
+            print(f"WARNING: No vocabulary data found for NPC '{npc_id}', creating empty quest state")
+            npc_config = {
+                "name": npc_name,
+                "quest_state": {"categories_needed": [], "scenario_complete": False},  # Changed to False - empty quest shouldn't be complete
+                "items_given": [],
+                "categories_accepted": {}
+            }
 
-    # Initialize vocabulary for this NPC session (or use cached)
-    selected_vocab = NPC_VOCABULARY_CACHE.get(npc_id.lower())
-    if not selected_vocab:
-        selected_vocab = initialize_npc_vocabulary(npc_id)
-        if selected_vocab:
-            NPC_VOCABULARY_CACHE[npc_id.lower()] = selected_vocab
+    # Get dynamic prompts (will be implemented in next step)
+    system_prompt = get_dynamic_prompt(npc_name)
+    if not system_prompt:
+        raise HTTPException(status_code=404, detail=f"NPC prompt not found for '{npc_name}'")
 
-    # Enhance system prompt with vocabulary context
-    enhanced_prompt = system_prompt_for_npc
-    if selected_vocab:
-        vocab_context = format_vocabulary_context(selected_vocab)
-        enhanced_prompt += vocab_context
-
-    # Format the input to match the desired structure
-    llm_input = f"""Target Language: {target_language}
-Current Charm: {current_charm_level}
-
-Conversation History:
-{conversation_history}
-
-Respond to the latest message:
-Player: {latest_player_message}"""
-
+    # BACKEND ENFORCEMENT: Only process items with valid GIVE_ITEM action
+    valid_item_action = (action_type == "GIVE_ITEM" and action_item.strip() != "")
+    
+    # Get quest progress for LLM context
+    quest_summary = get_quest_summary(npc_config)
+    
+    # Debug logging for quest state
+    print(f"DEBUG: Quest state for {npc_name}:")
+    print(f"  Categories needed: {npc_config['quest_state']['categories_needed']}")
+    print(f"  Categories satisfied: {quest_summary['categories_satisfied']}")
+    print(f"  Current category needed: {quest_summary['current_category_needed']}")
+    print(f"  Next category needed: {quest_summary['next_category_needed']}")
+    print(f"  Quest complete: {quest_summary['complete']}")
+    print(f"  Items given: {npc_config.get('items_given', [])}")
+    print(f"  Categories accepted: {npc_config.get('categories_accepted', {})}")
+    
+    # Format conversation history
+    conversation_history_last_2_turns = format_conversation_history(conversation_history, 2)
+    
+    # LLM input for dynamic quests - now includes current and next category guidance
+    llm_input = LLM_INPUT_TEMPLATE.format(
+        current_charm_level=current_charm_level,
+        items_given=npc_config.get("items_given", []),
+        categories_satisfied=quest_summary["categories_satisfied"],
+        current_category_needed=quest_summary["current_category_needed"],
+        next_category_needed=quest_summary["next_category_needed"],
+        conversation_history_last_2_turns=conversation_history_last_2_turns,
+        player_free_text=latest_player_message,
+        action_type=action_type if action_type else "NONE",
+        item_or_blank=action_item if valid_item_action else ""
+    )
+    
+    print(f"🤖 Calling LLM for {npc_name}...")
+    print(f"📝 LLM Input: {llm_input}")
+    
     try:
-        # Using client.responses.parse based on user's example
+        # Call OpenAI using correct responses.parse structure
         response = openai_client.responses.parse(
-            model="gpt-4.1-nano-2025-04-14", # Ensure this model is appropriate for .responses.parse
-            instructions=enhanced_prompt,
+            model="gpt-4.1-mini-2025-04-14",
+            instructions=system_prompt,
             input=llm_input,
-            text_format=NPCResponse, # This tells the client how to parse the text output from LLM into a Pydantic model
+            text_format=NPCResponse,
         )
         
-        # The actual parsed Pydantic model is in response.output_parsed
-        npc_response_data = response.output_parsed
-
-        if not isinstance(npc_response_data, NPCResponse):
-            # This case should ideally be caught by the text_format and parsing logic of the client
-            print(f"LLM API call for {npc_id} did not return a parsed NPCResponse object as expected. Type: {type(npc_response_data)}")
-            # Log the raw response if possible for debugging
-            # raw_response_text = getattr(response, 'text', 'N/A') 
-            # print(f"Raw response text: {raw_response_text[:500]}")
-            raise HTTPException(status_code=500, detail="LLM service failed to parse response into the expected NPCResponse format.")
-
-        if not npc_response_data.response_target:
-             print(f"Warning: LLM for {npc_id} returned empty response_target.")
+        # BACKEND ENFORCEMENT: Override LLM's user_item_given based on action validation
+        npc_response = response.output_parsed
+        if not valid_item_action:
+            npc_response.user_item_given = None  # Force to None if no valid action
+        else:
+            npc_response.user_item_given = action_item  # Ensure it matches what was actually given
         
-        if not npc_response_data.response_mapping:
+        if not npc_response.response_target:
+            print(f"Warning: LLM for {npc_id} returned empty response_target.")
+        
+        if not npc_response.response_mapping:
             print(f"Warning: LLM for {npc_id} returned empty response_mapping. POS coloring will not work.")
-            npc_response_data.response_mapping = []
+            npc_response.response_mapping = []
 
-        # print(f"DEBUG: NPC Response Data from LLM for {npc_id}: {npc_response_data.model_dump_json(indent=2)}") # Commented out very verbose log
-        return npc_response_data
-            
-    except HTTPException: 
-        raise
+        return npc_response
+        
     except Exception as e:
         print(f"An unexpected error occurred in get_llm_response for {npc_id}: {e}")
         import traceback
         traceback.print_exc()
-        # Attempt to get more info from the original response if it exists and might not be an HTTPException
-        # error_details = str(e)
-        # if hasattr(e, 'response') and hasattr(e.response, 'text'):
-        #    error_details += f" - Response: {e.response.text[:200]}"
         raise HTTPException(status_code=500, detail=f"LLM service error: {str(e)}") 

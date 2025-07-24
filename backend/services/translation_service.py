@@ -2658,6 +2658,11 @@ async def translate_and_syllabify(english_text: str, target_language: str = 'th'
     
     word_mappings = []
     for word in words:
+        # Skip empty words or whitespace-only words
+        if not word or not word.strip():
+            print(f"Skipping empty/whitespace word: '{word}'")
+            continue
+            
         # 3. Translate target word back to English
         back_translation = await translate_text(word, 'en', source_language=target_language)
         whole_translation = back_translation['translated_text']

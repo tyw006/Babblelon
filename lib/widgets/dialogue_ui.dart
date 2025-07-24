@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/npc_data.dart';
 import '../providers/game_providers.dart';
 import 'charm_bar.dart';
-import '../overlays/dialogue_overlay.dart';
 
 class DialogueUI extends StatefulWidget {
   final NpcData npcData;
@@ -21,6 +20,11 @@ class DialogueUI extends StatefulWidget {
   final ScrollController mainDialogueScrollController;
   final VoidCallback onShowHistory;
   final Widget? topRightAction;
+  final VoidCallback onToggleEnglish;
+  final VoidCallback onToggleTransliteration;
+  final bool showEnglish;
+  final bool showTransliteration;
+  final VoidCallback? onReplayAudio;
 
   const DialogueUI({
     super.key,
@@ -38,6 +42,11 @@ class DialogueUI extends StatefulWidget {
     required this.mainDialogueScrollController,
     required this.onShowHistory,
     this.topRightAction,
+    required this.onToggleEnglish,
+    required this.onToggleTransliteration,
+    required this.showEnglish,
+    required this.showTransliteration,
+    this.onReplayAudio,
   });
 
   @override
@@ -187,21 +196,67 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Unified speech bubble with integrated controls
                 Align(
                   alignment: Alignment.center,
-                  child: CustomPaint(
-                    painter: SpeechBubblePainter(
-                      backgroundColor: const Color(0xFFF3F3F3),
-                      borderColor: Colors.grey.shade600,
-                      borderWidth: 3,
-                    ),
-                    child: Container(
-                      width: textboxWidth,
-                      height: textboxHeight,
-                      child: Stack(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Container(
+                    width: textboxWidth,
+                    height: textboxHeight + 45, // Extra height for control header
+                    child: Stack(
+                      children: [
+                        // Speech bubble background with header
+                        CustomPaint(
+                          painter: SpeechBubbleWithHeaderPainter(
+                            backgroundColor: const Color(0xFFF8F8F8),
+                            borderColor: Colors.grey.shade500,
+                            borderWidth: 2,
+                            headerHeight: 45,
+                          ),
+                          child: Container(),
+                        ),
+                        // Control buttons in header area
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 45,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                if (widget.onReplayAudio != null)
+                                  _buildIntegratedControlButton(
+                                    icon: Icons.volume_up,
+                                    onTap: widget.onReplayAudio,
+                                    enabled: true,
+                                  ),
+                                _buildIntegratedControlButton(
+                                  icon: Icons.history_rounded,
+                                  onTap: widget.onShowHistory,
+                                ),
+                                _buildIntegratedToggleButton(
+                                  text: "EN",
+                                  isActive: widget.showEnglish,
+                                  onTap: widget.onToggleEnglish,
+                                ),
+                                _buildIntegratedToggleButton(
+                                  text: "ท",
+                                  isActive: widget.showTransliteration,
+                                  onTap: widget.onToggleTransliteration,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Main content area
+                        Positioned(
+                          top: 45,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                             child: Scrollbar(
                               controller: widget.mainDialogueScrollController,
                               thumbVisibility: true,
@@ -209,7 +264,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                                 controller: widget.mainDialogueScrollController,
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(
-                                    minHeight: textboxHeight - 24, // Expanded text area
+                                    minHeight: textboxHeight - 45 - 20, // Adjusted for header
                                   ),
                                   child: Center(
                                     child: widget.isProcessingBackend
@@ -220,22 +275,8 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-                          if (widget.topRightAction != null)
-                            widget.topRightAction!,
-                          Positioned(
-                            bottom: 10,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: widget.onShowHistory,
-                              child: Icon(
-                                Icons.history,
-                                color: Colors.grey.shade600,
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -252,10 +293,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                       widget.isProcessingBackend
                           ? const CircularProgressIndicator()
                           : widget.micControls,
-                      _buildControlButton(
-                        icon: Icons.translate,
-                        onTap: widget.onShowTranslation,
-                      ),
+                      _buildSplitButton(),
                     ],
                   ),
                 ),
@@ -302,6 +340,254 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
       ),
     );
   }
+
+  Widget _buildMiniControlButton({
+    required IconData icon, 
+    VoidCallback? onTap, 
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(enabled ? 0.5 : 0.3),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: enabled ? Colors.white70 : Colors.white30,
+          ),
+        ),
+        child: Icon(
+          icon, 
+          color: enabled ? Colors.white : Colors.white30, 
+          size: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniToggleButton({
+    required String text,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isActive 
+            ? Colors.white.withOpacity(0.9)
+            : Colors.black.withOpacity(0.3),
+          border: Border.all(
+            color: isActive ? Colors.white : Colors.white54,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isActive ? Colors.black87 : Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlBarButton({
+    required IconData icon,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: enabled 
+            ? Colors.white.withOpacity(0.15)
+            : Colors.white.withOpacity(0.08),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: enabled 
+              ? Colors.white.withOpacity(0.6) 
+              : Colors.white.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: enabled 
+            ? Colors.white.withOpacity(0.9) 
+            : Colors.white.withOpacity(0.4),
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlBarToggleButton({
+    required String text,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isActive 
+            ? Colors.white.withOpacity(0.9)
+            : Colors.white.withOpacity(0.15),
+          border: Border.all(
+            color: isActive 
+              ? Colors.white 
+              : Colors.white.withOpacity(0.6),
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isActive 
+                ? Colors.black87 
+                : Colors.white.withOpacity(0.9),
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntegratedControlButton({
+    required IconData icon,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: enabled 
+            ? Colors.grey.shade200
+            : Colors.grey.shade100,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: enabled 
+              ? Colors.grey.shade400 
+              : Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: enabled 
+            ? Colors.grey.shade700 
+            : Colors.grey.shade400,
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntegratedToggleButton({
+    required String text,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isActive 
+            ? Colors.teal.shade600
+            : Colors.grey.shade200,
+          border: Border.all(
+            color: isActive 
+              ? Colors.teal.shade700 
+              : Colors.grey.shade400,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isActive 
+                ? Colors.white 
+                : Colors.grey.shade700,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSplitButton() {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withOpacity(0.5),
+        border: Border.all(color: Colors.white70, width: 1.5),
+      ),
+      child: ClipOval(
+        child: Row(
+          children: [
+            // Left half: Translate
+            Expanded(
+              child: InkWell(
+                onTap: widget.onShowTranslation,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: Colors.white54, width: 0.5),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.g_translate, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ),
+            // Right half: Gift
+            Expanded(
+              child: InkWell(
+                onTap: widget.onRequestItem,
+                child: Center(
+                  child: Icon(Icons.redeem, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class SpeechBubblePainter extends CustomPainter {
@@ -342,6 +628,71 @@ class SpeechBubblePainter extends CustomPainter {
     path.addPath(tail, Offset.zero);
 
     canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class SpeechBubbleWithHeaderPainter extends CustomPainter {
+  final Color backgroundColor;
+  final Color borderColor;
+  final double borderWidth;
+  final double headerHeight;
+
+  SpeechBubbleWithHeaderPainter({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.borderWidth,
+    required this.headerHeight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth;
+
+    final dividerPaint = Paint()
+      ..color = borderColor.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    // Main bubble rect with rounded corners
+    final RRect bubbleRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height - 10),
+      const Radius.circular(12),
+    );
+
+    // Create the main path
+    final Path path = Path()..addRRect(bubbleRect);
+
+    // Add the tail
+    final Path tail = Path();
+    tail.moveTo(size.width * 0.5 - 15, size.height - 10);
+    tail.lineTo(size.width * 0.5, size.height);
+    tail.lineTo(size.width * 0.5 + 15, size.height - 10);
+    tail.close();
+
+    path.addPath(tail, Offset.zero);
+
+    // Draw the filled bubble
+    canvas.drawPath(path, paint);
+    
+    // Draw the header divider line
+    canvas.drawLine(
+      Offset(borderWidth, headerHeight),
+      Offset(size.width - borderWidth, headerHeight),
+      dividerPaint,
+    );
+    
+    // Draw the border
     canvas.drawPath(path, borderPaint);
   }
 

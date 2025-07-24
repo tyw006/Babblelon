@@ -151,6 +151,253 @@ class ApiService {
     }
   }
 
+  /// Transcribe and translate audio using the new enhanced endpoint
+  static Future<Map<String, dynamic>?> transcribeAndTranslate({
+    required String audioPath,
+    String sourceLanguage = 'tha',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/transcribe-and-translate/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending transcribe-and-translate request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Transcribe-and-translate response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Transcribe-and-translate request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during transcribe-and-translate request: $e");
+      return null;
+    }
+  }
+
+  /// Generate NPC response using enhanced STT (optional)
+  static Future<Map<String, dynamic>?> generateNPCResponseEnhanced({
+    required String audioPath,
+    required String npcId,
+    required String npcName,
+    int charmLevel = 50,
+    String targetLanguage = 'th',
+    String previousConversationHistory = '',
+    String questStateJson = '{}',
+    bool useEnhancedSTT = true,
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/generate-npc-response/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['npc_id'] = npcId
+        ..fields['npc_name'] = npcName
+        ..fields['charm_level'] = charmLevel.toString()
+        ..fields['target_language'] = targetLanguage
+        ..fields['previous_conversation_history'] = previousConversationHistory
+        ..fields['quest_state_json'] = questStateJson
+        ..fields['use_enhanced_stt'] = useEnhancedSTT.toString();
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending enhanced NPC response request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Enhanced NPC response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Enhanced NPC response request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during enhanced NPC response request: $e");
+      return null;
+    }
+  }
+
+  /// Parallel transcription using both Google Cloud STT and ElevenLabs
+  static Future<Map<String, dynamic>?> parallelTranscribe({
+    required String audioPath,
+    String sourceLanguage = 'tha',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/parallel-transcribe/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending parallel transcription request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received parallel transcription response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Parallel transcription response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Parallel transcription request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during parallel transcription request: $e");
+      return null;
+    }
+  }
+
+  /// Parallel transcription + translation comparison using both STT services
+  static Future<Map<String, dynamic>?> parallelTranscribeTranslate({
+    required String audioPath,
+    String sourceLanguage = 'tha',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/parallel-transcribe-translate/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending parallel transcribe-translate request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received parallel transcribe-translate response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Parallel transcribe-translate response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Parallel transcribe-translate request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during parallel transcribe-translate request: $e");
+      return null;
+    }
+  }
+
+  /// Translate English text to Thai with romanization
+  static Future<Map<String, dynamic>?> translateText({
+    required String englishText,
+    String targetLanguage = 'th',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final uri = Uri.parse("$baseUrl/gcloud-translate-tts/");
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/json';
+      
+      final requestBody = {
+        'english_text': englishText,
+        'target_language': targetLanguage,
+      };
+      
+      request.body = json.encode(requestBody);
+      
+      debugPrint("Sending translation request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received translation response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Translation response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Translation request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during translation request: $e");
+      return null;
+    }
+  }
+
   Future<void> dispose() async {
     _audioRecorder.dispose();
   }

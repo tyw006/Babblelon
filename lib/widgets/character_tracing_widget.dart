@@ -63,6 +63,15 @@ class CharacterTracingWidget extends StatefulWidget {
   
   /// Whether to show writing tips panel
   final bool showWritingTips;
+  
+  /// NPC ID for item giving functionality
+  final String? npcId;
+  
+  /// NPC name for display in assessment dialog
+  final String? npcName;
+  
+  /// Called when user wants to give item to NPC
+  final VoidCallback? onGiveItem;
 
   const CharacterTracingWidget({
     super.key,
@@ -74,6 +83,9 @@ class CharacterTracingWidget extends StatefulWidget {
     this.headerTitle,
     this.headerSubtitle,
     this.showWritingTips = true,
+    this.npcId,
+    this.npcName,
+    this.onGiveItem,
   });
 
   @override
@@ -342,6 +354,9 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
               assessmentResult: assessmentResult,
               characterNames: _currentCharacters,
               originalVocabularyItem: widget.originalVocabularyItem,
+              npcId: widget.npcId,
+              npcName: widget.npcName,
+              onGiveItem: widget.onGiveItem,
               onDismiss: () {
                 Navigator.of(context).pop();
                 // Call completion callback after assessment
