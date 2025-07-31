@@ -1944,7 +1944,12 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: widget.onGiveItem,
+                      onPressed: () {
+                        widget.onDismiss(); // Close dialog immediately
+                        if (widget.onGiveItem != null) {
+                          Future.microtask(() => widget.onGiveItem!()); // Then trigger backend processing
+                        }
+                      },
                       child: Text(
                         'Give $itemName to ${widget.npcName}',
                         style: AppStyles.bodyTextStyle.copyWith(

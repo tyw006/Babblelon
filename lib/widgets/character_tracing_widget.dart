@@ -356,10 +356,16 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
               originalVocabularyItem: widget.originalVocabularyItem,
               npcId: widget.npcId,
               npcName: widget.npcName,
-              onGiveItem: widget.onGiveItem,
+              onGiveItem: () {
+                // Close CharacterTracingWidget before forwarding callback
+                Navigator.of(context).pop();
+                if (widget.onGiveItem != null) {
+                  widget.onGiveItem!(); // Forward to DialogueOverlay
+                }
+              },
               onDismiss: () {
                 Navigator.of(context).pop();
-                // Call completion callback after assessment
+                // Call backend processing immediately - no delay needed
                 if (widget.onComplete != null) {
                   widget.onComplete!();
                 }

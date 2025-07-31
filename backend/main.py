@@ -112,15 +112,31 @@ class TranscribeTranslateResponse(BaseModel):
     expected_text: str = ""
 
 class STTServiceResult(BaseModel):
-    """Single STT service result for parallel comparison"""
-    text: str
-    word_confidence: List[Dict[str, Union[str, float]]]
-    word_comparisons: List[WordComparisonData]
+    """Single STT service result for parallel comparison with enhanced metrics"""
+    service_name: str
+    transcription: str
+    english_translation: str
     processing_time: float
-    service_used: str
+    confidence_score: float
+    audio_duration: float
+    real_time_factor: float
+    word_count: int
+    accuracy_score: float
+    status: str
+    error: Optional[str] = None
     
+class ThreeWayTranscriptionResponse(BaseModel):
+    """Response model for three-way transcription comparison"""
+    google_chirp2: STTServiceResult
+    assemblyai_universal: STTServiceResult
+    speechmatics_ursa: STTServiceResult
+    expected_text: str = ""
+    processing_summary: Dict[str, Union[str, float]]
+    winner_service: str
+    performance_analysis: Dict[str, float]
+
 class ParallelTranscriptionResponse(BaseModel):
-    """Response model for parallel transcription comparison"""
+    """Response model for parallel transcription comparison (legacy two-way)"""
     google: STTServiceResult
     elevenlabs: STTServiceResult
     expected_text: str = ""
@@ -135,12 +151,12 @@ class TranslationComparisonData(BaseModel):
 
 class ParallelTranslationResponse(BaseModel):
     """Response model for parallel transcription + translation comparison"""
-    google_transcription: STTServiceResult
-    elevenlabs_transcription: STTServiceResult
-    google_translation: TranslationComparisonData
-    elevenlabs_translation: TranslationComparisonData
-    expected_text: str = ""
-    translation_accuracy_metrics: Dict[str, Union[str, float]]
+    google_result: STTServiceResult
+    elevenlabs_result: STTServiceResult
+    winner_service: str
+    audio_duration: float
+    status: str
+    error: Optional[str] = None
 
 # --- End Pydantic Models ---
 
@@ -403,7 +419,30 @@ async def transcribe_and_translate_endpoint(
         # Step 1: STT with word-level confidence using Chirp2 model and expected text comparison
         print(f"[{datetime.datetime.now()}] DEBUG: Starting advanced STT with word confidence and expected text comparison...")
         print(f"[{datetime.datetime.now()}] DEBUG: Expected text for comparison: '{expected_text}'")
-        stt_result: STTResult = await transcribe_audio_advanced(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+        
+        # Try Google Cloud STT first, with fallback to ElevenLabs on timeout/unavailable errors
+        stt_result: STTResult = None
+        try:
+            stt_result = await transcribe_audio_advanced(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+            print(f"[{datetime.datetime.now()}] INFO: Google Cloud STT succeeded")
+        except HTTPException as http_ex:
+            # Check if this is a service unavailable error that should trigger fallback
+            if http_ex.status_code == 503 or "timed out" in str(http_ex.detail).lower() or "unavailable" in str(http_ex.detail).lower():
+                print(f"[{datetime.datetime.now()}] WARNING: Google Cloud STT unavailable ({http_ex.detail}), trying ElevenLabs fallback...")
+                try:
+                    # Reset audio stream for ElevenLabs
+                    audio_content_stream.seek(0)
+                    stt_result = await transcribe_audio_elevenlabs(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+                    print(f"[{datetime.datetime.now()}] INFO: ElevenLabs STT fallback succeeded")
+                except Exception as elevenlabs_ex:
+                    print(f"[{datetime.datetime.now()}] ERROR: Both Google Cloud and ElevenLabs STT failed. ElevenLabs error: {elevenlabs_ex}")
+                    raise HTTPException(status_code=503, detail="All STT services temporarily unavailable. Please try again.")
+            else:
+                # Re-raise non-timeout errors immediately
+                raise http_ex
+        except Exception as general_ex:
+            print(f"[{datetime.datetime.now()}] ERROR: Unexpected error in Google Cloud STT: {general_ex}")
+            raise HTTPException(status_code=500, detail=f"STT processing error: {str(general_ex)}")
         
         if not stt_result.text.strip():
             print(f"[{datetime.datetime.now()}] WARNING: STT returned empty transcription")
@@ -424,7 +463,7 @@ async def transcribe_and_translate_endpoint(
         print(f"[{datetime.datetime.now()}] DEBUG: Starting translation...")
         print(f"[{datetime.datetime.now()}] DEBUG: Input text for translation: '{stt_result.text}'")
         print(f"[{datetime.datetime.now()}] DEBUG: Translation direction: {source_language} -> {target_language}")
-        translation_result = await translate_text(stt_result.text, source_language, target_language)
+        translation_result = await translate_text(stt_result.text, target_language, source_language)
         print(f"[{datetime.datetime.now()}] DEBUG: Raw translation result: {translation_result}")
         print(f"[{datetime.datetime.now()}] DEBUG: Extracted translated_text: '{translation_result.get('translated_text', '')}')")
         
@@ -548,7 +587,160 @@ async def transcribe_and_translate_endpoint(
         total_time = datetime.datetime.now() - request_time
         print(f"[{datetime.datetime.now()}] INFO: /transcribe-and-translate/ finished. Total time: {total_time}")
 
-# --- Parallel Transcription Comparison Endpoint ---
+# --- Three-Way Transcription Comparison Endpoint ---
+@app.post("/three-way-transcribe/", response_model=ThreeWayTranscriptionResponse)
+async def three_way_transcribe_endpoint(
+    audio_file: UploadFile = File(...),
+    language_code: Optional[str] = Form("tha"),
+    expected_text: Optional[str] = Form("")
+):
+    """
+    Three-way transcription endpoint that processes audio through Google Chirp2, 
+    AssemblyAI Universal, and Speechmatics Ursa models for comprehensive comparison.
+    Focuses on cost, latency, and accuracy analysis for Thai STT.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /three-way-transcribe/ endpoint hit. File: {audio_file.filename}, Language: {language_code}")
+    
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Audio file content is empty.")
+        
+        audio_content_stream = io.BytesIO(audio_bytes)
+        
+        # Process through all three STT services in parallel
+        print(f"[{datetime.datetime.now()}] DEBUG: Starting three-way transcription processing...")
+        parallel_results = await parallel_transcribe_audio(audio_content_stream, language_code, expected_text)
+        
+        # Convert STTResult objects to response format with English translation
+        async def convert_stt_result(stt_result: STTResult, service_name: str) -> STTServiceResult:
+            # Calculate metrics from STTResult
+            word_count = len(stt_result.word_confidence) if stt_result.word_confidence else len(stt_result.text.split())
+            accuracy_score = sum(wc.get('confidence', 0.0) for wc in stt_result.word_confidence) / max(word_count, 1) if stt_result.word_confidence else stt_result.overall_confidence
+            status = "success" if stt_result.text.strip() else "no_speech"
+            
+            # Translate Thai transcription to English
+            english_translation = ""
+            if stt_result.text.strip():
+                try:
+                    translation_result = await translate_text(stt_result.text, target_language="en", source_language="th")
+                    english_translation = translation_result.get("target_text", "")
+                    print(f"[{datetime.datetime.now()}] DEBUG: Translated '{stt_result.text}' -> '{english_translation}' for {service_name}")
+                except Exception as e:
+                    print(f"[{datetime.datetime.now()}] WARNING: Translation failed for {service_name}: {e}")
+                    english_translation = ""
+            
+            return STTServiceResult(
+                service_name=service_name,
+                transcription=stt_result.text,
+                english_translation=english_translation,
+                processing_time=stt_result.processing_time,
+                confidence_score=stt_result.overall_confidence,
+                audio_duration=stt_result.audio_duration,
+                real_time_factor=stt_result.real_time_factor,
+                word_count=word_count,
+                accuracy_score=accuracy_score,
+                status=status,
+                error=None
+            )
+        
+        # Convert all three results with English translation
+        google_chirp2_result = await convert_stt_result(parallel_results["google_chirp2"], "Google Chirp2")
+        assemblyai_result = await convert_stt_result(parallel_results["assemblyai_universal"], "AssemblyAI Universal")
+        speechmatics_result = await convert_stt_result(parallel_results["speechmatics_ursa"], "Speechmatics Ursa")
+        
+        # Calculate cost analysis (per minute rates from research)
+        costs_per_minute = {
+            "google_chirp2": 0.016,    # $0.016/min
+            "assemblyai_universal": 0.0045,  # $0.0045/min  
+            "speechmatics_ursa": 0.004   # $0.004/min
+        }
+        
+        audio_duration_minutes = google_chirp2_result.audio_duration / 60.0
+        cost_analysis = {
+            "google_chirp2_cost": costs_per_minute["google_chirp2"] * audio_duration_minutes,
+            "assemblyai_universal_cost": costs_per_minute["assemblyai_universal"] * audio_duration_minutes,
+            "speechmatics_ursa_cost": costs_per_minute["speechmatics_ursa"] * audio_duration_minutes
+        }
+        
+        # Multi-dimensional winner analysis
+        services = {
+            "Google Chirp2": google_chirp2_result,
+            "AssemblyAI Universal": assemblyai_result,
+            "Speechmatics Ursa": speechmatics_result
+        }
+        
+        performance_scores = {}
+        for name, result in services.items():
+            # Normalize metrics (0-1 scale)
+            speed_score = 1.0 / max(result.processing_time, 0.1)  # Higher is better
+            accuracy_score = result.accuracy_score  # Already 0-1
+            confidence_score = result.confidence_score  # Already 0-1
+            
+            # Cost efficiency (inverse of cost - lower cost is better)
+            service_key = name.lower().replace(" ", "_")
+            cost = cost_analysis.get(f"{service_key}_cost", 0.001)
+            cost_efficiency = 1.0 / max(cost, 0.001)
+            
+            # Weighted composite score (accuracy 40%, speed 30%, confidence 20%, cost 10%)
+            composite_score = (
+                accuracy_score * 0.4 +
+                (speed_score / max([1.0 / max(s.processing_time, 0.1) for s in services.values()])) * 0.3 +
+                confidence_score * 0.2 +
+                (cost_efficiency / max([1.0 / max(cost_analysis.get(f"{n.lower().replace(' ', '_')}_cost", 0.001), 0.001) for n in services.keys()])) * 0.1
+            )
+            
+            performance_scores[name] = composite_score
+        
+        # Determine winner
+        winner_service = max(performance_scores.keys(), key=lambda k: performance_scores[k])
+        
+        # Create processing summary
+        processing_summary = {
+            "total_processing_time": (datetime.datetime.now() - request_time).total_seconds(),
+            "google_chirp2_time": google_chirp2_result.processing_time,
+            "assemblyai_time": assemblyai_result.processing_time,
+            "speechmatics_time": speechmatics_result.processing_time,
+            "google_chirp2_success": bool(google_chirp2_result.transcription.strip()),
+            "assemblyai_success": bool(assemblyai_result.transcription.strip()),
+            "speechmatics_success": bool(speechmatics_result.transcription.strip()),
+            "audio_duration_minutes": audio_duration_minutes,
+            **cost_analysis,
+            "cost_winner": min(cost_analysis.keys(), key=lambda k: cost_analysis[k]),
+            "speed_winner": min(services.keys(), key=lambda k: services[k].processing_time),
+            "accuracy_winner": max(services.keys(), key=lambda k: services[k].accuracy_score)
+        }
+        
+        print(f"[{datetime.datetime.now()}] INFO: Three-way transcription completed.")
+        print(f"[{datetime.datetime.now()}] DEBUG: Winner: {winner_service} (score: {performance_scores[winner_service]:.3f})")
+        print(f"[{datetime.datetime.now()}] DEBUG: Google Chirp2: '{google_chirp2_result.transcription}'")
+        print(f"[{datetime.datetime.now()}] DEBUG: AssemblyAI: '{assemblyai_result.transcription}'")
+        print(f"[{datetime.datetime.now()}] DEBUG: Speechmatics: '{speechmatics_result.transcription}'")
+        
+        return ThreeWayTranscriptionResponse(
+            google_chirp2=google_chirp2_result,
+            assemblyai_universal=assemblyai_result,
+            speechmatics_ursa=speechmatics_result,
+            expected_text=expected_text,
+            processing_summary=processing_summary,
+            winner_service=winner_service,
+            performance_analysis=performance_scores
+        )
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /three-way-transcribe/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /three-way-transcribe/ Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected three-way transcription error: {str(e)}")
+    finally:
+        total_time = datetime.datetime.now() - request_time
+        print(f"[{datetime.datetime.now()}] INFO: /three-way-transcribe/ finished. Total time: {total_time}")
+
+# --- Parallel Transcription Comparison Endpoint (Legacy) ---
 @app.post("/parallel-transcribe/", response_model=ParallelTranscriptionResponse)
 async def parallel_transcribe_endpoint(
     audio_file: UploadFile = File(...),
@@ -556,8 +748,8 @@ async def parallel_transcribe_endpoint(
     expected_text: Optional[str] = Form("")
 ):
     """
-    Parallel transcription endpoint that processes audio through both Google Cloud STT and ElevenLabs Scribe
-    for accuracy comparison and testing.
+    Legacy parallel transcription endpoint that processes audio through both Google Cloud STT models
+    (Chirp_2 vs short) for accuracy comparison and testing.
     """
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /parallel-transcribe/ endpoint hit. File: {audio_file.filename}, Language: {language_code}")
@@ -577,48 +769,50 @@ async def parallel_transcribe_endpoint(
         
         # Convert STTResult objects to response format
         def convert_stt_result(stt_result: STTResult) -> STTServiceResult:
-            word_comparisons_data = [
-                WordComparisonData(
-                    word=wc.word,
-                    confidence=wc.confidence,
-                    expected=wc.expected,
-                    match_type=wc.match_type,
-                    similarity=wc.similarity,
-                    start_time=wc.start_time,
-                    end_time=wc.end_time
-                ) for wc in stt_result.word_comparisons
-            ]
+            # Calculate metrics from STTResult
+            word_count = len(stt_result.word_confidence) if stt_result.word_confidence else len(stt_result.text.split())
+            accuracy_score = sum(wc.get('confidence', 0.0) for wc in stt_result.word_confidence) / max(word_count, 1) if stt_result.word_confidence else stt_result.overall_confidence
+            status = "success" if stt_result.text.strip() else "no_speech"
+            
+            # Extract English translation from expected text or leave empty
+            english_translation = stt_result.expected_text if stt_result.expected_text else ""
             
             return STTServiceResult(
-                text=stt_result.text,
-                word_confidence=stt_result.word_confidence,
-                word_comparisons=word_comparisons_data,
+                service_name=stt_result.service_used,
+                transcription=stt_result.text,
+                english_translation=english_translation,
                 processing_time=stt_result.processing_time,
-                service_used=stt_result.service_used
+                confidence_score=stt_result.overall_confidence,
+                audio_duration=stt_result.audio_duration,
+                real_time_factor=stt_result.real_time_factor,
+                word_count=word_count,
+                accuracy_score=accuracy_score,
+                status=status,
+                error=None
             )
         
-        google_result = convert_stt_result(parallel_results["google"])
-        elevenlabs_result = convert_stt_result(parallel_results["elevenlabs"])
+        google_chirp2_result = convert_stt_result(parallel_results["google_chirp2"])
+        google_short_result = convert_stt_result(parallel_results["google_short"])
         
         # Create processing summary
         processing_summary = {
-            "total_processing_time": datetime.datetime.now() - request_time,
-            "google_processing_time": google_result.processing_time,
-            "elevenlabs_processing_time": elevenlabs_result.processing_time,
-            "google_success": bool(google_result.text.strip()),
-            "elevenlabs_success": bool(elevenlabs_result.text.strip()),
-            "text_match": google_result.text.strip() == elevenlabs_result.text.strip(),
-            "google_word_count": len(google_result.word_confidence),
-            "elevenlabs_word_count": len(elevenlabs_result.word_confidence)
+            "total_processing_time": (datetime.datetime.now() - request_time).total_seconds(),
+            "google_processing_time": google_chirp2_result.processing_time,
+            "google_short_processing_time": google_short_result.processing_time,
+            "google_success": bool(google_chirp2_result.transcription.strip()),
+            "google_short_success": bool(google_short_result.transcription.strip()),
+            "text_match": google_chirp2_result.transcription.strip() == google_short_result.transcription.strip(),
+            "google_word_count": google_chirp2_result.word_count,
+            "google_short_word_count": google_short_result.word_count
         }
         
         print(f"[{datetime.datetime.now()}] INFO: Parallel transcription completed.")
-        print(f"[{datetime.datetime.now()}] DEBUG: Google result: '{google_result.text}'")
-        print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs result: '{elevenlabs_result.text}'")
+        print(f"[{datetime.datetime.now()}] DEBUG: Google Chirp2 result: '{google_chirp2_result.transcription}'")
+        print(f"[{datetime.datetime.now()}] DEBUG: Google Short result: '{google_short_result.transcription}'")
         
         return ParallelTranscriptionResponse(
-            google=google_result,
-            elevenlabs=elevenlabs_result,
+            google=google_chirp2_result,
+            elevenlabs=google_short_result,  # Using elevenlabs field for short model for frontend compatibility
             expected_text=expected_text,
             processing_summary=processing_summary
         )
@@ -642,18 +836,49 @@ async def parallel_transcribe_translate_endpoint(
 ):
     """
     Enhanced parallel processing endpoint that performs both transcription comparison
-    and translation comparison using both Google Cloud STT and ElevenLabs Scribe.
+    and translation comparison using both Google Cloud STT models (Chirp_2 vs latest_short).
     """
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /parallel-transcribe-translate/ endpoint hit. File: {audio_file.filename}")
+    print(f"[{request_time}] DEBUG: Source language: {source_language}, Target language: {target_language}")
+    print(f"[{request_time}] DEBUG: Expected text: '{expected_text}'")
     
     try:
+        # Validate and normalize language parameters
+        def normalize_language_code(lang_code: str) -> str:
+            """Normalize language codes to base format"""
+            lang_mapping = {
+                "en-US": "en",
+                "en-us": "en", 
+                "th-TH": "th",
+                "th-th": "th",
+                "tha": "th"
+            }
+            return lang_mapping.get(lang_code.lower(), lang_code.lower())
+        
+        # Normalize the language codes
+        source_language_normalized = normalize_language_code(source_language)
+        target_language_normalized = normalize_language_code(target_language)
+        
+        print(f"[{datetime.datetime.now()}] DEBUG: Language normalization: {source_language} -> {source_language_normalized}, {target_language} -> {target_language_normalized}")
+        
+        if source_language_normalized == target_language_normalized:
+            print(f"[{datetime.datetime.now()}] WARNING: Source and target languages are the same after normalization ({source_language_normalized})")
+            if source_language_normalized == 'en':
+                print(f"[{datetime.datetime.now()}] INFO: Adjusting target language to 'th' for English source")
+                target_language_normalized = 'th'  # Default to Thai for English audio
+        
+        # Update the variables to use normalized codes
+        source_language = source_language_normalized
+        target_language = target_language_normalized
+        
         # Read audio file
         audio_bytes = await audio_file.read()
         await audio_file.close()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Audio file content is empty.")
         
+        print(f"[{datetime.datetime.now()}] DEBUG: Audio file size: {len(audio_bytes)} bytes")
         audio_content_stream = io.BytesIO(audio_bytes)
         
         # Step 1: Parallel transcription
@@ -661,78 +886,146 @@ async def parallel_transcribe_translate_endpoint(
         parallel_results = await parallel_transcribe_audio(audio_content_stream, source_language, expected_text)
         
         # Convert STTResult objects to response format
-        def convert_stt_result(stt_result: STTResult) -> STTServiceResult:
-            word_comparisons_data = [
-                WordComparisonData(
-                    word=wc.word,
-                    confidence=wc.confidence,
-                    expected_word=wc.expected_word,
-                    accuracy_score=wc.accuracy_score
-                ) for wc in stt_result.word_comparisons
-            ]
+        def convert_stt_result_to_service_result(stt_result: STTResult, service_name: str) -> STTServiceResult:
+            # Calculate accuracy score if expected text is provided
+            accuracy_score = 0.0
+            if expected_text.strip():
+                expected_words = set(expected_text.strip().split())
+                transcribed_words = set(stt_result.text.strip().split())
+                if expected_words:
+                    accuracy_score = len(expected_words.intersection(transcribed_words)) / len(expected_words)
+            
             return STTServiceResult(
-                transcription=stt_result.transcription,
-                confidence=stt_result.confidence,
-                word_comparisons=word_comparisons_data,
+                service_name=service_name,
+                transcription=stt_result.text,
+                english_translation="",  # Will be filled later after translation
                 processing_time=stt_result.processing_time,
-                service_used=stt_result.service_used
+                confidence_score=stt_result.overall_confidence,
+                audio_duration=stt_result.audio_duration,
+                real_time_factor=stt_result.real_time_factor,
+                word_count=len(stt_result.word_confidence),
+                accuracy_score=accuracy_score,
+                status="success" if stt_result.text.strip() else "failed",
+                error=None
             )
         
-        google_stt = convert_stt_result(parallel_results["google"])
-        elevenlabs_stt = convert_stt_result(parallel_results["elevenlabs"])
+        google_stt = convert_stt_result_to_service_result(parallel_results["google"], "Google Chirp2")
+        latest_short_stt = convert_stt_result_to_service_result(parallel_results["google_latest_short"], "Google Latest Short")
         
-        # Step 2: Parallel translation of both transcriptions
+        # Step 2: Translate both transcriptions to English
         print(f"[{datetime.datetime.now()}] DEBUG: Starting parallel translation...")
         
-        async def translate_transcription(transcription: str, service_name: str) -> TranslationComparisonData:
+        async def translate_transcription(transcription: str) -> str:
             if not transcription.strip():
-                return TranslationComparisonData(
-                    transcription=transcription,
-                    translation="",
-                    word_mappings=[],
-                    confidence=0.0
-                )
+                return ""
             
-            # Use the translation service
-            translation_result = await translate_and_syllabify(transcription, target_language)
-            translated_text = ' '.join([mapping['target'] for mapping in translation_result['word_mappings']])
-            
-            # Calculate confidence based on transcription confidence
-            stt_confidence = google_stt.confidence if service_name == "google" else elevenlabs_stt.confidence
-            
-            return TranslationComparisonData(
-                transcription=transcription,
-                translation=translated_text,
-                word_mappings=translation_result['word_mappings'],
-                confidence=stt_confidence
-            )
+            # Use the basic translation service (transcription is in source language, translate to target)
+            translation_result = await translate_text(transcription, target_language=target_language, source_language=source_language)
+            return translation_result['translated_text']
         
         # Translate both transcriptions
-        google_translation = await translate_transcription(google_stt.transcription, "google")
-        elevenlabs_translation = await translate_transcription(elevenlabs_stt.transcription, "elevenlabs")
+        translation_start_time = datetime.datetime.now()
+        google_translation = await translate_transcription(google_stt.transcription)
+        latest_short_translation = await translate_transcription(latest_short_stt.transcription)
+        translation_end_time = datetime.datetime.now()
+        total_translation_time = (translation_end_time - translation_start_time).total_seconds()
         
-        # Step 3: Calculate translation accuracy metrics
-        accuracy_metrics = {
-            "google_transcription_confidence": google_stt.confidence,
-            "elevenlabs_transcription_confidence": elevenlabs_stt.confidence,
-            "google_translation_word_count": len(google_translation.word_mappings),
-            "elevenlabs_translation_word_count": len(elevenlabs_translation.word_mappings),
-            "transcription_similarity": _calculate_similarity(google_stt.transcription, elevenlabs_stt.transcription),
-            "translation_similarity": _calculate_similarity(google_translation.translation, elevenlabs_translation.translation),
-            "processing_time": (datetime.datetime.now() - request_time).total_seconds()
+        # Update the service results with translations
+        google_stt.english_translation = google_translation
+        latest_short_stt.english_translation = latest_short_translation
+        
+        # Enhanced logging for service comparison
+        print(f"\n[{datetime.datetime.now()}] ═══ STT SERVICE COMPARISON ═══")
+        print(f"Google Chirp2:")
+        print(f"  Thai: '{google_stt.transcription}'")
+        print(f"  English: '{google_stt.english_translation}'")
+        print(f"  Processing Time: {google_stt.processing_time:.3f}s")
+        print(f"  Confidence: {google_stt.confidence_score:.1%}")
+        print(f"  Real-time Factor: {google_stt.real_time_factor:.3f}")
+        print(f"  Audio Duration: {google_stt.audio_duration:.3f}s")
+        print(f"  Word Count: {google_stt.word_count}")
+        print(f"  Accuracy: {google_stt.accuracy_score:.1%}")
+        
+        print(f"Google Latest Short:")
+        print(f"  Thai: '{latest_short_stt.transcription}'")
+        print(f"  English: '{latest_short_stt.english_translation}'")
+        print(f"  Processing Time: {latest_short_stt.processing_time:.3f}s")
+        print(f"  Confidence: {latest_short_stt.confidence_score:.1%} (NOTE: not true confidence)")
+        print(f"  Real-time Factor: {latest_short_stt.real_time_factor:.3f}")
+        print(f"  Audio Duration: {latest_short_stt.audio_duration:.3f}s")
+        print(f"  Word Count: {latest_short_stt.word_count}")
+        print(f"  Accuracy: {latest_short_stt.accuracy_score:.1%}")
+        
+        print(f"Translation Processing Time: {total_translation_time:.3f}s")
+        print(f"═══════════════════════════════════════")
+        
+        # Determine winner based on overall performance
+        # Score based on: accuracy (50%), speed (50%) - NOTE: confidence not reliable for latest_short
+        google_speed_score = 1.0 / max(google_stt.processing_time, 0.1)
+        latest_short_speed_score = 1.0 / max(latest_short_stt.processing_time, 0.1)
+        max_speed = max(google_speed_score, latest_short_speed_score)
+        
+        google_normalized_speed = google_speed_score / max_speed
+        latest_short_normalized_speed = latest_short_speed_score / max_speed
+        
+        # Adjusted scoring: accuracy 50%, speed 50% (ignoring confidence for latest_short)
+        google_overall_score = (google_stt.accuracy_score * 0.5 + 
+                               google_normalized_speed * 0.5)
+        latest_short_overall_score = (latest_short_stt.accuracy_score * 0.5 + 
+                                     latest_short_normalized_speed * 0.5)
+        
+        # Determine winner
+        if google_overall_score > latest_short_overall_score:
+            winner_service = "Google Chirp2"
+        elif latest_short_overall_score > google_overall_score:
+            winner_service = "Google Latest Short"
+        else:
+            winner_service = "Tie"
+        
+        print(f"🏆 Winner: {winner_service}")
+        print(f"   Google Chirp2 Score: {google_overall_score:.3f} (Acc:{google_stt.accuracy_score:.2f}, Speed:{google_normalized_speed:.2f})")
+        print(f"   Google Latest Short Score: {latest_short_overall_score:.3f} (Acc:{latest_short_stt.accuracy_score:.2f}, Speed:{latest_short_normalized_speed:.2f})")
+        print("")
+        
+        # Determine which service to use for the "winner" result
+        if winner_service == "Google Chirp2":
+            winner_result = parallel_results["google"]
+        elif winner_service == "Google Latest Short":
+            winner_result = parallel_results["google_latest_short"]
+        else:
+            # In case of tie, use Google Chirp2 as default
+            winner_result = parallel_results["google"]
+        
+        # Create response with additional compatibility fields for npc_response_modal
+        response_dict = {
+            "google_result": google_stt.dict(),
+            "elevenlabs_result": latest_short_stt.dict(),  # Using elevenlabs field for latest_short for frontend compatibility
+            "winner_service": winner_service,
+            "audio_duration": google_stt.audio_duration,
+            "status": "success",
+            # Add compatibility fields for npc_response_modal.dart
+            "transcription": winner_result.text,
+            "translation": google_translation if winner_service == "Google Chirp2" else latest_short_translation,
+            "romanization": "",  # Not provided by these services
+            "word_confidence": winner_result.word_confidence,
+            "word_comparisons": [
+                {
+                    "word": wc.word,
+                    "confidence": wc.confidence,
+                    "expected": wc.expected,
+                    "match_type": wc.match_type,
+                    "similarity": wc.similarity,
+                    "start_time": wc.start_time,
+                    "end_time": wc.end_time
+                } for wc in winner_result.word_comparisons
+            ],
+            "confidence_score": winner_result.overall_confidence,
+            "pronunciation_score": winner_result.overall_confidence,
+            "expected_text": expected_text or ""
         }
         
-        response = ParallelTranslationResponse(
-            google_transcription=google_stt,
-            elevenlabs_transcription=elevenlabs_stt,
-            google_translation=google_translation,
-            elevenlabs_translation=elevenlabs_translation,
-            expected_text=expected_text or "",
-            translation_accuracy_metrics=accuracy_metrics
-        )
-        
         print(f"[{datetime.datetime.now()}] INFO: Parallel transcribe-translate successful")
-        return response
+        return response_dict
         
     except HTTPException as e:
         print(f"[{datetime.datetime.now()}] ERROR: /parallel-transcribe-translate/ HTTPException: {e.detail}")

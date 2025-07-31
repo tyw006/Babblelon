@@ -27,10 +27,10 @@ class ApiService {
     }
     
     final Directory tempDir = await getTemporaryDirectory();
-    final String path = '${tempDir.path}/recording.m4a';
+    final String path = '${tempDir.path}/recording.wav';
 
     const config = RecordConfig(
-      encoder: AudioEncoder.aacLc, // Using AAC for .m4a container
+      encoder: AudioEncoder.wav,   // Using WAV format for consistent audio processing
       sampleRate: 16000,           // 16kHz as recommended
       numChannels: 1,              // Mono
     );
@@ -77,7 +77,7 @@ class ApiService {
       await http.MultipartFile.fromPath(
         'audio_file',
         audioFile.path,
-        contentType: MediaType('audio', 'm4a'),
+        contentType: MediaType('audio', 'wav'),
       ),
     );
 
@@ -309,11 +309,10 @@ class ApiService {
     }
   }
 
-  /// Parallel transcription + translation comparison using both STT services
-  static Future<Map<String, dynamic>?> parallelTranscribeTranslate({
+  /// Three-way STT comparison using Google Chirp2, AssemblyAI, and Speechmatics
+  static Future<ThreeWayTranscriptionResponse?> threeWayTranscribe({
     required String audioPath,
-    String sourceLanguage = 'tha',
-    String targetLanguage = 'en',
+    String languageCode = 'th',
     String expectedText = '',
   }) async {
     final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
@@ -325,10 +324,9 @@ class ApiService {
         return null;
       }
 
-      final uri = Uri.parse("$baseUrl/parallel-transcribe-translate/");
+      final uri = Uri.parse("$baseUrl/three-way-transcribe/");
       final request = http.MultipartRequest('POST', uri)
-        ..fields['source_language'] = sourceLanguage
-        ..fields['target_language'] = targetLanguage
+        ..fields['language_code'] = languageCode
         ..fields['expected_text'] = expectedText;
 
       request.files.add(
@@ -339,24 +337,75 @@ class ApiService {
         ),
       );
 
-      debugPrint("Sending parallel transcribe-translate request to backend...");
+      debugPrint("Sending three-way transcription request to backend...");
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      debugPrint("Received parallel transcribe-translate response with status: ${response.statusCode}");
+      debugPrint("Received three-way transcription response with status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-        debugPrint("Parallel transcribe-translate response: $responseData");
-        return responseData;
+        debugPrint("Three-way transcription response received successfully");
+        return ThreeWayTranscriptionResponse.fromJson(responseData);
       } else {
-        debugPrint("Parallel transcribe-translate request failed with status: ${response.statusCode}");
+        debugPrint("Three-way transcription request failed with status: ${response.statusCode}");
         debugPrint("Response body: ${response.body}");
         return null;
       }
     } catch (e) {
-      debugPrint("Error during parallel transcribe-translate request: $e");
+      debugPrint("Error during three-way transcription request: $e");
       return null;
     }
+  }
+
+  /// Legacy method - kept for backward compatibility
+  @deprecated
+  static Future<Map<String, dynamic>?> parallelTranscribeTranslate({
+    required String audioPath,
+    String sourceLanguage = 'tha',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    // For now, delegate to the three-way method and convert response
+    final threeWayResult = await threeWayTranscribe(
+      audioPath: audioPath,
+      languageCode: sourceLanguage,
+      expectedText: expectedText,
+    );
+    
+    if (threeWayResult == null) return null;
+    
+    // Convert to legacy format for backward compatibility
+    return {
+      'google_result': {
+        'service_name': threeWayResult.googleChirp2.serviceName,
+        'transcription': threeWayResult.googleChirp2.transcription,
+        'english_translation': threeWayResult.googleChirp2.englishTranslation,
+        'processing_time': threeWayResult.googleChirp2.processingTime,
+        'confidence_score': threeWayResult.googleChirp2.confidenceScore,
+        'audio_duration': threeWayResult.googleChirp2.audioDuration,
+        'real_time_factor': threeWayResult.googleChirp2.realTimeFactor,
+        'word_count': threeWayResult.googleChirp2.wordCount,
+        'accuracy_score': threeWayResult.googleChirp2.accuracyScore,
+        'status': threeWayResult.googleChirp2.status,
+        'error': threeWayResult.googleChirp2.error,
+      },
+      'elevenlabs_result': {
+        'service_name': threeWayResult.assemblyaiUniversal.serviceName,
+        'transcription': threeWayResult.assemblyaiUniversal.transcription,
+        'english_translation': threeWayResult.assemblyaiUniversal.englishTranslation,
+        'processing_time': threeWayResult.assemblyaiUniversal.processingTime,
+        'confidence_score': threeWayResult.assemblyaiUniversal.confidenceScore,
+        'audio_duration': threeWayResult.assemblyaiUniversal.audioDuration,
+        'real_time_factor': threeWayResult.assemblyaiUniversal.realTimeFactor,
+        'word_count': threeWayResult.assemblyaiUniversal.wordCount,
+        'accuracy_score': threeWayResult.assemblyaiUniversal.accuracyScore,
+        'status': threeWayResult.assemblyaiUniversal.status,
+        'error': threeWayResult.assemblyaiUniversal.error,
+      },
+      'winner_service': threeWayResult.winnerService,
+      'audio_duration': threeWayResult.googleChirp2.audioDuration,
+      'status': 'success',
+    };
   }
 
   /// Translate English text to Thai with romanization

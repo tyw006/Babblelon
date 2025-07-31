@@ -72,22 +72,30 @@ class GameState extends _$GameState {
 class DialogueSettingsData {
   final bool showWordByWordAnalysis;
   final bool showEnglishTranslation;
+  final bool showTransliteration;
+  final bool enableParallelProcessing;
   final bool isMicEnabled;
 
   const DialogueSettingsData({
     this.showWordByWordAnalysis = false,
     this.showEnglishTranslation = false,
+    this.showTransliteration = false,
+    this.enableParallelProcessing = false,
     this.isMicEnabled = true,
   });
 
   DialogueSettingsData copyWith({
     bool? showWordByWordAnalysis,
     bool? showEnglishTranslation,
+    bool? showTransliteration,
+    bool? enableParallelProcessing,
     bool? isMicEnabled,
   }) {
     return DialogueSettingsData(
       showWordByWordAnalysis: showWordByWordAnalysis ?? this.showWordByWordAnalysis,
       showEnglishTranslation: showEnglishTranslation ?? this.showEnglishTranslation,
+      showTransliteration: showTransliteration ?? this.showTransliteration,
+      enableParallelProcessing: enableParallelProcessing ?? this.enableParallelProcessing,
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,
     );
   }
@@ -104,6 +112,14 @@ class DialogueSettings extends _$DialogueSettings {
 
   void toggleShowEnglishTranslation() {
     state = state.copyWith(showEnglishTranslation: !state.showEnglishTranslation);
+  }
+
+  void toggleShowTransliteration() {
+    state = state.copyWith(showTransliteration: !state.showTransliteration);
+  }
+
+  void toggleParallelProcessing() {
+    state = state.copyWith(enableParallelProcessing: !state.enableParallelProcessing);
   }
 
   void toggleMicUsage() => state = state.copyWith(isMicEnabled: !state.isMicEnabled);

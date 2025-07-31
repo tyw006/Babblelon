@@ -22,8 +22,10 @@ class DialogueUI extends StatefulWidget {
   final Widget? topRightAction;
   final VoidCallback onToggleEnglish;
   final VoidCallback onToggleTransliteration;
+  final VoidCallback onToggleWordAnalysis;
   final bool showEnglish;
   final bool showTransliteration;
+  final bool showWordAnalysis;
   final VoidCallback? onReplayAudio;
 
   const DialogueUI({
@@ -44,8 +46,10 @@ class DialogueUI extends StatefulWidget {
     this.topRightAction,
     required this.onToggleEnglish,
     required this.onToggleTransliteration,
+    required this.onToggleWordAnalysis,
     required this.showEnglish,
     required this.showTransliteration,
+    required this.showWordAnalysis,
     this.onReplayAudio,
   });
 
@@ -242,8 +246,8 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                                 ),
                                 _buildIntegratedToggleButton(
                                   text: "ท",
-                                  isActive: widget.showTransliteration,
-                                  onTap: widget.onToggleTransliteration,
+                                  isActive: widget.showWordAnalysis,
+                                  onTap: widget.onToggleWordAnalysis,
                                 ),
                               ],
                             ),
@@ -293,7 +297,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                       widget.isProcessingBackend
                           ? const CircularProgressIndicator()
                           : widget.micControls,
-                      _buildSplitButton(),
+                      _buildGiveItemButton(),
                     ],
                   ),
                 ),
@@ -546,7 +550,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSplitButton() {
+  Widget _buildGiveItemButton() {
     return Container(
       width: 56,
       height: 56,
@@ -555,35 +559,11 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
         color: Colors.black.withOpacity(0.5),
         border: Border.all(color: Colors.white70, width: 1.5),
       ),
-      child: ClipOval(
-        child: Row(
-          children: [
-            // Left half: Translate
-            Expanded(
-              child: InkWell(
-                onTap: widget.onShowTranslation,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(color: Colors.white54, width: 0.5),
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.g_translate, color: Colors.white, size: 20),
-                  ),
-                ),
-              ),
-            ),
-            // Right half: Gift
-            Expanded(
-              child: InkWell(
-                onTap: widget.onRequestItem,
-                child: Center(
-                  child: Icon(Icons.redeem, color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-          ],
+      child: InkWell(
+        onTap: widget.onRequestItem,
+        borderRadius: BorderRadius.circular(28), // Match the circular shape
+        child: Center(
+          child: Icon(Icons.front_hand, color: Colors.white, size: 24),
         ),
       ),
     );

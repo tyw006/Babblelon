@@ -2663,9 +2663,14 @@ async def translate_and_syllabify(english_text: str, target_language: str = 'th'
             print(f"Skipping empty/whitespace word: '{word}'")
             continue
             
-        # 3. Translate target word back to English
-        back_translation = await translate_text(word, 'en', source_language=target_language)
-        whole_translation = back_translation['translated_text']
+        # 3. Translate target word back to English (skip if target is already English)
+        if target_language.lower() in ['en', 'en-us']:
+            # If target language is English, the word is already in English
+            whole_translation = word
+        else:
+            # Translate non-English target word back to English
+            back_translation = await translate_text(word, 'en', source_language=target_language)
+            whole_translation = back_translation['translated_text']
         
         # 4. Syllabify and romanize
         syllables = syllable_tokenize(word)

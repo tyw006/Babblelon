@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/npc_data.dart';
 import '../services/api_service.dart';
 import '../overlays/dialogue_overlay/dialogue_models.dart';
+import '../providers/game_providers.dart';
 
 // POS Color Mapping (same as dialogue_overlay.dart)
 final Map<String, Color> posColorMapping = {
@@ -35,11 +36,6 @@ final Map<String, Color> posColorMapping = {
 };
 
 // Enhanced modal states for comprehensive learning flow
-enum NPCResponseModalPage {
-  translation,  // Translation helper page
-  recording,    // Recording and results page
-}
-
 enum NPCResponseModalState {
   initial,      // Show NPC message with reference
   recording,    // Recording user audio with waveform
@@ -76,7 +72,7 @@ class TranscriptionResult {
   final String romanization;
   final List<WordConfidence> wordConfidence;
   final List<WordComparisonData> wordComparisons;
-  final double pronunciationScore;
+  final double confidenceScore;
   final String expectedText;
 
   TranscriptionResult({
@@ -85,7 +81,7 @@ class TranscriptionResult {
     required this.romanization,
     required this.wordConfidence,
     this.wordComparisons = const [],
-    required this.pronunciationScore,
+    required this.confidenceScore,
     this.expectedText = '',
   });
 }
@@ -130,10 +126,12 @@ class NPCResponseModal extends ConsumerStatefulWidget {
   final String npcMessageEnglish;
   final bool showEnglish;
   final bool showTransliteration;
-  final Function(String) onSendResponse;
+  final Function(String, String?) onSendResponse; // (transcription, audioPath)
   final VoidCallback onClose;
   final String targetLanguage;
   final List<POSMapping>? npcPosMappings; // Word analysis data
+  final String? npcAudioPath; // NPC audio file path
+  final String? npcAudioBytes; // NPC audio base64 data
 
   const NPCResponseModal({
     super.key,
@@ -146,6 +144,8 @@ class NPCResponseModal extends ConsumerStatefulWidget {
     required this.onClose,
     this.targetLanguage = 'th',
     this.npcPosMappings,
+    this.npcAudioPath,
+    this.npcAudioBytes,
   });
 
   @override
@@ -154,8 +154,7 @@ class NPCResponseModal extends ConsumerStatefulWidget {
 
 class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     with TickerProviderStateMixin {
-  // Page and modal state management
-  NPCResponseModalPage _currentPage = NPCResponseModalPage.translation;
+  // Modal state management
   NPCResponseModalState _modalState = NPCResponseModalState.initial;
   
   // Audio recording
@@ -185,6 +184,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   String _romanizedText = '';
   bool _isTranslating = false;
   bool _showTranslationHelper = false;
+  bool _translationHelperWasUsed = false; // Track if user actually used translation helper
+  bool _userChoseDirectRecording = false; // Track if user opted for direct recording without using helper
   
   // Enhanced translation with word mappings and audio
   List<Map<String, String>> _translationWordMappings = [];
@@ -193,17 +194,84 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   // NPC message toggles
   bool _showNpcEnglishTranslation = false;
   bool _showNpcWordAnalysis = false;
-  bool _showNpcAudioReplay = true; // Show by default since audio is available
+  
+  // User transcription word analysis toggle
+  
+  // STT attempt tracking for fallback feature
+  int _sttAttemptCount = 0;
+  static const int _maxAttemptsBeforeFallback = 3;
+  
+  // Scroll controller for auto-scrolling
+  late ScrollController _scrollController;
+  
+  // Toggle state for unified translation breakdown
+  bool _showingExpectedMessage = true;
+  
+  // Flag to prevent translation helper from overriding user-initiated resets
+  bool _userInitiatedReset = false;
+  
+  // Translation helper fallback system
+  bool _shouldShowTranslationPrompt = false;
+  bool _translationPromptDismissed = false;
   
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _initializeAnimations();
     
+    // Reset all modal state for fresh session
+    _resetAllState();
+    
     // DEBUG: Log modal initialization
-    print('DEBUG: NPCResponseModal initialized');
+    print('DEBUG: NPCResponseModal initialized with fresh state');
     print('DEBUG: Initial NPC message: "${widget.npcMessage}"');
-    print('DEBUG: Initial state - transcriptionResult: ${_transcriptionResult ?? 'null'}');
+    print('DEBUG: Initial npcPosMappings passed to modal: ${widget.npcPosMappings?.length ?? 'null'}');
+    if (widget.npcPosMappings?.isNotEmpty == true) {
+      print('DEBUG: First POS mapping in modal - word: "${widget.npcPosMappings!.first.wordTarget}", pos: "${widget.npcPosMappings!.first.pos}"');
+    }
+    print('DEBUG: Reset state - transcriptionResult: ${_transcriptionResult ?? 'null'}');
+  }
+
+  // Centralized state reset method for consistency
+  void _resetAllState() {
+    print('DEBUG: _resetAllState() - BEFORE reset:');
+    print('  - _modalState: $_modalState');
+    print('  - _transcriptionResult: ${_transcriptionResult != null ? "EXISTS" : "null"}');
+    print('  - _translatedText: "$_translatedText"');
+    print('  - _showTranslationHelper: $_showTranslationHelper');
+    print('  - _sttAttemptCount: $_sttAttemptCount');
+    
+    _modalState = NPCResponseModalState.initial;
+    _transcriptionResult = null;
+    _sttAttemptCount = 0;
+    _audioPath = null;
+    _isRecording = false;
+    _isTranslating = false;
+    
+    // Only clear translation helper state if it wasn't actually used
+    if (!_translationHelperWasUsed) {
+      _showTranslationHelper = false;
+      _translatedText = '';
+      _romanizedText = '';
+      _translationAudioBase64 = '';
+      _translationWordMappings.clear();
+      _userChoseDirectRecording = false; // Reset direct recording choice on Try Again
+    }
+    
+    // Reset user-initiated flag
+    _userInitiatedReset = false;
+    
+    // Reset translation helper fallback state
+    _shouldShowTranslationPrompt = false;
+    _translationPromptDismissed = false;
+    
+    print('DEBUG: _resetAllState() - AFTER reset:');
+    print('  - _modalState: $_modalState');
+    print('  - _transcriptionResult: ${_transcriptionResult != null ? "EXISTS" : "null"}');
+    print('  - _translatedText: "$_translatedText"');
+    print('  - _showTranslationHelper: $_showTranslationHelper');
+    print('  - _sttAttemptCount: $_sttAttemptCount');
   }
 
   void _initializeAnimations() {
@@ -232,7 +300,21 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     _audioPlayer?.dispose();
     _audioRecorder.dispose();
     _translationController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Scrolls to the bottom of the modal content
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
+    }
   }
 
   Future<void> _startRecording() async {
@@ -252,8 +334,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
-          bitRate: 128000,
-          sampleRate: 44100,
+          sampleRate: 16000,  // Optimal for STT APIs
+          numChannels: 1,     // Mono
         ),
         path: '/tmp/recording.wav',
       );
@@ -262,6 +344,15 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         setState(() {
           _modalState = NPCResponseModalState.recording;
           _isRecording = true;
+          
+          // Clear user-initiated reset flag when starting new recording
+          _userInitiatedReset = false;
+          print('DEBUG: Recording started - Reset _userInitiatedReset = false');
+          
+          // If user starts recording without using translation helper, mark as direct recording choice
+          if (!_translationHelperWasUsed && _translatedText.isEmpty) {
+            _userChoseDirectRecording = true;
+          }
         });
         
         // Provide haptic feedback
@@ -270,6 +361,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         // Start waveform animation
         _startWaveformAnimation();
         _scaleController.forward();
+        
+        // Auto-scroll to bottom to expose stop button
+        _scrollToBottom();
       }
     } catch (e) {
       print('Failed to start recording: $e');
@@ -291,6 +385,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           _isRecording = false;
           _audioPath = path;
         });
+        
+        // Auto-scroll to bottom during processing
+        _scrollToBottom();
         
         // Provide haptic feedback
         HapticFeedback.mediumImpact();
@@ -316,8 +413,10 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   Future<void> _processAudio(String audioPath) async {
     try {
+      // Note: We only increment attempt counter on successful STT, not on service errors
+      
       // DEBUG: Log entry and initial state
-      print('DEBUG: _processAudio called with path: $audioPath');
+      print('DEBUG: _processAudio called with path: $audioPath (Attempt $_sttAttemptCount/$_maxAttemptsBeforeFallback)');
       print('DEBUG: Current _translatedText: "$_translatedText"');
       print('DEBUG: Current modal state: $_modalState');
       
@@ -328,23 +427,50 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         print('DEBUG: Using expected text for comparison: $_translatedText');
       }
       
-      // Call our new transcribe-and-translate endpoint with expected text comparison
-      print('DEBUG: About to call ApiService.transcribeAndTranslate');
-      final result = await ApiService.transcribeAndTranslate(
-        audioPath: audioPath,
-        sourceLanguage: widget.targetLanguage,
-        targetLanguage: 'en',
-        expectedText: expectedText,
-      );
+      // Check if parallel processing is enabled in dialogue settings
+      final dialogueSettings = ref.read(dialogueSettingsProvider);
+      final bool useParallelProcessing = dialogueSettings.enableParallelProcessing;
+      
+      print('DEBUG: Parallel processing enabled: $useParallelProcessing');
+      
+      // Call appropriate API endpoint based on parallel processing setting
+      final result = useParallelProcessing
+        ? await ApiService.parallelTranscribeTranslate(
+            audioPath: audioPath,
+            sourceLanguage: widget.targetLanguage,
+            targetLanguage: 'en',
+            expectedText: expectedText,
+          )
+        : await ApiService.transcribeAndTranslate(
+            audioPath: audioPath,
+            sourceLanguage: widget.targetLanguage,
+            targetLanguage: 'en',
+            expectedText: expectedText,
+          );
+      
+      print('DEBUG: API endpoint used: ${useParallelProcessing ? 'parallel-transcribe-translate' : 'transcribe-and-translate'}');
 
       if (mounted && result != null) {
         // DEBUG: Log the entire API response to understand what's being returned
         print('DEBUG: Full API response: $result');
-        print('DEBUG: transcription: ${result['transcription']}');
-        print('DEBUG: translation: ${result['translation']}');
-        print('DEBUG: romanization: ${result['romanization']}');
+        print('DEBUG: transcription: "${result['transcription']}" (length: ${(result['transcription'] ?? '').toString().length})');
+        print('DEBUG: translation: "${result['translation']}" (length: ${(result['translation'] ?? '').toString().length})');
+        print('DEBUG: romanization: "${result['romanization']}" (length: ${(result['romanization'] ?? '').toString().length})');
         print('DEBUG: Full word_confidence: ${result['word_confidence']}');
         print('DEBUG: Full word_comparisons: ${result['word_comparisons']}');
+        
+        // Check for potential field name variations
+        final allKeys = result.keys.toList();
+        print('DEBUG: All API response keys: $allKeys');
+        
+        // Check if transcription is actually empty vs null
+        if (result['transcription'] == null) {
+          print('DEBUG: WARNING - transcription field is NULL');
+        } else if (result['transcription'].toString().isEmpty) {
+          print('DEBUG: WARNING - transcription field is EMPTY STRING');
+        } else {
+          print('DEBUG: SUCCESS - transcription contains: "${result['transcription']}"');
+        }
         
         // Parse the response into our model
         final wordConfidenceList = (result['word_confidence'] as List?)
@@ -377,9 +503,22 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           romanization: result['romanization'] ?? '',
           wordConfidence: wordConfidenceList,
           wordComparisons: wordComparisonsList,
-          pronunciationScore: (result['pronunciation_score'] ?? 0.0).toDouble(),
+          confidenceScore: (result['confidence_score'] ?? result['pronunciation_score'] ?? 0.0).toDouble(),
           expectedText: result['expected_text'] ?? '',
         );
+        
+        // Increment attempt counter only on successful STT processing
+        setState(() {
+          _sttAttemptCount++;
+          
+          // Check if we should show translation helper prompt after reaching max attempts
+          if (_sttAttemptCount >= _maxAttemptsBeforeFallback && 
+              !_translationHelperWasUsed && 
+              !_translationPromptDismissed) {
+            _shouldShowTranslationPrompt = true;
+            print('DEBUG: STT attempt $_sttAttemptCount reached, showing translation helper prompt');
+          }
+        });
         
         // DEBUG: Log the final transcription result
         print('DEBUG: Created TranscriptionResult:');
@@ -392,14 +531,29 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           _modalState = NPCResponseModalState.results;
         });
 
+        // Auto-scroll to bottom to show results
+        _scrollToBottom();
+
         // Provide success haptic feedback
         HapticFeedback.heavyImpact();
       }
     } catch (e) {
       print('Failed to process audio: $e');
       if (mounted) {
+        // Check if this is a service unavailable error
+        String errorMessage = 'Failed to process audio: $e';
+        if (e.toString().toLowerCase().contains('unavailable') || 
+            e.toString().toLowerCase().contains('timed out') ||
+            e.toString().toLowerCase().contains('503')) {
+          errorMessage = 'Service temporarily unavailable. Please try again.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process audio: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: e.toString().toLowerCase().contains('unavailable') ? Colors.orange : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
         setState(() {
           _modalState = NPCResponseModalState.initial;
@@ -441,6 +595,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       HapticFeedback.selectionClick();
     } catch (e) {
       print('Failed to play recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to play audio recording')),
+        );
+      }
     }
   }
 
@@ -469,9 +628,59 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   void _sendToNPC() {
     if (_transcriptionResult != null) {
-      widget.onSendResponse(_transcriptionResult!.transcription);
-      widget.onClose();
+      widget.onSendResponse(_transcriptionResult!.transcription, _audioPath);
+      // Let parent handle modal closure - don't call widget.onClose()
     }
+  }
+
+  void _sendTranslationToNPC() {
+    // Send the translated text from translation helper instead of STT result
+    if (_translatedText.isNotEmpty) {
+      widget.onSendResponse(_translatedText, null); // No audio path for translation helper
+      // Let parent handle modal closure - don't call widget.onClose()
+    }
+  }
+
+  void _retrySTT() {
+    print('DEBUG: _retrySTT() - TRY AGAIN button clicked');
+    print('DEBUG: _retrySTT() - About to call setState...');
+    
+    setState(() {
+      print('DEBUG: _retrySTT() - Inside setState callback');
+      
+      // Reset all state except attempt counter (persists across retries)
+      final int currentAttemptCount = _sttAttemptCount;
+      print('DEBUG: _retrySTT() - Preserving attempt count: $currentAttemptCount');
+      
+      _resetAllState();
+      _sttAttemptCount = currentAttemptCount; // Restore attempt counter
+      
+      // Set user-initiated reset flag AFTER _resetAllState to prevent automatic overrides
+      _userInitiatedReset = true;
+      print('DEBUG: _retrySTT() - Set _userInitiatedReset = true AFTER reset');
+      
+      print('DEBUG: _retrySTT() - Final state after reset:');
+      print('  - _modalState: $_modalState');
+      print('  - _transcriptionResult: ${_transcriptionResult != null ? "EXISTS" : "null"}');
+      print('  - _translatedText: "$_translatedText"');
+      print('  - _sttAttemptCount: $_sttAttemptCount');
+      print('  - _userInitiatedReset: $_userInitiatedReset');
+    });
+    
+    print('DEBUG: _retrySTT() - setState completed, providing haptic feedback');
+    
+    // Provide haptic feedback
+    HapticFeedback.lightImpact();
+    
+    print('DEBUG: _retrySTT() - Method completed');
+  }
+
+  void _confirmAndSendToNPC() {
+    if (_transcriptionResult == null) return;
+    
+    // Send directly without confirmation dialog
+    HapticFeedback.heavyImpact();
+    _sendToNPC();
   }
 
 
@@ -503,29 +712,39 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   }
 
   // Page navigation methods
-  void _goToRecordingPage() {
-    setState(() {
-      _currentPage = NPCResponseModalPage.recording;
-      _modalState = NPCResponseModalState.initial;
-    });
-    
-    // Provide haptic feedback
-    HapticFeedback.lightImpact();
-  }
-
-  void _goToTranslationPage() {
-    setState(() {
-      _currentPage = NPCResponseModalPage.translation;
-      _modalState = NPCResponseModalState.initial;
-    });
-    
-    // Provide haptic feedback
-    HapticFeedback.lightImpact();
-  }
   
-  void _playNpcAudio() {
-    // TODO: Implement NPC audio playback
-    HapticFeedback.lightImpact();
+  Future<void> _playNpcAudio() async {
+    try {
+      _audioPlayer ??= just_audio.AudioPlayer();
+      await _audioPlayer!.stop();
+      
+      if (widget.npcAudioPath != null && widget.npcAudioPath!.isNotEmpty) {
+        if (widget.npcAudioPath!.startsWith('assets/')) {
+          await _audioPlayer!.setAsset(widget.npcAudioPath!);
+        } else {
+          await _audioPlayer!.setAudioSource(just_audio.AudioSource.uri(Uri.file(widget.npcAudioPath!)));
+        }
+      } else if (widget.npcAudioBytes != null) {
+        // Decode base64 to bytes and create temporary file
+        final audioBytes = base64Decode(widget.npcAudioBytes!);
+        final tempDir = await getTemporaryDirectory();
+        final audioFile = File('${tempDir.path}/npc_audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+        await audioFile.writeAsBytes(audioBytes);
+        await _audioPlayer!.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioFile.path)));
+      } else {
+        print("No NPC audio data to play.");
+        return;
+      }
+      
+      await _audioPlayer!.play();
+      
+      // Provide haptic feedback
+      HapticFeedback.selectionClick();
+    } catch (e) {
+      print('Failed to play NPC audio: $e');
+      // Still provide haptic feedback even if audio fails
+      HapticFeedback.lightImpact();
+    }
   }
   
   Future<void> _playTranslationAudio() async {
@@ -559,9 +778,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
     setState(() {
       _isTranslating = true;
+      
+      // Clear transcription result state when starting translation to prevent contamination
+      _transcriptionResult = null;
     });
 
     try {
+      // Use the existing translateText method which already calls translate_and_syllabify
+      // This provides word-by-word breakdown with individual Thai words, romanization, and English meanings
       final result = await ApiService.translateText(
         englishText: englishText,
         targetLanguage: widget.targetLanguage,
@@ -573,21 +797,50 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           _romanizedText = result['romanized_text'] ?? '';
           _translationAudioBase64 = result['audio_base64'] ?? '';
           
-          // Parse word mappings if available
-          if (result['word_mappings'] != null) {
+          // Parse word mappings from translate_and_syllabify function
+          // This creates individual word cards with Thai, romanization, and English
+          print("=== TRANSLATION DEBUG ===");
+          print("Full result keys: ${result.keys.toList()}");
+          print("Word mappings available: ${result['word_mappings'] != null}");
+          print("Word mappings type: ${result['word_mappings'].runtimeType}");
+          print("Word mappings: ${result['word_mappings']}");
+          print("Word mappings count: ${result['word_mappings']?.length ?? 0}");
+          
+          if (result['word_mappings'] != null && result['word_mappings'].isNotEmpty) {
             _translationWordMappings = [];
             for (var mapping in result['word_mappings']) {
-              _translationWordMappings.add({
-                'english': mapping['translation']?.toString() ?? '',
-                'target': mapping['target']?.toString() ?? '',
-                'romanized': mapping['transliteration']?.toString() ?? '',
-              });
+              print("Processing mapping: $mapping");
+              final wordCard = {
+                'english': mapping['translation']?.toString() ?? '',      // English meaning
+                'target': mapping['target']?.toString() ?? '',            // Thai word
+                'romanized': mapping['transliteration']?.toString() ?? '', // Romanization
+              };
+              _translationWordMappings.add(wordCard);
+              print("Added word card: $wordCard");
             }
+            print("Final word mappings count: ${_translationWordMappings.length}");
+            print("Sample word mapping: ${_translationWordMappings.isNotEmpty ? _translationWordMappings[0] : 'none'}");
           } else {
+            print("No word mappings found - result['word_mappings'] is null or empty");
             _translationWordMappings = [];
           }
           
           _isTranslating = false;
+          _translationHelperWasUsed = true; // Mark that user actually used translation helper
+          
+          // Set modal state to results so "Your Response" panel shows for translation helper
+          print('DEBUG: Translation helper - checking if should set modal state to results');
+          print('  - _translatedText.isNotEmpty: ${_translatedText.isNotEmpty}');
+          print('  - Current _modalState: $_modalState');
+          print('  - _userInitiatedReset: $_userInitiatedReset');
+          
+          if (_translatedText.isNotEmpty && !_userInitiatedReset) {
+            print('DEBUG: Translation helper - OVERRIDING modal state to results');
+            _modalState = NPCResponseModalState.results;
+            print('DEBUG: Translation helper - New _modalState: $_modalState');
+          } else if (_userInitiatedReset) {
+            print('DEBUG: Translation helper - SKIPPING state override due to user-initiated reset');
+          }
         });
 
         // Provide success haptic feedback
@@ -623,13 +876,15 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             children: [
               _buildHeader(),
               Expanded(
-                child: SingleChildScrollView(
-                  child: _currentPage == NPCResponseModalPage.translation
-                      ? _buildTranslationPage()
-                      : _buildRecordingPage(),
+                child: Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: _buildUnifiedInterface(),
+                  ),
                 ),
               ),
-              _buildActions(),
             ],
           ),
         ),
@@ -639,44 +894,81 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(8, 20, 16, 20), // Increased vertical padding
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
+        // Enhanced visual hierarchy with subtle shadow
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundImage: AssetImage(widget.npcData.dialoguePortraitPath),
-            radius: 20,
+          // Enhanced back button with better touch target
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Add haptic feedback
+                HapticFeedback.lightImpact();
+                widget.onClose();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12), // Larger touch target
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: const Icon(Icons.arrow_back, size: 24),
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
+          
+          // Centered title with enhanced avatar and typography
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  widget.npcData.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                // Enhanced avatar with subtle glow effect
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    backgroundImage: AssetImage(widget.npcData.dialoguePortraitPath),
+                    radius: 24, // Slightly larger for better visual presence
                   ),
                 ),
+                const SizedBox(width: 16), // Increased spacing
+                // Enhanced typography with better mobile readability
                 Text(
-                  _getStateDescription(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[700],
+                  widget.npcData.name,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22, // Slightly larger for mobile
+                    letterSpacing: 0.5,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: widget.onClose,
-            icon: const Icon(Icons.close),
-          ),
+          
+          // Balanced spacing for perfect centering
+          const SizedBox(width: 72), // Adjusted for new button width
         ],
       ),
     );
@@ -691,7 +983,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       case NPCResponseModalState.recording:
         return 'Listening... speak clearly in Thai';
       case NPCResponseModalState.processing:
-        return 'Analyzing your pronunciation...';
+        return 'Analyzing your speech...';
       case NPCResponseModalState.results:
         return 'Great! Review your score or try again';
       case NPCResponseModalState.practice:
@@ -703,68 +995,1531 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
 
   // Translation helper page (Page 1)
-  Widget _buildTranslationPage() {
+  // Unified interface combining translation helper and recording
+  Widget _buildUnifiedInterface() {
     return Padding(
-      padding: const EdgeInsets.all(12), // Reduced from 20
+      padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Constrained NPC reference to prevent overflow
+          // Always show NPC message for context
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 250),
             child: _buildNpcReferenceSection(),
           ),
-          const SizedBox(height: 16), // Reduced from 20
+          const SizedBox(height: 16),
           
-          // Expandable translation helper
-          _buildTranslationHelperSection(),
-          const SizedBox(height: 12), // Reduced from 20
+          // Inline translation helper - show by default, hide only if user chose direct recording without using it
+          if (!_userChoseDirectRecording || (_translationHelperWasUsed && _translatedText.isNotEmpty))
+            _buildInlineTranslationHelper(),
+          const SizedBox(height: 16),
+          
+          // Recording interface and results
+          _buildRecordingInterface(),
+          
+          // Show unified translation breakdown when we have translation or transcription results
+          // Direct action buttons without Learning Assistant container
+          // DEBUG: Log display condition evaluation
+          ...() {
+            final bool showCondition = _modalState == NPCResponseModalState.results && 
+                (_transcriptionResult != null || _translatedText.isNotEmpty);
+            print('DEBUG: Display condition evaluation:');
+            print('  - _modalState: $_modalState');
+            print('  - _transcriptionResult != null: ${_transcriptionResult != null}');
+            print('  - _translatedText.isNotEmpty: ${_translatedText.isNotEmpty}');
+            print('  - Show Your Response panel: $showCondition');
+            
+            if (showCondition) {
+              return [
+                const SizedBox(height: 16),
+                _buildUnifiedActionButtons(),
+              ];
+            } else {
+              return <Widget>[];
+            }
+          }(),
         ],
       ),
     );
   }
 
-  // Recording and results page (Page 2)
-  Widget _buildRecordingPage() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Conditional target/reference display
-        if (_translatedText.isNotEmpty)
-          _buildTranslationTargetSection()
-        else
-          _buildNpcReferenceSection(),
-        
-        const SizedBox(height: 20),
-        
-        // Recording interface and results
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _buildRecordingInterface(),
-        ),
-      ],
+  // Prominent translation helper notification - positioned between Your Response and action buttons
+  Widget _buildProminentTranslationNotification() {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      builder: (context, animationValue, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * animationValue),
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              // Use attention-grabbing gradient
+              gradient: LinearGradient(
+                colors: [
+                  Colors.amber[100]!,
+                  Colors.amber[50]!,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.amber[400]!,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Animated icon for attention
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 1000),
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  builder: (context, pulseValue, child) {
+                    return Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[200]?.withOpacity(0.7 + (0.3 * pulseValue)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.translate,
+                        color: Colors.amber[800],
+                        size: 24,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Translation Helper Available',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber[900],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Having trouble? Try the Translation Helper on your next turn',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.amber[800],
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Dismiss button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _translationPromptDismissed = true;
+                      });
+                      HapticFeedback.lightImpact();
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.amber[600],
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // Helper method for NPC reference section
-  Widget _buildNpcReferenceSection() {
+
+  // Full-width Your Response Panel (optimized for mobile)
+  Widget _buildFullWidthUserResponsePanel() {
+    if (_transcriptionResult == null) return const SizedBox();
+    
+    final overallConfidence = _transcriptionResult!.confidenceScore;
+    
     return Container(
-      padding: const EdgeInsets.all(12), // Reduced from 16
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Panel title with confidence score and audio playback
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Your Response',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Audio playback button
+                  if (_audioPath != null)
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _playRecording();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.play_circle_fill,
+                            color: Colors.blue[600],
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_audioPath != null) const SizedBox(width: 8),
+                  _buildSTTConfidenceBadge(overallConfidence),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Main transcribed text (larger for full width)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blue[300]!),
+            ),
+            child: Text(
+              _transcriptionResult!.transcription.isNotEmpty 
+                  ? _transcriptionResult!.transcription
+                  : '(No transcription detected)',
+              style: TextStyle(
+                fontSize: 22, // Larger text for full width
+                fontWeight: FontWeight.bold,
+                color: _transcriptionResult!.transcription.isNotEmpty 
+                    ? Colors.black87
+                    : Colors.grey[600],
+                fontStyle: _transcriptionResult!.transcription.isNotEmpty 
+                    ? FontStyle.normal 
+                    : FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Word breakdown cards with better spacing for full width
+          if (_transcriptionResult!.wordConfidence.isNotEmpty) ...[
+            Text(
+              'Word-by-word Analysis:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildSTTConfidenceWordCards(_convertWordConfidenceToMappings(), isReference: false),
+            const SizedBox(height: 16),
+          ],
+          
+          // Detected translation
+          _buildTranslationSection(_transcriptionResult!.translation, isReference: false),
+          
+          const SizedBox(height: 12),
+          
+          // Low confidence warnings
+          _buildConfidenceWarnings(),
+        ],
+      ),
+    );
+  }
+
+  // Expected Response Panel (reference/target) - keeping for backwards compatibility
+  Widget _buildExpectedResponsePanel() {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey[300]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Panel title
+          Text(
+            'Expected Response',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Main Thai text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Text(
+              _translatedText,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Word breakdown cards with reference styling
+          if (_translationWordMappings.isNotEmpty)
+            _buildSTTConfidenceWordCards(_translationWordMappings, isReference: true),
+          
+          const SizedBox(height: 12),
+          
+          // Full translation
+          _buildTranslationSection(_getExpectedTranslation(), isReference: true),
+        ],
+      ),
+    );
+  }
+
+  // Unified Your Response Panel (STT results or translation results)
+  Widget _buildUserResponsePanel() {
+    // Show for either transcription result or translation result
+    if (_transcriptionResult == null && _translatedText.isEmpty) return const SizedBox();
+    
+    // Determine which source to use
+    final bool hasTranscription = _transcriptionResult != null;
+    final bool hasTranslation = _translatedText.isNotEmpty;
+    
+    final overallConfidence = hasTranscription ? _transcriptionResult!.confidenceScore : 1.0;
+    final confidencePercentage = (overallConfidence * 100).round();
+    final String responseText = hasTranscription ? _transcriptionResult!.transcription : _translatedText;
+    // Remove parenthetical text to prevent UI overflow
+    final String responseType = '';
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Panel title with confidence score
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Your Response',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Audio playback button
+                  if (_audioPath != null)
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _playRecording();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.volume_up,
+                            color: Colors.blue[700],
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_audioPath != null) const SizedBox(width: 8),
+                  _buildSTTConfidenceBadge(overallConfidence),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Main transcribed text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.blue[300]!),
+            ),
+            child: Text(
+              responseText.isNotEmpty 
+                  ? responseText
+                  : '(No response detected)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: responseText.isNotEmpty 
+                    ? Colors.black87
+                    : Colors.grey[600],
+                fontStyle: responseText.isNotEmpty 
+                    ? FontStyle.normal 
+                    : FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Word breakdown cards (only for actual STT transcription results)
+          if (hasTranscription && _transcriptionResult!.wordConfidence.isNotEmpty)
+            _buildSTTConfidenceWordCards(_convertWordConfidenceToMappings(), isReference: false),
+          
+          const SizedBox(height: 12),
+          
+          // Translation section (only for transcription results)
+          if (hasTranscription)
+            _buildTranslationSection(_transcriptionResult!.translation, isReference: false),
+          
+          const SizedBox(height: 8),
+          
+          // Low confidence warnings (only for transcription results)
+          if (hasTranscription)
+            _buildConfidenceWarnings(),
+          
+        ],
+      ),
+    );
+  }
+
+  // Animated Progress Light Widget
+  Widget _buildAnimatedProgressLight({
+    required int index,
+    required bool isCompleted,
+    required bool isActive,
+    double size = 32,
+  }) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: isCompleted ? 300 : 600),
+      tween: Tween<double>(
+        begin: 0.0,
+        end: isCompleted ? 1.0 : (isActive ? 0.6 : 0.0),
+      ),
+      builder: (context, animationValue, child) {
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: size > 25 ? 6 : 3),
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isCompleted 
+                ? Colors.green[600]
+                : (isActive 
+                    ? Colors.amber[400]?.withOpacity(0.3 + (animationValue * 0.7))
+                    : Colors.grey[300]),
+            boxShadow: isActive || isCompleted ? [
+              BoxShadow(
+                color: (isCompleted ? Colors.green[400]! : Colors.amber[400]!)
+                    .withOpacity(0.4 * animationValue),
+                blurRadius: 8 * animationValue,
+                spreadRadius: 2 * animationValue,
+              ),
+            ] : null,
+          ),
+          child: isCompleted 
+              ? Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: size * 0.6,
+                )
+              : (isActive 
+                  ? Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.amber[600]?.withOpacity(animationValue),
+                      ),
+                    )
+                  : null),
+        );
+      },
+    );
+  }
+
+  // Translation word cards for translation helper results
+  Widget _buildTranslationWordCards() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Word Breakdown:',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.teal[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _translationWordMappings.map((mapping) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.teal[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.teal[200]!),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Thai word
+                  Text(
+                    mapping['target'] ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal[800],
+                    ),
+                  ),
+                  // Romanization
+                  if (mapping['romanized']?.isNotEmpty == true)
+                    Text(
+                      mapping['romanized']!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.teal[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  // English meaning
+                  Text(
+                    mapping['english'] ?? '',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.teal[700],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // Toggle button for switching between expected and user response (kept for backwards compatibility)
+  Widget _buildResponseToggleButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildToggleOption('Expected', _showingExpectedMessage, () {
+            setState(() {
+              _showingExpectedMessage = true;
+            });
+          }),
+          _buildToggleOption('Your Try', !_showingExpectedMessage, () {
+            setState(() {
+              _showingExpectedMessage = false;
+            });
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleOption(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.blue[600] : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.grey[700],
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Expected response content (from translation helper)
+  Widget _buildExpectedResponseContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Thai text display
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Text(
+            _translatedText,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Word breakdown using existing translation mappings
+        if (_translationWordMappings.isNotEmpty)
+          _buildWordBreakdownCards(_translationWordMappings, isExpected: true),
+      ],
+    );
+  }
+
+  // User response content (from transcription)
+  Widget _buildUserResponseContent() {
+    if (_transcriptionResult == null) return const SizedBox();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Audio quality indicator and Thai text
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[300]!),
+                ),
+                child: Text(
+                  _transcriptionResult!.transcription.isNotEmpty 
+                      ? _transcriptionResult!.transcription
+                      : '(No transcription available)',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _transcriptionResult!.transcription.isNotEmpty 
+                        ? Colors.black87
+                        : Colors.grey[600],
+                    fontStyle: _transcriptionResult!.transcription.isNotEmpty 
+                        ? FontStyle.normal 
+                        : FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildCompactAudioQualityBadge(),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // Word breakdown from transcription
+        if (_transcriptionResult!.wordConfidence.isNotEmpty)
+          _buildWordBreakdownCards(_convertWordConfidenceToMappings(), isExpected: false),
+      ],
+    );
+  }
+
+  // Unified word breakdown cards (replaces separate word card methods)
+  Widget _buildWordBreakdownCards(List<Map<String, String>> mappings, {required bool isExpected}) {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: mappings.map((mapping) {
+        Color borderColor = isExpected ? Colors.teal[300]! : Colors.blue[300]!;
+        
+        // Apply quality color for transcription results
+        if (!isExpected && mapping.containsKey('confidence')) {
+          final confidence = double.tryParse(mapping['confidence'] ?? '0') ?? 0.0;
+          borderColor = _getAudioQualityColor(confidence);
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Thai text
+              Text(
+                mapping['target'] ?? mapping['thai'] ?? '',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              // Romanization
+              if ((mapping['romanized'] ?? mapping['romanization'] ?? '').isNotEmpty)
+                Text(
+                  mapping['romanized'] ?? mapping['romanization'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const SizedBox(height: 2),
+              // English translation
+              if ((mapping['english'] ?? mapping['translation'] ?? '').isNotEmpty)
+                Text(
+                  mapping['english'] ?? mapping['translation'] ?? '',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // STT Confidence-based word cards with color coding
+  Widget _buildSTTConfidenceWordCards(List<Map<String, String>> mappings, {required bool isReference}) {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: mappings.map((mapping) {
+        Color borderColor;
+        String? confidenceText;
+        
+        if (isReference) {
+          // Reference cards use neutral gray
+          borderColor = Colors.grey[400]!;
+        } else {
+          // STT confidence color coding
+          final confidence = double.tryParse(mapping['confidence'] ?? '0') ?? 0.0;
+          borderColor = _getSTTConfidenceColor(confidence);
+          confidenceText = '${(confidence * 100).round()}%';
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 3), // Thicker border for confidence
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Confidence indicator for STT results
+              if (!isReference && confidenceText != null) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Tooltip(
+                          message: 'Audio Confidence',
+                          child: Text(
+                            'AC',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: borderColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        _getConfidenceIcon(double.tryParse(mapping['confidence'] ?? '0') ?? 0.0),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      confidenceText,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: borderColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
+              
+              // Thai text
+              Text(
+                mapping['target'] ?? mapping['thai'] ?? '',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              
+              // Romanization
+              if ((mapping['romanized'] ?? mapping['romanization'] ?? '').isNotEmpty)
+                Text(
+                  mapping['romanized'] ?? mapping['romanization'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const SizedBox(height: 2),
+              
+              // English translation
+              if ((mapping['english'] ?? mapping['translation'] ?? '').isNotEmpty)
+                Text(
+                  mapping['english'] ?? mapping['translation'] ?? '',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Get STT confidence color based on percentage
+  Color _getSTTConfidenceColor(double confidence) {
+    if (confidence >= 0.85) return Colors.green[600]!;  // High confidence: Green (85-100%)
+    if (confidence >= 0.60) return Colors.orange[600]!; // Medium confidence: Yellow/Orange (60-84%)
+    return Colors.red[600]!;                            // Low confidence: Red (0-59%)
+  }
+
+  // Get confidence icon based on level
+  Widget _getConfidenceIcon(double confidence) {
+    if (confidence >= 0.85) return Icon(Icons.check_circle, color: Colors.green[600], size: 12);
+    if (confidence >= 0.60) return Icon(Icons.warning, color: Colors.orange[600], size: 12);
+    return Icon(Icons.error, color: Colors.red[600], size: 12);
+  }
+
+  // STT confidence badge for overall score
+  Widget _buildSTTConfidenceBadge(double confidence) {
+    final percentage = (confidence * 100).round();
+    final color = _getSTTConfidenceColor(confidence);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: 'Overall Audio Confidence',
+            child: Text(
+              'OAC',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _getConfidenceIcon(confidence),
+          const SizedBox(width: 4),
+          Text(
+            '$percentage%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // Translation section
+  Widget _buildTranslationSection(String translation, {required bool isReference}) {
+    if (translation.isEmpty) return const SizedBox();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isReference ? 'Translation:' : 'Detected Translation:',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isReference ? Colors.grey[600] : Colors.blue[600],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          translation,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[700],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Confidence warnings for low STT confidence words
+  Widget _buildConfidenceWarnings() {
+    if (_transcriptionResult == null) return const SizedBox();
+    
+    final lowConfidenceWords = _transcriptionResult!.wordConfidence
+        .where((word) => word.confidence < 0.60)
+        .toList();
+    
+    if (lowConfidenceWords.isEmpty) return const SizedBox();
+    
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.orange[300]!),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning, color: Colors.orange[600], size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Low STT confidence detected:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[700],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  lowConfidenceWords.map((w) => w.word).join(', '),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange[700],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Consider speaking more clearly and re-recording',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.orange[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods for translation
+
+  String _getExpectedTranslation() {
+    return _translationWordMappings
+        .map((mapping) => mapping['english'] ?? '')
+        .where((text) => text.isNotEmpty)
+        .join(' ');
+  }
+
+
+  // Compact audio quality badge (fixes overflow issues)
+  Widget _buildCompactAudioQualityBadge() {
+    if (_transcriptionResult == null) return const SizedBox();
+    
+    final quality = _transcriptionResult!.confidenceScore;
+    final percentage = (quality * 100).round();
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getAudioQualityColor(quality),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.bar_chart,
+            color: Colors.white,
+            size: 12,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$percentage%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Visual attempt progress lights
+  Widget _buildAttemptLights() {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(3, (index) {
+          final bool isCompleted = index < _sttAttemptCount;
+          final bool isActive = index == _sttAttemptCount && _isRecording;
+          
+          return _buildAnimatedProgressLight(
+            index: index,
+            isCompleted: isCompleted,
+            isActive: isActive,
+            size: 32,
+          );
+        }),
+      ),
+    );
+  }
+
+  // Simplified action buttons for Your Response panel
+  Widget _buildUnifiedActionButtons() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Your Response panel - shows transcription/translation results
+        _buildUserResponsePanel(),
+        
+        const SizedBox(height: 12),
+        
+        // PROMINENT TRANSLATION NOTIFICATION - positioned between Your Response and action buttons
+        if (_shouldShowTranslationPrompt && !_translationPromptDismissed)
+          _buildProminentTranslationNotification(),
+        
+        const SizedBox(height: 16),
+        
+        // Action buttons row
+        Row(
+          children: [
+            // Try Again button - left side, wider for text
+            Expanded(
+              flex: 2, // Make Try Again button wider
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _retrySTT();
+                },
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Try Again', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange[700],
+                  side: BorderSide(color: Colors.orange[400]!, width: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: Colors.orange[50],
+                  minimumSize: const Size(0, 48), // Ensure consistent height with Send Message button
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            // Send Message button - right side
+            Expanded(
+              flex: 3, // Balance with wider Try Again button
+              child: ElevatedButton(
+                onPressed: _transcriptionResult != null ? () {
+                  HapticFeedback.mediumImpact();
+                  _confirmAndSendToNPC(); // Send transcription result normally
+                } : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _transcriptionResult != null 
+                      ? Colors.green[600] // Green when ready to send
+                      : Colors.grey[400], // Grey when disabled
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                  shadowColor: (_sttAttemptCount >= _maxAttemptsBeforeFallback ? Colors.teal : Colors.green).withOpacity(0.3),
+                  minimumSize: const Size(0, 48), // Ensure consistent height with Try Again button
+                ),
+                child: Text(
+                  'Send Message',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Enhanced translation helper with instant preview
+  Widget _buildInlineTranslationHelper() {
+    // Add visual emphasis when translation prompt is shown
+    final bool shouldHighlight = _shouldShowTranslationPrompt && !_translationPromptDismissed;
+    
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween<double>(begin: 0.0, end: shouldHighlight ? 1.0 : 0.0),
+      builder: (context, pulseValue, child) {
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: shouldHighlight 
+                ? Colors.blue[50]?.withOpacity(0.7 + (0.3 * pulseValue))
+                : Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: shouldHighlight 
+                  ? Colors.blue[400]!.withOpacity(0.6 + (0.4 * pulseValue))
+                  : Theme.of(context).colorScheme.outline,
+              width: shouldHighlight ? 2.0 + (pulseValue * 1.0) : 1.0,
+            ),
+            boxShadow: shouldHighlight ? [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.2 * pulseValue),
+                blurRadius: 8 * pulseValue,
+                spreadRadius: 2 * pulseValue,
+              ),
+            ] : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+          Row(
+            children: [
+              Icon(Icons.translate, color: Colors.blue[700], size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Translation Helper',
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Input section
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _translationController,
+                  decoration: InputDecoration(
+                    hintText: 'Type in English...',
+                    hintStyle: const TextStyle(fontSize: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                  ),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+                  onChanged: (_) {
+                    // Clear previous translation when typing
+                    if (_translatedText.isNotEmpty) {
+                      setState(() {
+                        _translatedText = '';
+                        _translationWordMappings.clear();
+                        _translationAudioBase64 = '';
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isTranslating ? null : _translateText,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: _isTranslating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Translate', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          
+          // Translation Section
+          if (_translatedText.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildInstantPreview(),
+          ],
+          ],
+        ),
+      );
+    },
+    );
+  }
+
+  // Enhanced translation preview with improved mobile UX
+  Widget _buildInstantPreview() {
+    return Container(
+      padding: const EdgeInsets.all(16), // Larger padding for mobile
+      decoration: BoxDecoration(
+        color: Colors.teal[50],
+        borderRadius: BorderRadius.circular(12), // Larger border radius
+        border: Border.all(color: Colors.teal[300]!, width: 2), // More prominent border
+        // Add subtle shadow for depth
+        boxShadow: [
+          BoxShadow(
+            color: Colors.teal.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Enhanced preview header with better mobile interaction
+          Row(
+            children: [
+              Icon(Icons.preview, color: Colors.teal[700], size: 20), // Larger icon
+              const SizedBox(width: 8), // Increased spacing
+              Text(
+                'Translation',
+                style: TextStyle(
+                  color: Colors.teal[800],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15, // Larger text for mobile readability
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const Spacer(),
+              if (_translationAudioBase64.isNotEmpty)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick(); // Haptic feedback
+                      _playTranslationAudio();
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8), // Larger touch target
+                      child: Icon(
+                        Icons.volume_up, 
+                        color: Colors.teal[700], 
+                        size: 22, // Larger icon
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          
+          // Main Thai text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.teal[300]!),
+            ),
+            child: Text(
+              _translatedText,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal[900],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Word breakdown preview - wrapped layout
+          if (_translationWordMappings.isNotEmpty) ...[
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: _translationWordMappings.map((mapping) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.teal[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Thai text
+                      Text(
+                        mapping['target'] ?? '',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal[900],
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      // Romanization
+                      if ((mapping['romanized'] ?? '').isNotEmpty)
+                        Text(
+                          mapping['romanized'] ?? '',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.teal[700],
+                            fontStyle: FontStyle.italic,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(height: 2),
+                      // English meaning with model confidence indicator
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.analytics_outlined,
+                            size: 8,
+                            color: Colors.grey[500],
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            mapping['english'] ?? '',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+          
+          // Lights and Send button on same row
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Small animated attempt lights on left
+              Row(
+                children: List.generate(3, (index) {
+                  final bool isCompleted = index < _sttAttemptCount;
+                  final bool isActive = index == _sttAttemptCount && _isRecording;
+                  
+                  return _buildAnimatedProgressLight(
+                    index: index,
+                    isCompleted: isCompleted,
+                    isActive: isActive,
+                    size: 20,
+                  );
+                }),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Send Translation button on right
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _sttAttemptCount >= _maxAttemptsBeforeFallback ? () {
+                    HapticFeedback.mediumImpact();
+                    _sendTranslationToNPC(); // Send translation after 3 attempts
+                  } : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _sttAttemptCount >= _maxAttemptsBeforeFallback 
+                        ? Colors.green[600] // Green when ready to send translation (same as Send Message)
+                        : Colors.grey[700], // Solid grey for better visibility
+                    disabledBackgroundColor: Colors.grey[700], // Force grey when disabled
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color: _sttAttemptCount >= _maxAttemptsBeforeFallback 
+                            ? Colors.green[700]! 
+                            : Colors.grey[600]!, 
+                        width: 1,
+                      ),
+                    ),
+                    elevation: _sttAttemptCount >= _maxAttemptsBeforeFallback ? 2 : 1,
+                    minimumSize: const Size(0, 40),
+                  ),
+                  child: Text(
+                    'Send Translation',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+
+
+  // Helper method for NPC reference section
+  Widget _buildNpcReferenceSection() {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: () {
+          // Base height calculation using screen height for better responsiveness
+          final screenHeight = MediaQuery.of(context).size.height;
+          final baseHeight = screenHeight * 0.3; // 30% of screen height as base
+          
+          if (_showNpcEnglishTranslation && _showNpcWordAnalysis) {
+            return math.min(baseHeight * 1.5, 700.0).toDouble(); // Both features - up to 700px max
+          } else if (_showNpcEnglishTranslation || _showNpcWordAnalysis) {
+            return math.min(baseHeight * 1.2, 500.0).toDouble(); // One feature - up to 500px max
+          } else {
+            return math.min(baseHeight * 0.8, 250.0).toDouble(); // No features - up to 250px max
+          }
+        }(),
+      ),
+      padding: const EdgeInsets.all(12), // Reduced from 16
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Title on its own row
           Text(
             '🗣️ ${widget.npcData.name}\'s Message:',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -779,23 +2534,29 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           // Conditional English translation
           if (_showNpcEnglishTranslation && widget.npcMessageEnglish.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10), // Reduced from 12
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Text(
-                widget.npcMessageEnglish,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.blue[800],
-                  fontStyle: FontStyle.italic,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 150),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(10), // Reduced from 12
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  ),
+                  child: Text(
+                    widget.npcMessageEnglish,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -878,11 +2639,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
-                  style: const TextStyle(
-                    color: Colors.black87,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -926,6 +2687,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   // Helper method for displaying translation results
   Widget _buildTranslationDisplaySection() {
+    print("=== DISPLAY DEBUG ===");
+    print("_translationWordMappings.length: ${_translationWordMappings.length}");
+    print("_translationWordMappings.isEmpty: ${_translationWordMappings.isEmpty}");
+    print("Will show word cards: ${_translationWordMappings.isNotEmpty}");
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -946,13 +2712,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 onPressed: _playTranslationAudio,
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
-                tooltip: 'Play pronunciation',
+                tooltip: 'Play audio',
               ),
           ],
         ),
         const SizedBox(height: 12),
         
-        // Word mapping cards or simple text display
+        // Word mapping cards or simple text display  
         if (_translationWordMappings.isNotEmpty) ...[
           Wrap(
             spacing: 8.0,
@@ -1017,7 +2783,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           if (_romanizedText.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Pronunciation: $_romanizedText',
+              'Romanization: $_romanizedText',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.teal[700],
                 fontStyle: FontStyle.italic,
@@ -1036,7 +2802,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       children: [
         // Microphone button or recording state
         if (_modalState == NPCResponseModalState.initial)
-          _buildMicrophoneButton()
+          Center(child: _buildMicrophoneButton())
         else if (_modalState == NPCResponseModalState.recording)
           _buildRecordingContent()
         else if (_modalState == NPCResponseModalState.processing)
@@ -1047,22 +2813,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     );
   }
 
-  Widget _buildContent() {
-    switch (_modalState) {
-      case NPCResponseModalState.initial:
-        return _buildInitialContent();
-      case NPCResponseModalState.recording:
-        return _buildRecordingContent();
-      case NPCResponseModalState.processing:
-        return _buildProcessingContent();
-      case NPCResponseModalState.results:
-        return _buildResultsContent();
-      case NPCResponseModalState.practice:
-        return _buildPracticeContent();
-      case NPCResponseModalState.sending:
-        return _buildSendingContent();
-    }
-  }
 
   Widget _buildInitialContent() {
     return Padding(
@@ -1076,7 +2826,19 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           // NPC Message Reference
           Container(
             constraints: BoxConstraints(
-              maxHeight: (_showNpcEnglishTranslation || _showNpcWordAnalysis) ? 300 : 150,
+              maxHeight: () {
+                // Base height calculation using screen height for better responsiveness
+                final screenHeight = MediaQuery.of(context).size.height;
+                final baseHeight = screenHeight * 0.3; // 30% of screen height as base
+                
+                if (_showNpcEnglishTranslation && _showNpcWordAnalysis) {
+                  return math.min(baseHeight * 1.5, 700.0).toDouble(); // Both features - up to 700px max
+                } else if (_showNpcEnglishTranslation || _showNpcWordAnalysis) {
+                  return math.min(baseHeight * 1.2, 500.0).toDouble(); // One feature - up to 500px max
+                } else {
+                  return math.min(baseHeight * 0.8, 250.0).toDouble(); // No features - up to 250px max
+                }
+              }(),
             ),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -1107,33 +2869,38 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 _buildNpcMessageWithAnalysis(),
                 if (_showNpcEnglishTranslation && widget.npcMessageEnglish.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'English Translation:',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.blue[700],
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 150),
+                    child: SingleChildScrollView(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue[200]!),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.npcMessageEnglish,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue[800],
-                            fontStyle: FontStyle.italic,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'English Translation:',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.npcMessageEnglish,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.blue[800],
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
@@ -1141,9 +2908,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             ),
             ),
           ),
-          const SizedBox(height: 20),
-          // Translation Helper Section
-          _buildTranslationHelper(),
           const SizedBox(height: 20),
           // Dynamic Instructions
           Text(
@@ -1166,135 +2930,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     );
   }
 
-  Widget _buildTranslationHelper() {
-    return Card(
-      margin: const EdgeInsets.all(0),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(
-          color: _showTranslationHelper ? Colors.blue[300]! : Colors.grey[300]!,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          // Compact toggle header
-          Material(
-            color: _showTranslationHelper ? Colors.blue[50] : Colors.grey[50],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            child: InkWell(
-              onTap: _toggleTranslationHelper,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.translate,
-                      size: 18,
-                      color: _showTranslationHelper ? Colors.blue[700] : Colors.grey[600],
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Need help? Tap to translate',
-                        style: TextStyle(
-                          color: _showTranslationHelper ? Colors.blue[800] : Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      _showTranslationHelper ? Icons.expand_less : Icons.expand_more,
-                      color: _showTranslationHelper ? Colors.blue[700] : Colors.grey[600],
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          // Expandable content
-          if (_showTranslationHelper)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50]?.withOpacity(0.3),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Compact input section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: TextField(
-                            controller: _translationController,
-                            decoration: const InputDecoration(
-                              hintText: 'Type in English...',
-                              hintStyle: TextStyle(fontSize: 14),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            maxLines: 1,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 36,
-                        child: ElevatedButton(
-                          onPressed: _isTranslating ? null : _translateText,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[600],
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isTranslating
-                              ? const SizedBox(
-                                  width: 12,
-                                  height: 12,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text(
-                                  'Go',
-                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Compact translation results
-                  if (_translatedText.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    _buildCompactTranslationResults(),
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMicrophoneButton() {
     return GestureDetector(
@@ -1339,73 +2974,10 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   Widget _buildRecordingContent() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 80), // Extra bottom padding to avoid close button
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Show translation reference if available
-          if (_translatedText.isNotEmpty) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue[300]!, width: 1.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Reference Translation:',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.blue[900],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _translatedText,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  if (_romanizedText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _romanizedText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                  // Audio replay button
-                  if (_translationAudioBase64.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        onPressed: _playTranslationAudio,
-                        icon: const Icon(Icons.volume_up, size: 20),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.blue[100],
-                          foregroundColor: Colors.blue[700],
-                          padding: const EdgeInsets.all(8),
-                          minimumSize: const Size(36, 36),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-          
           // Recording indicator
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1432,17 +3004,22 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           const SizedBox(height: 20),
           // Waveform visualization
           _buildWaveform(),
-          const SizedBox(height: 20),
-          // Stop button
-          _buildMicrophoneButton(),
-          const SizedBox(height: 15),
-          Text(
-            'Tap to stop recording',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[800],
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 30), // Increased spacing
+          // Stop button (centered) with extra visual emphasis
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(50),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.3),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
+            child: _buildMicrophoneButton(),
           ),
+          const SizedBox(height: 25),
         ],
       ),
     );
@@ -1470,18 +3047,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   }
 
   Widget _buildProcessingContent() {
-    return const Padding(
-      padding: EdgeInsets.all(40),
+    return Padding(
+      padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 20),
-          Text(
+          const CircularProgressIndicator(),
+          const SizedBox(height: 20),
+          const Text(
             'Processing your speech...',
             style: TextStyle(fontSize: 16),
           ),
-          SizedBox(height: 10),
-          Text(
+          const SizedBox(height: 10),
+          const Text(
             'This may take a few seconds',
             style: TextStyle(
               fontSize: 14,
@@ -1494,128 +3071,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   }
 
   Widget _buildResultsContent() {
-    if (_transcriptionResult == null) return const SizedBox();
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Condensed header with score and actions
-          _buildCondensedHeader(),
-          const SizedBox(height: 16),
-          
-          // Streamlined word display
-          _buildStreamlinedWordDisplay(),
-          const SizedBox(height: 16),
-          
-          // Contextual tips section
-          _buildContextualTips(),
-          const SizedBox(height: 16),
-          
-          // Inline action buttons for recording page
-          if (_currentPage == NPCResponseModalPage.recording)
-            _buildInlineActionButtons(),
-        ],
-      ),
-    );
+    // Results are now handled in the unified interface
+    return const SizedBox();
   }
 
-  // Inline action buttons for recording page results
-  Widget _buildInlineActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _playRecording,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Play'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue[700],
-              side: BorderSide(color: Colors.blue[300]!, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _retryRecording,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Try Again'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.orange[700],
-              side: BorderSide(color: Colors.orange[300]!, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildCondensedHeader() {
-    final score = _transcriptionResult!.pronunciationScore;
-    final percentage = (score * 100).round();
-    
-    Color scoreColor;
-    if (score >= 0.7) {
-      scoreColor = Colors.green;
-    } else if (score >= 0.5) {
-      scoreColor = Colors.orange;
-    } else {
-      scoreColor = Colors.red;
-    }
 
-    return Row(
-      children: [
-        // Score indicator
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: scoreColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.mic, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                '$percentage%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  
+  
 
-  Widget _buildStreamlinedWordDisplay() {
-    final words = _transcriptionResult!.wordComparisons.isNotEmpty
-        ? _transcriptionResult!.wordComparisons
-        : _transcriptionResult!.wordConfidence.map((wc) => WordComparisonData(
-            word: wc.word,
-            confidence: wc.confidence,
-            expected: '',
-            matchType: 'no_reference',
-            similarity: wc.confidence,
-            startTime: wc.startTime,
-            endTime: wc.endTime,
-          )).toList();
 
+  // Expected Message Card (Optional) - shows translation helper result
+  Widget _buildOptionalExpectedMessageCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1626,145 +3093,53 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Text(
-            '📝 What you said:',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            'Expected Message (Optional)',
+            style: TextStyle(
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.grey[800],
             ),
           ),
-          const SizedBox(height: 12),
-          // Single line word display
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: words.map((word) {
-              final percentage = (word.confidence * 100).round();
-              Color dotColor;
-              if (word.confidence >= 0.7) {
-                dotColor = Colors.green;
-              } else if (word.confidence >= 0.5) {
-                dotColor = Colors.orange;
-              } else {
-                dotColor = Colors.red;
-              }
-
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    word.word,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    '$percentage%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 8),
-          // Romanization line
-          Text(
-            words.map((w) => _getWordRomanization(w.word)).join('  '),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontStyle: FontStyle.italic,
+          const SizedBox(height: 16),
+          
+          // Main translated text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Text(
+              _translatedText,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-          // Expected vs Got for errors
-          if (words.any((w) => w.expected.isNotEmpty && w.expected != w.word)) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: words
-                    .where((w) => w.expected.isNotEmpty && w.expected != w.word)
-                    .map((w) => Row(
-                          children: [
-                            const Icon(Icons.warning, size: 16, color: Colors.red),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Expected: ${w.expected} → Got: ${w.word}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ))
-                    .toList(),
-              ),
-            ),
-          ],
+          const SizedBox(height: 16),
+          
+          // Word breakdown cards
+          if (_translationWordMappings.isNotEmpty)
+            _buildWordMiniCards(_translationWordMappings, isExpected: true),
+          const SizedBox(height: 16),
+          
+          // Removed attempt lights and progressive send button - using simplified unified button approach
         ],
       ),
     );
   }
 
-  Widget _buildContextualTips() {
-    final words = _transcriptionResult!.wordComparisons.isNotEmpty
-        ? _transcriptionResult!.wordComparisons
-        : _transcriptionResult!.wordConfidence.map((wc) => WordComparisonData(
-            word: wc.word,
-            confidence: wc.confidence,
-            expected: '',
-            matchType: 'no_reference',
-            similarity: wc.confidence,
-            startTime: wc.startTime,
-            endTime: wc.endTime,
-          )).toList();
-
-    final tips = <String>[];
+  // Your Message Card - shows transcription result
+  Widget _buildYourMessageCard() {
+    if (_transcriptionResult == null) return const SizedBox();
     
-    for (final word in words) {
-      String tip = '';
-      final romanization = _getWordRomanization(word.word);
-      
-      if (word.confidence >= 0.8) {
-        tip = '• ${word.word}: Excellent pronunciation! 🎯';
-      } else if (word.confidence >= 0.6) {
-        tip = '• ${word.word}: Good job! Audio quality could be better 📱';
-      } else if (word.expected.isNotEmpty && word.expected != word.word) {
-        tip = '• ${word.word}: Try "${_getWordRomanization(word.expected)}" sound instead of "$romanization" 🔄';
-      } else if (word.confidence < 0.4) {
-        tip = '• ${word.word}: Practice the "$romanization" sound more clearly 🗣️';
-      } else {
-        tip = '• ${word.word}: Keep practicing the "$romanization" pronunciation 💪';
-      }
-      
-      if (tip.isNotEmpty) tips.add(tip);
-    }
-
-    if (tips.isEmpty) {
-      return const SizedBox();
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1775,224 +3150,78 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.lightbulb_outline, size: 16, color: Colors.blue),
-              SizedBox(width: 6),
-              Text(
-                'Quick tips:',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ..._generateSmartTips(words).map((tip) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              tip,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.blue[800],
-                height: 1.3,
-              ),
-            ),
-          )).toList(),
-        ],
-      ),
-    );
-  }
-  
-  List<String> _generateSmartTips(List<WordComparisonData> words) {
-    final tips = <String>[];
-    
-    // Categorize issues to provide consolidated advice
-    final lowConfidenceWords = words.where((w) => w.confidence < 0.5).toList();
-    final mediumConfidenceWords = words.where((w) => w.confidence >= 0.5 && w.confidence < 0.7).toList();
-    final mismatchedWords = words.where((w) => w.expected.isNotEmpty && w.expected != w.word).toList();
-    
-    // Provide consolidated tips rather than per-word repetition
-    if (mismatchedWords.isNotEmpty) {
-      if (mismatchedWords.length == 1) {
-        final word = mismatchedWords.first;
-        tips.add('🔄 Try pronouncing "${word.expected}" instead of "${word.word}"');
-      } else {
-        tips.add('🔄 ${mismatchedWords.length} words need pronunciation correction');
-      }
-    }
-    
-    if (lowConfidenceWords.isNotEmpty) {
-      if (lowConfidenceWords.length <= 2) {
-        tips.add('🗣️ Speak more clearly: ${lowConfidenceWords.map((w) => w.word).join(", ")}');
-      } else {
-        tips.add('🗣️ Try speaking more slowly and clearly overall');
-      }
-    }
-    
-    if (mediumConfidenceWords.isNotEmpty && mediumConfidenceWords.length <= 3) {
-      tips.add('💪 Almost there with: ${mediumConfidenceWords.map((w) => w.word).join(", ")}');
-    }
-    
-    // Audio quality suggestion if many words are borderline
-    final borderlineCount = words.where((w) => w.confidence >= 0.4 && w.confidence < 0.7).length;
-    if (borderlineCount >= words.length * 0.6) {
-      tips.add('📱 Check microphone position and reduce background noise');
-    }
-    
-    // Positive reinforcement
-    final goodWords = words.where((w) => w.confidence >= 0.8).toList();
-    if (goodWords.isNotEmpty && goodWords.length >= words.length * 0.4) {
-      tips.add('🎯 Great pronunciation overall! Keep it up');
-    }
-    
-    return tips.take(3).toList(); // Limit to 3 most important tips
-  }
-  
-  List<Widget> _buildFeedbackSections(List<WordComparisonData> goodWords, List<WordComparisonData> needsWorkWords, 
-                                      List<WordComparisonData> errorWords, List<WordComparisonData> poorWords) {
-    List<Widget> sections = [];
-    
-    // Only show sections that have content
-    if (errorWords.isNotEmpty) {
-      sections.add(_buildFeedbackSection(
-        'Corrections needed:', 
-        errorWords, 
-        Colors.red[100]!, 
-        Colors.red[700]!,
-        Icons.error_outline,
-        true // Show expected vs got
-      ));
-      sections.add(const SizedBox(height: 8));
-    }
-    
-    if (poorWords.isNotEmpty) {
-      sections.add(_buildFeedbackSection(
-        'Needs practice:', 
-        poorWords, 
-        Colors.orange[100]!, 
-        Colors.orange[700]!,
-        Icons.volume_up,
-        false
-      ));
-      sections.add(const SizedBox(height: 8));
-    }
-    
-    if (needsWorkWords.isNotEmpty) {
-      sections.add(_buildFeedbackSection(
-        'Almost there:', 
-        needsWorkWords, 
-        Colors.yellow[100]!, 
-        Colors.orange[600]!,
-        Icons.trending_up,
-        false
-      ));
-      sections.add(const SizedBox(height: 8));
-    }
-    
-    if (goodWords.isNotEmpty) {
-      sections.add(_buildFeedbackSection(
-        'Well done:', 
-        goodWords, 
-        Colors.green[100]!, 
-        Colors.green[700]!,
-        Icons.check_circle_outline,
-        false
-      ));
-    }
-    
-    return sections;
-  }
-  
-  Widget _buildFeedbackSection(String title, List<WordComparisonData> words, Color bgColor, Color textColor, IconData icon, bool showExpected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          // Header with audio quality
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: textColor),
-              const SizedBox(width: 4),
               Text(
-                title,
+                'Your Message',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[800],
                 ),
+              ),
+              const Spacer(),
+              _buildAudioQualityIndicator(),
+              const SizedBox(width: 12),
+              // Always active send button
+              ElevatedButton(
+                onPressed: _transcriptionResult != null ? _confirmAndSendToNPC : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Send'),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            runSpacing: 2,
-            children: words.map((word) {
-              final percentage = (word.confidence * 100).round();
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    word.word,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: textColor,
-                    ),
-                  ),
-                  if (!showExpected) ...[
-                    const SizedBox(width: 3),
-                    Text(
-                      '$percentage%',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: textColor.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                  if (showExpected && word.expected.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      '→ ${word.expected}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: textColor.withOpacity(0.8),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            }).toList(),
+          const SizedBox(height: 16),
+          
+          // Main transcription text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue[300]!),
+            ),
+            child: Text(
+              _transcriptionResult!.transcription.isNotEmpty 
+                  ? _transcriptionResult!.transcription
+                  : '(No transcription available - please try again)',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _transcriptionResult!.transcription.isNotEmpty 
+                    ? Colors.black87
+                    : Colors.grey[600],
+                fontStyle: _transcriptionResult!.transcription.isNotEmpty 
+                    ? FontStyle.normal 
+                    : FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Word breakdown cards from transcription
+          if (_transcriptionResult!.wordConfidence.isNotEmpty)
+            _buildWordMiniCards(_convertWordConfidenceToMappings(), isExpected: false),
+          const SizedBox(height: 12),
+          
+          // Educational note
+          Text(
+            'Note: Colors show audio transcription quality',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blue[700],
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSendButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _sendToNPC,
-        icon: const Icon(Icons.send, size: 18),
-        label: Text('Send to ${widget.npcData.name}'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
       ),
     );
   }
@@ -2029,706 +3258,131 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return romanizationMap[thaiWord] ?? thaiWord;
   }
 
-  Widget _buildPronunciationScore() {
-    final score = _transcriptionResult!.pronunciationScore;
-    final percentage = (score * 100).round();
-    
-    Color scoreColor;
-    String scoreLabel;
-    
-    if (score >= 0.9) {
-      scoreColor = Colors.green;
-      scoreLabel = 'Excellent!';
-    } else if (score >= 0.7) {
-      scoreColor = Colors.yellow.shade700;
-      scoreLabel = 'Good!';
-    } else if (score >= 0.5) {
-      scoreColor = Colors.orange;
-      scoreLabel = 'Keep practicing!';
-    } else {
-      scoreColor = Colors.red;
-      scoreLabel = 'Try again!';
-    }
+  // Removed _buildAttemptLights() method - no longer needed with simplified UI
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: scoreColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scoreColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: scoreColor,
-            ),
-            child: Center(
-              child: Text(
-                '$percentage%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pronunciation Score',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[700],
-                  ),
-                ),
-                Text(
-                  scoreLabel,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: scoreColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Removed _buildProgressiveSendButton() method - replaced with unified button logic
 
-  Widget _buildTranscriptionDisplay() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'What you said:',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[800],
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10.0,
-            runSpacing: 12.0,
-            alignment: WrapAlignment.center,
-            children: _transcriptionResult!.wordComparisons.isNotEmpty
-                ? _transcriptionResult!.wordComparisons.map((wordComp) {
-                    // Create WordConfidence object for compatibility with existing card
-                    final wordConf = WordConfidence(
-                      word: wordComp.word,
-                      confidence: wordComp.confidence,
-                      startTime: wordComp.startTime,
-                      endTime: wordComp.endTime,
-                      transliteration: '',  // Word comparison data doesn't include these fields
-                      translation: '',
-                    );
-                    return _buildWordConfidenceCard(wordConf, expectedWord: wordComp.expected);
-                  }).toList()
-                : _transcriptionResult!.wordConfidence.map((wordConf) {
-                    // Fallback to basic word confidence if no comparison data
-                    return _buildWordConfidenceCard(wordConf);
-                  }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildWordConfidenceCard(WordConfidence wordConf, {String expectedWord = ""}) {
-    // Use real transliteration and translation from backend
-    final transliteration = wordConf.transliteration;
-    final translation = wordConf.translation;
+  // Audio quality indicator - shows transcription confidence as "audio quality"
+  Widget _buildAudioQualityIndicator() {
+    if (_transcriptionResult == null) return const SizedBox();
     
-    // Get smart color and status based on confidence and expected vs actual comparison
-    final colorAndStatus = _getWordColorAndStatus(wordConf.confidence, expectedWord, wordConf.word);
-    final Color cardColor = colorAndStatus['color'];
-    final String status = colorAndStatus['status'];
-    final String matchType = colorAndStatus['matchType'];
-    final String contextMessage = colorAndStatus['contextMessage'];
-    final bool isAudioIssue = colorAndStatus['isAudioIssue'] ?? false;
-    
-    // Determine if we should show expected vs actual comparison
-    final bool showComparison = expectedWord.isNotEmpty && expectedWord != wordConf.word;
+    final quality = _transcriptionResult!.confidenceScore;
+    final percentage = (quality * 100).round();
     
     return Container(
-      constraints: const BoxConstraints(minWidth: 95, maxWidth: 140),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _getAudioQualityColor(quality),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cardColor.withOpacity(0.8),
-          width: 2.5,
+      ),
+      child: Text(
+        'Audio Quality: $percentage%',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: cardColor.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Enhanced confidence badge with smart indicators
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${(wordConf.confidence * 100).round()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  matchType == "exact" ? Icons.check_circle :
-                  matchType == "close" ? Icons.check_circle_outline :
-                  matchType == "partial" ? Icons.help_outline :
-                  matchType == "no_reference" ? Icons.mic :
-                  Icons.cancel_outlined,
-                  size: 13,
-                  color: Colors.white,
-                ),
-              ],
-            ),
+    );
+  }
+
+  // Get color for audio quality (not pronunciation)
+  Color _getAudioQualityColor(double quality) {
+    if (quality >= 0.8) return Colors.green;
+    if (quality >= 0.6) return Colors.orange;
+    return Colors.red;
+  }
+
+  // Word mini-cards component for both expected and actual messages
+  Widget _buildWordMiniCards(List<Map<String, String>> mappings, {required bool isExpected}) {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: mappings.map((mapping) {
+        Color cardColor = isExpected ? Colors.white : Colors.white;
+        Color borderColor = isExpected ? Colors.grey[300]! : Colors.blue[300]!;
+        
+        // For transcription results, apply quality color
+        if (!isExpected && mapping.containsKey('confidence')) {
+          final confidence = double.tryParse(mapping['confidence'] ?? '0') ?? 0.0;
+          borderColor = _getAudioQualityColor(confidence);
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 2),
           ),
-          const SizedBox(height: 10),
-          
-          // Expected vs Actual comparison (enhanced design)
-          if (showComparison) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: matchType == "exact" ? Colors.blue.shade50 : Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: matchType == "exact" ? Colors.blue.shade200 : Colors.red.shade200, 
-                  width: 1
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        matchType == "exact" ? Icons.check_circle : Icons.compare_arrows,
-                        size: 12,
-                        color: matchType == "exact" ? Colors.blue.shade600 : Colors.red.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        matchType == "exact" ? 'Perfect!' : 'Expected vs Got',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: matchType == "exact" ? Colors.blue.shade700 : Colors.red.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (matchType != "exact") ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      '$expectedWord → ${wordConf.word}',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.red.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          
-          // Thai word (prominent display)
-          Text(
-            wordConf.word,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: cardColor.withOpacity(0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          if (transliteration.isNotEmpty) ...[
-            const SizedBox(height: 5),
-            Text(
-              transliteration,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          
-          if (translation.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              translation,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          
-          const SizedBox(height: 8),
-          
-          // Smart status with context message
-          Column(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Thai text (larger, bold)
               Text(
-                status,
+                mapping['target'] ?? mapping['thai'] ?? '',
                 style: TextStyle(
-                  fontSize: 10,
-                  color: cardColor,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
                 ),
-                textAlign: TextAlign.center,
               ),
-              if (contextMessage.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isAudioIssue) 
-                      Icon(
-                        Icons.mic_external_off,
-                        size: 10,
-                        color: Colors.amber.shade700,
-                      ),
-                    if (isAudioIssue) const SizedBox(width: 2),
-                    Flexible(
-                      child: Text(
-                        contextMessage,
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 4),
+              // Romanization (smaller, italic)
+              if ((mapping['romanized'] ?? mapping['romanization'] ?? '').isNotEmpty)
+                Text(
+                  mapping['romanized'] ?? mapping['romanization'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
-              ],
+              const SizedBox(height: 2),
+              // English translation (smallest, gray)
+              if ((mapping['english'] ?? mapping['translation'] ?? '').isNotEmpty)
+                Text(
+                  mapping['english'] ?? mapping['translation'] ?? '',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[500],
+                  ),
+                ),
             ],
           ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
+
+  // Convert WordConfidence to mappings format for consistency
+  List<Map<String, String>> _convertWordConfidenceToMappings() {
+    if (_transcriptionResult == null) return [];
+    
+    return _transcriptionResult!.wordConfidence.map((word) {
+      return {
+        'thai': word.word,
+        'romanization': word.transliteration.isNotEmpty 
+            ? word.transliteration 
+            : _getWordRomanization(word.word),
+        'translation': word.translation,
+        'confidence': word.confidence.toString(),
+      };
+    }).toList();
+  }
+
+
+  
   
 
-  /// Smart color and status determination that distinguishes STT confidence from pronunciation quality
-  Map<String, dynamic> _getWordColorAndStatus(double confidence, String expectedWord, String actualWord) {
-    // Add debugging
-    print('DEBUG: Smart analysis - confidence: ${(confidence * 100).round()}%, expected: "$expectedWord", actual: "$actualWord"');
-    
-    // Calculate similarity between expected and actual words
-    double similarity = 1.0;
-    String matchType = "no_reference";
-    
-    if (expectedWord.isNotEmpty && actualWord.isNotEmpty) {
-      // Enhanced similarity calculation
-      if (expectedWord == actualWord) {
-        similarity = 1.0;
-        matchType = "exact";
-      } else {
-        // Simple similarity based on common characters
-        final expected = expectedWord.toLowerCase();
-        final actual = actualWord.toLowerCase();
-        final maxLength = [expected.length, actual.length].reduce((a, b) => a > b ? a : b);
-        int commonChars = 0;
-        
-        for (int i = 0; i < [expected.length, actual.length].reduce((a, b) => a < b ? a : b); i++) {
-          if (i < expected.length && i < actual.length && expected[i] == actual[i]) {
-            commonChars++;
-          }
-        }
-        
-        similarity = commonChars / maxLength;
-        
-        if (similarity >= 0.8) {
-          matchType = "close";
-        } else if (similarity >= 0.5) {
-          matchType = "partial";
-        } else {
-          matchType = "mismatch";
-        }
-      }
-    } else if (expectedWord.isEmpty) {
-      matchType = "no_reference";
-      similarity = confidence;
-    }
 
-    // SMART COLOR LOGIC: Distinguish technical issues from pronunciation errors
-    Color color;
-    String status;
-    String contextMessage = "";
-    
-    if (expectedWord.isNotEmpty) {
-      // CASE 1: Perfect word match - reward success regardless of audio quality
-      if (matchType == "exact") {
-        if (confidence >= 0.7) {
-          color = Colors.green;
-          status = "Perfect Match";
-          contextMessage = "Excellent pronunciation!";
-        } else if (confidence >= 0.5) {
-          color = Colors.blue;
-          status = "Good Match";
-          contextMessage = "Correct word - audio quality could be better";
-        } else if (confidence >= 0.3) {
-          color = Colors.amber.shade600;
-          status = "Match Despite Poor Audio";
-          contextMessage = "Right word! Check microphone setup";
-        } else {
-          color = Colors.orange.shade700;
-          status = "Match But Check Audio";
-          contextMessage = "Correct pronunciation - improve audio quality";
-        }
-      }
-      // CASE 2: Close pronunciation match
-      else if (matchType == "close") {
-        if (confidence >= 0.6) {
-          color = Colors.lightGreen;
-          status = "Very Close";
-          contextMessage = "Almost perfect pronunciation";
-        } else {
-          color = Colors.amber.shade600;
-          status = "Close Attempt";
-          contextMessage = "Good try - practice a bit more";
-        }
-      }
-      // CASE 3: Partial match - needs pronunciation work
-      else if (matchType == "partial") {
-        color = Colors.orange.shade600;
-        status = "Needs Practice";
-        contextMessage = "Keep practicing this word";
-      }
-      // CASE 4: Poor match - clear pronunciation error
-      else {
-        color = Colors.red;
-        status = "Pronunciation Error";
-        contextMessage = "Try pronouncing this word again";
-      }
-    } else {
-      // No expected text - use confidence-based coloring (STT quality)
-      if (confidence >= 0.9) {
-        color = Colors.green;
-        status = "Excellent";
-        contextMessage = "Clear speech recognition";
-      } else if (confidence >= 0.7) {
-        color = Colors.lightGreen;
-        status = "Good";
-        contextMessage = "Good speech quality";
-      } else if (confidence >= 0.5) {
-        color = Colors.orange.shade600;
-        status = "Fair";
-        contextMessage = "Moderate speech quality";
-      } else if (confidence >= 0.3) {
-        color = Colors.orange.shade800;
-        status = "Poor Quality";
-        contextMessage = "Check audio setup";
-      } else {
-        color = Colors.red;
-        status = "Very Poor";
-        contextMessage = "Audio quality issue";
-      }
-    }
-    
-    print('DEBUG: Smart result - color: $color, status: $status, context: $contextMessage');
-    
-    return {
-      'color': color,
-      'status': status,
-      'matchType': matchType,
-      'similarity': similarity,
-      'contextMessage': contextMessage,
-      'isAudioIssue': matchType == "exact" && confidence < 0.7, // Flag audio vs pronunciation issues
-    };
-  }
 
-  Widget _buildFullTranslationSection() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.translate,
-                size: 18,
-                color: Colors.blue[700],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Full Translation',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.blue[700],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // English Translation
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue[100]!),
-            ),
-            child: Text(
-              _transcriptionResult!.translation.isNotEmpty 
-                  ? _transcriptionResult!.translation
-                  : 'Translation not available',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.blue[800],
-                fontSize: 16,
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Pronunciation Guide
-          if (_transcriptionResult!.romanization.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.record_voice_over,
-                  size: 16,
-                  color: Colors.purple[600],
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Pronunciation Guide:',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.purple[700],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.purple[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.purple[100]!),
-              ),
-              child: Text(
-                _transcriptionResult!.romanization,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.purple[800],
-                  fontStyle: FontStyle.italic,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
-  Widget _buildPracticeContent() {
-    return const Padding(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Icon(Icons.fitness_center, size: 64, color: Colors.blue),
-          SizedBox(height: 20),
-          Text(
-            'Practice Mode',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'Practice as much as you want without affecting your conversation progress.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSendingContent() {
-    return const Padding(
-      padding: EdgeInsets.all(40),
-      child: Column(
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 20),
-          Text(
-            'Sending to NPC...',
-            style: TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
+  // Removed _buildActions() method - using header back button instead
 
-  Widget _buildActions() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-      ),
-      child: _buildActionButtons(),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    if (_currentPage == NPCResponseModalPage.translation) {
-      // Page 1: Translation helper page
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _goToRecordingPage,
-          icon: const Icon(Icons.mic),
-          label: const Text('Record Response'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue[600],
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 2,
-          ),
-        ),
-      );
-    } else {
-      // Page 2: Recording page - different buttons based on modal state
-      switch (_modalState) {
-        case NPCResponseModalState.initial:
-        case NPCResponseModalState.recording:
-        case NPCResponseModalState.processing:
-          // Show back button only
-          return OutlinedButton.icon(
-            onPressed: _goToTranslationPage,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Back'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.grey[700],
-              side: BorderSide(color: Colors.grey[300]!, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
-        
-        case NPCResponseModalState.results:
-          // Show back button and send to NPC
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _goToTranslationPage,
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Back'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey[700],
-                        side: BorderSide(color: Colors.grey[300]!, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _sendToNPC,
-                  icon: const Icon(Icons.send),
-                  label: Text('Send to ${widget.npcData.name}'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[600],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-            ],
-          );
-        
-        case NPCResponseModalState.practice:
-        case NPCResponseModalState.sending:
-          return const SizedBox();
-      }
-    }
-  }
+  // Removed _buildActionButtons() method - redundant close button, using header back button instead
   
   Widget _buildNpcMessageToggleBar() {
     return Container(
@@ -2753,7 +3407,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             _buildIntegratedControlButton(
               icon: Icons.volume_up,
               onTap: _playNpcAudio,
-              enabled: true,
+              enabled: widget.npcAudioPath != null || widget.npcAudioBytes != null,
             ),
             _buildIntegratedToggleButton(
               text: "EN",
@@ -2843,243 +3497,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     );
   }
   
-  Widget _buildCompactTranslationResults() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with audio button
-          Row(
-            children: [
-              const Icon(Icons.translate, size: 14, color: Colors.teal),
-              const SizedBox(width: 4),
-              const Text(
-                'Translation:',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.teal,
-                ),
-              ),
-              const Spacer(),
-              if (_translationAudioBase64.isNotEmpty)
-                InkWell(
-                  onTap: _playTranslationAudio,
-                  borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
-                    child: Icon(Icons.volume_up, size: 16, color: Colors.teal),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          
-          // Compact word mapping
-          if (_translationWordMappings.isNotEmpty)
-            _buildCompactWordMappings()
-          else
-            Text(
-              _translatedText,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildCompactWordMappings() {
-    // Group words into rows for better space utilization
-    final chunks = <List<Map<String, String>>>[];
-    final chunkSize = 3; // 3 words per row
-    
-    for (int i = 0; i < _translationWordMappings.length; i += chunkSize) {
-      chunks.add(_translationWordMappings.sublist(
-        i, 
-        math.min(i + chunkSize, _translationWordMappings.length)
-      ));
-    }
-    
-    return Column(
-      children: chunks.map((chunk) => 
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: chunk.map((mapping) => 
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.teal[50],
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.teal[200]!, width: 0.5),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        mapping['target'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.teal,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        mapping['romanized'] ?? '',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.teal[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        mapping['english'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: Colors.grey,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            ).toList(),
-          ),
-        )
-      ).toList(),
-    );
-  }
   
   // Keep the original method for backward compatibility
-  Widget _buildTranslationResults() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.teal[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.teal[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Translation:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal[800],
-                ),
-              ),
-              if (_translationAudioBase64.isNotEmpty)
-                IconButton(
-                  icon: Icon(Icons.volume_up, color: Colors.teal[700]),
-                  onPressed: _playTranslationAudio,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  tooltip: 'Play pronunciation',
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // Word mapping cards
-          if (_translationWordMappings.isNotEmpty) ...[
-            Wrap(
-              spacing: 8.0,
-              runSpacing: 6.0,
-              children: _translationWordMappings.map((mapping) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.teal.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Thai text
-                      Text(
-                        mapping['target'] ?? '',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.teal[900],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      // Romanization
-                      if ((mapping['romanized'] ?? '').isNotEmpty)
-                        Text(
-                          mapping['romanized'] ?? '',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.teal[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      const SizedBox(height: 2),
-                      // English meaning
-                      Text(
-                        mapping['english'] ?? '',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blueGrey[700],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ] else ...[
-            // Fallback to simple text display
-            Text(
-              _translatedText,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.teal[900],
-                fontWeight: FontWeight.w600,
-                fontSize: 17,
-              ),
-            ),
-            if (_romanizedText.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Pronunciation: $_romanizedText',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.teal[700],
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
   
   // Helper method to display NPC message with conditional word analysis (like dialogue_overlay.dart)
   Widget _buildNpcMessageWithAnalysis() {
@@ -3134,7 +3553,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       }).toList();
       
       return ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 200),
+        constraints: const BoxConstraints(maxHeight: 450), // Increased from 300 to 450
         child: SingleChildScrollView(
           child: Wrap(
             spacing: 4.0,
@@ -3145,12 +3564,49 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       );
     } else {
       // Show plain text when analysis is disabled or no mappings available
-      return Text(
-        widget.npcMessage,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: Colors.black87,
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 450), // Increased for consistency
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.npcMessage,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+              // Show helpful message when word analysis is toggled but no data available
+              if (_showNpcWordAnalysis && (widget.npcPosMappings == null || widget.npcPosMappings!.isEmpty)) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.amber[700]),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Word analysis not available for this message',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.amber[700],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       );
     }

@@ -2,6 +2,7 @@ import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
+import 'package:babblelon/screens/stt_comparison_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
@@ -178,6 +179,23 @@ class MainMenuScreen extends ConsumerWidget {
                   foregroundColor: Colors.black,
                 ),
                 child: const Text('Test Character Tracing'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  ref.playButtonSound();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const STTComparisonScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('STT Service Comparison'),
               ),
             ],
           ),

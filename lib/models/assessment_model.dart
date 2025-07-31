@@ -144,4 +144,129 @@ class DamageCalculationBreakdown {
       finalDefenseReduction: json['final_defense_reduction']?.toDouble(),
     );
   }
+}
+
+/// Model for STT service comparison results
+class STTServiceResult {
+  final String serviceName;
+  final String transcription;
+  final String englishTranslation;
+  final double processingTime;
+  final double confidenceScore;
+  final double audioDuration;
+  final double realTimeFactor;
+  final int wordCount;
+  final double accuracyScore;
+  final String status;
+  final String? error;
+
+  STTServiceResult({
+    required this.serviceName,
+    required this.transcription,
+    required this.englishTranslation,
+    required this.processingTime,
+    required this.confidenceScore,
+    required this.audioDuration,
+    required this.realTimeFactor,
+    required this.wordCount,
+    required this.accuracyScore,
+    required this.status,
+    this.error,
+  });
+
+  factory STTServiceResult.fromJson(Map<String, dynamic> json) {
+    return STTServiceResult(
+      serviceName: json['service_name'] ?? 'Unknown',
+      transcription: json['transcription'] ?? '',
+      englishTranslation: json['english_translation'] ?? '',
+      processingTime: (json['processing_time'] ?? 0.0).toDouble(),
+      confidenceScore: (json['confidence_score'] ?? 0.0).toDouble(),
+      audioDuration: (json['audio_duration'] ?? 0.0).toDouble(),
+      realTimeFactor: (json['real_time_factor'] ?? 0.0).toDouble(),
+      wordCount: json['word_count'] ?? 0,
+      accuracyScore: (json['accuracy_score'] ?? 0.0).toDouble(),
+      status: json['status'] ?? 'unknown',
+      error: json['error'],
+    );
+  }
+}
+
+/// Model for parallel transcribe-translate response
+class ParallelTranslationResponse {
+  final STTServiceResult googleResult;
+  final STTServiceResult elevenLabsResult;
+  final String winnerService;
+  final double audioDuration;
+  final String status;
+  final String? error;
+
+  ParallelTranslationResponse({
+    required this.googleResult,
+    required this.elevenLabsResult,
+    required this.winnerService,
+    required this.audioDuration,
+    required this.status,
+    this.error,
+  });
+
+  factory ParallelTranslationResponse.fromJson(Map<String, dynamic> json) {
+    return ParallelTranslationResponse(
+      googleResult: STTServiceResult.fromJson(json['google_result'] ?? {}),
+      elevenLabsResult: STTServiceResult.fromJson(json['elevenlabs_result'] ?? {}),
+      winnerService: json['winner_service'] ?? 'none',
+      audioDuration: (json['audio_duration'] ?? 0.0).toDouble(),
+      status: json['status'] ?? 'unknown',
+      error: json['error'],
+    );
+  }
+}
+
+/// Model for three-way STT comparison response
+class ThreeWayTranscriptionResponse {
+  final STTServiceResult googleChirp2;
+  final STTServiceResult assemblyaiUniversal;
+  final STTServiceResult speechmaticsUrsa;
+  final String expectedText;
+  final Map<String, dynamic> processingSummary;
+  final String winnerService;
+  final Map<String, dynamic> performanceAnalysis;
+
+  ThreeWayTranscriptionResponse({
+    required this.googleChirp2,
+    required this.assemblyaiUniversal,
+    required this.speechmaticsUrsa,
+    required this.expectedText,
+    required this.processingSummary,
+    required this.winnerService,
+    required this.performanceAnalysis,
+  });
+
+  factory ThreeWayTranscriptionResponse.fromJson(Map<String, dynamic> json) {
+    return ThreeWayTranscriptionResponse(
+      googleChirp2: STTServiceResult.fromJson(json['google_chirp2'] ?? {}),
+      assemblyaiUniversal: STTServiceResult.fromJson(json['assemblyai_universal'] ?? {}),
+      speechmaticsUrsa: STTServiceResult.fromJson(json['speechmatics_ursa'] ?? {}),
+      expectedText: json['expected_text'] ?? '',
+      processingSummary: Map<String, dynamic>.from(json['processing_summary'] ?? {}),
+      winnerService: json['winner_service'] ?? 'none',
+      performanceAnalysis: Map<String, dynamic>.from(json['performance_analysis'] ?? {}),
+    );
+  }
+
+  /// Get all services as a list for easy iteration
+  List<STTServiceResult> get allServices => [googleChirp2, assemblyaiUniversal, speechmaticsUrsa];
+  
+  /// Get service by name for dynamic access
+  STTServiceResult? getServiceByName(String serviceName) {
+    switch (serviceName.toLowerCase()) {
+      case 'google chirp2':
+        return googleChirp2;
+      case 'assemblyai universal':
+        return assemblyaiUniversal;
+      case 'speechmatics ursa':
+        return speechmaticsUrsa;
+      default:
+        return null;
+    }
+  }
 } 

@@ -983,7 +983,14 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
         FlameAudio.bgm.pause();
       }
       
-      await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      await _practiceAudioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,  // Optimal for STT APIs
+          numChannels: 1,     // Mono
+        ), 
+        path: path
+      );
       
       _practiceRecordingState.value = RecordingState.recording;
       _lastPracticeRecordingPath.value = null;

@@ -218,7 +218,7 @@ def format_conversation_history(conversation_history: str, max_turns: int = 2) -
     return conversation_history
 
 def get_categories_by_npc(vocab_data: dict, npc_name: str = None) -> List[str]:
-    """Extract categories from vocabulary data, with ordering for Somchai"""
+    """Extract categories from vocabulary data, with ordering for Somchai and randomization for Amara"""
     if not vocab_data or 'vocabulary' not in vocab_data:
         return []
     
@@ -239,7 +239,13 @@ def get_categories_by_npc(vocab_data: dict, npc_name: str = None) -> List[str]:
                 ordered_categories.append(cat)
         return ordered_categories
     
-    # For Amara and others, return unordered list
+    # Apply randomization for Amara
+    elif npc_name == "Amara":
+        categories_list = list(categories)
+        random.shuffle(categories_list)
+        return categories_list
+    
+    # For other NPCs, return unordered list
     return list(categories)
 
 # --- Load prompts dynamically ---
