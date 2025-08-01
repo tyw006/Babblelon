@@ -220,20 +220,64 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     _scrollController = ScrollController();
     _initializeAnimations();
     
-    // Reset all modal state for fresh session
-    _resetAllState();
+    // Force complete state reset for fresh session - ensures total isolation from previous modal instances
+    _forceCompleteReset();
     
     // DEBUG: Log modal initialization
-    print('DEBUG: NPCResponseModal initialized with fresh state');
+    print('DEBUG: NPCResponseModal initialized with aggressive state reset');
     print('DEBUG: Initial NPC message: "${widget.npcMessage}"');
     print('DEBUG: Initial npcPosMappings passed to modal: ${widget.npcPosMappings?.length ?? 'null'}');
     if (widget.npcPosMappings?.isNotEmpty == true) {
       print('DEBUG: First POS mapping in modal - word: "${widget.npcPosMappings!.first.wordTarget}", pos: "${widget.npcPosMappings!.first.pos}"');
     }
-    print('DEBUG: Reset state - transcriptionResult: ${_transcriptionResult ?? 'null'}');
+    print('DEBUG: Complete reset applied - transcriptionResult: ${_transcriptionResult ?? 'null'}');
   }
 
-  // Centralized state reset method for consistency
+  // Aggressive complete reset method for modal initialization - ensures total state isolation
+  void _forceCompleteReset() {
+    print('DEBUG: _forceCompleteReset() - BEFORE reset:');
+    print('  - _modalState: $_modalState');
+    print('  - _transcriptionResult: ${_transcriptionResult != null ? "EXISTS" : "null"}');
+    print('  - _translatedText: "$_translatedText"');
+    print('  - _showTranslationHelper: $_showTranslationHelper');
+    print('  - _translationHelperWasUsed: $_translationHelperWasUsed');
+    print('  - _sttAttemptCount: $_sttAttemptCount');
+    
+    // Reset core modal state
+    _modalState = NPCResponseModalState.initial;
+    _transcriptionResult = null;
+    _sttAttemptCount = 0;
+    _audioPath = null;
+    _isRecording = false;
+    _isTranslating = false;
+    
+    // AGGRESSIVE RESET: Clear ALL translation helper state unconditionally
+    _showTranslationHelper = false;
+    _translatedText = '';
+    _romanizedText = '';
+    _translationAudioBase64 = '';
+    _translationWordMappings.clear();
+    _translationHelperWasUsed = false;
+    _userChoseDirectRecording = false;
+    
+    // Set user-initiated flag to bypass automatic state logic
+    _userInitiatedReset = true;
+    
+    // Reset translation helper fallback state
+    _shouldShowTranslationPrompt = false;
+    _translationPromptDismissed = false;
+    
+    print('DEBUG: _forceCompleteReset() - AFTER reset:');
+    print('  - _modalState: $_modalState');
+    print('  - _transcriptionResult: ${_transcriptionResult != null ? "EXISTS" : "null"}');
+    print('  - _translatedText: "$_translatedText"');
+    print('  - _showTranslationHelper: $_showTranslationHelper');
+    print('  - _translationHelperWasUsed: $_translationHelperWasUsed');
+    print('  - _userInitiatedReset: $_userInitiatedReset');
+    print('  - _sttAttemptCount: $_sttAttemptCount');
+  }
+
+  // Centralized state reset method for consistency (preserves existing behavior for Try Again)
   void _resetAllState() {
     print('DEBUG: _resetAllState() - BEFORE reset:');
     print('  - _modalState: $_modalState');
@@ -3362,11 +3406,17 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     
     return _transcriptionResult!.wordConfidence.map((word) {
       return {
-        'thai': word.word,
+        // Use keys that match _buildWordBreakdownCards expectations
+        'target': word.word,                    // Thai text (primary display)
+        'thai': word.word,                      // Thai text (fallback)
+        'romanized': word.transliteration.isNotEmpty 
+            ? word.transliteration 
+            : _getWordRomanization(word.word),  // Romanization (secondary display)
         'romanization': word.transliteration.isNotEmpty 
             ? word.transliteration 
-            : _getWordRomanization(word.word),
-        'translation': word.translation,
+            : _getWordRomanization(word.word),  // Romanization (fallback)
+        'english': word.translation,            // English translation (tertiary display)
+        'translation': word.translation,        // English translation (fallback)
         'confidence': word.confidence.toString(),
       };
     }).toList();

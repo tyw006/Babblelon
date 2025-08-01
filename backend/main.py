@@ -305,6 +305,7 @@ async def generate_npc_response_endpoint(
         # The JSON data part of the response needs to be base64 encoded to be sent in a header.
         response_data_dict = {
             "input_target": npc_response_data.input_target,
+            "input_english": npc_response_data.input_english,
             "emotion": npc_response_data.emotion,
             "response_tone": npc_response_data.response_tone,
             "response_target": npc_response_data.response_target,
@@ -479,6 +480,7 @@ async def transcribe_and_translate_endpoint(
         if stt_result.word_confidence:
             # Extract just the words for parallel processing
             words_to_process = [word["word"] for word in stt_result.word_confidence]
+            print(f"[{datetime.datetime.now()}] DEBUG: Starting word-level processing for {len(words_to_process)} words: {words_to_process}")
             
             # Create parallel tasks for romanization and translation
             tasks = []
@@ -489,21 +491,26 @@ async def transcribe_and_translate_endpoint(
                     romanize_target_text(word, source_language) for word in words_to_process
                 ]
                 tasks.extend(romanization_tasks)
+                print(f"[{datetime.datetime.now()}] DEBUG: Added {len(romanization_tasks)} romanization tasks")
             
             # Add translation tasks for each word
             if words_to_process:
                 translation_tasks = [
-                    translate_text(word, source_language, target_language) for word in words_to_process
+                    translate_text(word, target_language, source_language) for word in words_to_process
                 ]
                 if source_language in ["tha", "th"]:
                     tasks.extend(translation_tasks)
+                    print(f"[{datetime.datetime.now()}] DEBUG: Added {len(translation_tasks)} translation tasks (total tasks: {len(tasks)})")
                 else:
                     tasks = translation_tasks
+                    print(f"[{datetime.datetime.now()}] DEBUG: Using only translation tasks: {len(tasks)}")
             
             # Execute all tasks in parallel
             if tasks:
                 import asyncio
+                print(f"[{datetime.datetime.now()}] DEBUG: Executing {len(tasks)} parallel tasks...")
                 results = await asyncio.gather(*tasks, return_exceptions=True)
+                print(f"[{datetime.datetime.now()}] DEBUG: Parallel tasks completed, got {len(results)} results")
                 
                 # Process results
                 num_words = len(words_to_process)
@@ -514,34 +521,68 @@ async def transcribe_and_translate_endpoint(
                     # First half are romanization results, second half are translation results
                     romanization_results = results[:num_words]
                     translation_results = results[num_words:] if len(results) > num_words else []
+                    print(f"[{datetime.datetime.now()}] DEBUG: Split results - romanization: {len(romanization_results)}, translation: {len(translation_results)}")
                 else:
                     # All results are translation results
                     translation_results = results[:num_words]
+                    print(f"[{datetime.datetime.now()}] DEBUG: All results are translations: {len(translation_results)}")
+                
+                # Debug: Check for exceptions in results
+                romanization_exceptions = [i for i, r in enumerate(romanization_results) if isinstance(r, Exception)]
+                translation_exceptions = [i for i, r in enumerate(translation_results) if isinstance(r, Exception)]
+                print(f"[{datetime.datetime.now()}] DEBUG: Romanization exceptions at indices: {romanization_exceptions}")
+                print(f"[{datetime.datetime.now()}] DEBUG: Translation exceptions at indices: {translation_exceptions}")
+                
+                # Log sample results for debugging
+                if translation_results:
+                    for i, result in enumerate(translation_results[:3]):  # Log first 3 results
+                        if isinstance(result, Exception):
+                            print(f"[{datetime.datetime.now()}] DEBUG: Translation result {i} EXCEPTION: {result}")
+                        else:
+                            print(f"[{datetime.datetime.now()}] DEBUG: Translation result {i}: {result}")
                 
                 # Build enhanced word confidence
                 for i, original_word_data in enumerate(stt_result.word_confidence):
                     enhanced_word = dict(original_word_data)  # Copy original data
+                    word_text = original_word_data.get("word", "")
                     
                     # Add transliteration if available
                     if i < len(romanization_results) and not isinstance(romanization_results[i], Exception):
-                        enhanced_word["transliteration"] = romanization_results[i].get("romanized_text", "")
+                        transliteration = romanization_results[i].get("romanized_text", "")
+                        enhanced_word["transliteration"] = transliteration
+                        print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' romanization: '{transliteration}'")
                     else:
                         enhanced_word["transliteration"] = ""
+                        if i < len(romanization_results):
+                            print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' romanization FAILED: {romanization_results[i]}")
+                        else:
+                            print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' romanization MISSING (index {i} >= {len(romanization_results)})")
                     
                     # Add translation if available
                     if i < len(translation_results) and not isinstance(translation_results[i], Exception):
-                        enhanced_word["translation"] = translation_results[i].get("translated_text", "")
+                        translation = translation_results[i].get("translated_text", "")
+                        enhanced_word["translation"] = translation
+                        print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' translation: '{translation}'")
                     else:
                         enhanced_word["translation"] = ""
+                        if i < len(translation_results):
+                            print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' translation FAILED: {translation_results[i]}")
+                        else:
+                            print(f"[{datetime.datetime.now()}] DEBUG: Word '{word_text}' translation MISSING (index {i} >= {len(translation_results)})")
                     
                     enhanced_word_confidence.append(enhanced_word)
+                
+                print(f"[{datetime.datetime.now()}] DEBUG: Enhanced word confidence complete - {len(enhanced_word_confidence)} words processed")
             else:
                 # No parallel processing needed, just copy original data with empty fields
+                print(f"[{datetime.datetime.now()}] DEBUG: No parallel processing tasks, using empty translations/romanizations")
                 for word_data in stt_result.word_confidence:
                     enhanced_word = dict(word_data)
                     enhanced_word["transliteration"] = ""
                     enhanced_word["translation"] = ""
                     enhanced_word_confidence.append(enhanced_word)
+        else:
+            print(f"[{datetime.datetime.now()}] DEBUG: No word confidence data from STT, skipping word-level processing")
         
         # Step 5: Calculate pronunciation score based on word confidence
         pronunciation_score = 0.0

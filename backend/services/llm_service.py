@@ -142,7 +142,7 @@ def initialize_quest_state(npc_vocab_data: dict, npc_name: str = None) -> dict:
     """Initialize quest state with categories from vocabulary for dynamic quests"""
     categories = get_categories_by_npc(npc_vocab_data, npc_name)
     return {
-        "categories_needed": categories,  # Static list of all categories for this NPC
+        "categories_needed": categories,  # Categories with proper ordering (randomized once for Amara)
         "conversation_turns": 0,
         "scenario_complete": False
     }

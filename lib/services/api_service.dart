@@ -154,7 +154,7 @@ class ApiService {
   /// Transcribe and translate audio using the new enhanced endpoint
   static Future<Map<String, dynamic>?> transcribeAndTranslate({
     required String audioPath,
-    String sourceLanguage = 'tha',
+    String sourceLanguage = 'th',
     String targetLanguage = 'en',
     String expectedText = '',
   }) async {
@@ -262,7 +262,7 @@ class ApiService {
   /// Parallel transcription using both Google Cloud STT and ElevenLabs
   static Future<Map<String, dynamic>?> parallelTranscribe({
     required String audioPath,
-    String sourceLanguage = 'tha',
+    String sourceLanguage = 'th',
     String targetLanguage = 'en',
     String expectedText = '',
   }) async {
@@ -361,7 +361,7 @@ class ApiService {
   @deprecated
   static Future<Map<String, dynamic>?> parallelTranscribeTranslate({
     required String audioPath,
-    String sourceLanguage = 'tha',
+    String sourceLanguage = 'th',
     String targetLanguage = 'en',
     String expectedText = '',
   }) async {

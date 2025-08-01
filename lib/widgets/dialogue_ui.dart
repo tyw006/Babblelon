@@ -13,6 +13,7 @@ class DialogueUI extends StatefulWidget {
   final Widget npcContentWidget;
   final AnimationController giftIconAnimationController;
   final VoidCallback onRequestItem;
+  final VoidCallback? onGiftIconTap;
   final VoidCallback onResumeGame;
   final VoidCallback onShowTranslation;
   final Widget micControls;
@@ -37,6 +38,7 @@ class DialogueUI extends StatefulWidget {
     required this.npcContentWidget,
     required this.giftIconAnimationController,
     required this.onRequestItem,
+    this.onGiftIconTap,
     required this.onResumeGame,
     required this.onShowTranslation,
     required this.micControls,
@@ -141,7 +143,7 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
                             charmFontSize: 16,
                             trailing: widget.displayedCharmLevel >= 75
                                 ? GestureDetector(
-                                    onTap: widget.onRequestItem,
+                                    onTap: widget.onGiftIconTap ?? widget.onRequestItem,
                                     child: AnimatedBuilder(
                                       animation: widget.giftIconAnimationController,
                                       builder: (context, child) {

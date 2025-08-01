@@ -127,11 +127,11 @@ class DialogueEntry {
   static String _generateId() => "${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999)}";
 
   // Factory constructors for convenience
-  factory DialogueEntry.player(String transcribedText, String audioPath, {List<POSMapping>? inputMappings}) {
+  factory DialogueEntry.player(String transcribedText, String audioPath, {List<POSMapping>? inputMappings, String? englishTranslation}) {
     return DialogueEntry(
       // customId will be null, so _generateId() is used by the main constructor
       text: transcribedText, // Player's own transcribed text
-      englishText: transcribedText,
+      englishText: englishTranslation ?? transcribedText,
       speaker: 'Player',
       audioPath: audioPath,
       isNpc: false,
@@ -601,10 +601,35 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         final String transcription = result['transcription'] ?? '';
+        final String translation = result['translation'] ?? '';
         
         if (transcription.isNotEmpty) {
-          // Create and display user response entry (like modal does)
-          final userEntry = DialogueEntry.player(transcription, audioPath);
+          // Create unique audio file copy for conversation history to prevent audio conflicts
+          String? uniqueDirectAudioPath;
+          try {
+            final tempDir = await getTemporaryDirectory();
+            final entryId = DialogueEntry._generateId();
+            uniqueDirectAudioPath = '${tempDir.path}/player_direct_${entryId}.wav';
+            
+            // Copy the original audio file to the unique conversation-specific path
+            final originalFile = File(audioPath);
+            if (await originalFile.exists()) {
+              await originalFile.copy(uniqueDirectAudioPath);
+              print("Created unique direct audio for history: $uniqueDirectAudioPath");
+              
+              // Add to temp files for cleanup on level exit
+              ref.read(tempFilePathsProvider.notifier).update((state) => [...state, uniqueDirectAudioPath!]);
+            } else {
+              print("Original direct audio file not found: $audioPath");
+              uniqueDirectAudioPath = audioPath; // Fall back to original if copy fails
+            }
+          } catch (e) {
+            print("Error creating unique direct audio file: $e");
+            uniqueDirectAudioPath = audioPath; // Fall back to original if copy fails
+          }
+
+          // Create and display user response entry with unique audio path
+          final userEntry = DialogueEntry.player(transcription, uniqueDirectAudioPath!, englishTranslation: translation.isNotEmpty ? translation : null);
           
           // Add to conversation history for display
           final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
@@ -693,6 +718,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         var responsePayload = json.decode(npcResponseDataJson);
         
         String playerTranscription = _sanitizeString(responsePayload['input_target'] ?? "Transcription unavailable");
+        String playerEnglishTranslation = _sanitizeString(responsePayload['input_english'] ?? "");
         String npcText = _sanitizeString(responsePayload['response_target'] ?? '...');
         List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
@@ -730,8 +756,32 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           print("Error saving NPC audio to temp file: $e");
         }
 
-        // Create entries for full history
-        final playerEntryForHistory = DialogueEntry.player(playerTranscription, audioFileToSend.path, inputMappings: playerInputMappings);
+        // Create unique audio file copy for conversation history to prevent audio conflicts
+        String? uniquePlayerAudioPath;
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final entryId = DialogueEntry._generateId();
+          uniquePlayerAudioPath = '${tempDir.path}/player_history_${entryId}.wav';
+          
+          // Copy the original audio file to the unique conversation-specific path
+          final originalFile = File(audioFileToSend.path);
+          if (await originalFile.exists()) {
+            await originalFile.copy(uniquePlayerAudioPath);
+            print("Created unique player audio for history: $uniquePlayerAudioPath");
+            
+            // Add to temp files for cleanup on level exit
+            ref.read(tempFilePathsProvider.notifier).update((state) => [...state, uniquePlayerAudioPath!]);
+          } else {
+            print("Original audio file not found: ${audioFileToSend.path}");
+            uniquePlayerAudioPath = audioFileToSend.path; // Fall back to original if copy fails
+          }
+        } catch (e) {
+          print("Error creating unique player audio file: $e");
+          uniquePlayerAudioPath = audioFileToSend.path; // Fall back to original if copy fails
+        }
+
+        // Create entries for full history with unique audio path
+        final playerEntryForHistory = DialogueEntry.player(playerTranscription, uniquePlayerAudioPath!, inputMappings: playerInputMappings, englishTranslation: playerEnglishTranslation.isNotEmpty ? playerEnglishTranslation : null);
         
         // Generate a stable ID for the NPC entry BEFORE creating it
         final String npcEntryId = DialogueEntry._generateId();
@@ -1004,6 +1054,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       topRightAction: null,
       giftIconAnimationController: _giftIconAnimationController,
       onRequestItem: () => _showGiveItemDialog(context),
+      onGiftIconTap: () => _showRequestItemDialog(context),
       onResumeGame: () {
         widget.game.overlays.remove('dialogue');
         widget.game.resumeGame(ref);
@@ -1239,6 +1290,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         var responsePayload = json.decode(npcResponseDataJson);
         
         String playerTranscription = responsePayload['input_target'] ?? transcription;
+        String playerEnglishTranslation = responsePayload['input_english'] ?? '';
         String npcText = responsePayload['response_target'] ?? 'Sorry, I did not understand.';
         String englishTranslation = responsePayload['response_english'] ?? '';
         
@@ -1267,7 +1319,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         final playerEntry = DialogueEntry(
           customId: playerId,
           text: playerTranscription,
-          englishText: '',
+          englishText: playerEnglishTranslation,
           speaker: 'Player',
           audioPath: audioPath, // Use the provided audio path from final recording
           audioBytes: null,
@@ -1556,7 +1608,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     }
                   } else {
                     // Player's transcribed text
-                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
+                    bool isItemGivingAction = entry.text.startsWith('User gives ') && entry.text.contains(' to ');
+                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory && !isItemGivingAction) {
                       // Player with word analysis
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
@@ -3706,7 +3759,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         var npcResponseDataJson = utf8.decode(base64.decode(npcResponseDataHeader));
         var responsePayload = json.decode(npcResponseDataJson);
         
-        String playerMessage = responsePayload['input_target'] ?? 'I gave you: $thaiName ($itemName)';
+        String playerMessage = 'User gives $itemName to ${_npcData.name}'; // Use English message instead of Thai input_target
         String npcText = responsePayload['response_target'] ?? 'Thank you for the item!';
         String englishTranslation = responsePayload['response_english'] ?? '';
         
@@ -3776,9 +3829,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           audioPathToPlayWhenDone: null, // No temp audio path for GIVE_ITEM
           audioBytesToPlayWhenDone: responseBytes, // Pass audio bytes
           posMappings: npcPosMappings,
-          charmDelta: null, // No charm delta for item giving responses
-          charmReason: null,
-          justReachedMaxCharm: false,
+          charmDelta: charmDelta, // Use actual backend charm data
+          charmReason: charmReason, // Use actual backend charm reason
+          justReachedMaxCharm: ref.read(currentCharmLevelProvider(widget.npcId)) >= 100,
           onAnimationComplete: (finalAnimatedEntry) {
             // Update the display provider with the final animated entry
             ref.read(currentNpcDisplayEntryProvider.notifier).state = finalAnimatedEntry;
@@ -4800,10 +4853,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           // Create entries for conversation history
           final playerEntryForHistory = DialogueEntry(
             text: customMessage,
-            englishText: customMessage,
+            englishText: '', // No English translation for item giving to prevent toggle effects
             speaker: 'Player',
             isNpc: false,
-            posMappings: playerInputMappings,
+            posMappings: null, // No POS mappings for item giving to prevent word analysis toggle effects
             playerTranscriptionForHistory: customMessage,
           );
           
