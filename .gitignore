@@ -81,3 +81,5 @@ supabase/.temp
 
 # YoYo AI version control directory
 .yoyo/
+
+sentry.properties

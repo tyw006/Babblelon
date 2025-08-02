@@ -11,6 +11,7 @@ import 'package:just_audio/just_audio.dart' as just_audio;
 import '../services/character_audio_service.dart';
 import '../services/game_initialization_service.dart';
 import '../services/character_recognition_service.dart';
+import '../services/posthog_service.dart';
 import '../widgets/tracing_confirmation_dialog.dart';
 import '../widgets/character_assessment_dialog.dart';
 
@@ -160,6 +161,15 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Initialize widget with proper async sequencing
   Future<void> _initializeAsync() async {
+    // Track writing session start
+    PostHogService.trackGameEvent(
+      event: 'writing_session_start',
+      additionalProperties: {
+        'word_mapping_count': widget.wordMapping.length,
+        'show_writing_tips': widget.showWritingTips,
+      },
+    );
+
     // Load Thai writing guide first
     await _loadThaiWritingGuide();
     // Then initialize characters (which will load writing tips)
@@ -311,11 +321,30 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Proceed with ML Kit assessment and show results
   Future<void> _proceedWithAssessment() async {
+    // Track writing assessment start
+    PostHogService.trackGameEvent(
+      event: 'writing_assessment_start',
+      additionalProperties: {
+        'character_count': _currentCharacters.length,
+        'has_strokes': _characterInks.isNotEmpty,
+      },
+    );
+
     // Initialize character recognition service
     try {
       await characterRecognitionService.initialize();
     } catch (e) {
       print('Failed to initialize character recognition: $e');
+      
+      // Track assessment failure
+      PostHogService.trackGameEvent(
+        event: 'writing_assessment_failed',
+        additionalProperties: {
+          'error': 'Character recognition service failed to initialize',
+          'error_details': e.toString(),
+        },
+      );
+
       // Fallback: just call completion without assessment
       if (widget.onComplete != null) {
         widget.onComplete!();
@@ -344,6 +373,16 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       // Dismiss loading indicator and show results
       if (mounted) {
         Navigator.of(context).pop();
+        
+        // Track writing assessment completion
+        PostHogService.trackGameEvent(
+          event: 'writing_assessment_complete',
+          additionalProperties: {
+            'assessment_score': assessmentResult?.overallAccuracy ?? 0.0,
+            'characters_assessed': _currentCharacters.length,
+            'success': true,
+          },
+        );
         
         // Show assessment results dialog
         await showDialog<void>(
@@ -376,6 +415,16 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       }
     } catch (e) {
       print('Assessment failed: $e');
+      
+      // Track assessment failure
+      PostHogService.trackGameEvent(
+        event: 'writing_assessment_failed',
+        additionalProperties: {
+          'error': 'Assessment execution failed',
+          'error_details': e.toString(),
+          'characters_attempted': _currentCharacters.length,
+        },
+      );
       
       // Dismiss loading indicator
       if (mounted) {
@@ -905,6 +954,15 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   Future<void> _loadWritingTipsFromCache() async {
 
     if (_currentCharacters.isEmpty || !widget.showWritingTips) return;
+    
+    // Track writing tips viewed
+    PostHogService.trackGameEvent(
+      event: 'writing_tips_viewed',
+      additionalProperties: {
+        'characters': _currentCharacters.join(''),
+        'character_count': _currentCharacters.length,
+      },
+    );
     
     setState(() {
       _isLoadingTips = true;

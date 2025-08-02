@@ -8,14 +8,40 @@ import json # Added for JSON parsing
 import random # Added for vocabulary selection
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+HELICONE_API_KEY = os.getenv("HELICONE_API_KEY")
+POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
 
 if not OPENAI_API_KEY:
-    print("Warning: OPENAI_API_KEY not found in environment variables.")
+    print("WARNING: OPENAI_API_KEY not found in environment variables.")
+
+if not HELICONE_API_KEY:
+    print("WARNING: HELICONE_API_KEY not found in environment variables.")
+
+if not POSTHOG_API_KEY:
+    print("WARNING: POSTHOG_API_KEY not found in environment variables - LLM event correlation disabled")
 
 openai_client = None
 if OPENAI_API_KEY:
     try:
-        openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+        # Initialize OpenAI client with Helicone integration
+        default_headers = {
+            "Helicone-Auth": f"Bearer {HELICONE_API_KEY}",
+        }
+        
+        # Add PostHog integration if available
+        if POSTHOG_API_KEY:
+            default_headers["Helicone-Posthog-Key"] = POSTHOG_API_KEY
+            default_headers["Helicone-Posthog-Host"] = "https://app.posthog.com"
+        
+        openai_client = OpenAIClient(
+            api_key=OPENAI_API_KEY,
+            base_url="https://oai.helicone.ai/v1",
+            default_headers=default_headers
+        )
+        print("✅ OpenAI client initialized with Helicone integration")
+        print(f"✅ Helicone headers configured: Helicone-Auth, Helicone-Posthog-Key: {'present' if POSTHOG_API_KEY else 'missing'}")
+        print(f"📊 Helicone integration: OpenAI via https://oai.helicone.ai/v1")
+        print(f"🚀 LLM Service initialized - OpenAI: configured, Helicone: enabled, PostHog: {'enabled' if POSTHOG_API_KEY else 'disabled'}")
     except Exception as e:
         print(f"Error initializing OpenAI client: {e}")
 
@@ -318,7 +344,9 @@ async def get_llm_response(
     target_language: str = "Thai",
     quest_state: Optional[Dict] = None,
     action_type: str = "",
-    action_item: str = ""
+    action_item: str = "",
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None
 ) -> NPCResponse:
     """
     Dynamic quest-aware LLM response generation.
@@ -406,13 +434,31 @@ async def get_llm_response(
     print(f"📝 LLM Input: {llm_input}")
     
     try:
-        # Call OpenAI using correct responses.parse structure
+        # Prepare Helicone tracking headers
+        extra_headers = {}
+        if user_id:
+            extra_headers["Helicone-User-Id"] = user_id
+        if session_id:
+            extra_headers["Helicone-Session-Id"] = session_id
+        # Add context for NPC conversations
+        extra_headers["Helicone-Property-NPC"] = npc_name
+        extra_headers["Helicone-Property-GameMode"] = "npc_chat"
+        extra_headers["Helicone-Property-CharmLevel"] = str(current_charm_level)
+        
+        print(f"🚀 Calling OpenAI LLM with Helicone tracking - User: {user_id}, Session: {session_id}, NPC: {npc_name}")
+        print(f"📊 Helicone properties: CharmLevel={current_charm_level}, GameMode=npc_chat")
+        
+        # Call OpenAI using correct responses.parse structure with Helicone tracking
         response = openai_client.responses.parse(
             model="gpt-4.1-mini-2025-04-14",
             instructions=system_prompt,
             input=llm_input,
             text_format=NPCResponse,
+            extra_headers=extra_headers
         )
+        
+        print(f"✅ Helicone: OpenAI LLM call completed - NPC: {npc_name}, Model: gpt-4.1-mini-2025-04-14")
+        print(f"📝 Response received: {len(response.output_parsed.response_target)} chars, Emotion: {response.output_parsed.emotion}")
         
         # BACKEND ENFORCEMENT: Override LLM's user_item_given based on action validation
         npc_response = response.output_parsed
@@ -422,15 +468,19 @@ async def get_llm_response(
             npc_response.user_item_given = action_item  # Ensure it matches what was actually given
         
         if not npc_response.response_target:
-            print(f"Warning: LLM for {npc_id} returned empty response_target.")
+            print(f"⚠️  Warning: LLM for {npc_id} returned empty response_target.")
         
         if not npc_response.response_mapping:
-            print(f"Warning: LLM for {npc_id} returned empty response_mapping. POS coloring will not work.")
+            print(f"⚠️  Warning: LLM for {npc_id} returned empty response_mapping. POS coloring will not work.")
             npc_response.response_mapping = []
+        
+        # Log successful completion with key details
+        print(f"✅ LLM Response completed for {npc_name}: charm_delta={npc_response.charm_delta}, item_accepted={npc_response.user_item_accepted}")
 
         return npc_response
         
     except Exception as e:
+        print(f"❌ Helicone: OpenAI LLM call failed - NPC: {npc_name}, Error: {str(e)}")
         print(f"An unexpected error occurred in get_llm_response for {npc_id}: {e}")
         import traceback
         traceback.print_exc()

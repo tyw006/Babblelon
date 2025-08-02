@@ -12,6 +12,9 @@ from pydantic import BaseModel # For request body model
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List, Union
 import logging
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -33,11 +36,30 @@ else:
     print(f"Warning: .env file not found at {dotenv_path}")
 # --- End .env loading ---
 
+# --- Initialize Sentry (BEFORE creating FastAPI app) ---
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            StarletteIntegration(transaction_style="endpoint"),
+            FastApiIntegration(transaction_style="endpoint"),
+        ],
+        traces_sample_rate=1.0,  # Adjust in production (e.g., 0.1 for 10%)
+        send_default_pii=True,
+        environment="development",  # Change to "production" when deploying
+    )
+    print("✅ Sentry initialized for error tracking and performance monitoring")
+else:
+    print("⚠️ Sentry DSN not found, skipping Sentry initialization")
+# --- End Sentry initialization ---
+
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse, regenerate_npc_vocabulary, process_item_giving
 from services.stt_service import transcribe_audio_simple as transcribe_audio, transcribe_audio as transcribe_audio_advanced, STTResult, parallel_transcribe_audio
 from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation, translate_and_syllabify
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
+from services.azure_speech_tracker import get_azure_speech_tracker
 
 app = FastAPI()
 
@@ -167,9 +189,90 @@ NPC_VOICE_MAP: Dict[str, str] = {
     "default": "Puck" 
 }
 
+@app.on_event("startup")
+async def startup_event():
+    """Log all service configurations at startup"""
+    import os
+    print("\n" + "="*80)
+    print("🚀 BABBLELON BACKEND STARTUP - SERVICE CONFIGURATION")
+    print("="*80)
+    
+    # Check API Keys
+    services_status = {
+        'OpenAI': bool(os.getenv('OPENAI_API_KEY')),
+        'Gemini': bool(os.getenv('GEMINI_API_KEY')),
+        'Helicone': bool(os.getenv('HELICONE_API_KEY')),
+        'PostHog': bool(os.getenv('POSTHOG_API_KEY')),
+        'Sentry': bool(os.getenv('SENTRY_DSN')),
+        'Supabase': bool(os.getenv('SUPABASE_URL')) and bool(os.getenv('SUPABASE_ANON_KEY'))
+    }
+    
+    print("🔑 API Key Configuration:")
+    for service, configured in services_status.items():
+        status = "✅ Configured" if configured else "❌ Missing"
+        print(f"  {service}: {status}")
+    
+    print("\n📊 Tracking & Monitoring:")
+    if services_status['Helicone'] and services_status['OpenAI']:
+        print("  ✅ OpenAI + Helicone: LLM cost tracking enabled")
+    else:
+        print("  ❌ OpenAI + Helicone: LLM cost tracking disabled")
+        
+    if services_status['Helicone'] and services_status['Gemini']:
+        print("  ✅ Gemini + Helicone: TTS cost tracking enabled")
+    else:
+        print("  ❌ Gemini + Helicone: TTS cost tracking disabled")
+        
+    if services_status['PostHog']:
+        print("  ✅ PostHog: Event analytics enabled")
+    else:
+        print("  ❌ PostHog: Event analytics disabled")
+        
+    if services_status['Sentry']:
+        print("  ✅ Sentry: Error tracking enabled")
+    else:
+        print("  ❌ Sentry: Error tracking disabled")
+    
+    print("\n🎮 Game Services:")
+    if services_status['Supabase']:
+        print("  ✅ Supabase: User data & quests enabled")
+    else:
+        print("  ❌ Supabase: User data & quests disabled")
+    
+    print("\n🎵 Voice Configuration:")
+    for npc, voice in NPC_VOICE_MAP.items():
+        print(f"  {npc.capitalize()}: {voice}")
+    
+    # Overall health check
+    critical_services = ['OpenAI', 'Gemini']
+    critical_missing = [s for s in critical_services if not services_status[s]]
+    
+    if not critical_missing:
+        print("\n✅ SYSTEM STATUS: All critical services configured")
+    else:
+        print(f"\n⚠️  SYSTEM STATUS: Missing critical services: {', '.join(critical_missing)}")
+    
+    # Initialize Azure Speech Tracker
+    try:
+        azure_tracker = get_azure_speech_tracker()
+        print("\u2705 Azure Speech Tracker: Initialized successfully")
+    except Exception as e:
+        print(f"\u274c Azure Speech Tracker: Failed to initialize - {e}")
+    
+    print("="*80 + "\n")
+
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the Babblelon Backend!"}
+    return {
+        "message": "Welcome to the Babblelon Backend!",
+        "services": {
+            "llm": "OpenAI GPT-4.1-mini via Helicone",
+            "tts": "Google Gemini TTS via Helicone Gateway", 
+            "analytics": "PostHog + Helicone",
+            "monitoring": "Sentry"
+        },
+        "status": "running"
+    }
 
 @app.post("/generate-npc-response/")
 async def generate_npc_response_endpoint(
@@ -183,7 +286,9 @@ async def generate_npc_response_endpoint(
     action_type: Optional[str] = Form(""),        # NEW: "GIVE_ITEM" or ""
     action_item: Optional[str] = Form(""),        # NEW: Item name from traceable canvas
     quest_state_json: Optional[str] = Form("{}"), # NEW: Complete quest state
-    use_enhanced_stt: Optional[bool] = Form(False) # NEW: Enable enhanced STT with word confidence
+    use_enhanced_stt: Optional[bool] = Form(False), # NEW: Enable enhanced STT with word confidence
+    user_id: Optional[str] = Form(None),          # NEW: For Helicone user tracking
+    session_id: Optional[str] = Form(None)        # NEW: For Helicone session tracking
 ):
     print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. Custom message: {custom_message is not None}, Action: {action_type}")
     
@@ -225,7 +330,13 @@ async def generate_npc_response_endpoint(
             if use_enhanced_stt:
                 # Enhanced STT with word-level confidence using Chirp2 model
                 print(f"[{datetime.datetime.now()}] DEBUG: Using enhanced STT with word confidence for {npc_id}")
-                stt_result: STTResult = await transcribe_audio_advanced(player_audio_stream, language_code=target_language)
+                stt_result: STTResult = await transcribe_audio_advanced(
+                    player_audio_stream, 
+                    language_code=target_language,
+                    expected_text="",
+                    user_id=user_id,
+                    session_id=session_id
+                )
                 player_transcription = stt_result.text
                 word_confidence_data = stt_result.word_confidence
                 
@@ -239,7 +350,14 @@ async def generate_npc_response_endpoint(
             else:
                 # Standard STT (backward compatibility)
                 print(f"[{datetime.datetime.now()}] DEBUG: Using standard STT for {npc_id}")
-                player_transcription = await transcribe_audio(player_audio_stream, language_code=target_language)
+                stt_result = await transcribe_audio(
+                    player_audio_stream, 
+                    language_code=target_language,
+                    expected_text="",
+                    user_id=user_id,
+                    session_id=session_id
+                )
+                player_transcription = stt_result.text
                 print(f"[{datetime.datetime.now()}] INFO: Standard STT for {npc_id} successful. Transcription: '{player_transcription}'")
                 print(f"[{datetime.datetime.now()}] DEBUG: Standard STT Details - Audio bytes: {len(player_audio_bytes)}, Language: {target_language}, Transcribed: '{player_transcription}'")
             
@@ -251,7 +369,7 @@ async def generate_npc_response_endpoint(
         if not latest_player_message and not action_type:
             raise HTTPException(status_code=400, detail="Player message is empty or invalid.")
 
-        # 4. LLM - Get NPC's response with quest parameters
+        # 4. LLM - Get NPC's response with quest parameters and tracking
         npc_response_data: NPCResponse = await get_llm_response(
             npc_id=npc_id, 
             npc_name=npc_name,
@@ -261,7 +379,9 @@ async def generate_npc_response_endpoint(
             target_language=target_language,
             quest_state=quest_state,
             action_type=action_type,
-            action_item=action_item
+            action_item=action_item,
+            user_id=user_id,
+            session_id=session_id
         )
         print(f"[{datetime.datetime.now()}] INFO: LLM response for {npc_id} OK. Target: '{npc_response_data.response_target[:30]}...', Tone: '{npc_response_data.response_tone}'")
 
@@ -290,7 +410,9 @@ async def generate_npc_response_endpoint(
         npc_audio_bytes = await text_to_speech_full(
             text_to_speak=npc_response_data.response_target, 
             voice_name=voice_name,
-            response_tone=npc_response_data.response_tone 
+            response_tone=npc_response_data.response_tone,
+            user_id=user_id,
+            session_id=session_id
         )
         print(f"[{datetime.datetime.now()}] INFO: TTS for {npc_id} using voice '{voice_name}' OK. Audio bytes: {len(npc_audio_bytes) if npc_audio_bytes else 'None'}")
 
@@ -1140,7 +1262,9 @@ async def pronunciation_assessment_endpoint(
     turn_type: str = Form(...), # 'attack' or 'defense'
     was_revealed: bool = Form(False), # Whether the flashcard was revealed before assessment
     azure_pron_mapping_json: str = Form('[]'), # Receive azure pronunciation mapping as a JSON string
-    language: str = Form("th-TH")
+    language: str = Form("th-TH"),
+    user_id: Optional[str] = Form(None),
+    session_id: Optional[str] = Form(None)
 ):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /pronunciation/assess/ received request for text: '{reference_text}' in {language}, revealed: {was_revealed}")
@@ -1166,7 +1290,9 @@ async def pronunciation_assessment_endpoint(
             turn_type=turn_type,
             was_revealed=was_revealed,
             azure_pron_mapping=azure_pron_mapping, # Pass the parsed list
-            language=language
+            language=language,
+            user_id=user_id,
+            session_id=session_id
         )
         
         print(f"[{datetime.datetime.now()}] INFO: /pronunciation/assess/ successful for '{reference_text}'. Rating: {assessment_result.rating}")
@@ -1439,6 +1565,83 @@ async def analyze_complex_vowels_endpoint(request: ComplexVowelAnalysisRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during complex vowel analysis: {str(e)}")
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    """Test endpoint to verify Sentry integration is working"""
+    division_by_zero = 1 / 0
+    return {"message": "This should not be returned"}
+
+# --- Azure Speech Services Tracking Endpoints ---
+
+@app.get("/azure-speech/metrics")
+async def get_azure_speech_metrics():
+    """Get current Azure Speech Services tracking metrics"""
+    try:
+        tracker = get_azure_speech_tracker()
+        metrics = tracker.get_metrics()
+        return JSONResponse(content={
+            "status": "success",
+            "data": metrics,
+            "message": "Azure Speech metrics retrieved successfully"
+        })
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Failed to get Azure Speech metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
+
+@app.get("/azure-speech/costs")
+async def get_azure_speech_costs(time_range_hours: int = 24):
+    """Get Azure Speech Services cost summary for specified time range"""
+    try:
+        if time_range_hours < 1 or time_range_hours > 720:  # Max 30 days
+            raise HTTPException(status_code=400, detail="time_range_hours must be between 1 and 720")
+        
+        tracker = get_azure_speech_tracker()
+        cost_summary = tracker.get_cost_summary(time_range_hours)
+        return JSONResponse(content={
+            "status": "success",
+            "data": cost_summary,
+            "message": f"Azure Speech cost summary for last {time_range_hours} hours retrieved successfully"
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Failed to get Azure Speech costs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve cost summary: {str(e)}")
+
+@app.get("/azure-speech/health")
+async def azure_speech_health_check():
+    """Health check endpoint for Azure Speech Services tracking"""
+    try:
+        tracker = get_azure_speech_tracker()
+        metrics = tracker.get_metrics()
+        
+        # Basic health indicators
+        total_requests = sum(service.get('total_requests', 0) for service in metrics['services'].values())
+        total_cost = metrics.get('total_cost_usd', 0.0)
+        
+        health_status = {
+            "status": "healthy",
+            "tracker_initialized": True,
+            "total_requests_tracked": total_requests,
+            "total_cost_tracked_usd": total_cost,
+            "services_available": list(metrics['services'].keys()),
+            "last_updated": metrics.get('last_updated'),
+            "posthog_enabled": bool(os.getenv('POSTHOG_API_KEY')),
+            "azure_credentials_configured": bool(os.getenv('AZURE_SPEECH_KEY')) and bool(os.getenv('AZURE_SPEECH_REGION'))
+        }
+        
+        return JSONResponse(content=health_status)
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: Azure Speech health check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": str(e),
+                "tracker_initialized": False
+            }
+        )
 
 if __name__ == "__main__":
     # Changed host from "127.0.0.1" to "0.0.0.0" to allow connections

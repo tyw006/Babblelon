@@ -19,6 +19,7 @@ import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
+import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:babblelon/widgets/score_progress_bar.dart';
@@ -161,6 +162,17 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _apiService = ApiService();
     _echoAudioService = EchoAudioService();
     _initializeRecorder();
+    
+    // Track boss fight start
+    PostHogService.trackBossFight(
+      event: 'start',
+      bossName: widget.bossData.name,
+      playerHealth: ref.read(playerHealthProvider),
+      bossHealth: widget.bossData.maxHealth,
+      additionalProperties: {
+        'boss_difficulty': 'normal', // Default difficulty since BossData doesn't have difficulty property
+      },
+    );
     
     // Initialize and start boss fight background music
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -455,6 +467,18 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   Future<void> _performAttack({double attackMultiplier = 20.0}) async {
+    // Track pronunciation attack
+    PostHogService.trackBossFight(
+      event: 'pronunciation_attack',
+      bossName: widget.bossData.name,
+      playerHealth: ref.read(playerHealthProvider),
+      bossHealth: ref.read(bossHealthProvider(widget.bossData.maxHealth)),
+      additionalProperties: {
+        'attack_multiplier': attackMultiplier,
+        'turn': 'player',
+      },
+    );
+
     // Play attack start sound effect
     _playSoundEffect('soundeffects/soundeffect_dimsum.mp3');
     
@@ -522,6 +546,19 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   Future<void> _performDefense({double defenseMultiplier = 1.0}) async {
+    // Track pronunciation defense
+    PostHogService.trackBossFight(
+      event: 'pronunciation_defense',
+      bossName: widget.bossData.name,
+      playerHealth: ref.read(playerHealthProvider),
+      bossHealth: ref.read(bossHealthProvider(widget.bossData.maxHealth)),
+      additionalProperties: {
+        'defense_multiplier': defenseMultiplier,
+        'turn': 'boss',
+        'is_great_defense': defenseMultiplier <= 0.7,
+      },
+    );
+
     // Small delay to let popup close completely
     await Future.delayed(const Duration(milliseconds: 100));
     
@@ -1499,6 +1536,21 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     ref.read(battleTrackingProvider.notifier).endBattle(finalPlayerHealth: playerHealth);
     final metrics = ref.read(battleTrackingProvider);
 
+    // Track boss fight victory
+    PostHogService.trackBossFight(
+      event: 'victory',
+      bossName: widget.bossData.name,
+      playerHealth: playerHealth,
+      bossHealth: 0,
+      additionalProperties: {
+        'final_player_health': playerHealth,
+        'turns_taken': metrics?.turns.length ?? 0,
+        'attack_count': metrics?.turns.where((turn) => turn.action == 'attack').length ?? 0,
+        'defense_count': metrics?.turns.where((turn) => turn.action == 'defend').length ?? 0,
+        'boss_difficulty': 'normal', // Default difficulty since BossData doesn't have difficulty property
+      },
+    );
+
     if (metrics == null) return; // Should not happen
 
     // --- Save Progress with Isar ---
@@ -1559,6 +1611,21 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     final playerHealth = ref.read(playerHealthProvider);
     ref.read(battleTrackingProvider.notifier).endBattle(finalPlayerHealth: playerHealth);
     final metrics = ref.read(battleTrackingProvider);
+
+    // Track boss fight defeat
+    PostHogService.trackBossFight(
+      event: 'defeat',
+      bossName: widget.bossData.name,
+      playerHealth: 0,
+      bossHealth: ref.read(bossHealthProvider(widget.bossData.maxHealth)),
+      additionalProperties: {
+        'final_boss_health': ref.read(bossHealthProvider(widget.bossData.maxHealth)),
+        'turns_taken': metrics?.turns.length ?? 0,
+        'attack_count': metrics?.turns.where((turn) => turn.action == 'attack').length ?? 0,
+        'defense_count': metrics?.turns.where((turn) => turn.action == 'defend').length ?? 0,
+        'boss_difficulty': 'normal', // Default difficulty since BossData doesn't have difficulty property
+      },
+    );
 
     if (metrics == null) return;
 

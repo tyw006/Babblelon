@@ -7,6 +7,8 @@ environment:
   sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
+  sentry_flutter: ^9.5.0
+  posthog_flutter: ^4.7.1
   flutter:
     sdk: flutter
   flame: ^1.17.0
@@ -41,6 +43,7 @@ dependencies:
   google_mlkit_digital_ink_recognition: ^0.14.1
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.1.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
@@ -69,3 +72,8 @@ flutter:
     - assets/data/
     - assets/lottie/
     - .env 
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: flutter
+  org: babbleon

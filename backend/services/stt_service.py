@@ -17,10 +17,12 @@ import ssl
 import logging
 import asyncio
 import numpy as np
+import requests  # For PostHog tracking
+import json
 
 # AssemblyAI and Speechmatics imports
-import assemblyai as aai
-from speechmatics.batch import AsyncClient as SpeechmaticsAsyncClient, TranscriptionConfig, FormatType
+# import assemblyai as aai  # Removed - no longer used
+# from speechmatics.batch import AsyncClient as SpeechmaticsAsyncClient, TranscriptionConfig, FormatType  # Removed - no longer used
 
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -37,18 +39,8 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 if not ELEVENLABS_API_KEY:
     print(f"[{datetime.datetime.now()}] WARNING: ELEVENLABS_API_KEY not found in environment variables.")
 
-# AssemblyAI Configuration
-ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
-if not ASSEMBLYAI_API_KEY:
-    print(f"[{datetime.datetime.now()}] WARNING: ASSEMBLYAI_API_KEY not found in environment variables.")
-else:
-    aai.settings.api_key = ASSEMBLYAI_API_KEY
-    print(f"[{datetime.datetime.now()}] INFO: AssemblyAI API key configured successfully")
-
-# Speechmatics Configuration  
-SPEECHMATICS_API_KEY = os.getenv("SPEECHMATICS_API_KEY")
-if not SPEECHMATICS_API_KEY:
-    print(f"[{datetime.datetime.now()}] WARNING: SPEECHMATICS_API_KEY not found in environment variables.")
+# AssemblyAI and Speechmatics are no longer used
+# Their configurations have been removed
 
 # Initialize Google Cloud Speech client
 api_endpoint = f"{LOCATION}-speech.googleapis.com"
@@ -68,6 +60,56 @@ if ELEVENLABS_API_KEY:
         print(f"[{datetime.datetime.now()}] INFO: ElevenLabs client initialized successfully")
     except Exception as e:
         print(f"[{datetime.datetime.now()}] ERROR: Failed to initialize ElevenLabs client: {e}")
+
+# PostHog Configuration
+POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
+
+def track_stt_call_to_posthog(
+    service_name: str,
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    audio_duration_s: float = 0.0,
+    processing_time_ms: int = 0,
+    confidence_score: float = 0.0,
+    word_count: int = 0,
+    success: bool = True,
+    error: Optional[str] = None
+):
+    """Track STT API calls to PostHog for analytics"""
+    if not POSTHOG_API_KEY:
+        return
+    
+    try:
+        event_data = {
+            "api_key": POSTHOG_API_KEY,
+            "event": "stt_call",
+            "properties": {
+                "service": service_name,
+                "audio_duration_s": audio_duration_s,
+                "processing_time_ms": processing_time_ms,
+                "confidence_score": confidence_score,
+                "word_count": word_count,
+                "success": success,
+                "timestamp": datetime.datetime.now().isoformat(),
+            },
+            "timestamp": datetime.datetime.now().isoformat(),
+        }
+        
+        if user_id:
+            event_data["distinct_id"] = user_id
+        if session_id:
+            event_data["properties"]["session_id"] = session_id
+        if error:
+            event_data["properties"]["error"] = error
+            
+        # Send to PostHog
+        requests.post(
+            "https://app.posthog.com/capture/",
+            json=event_data,
+            timeout=5
+        )
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] WARNING: Failed to track STT call to PostHog: {e}")
 
 class ErrorCategory(Enum):
     """Enumeration for error classification"""
@@ -365,7 +407,13 @@ def compare_expected_vs_transcribed(transcribed_words: List[Dict], expected_text
     
     return word_comparisons
 
-async def transcribe_audio(audio_stream: io.BytesIO, language_code: str = "tha", expected_text: str = "") -> STTResult:
+async def transcribe_audio(
+    audio_stream: io.BytesIO, 
+    language_code: str = "tha", 
+    expected_text: str = "",
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None
+) -> STTResult:
     """
     Transcribes audio using Google Cloud STT v2 API with Chirp_2 model and word-level confidence.
     Enhanced with error classification and performance metrics logging.
@@ -568,6 +616,18 @@ async def transcribe_audio(audio_stream: io.BytesIO, language_code: str = "tha",
                 
                 log_performance_metrics(metrics, "Google Cloud STT", success=True)
                 
+                # Track successful STT call to PostHog
+                track_stt_call_to_posthog(
+                    service_name="google_cloud_stt",
+                    user_id=user_id,
+                    session_id=session_id,
+                    audio_duration_s=actual_duration,
+                    processing_time_ms=int(metrics.processing_time * 1000),
+                    confidence_score=overall_confidence,
+                    word_count=len(word_confidence_list),
+                    success=True
+                )
+                
                 return STTResult(
                     text=transcribed_text, 
                     word_confidence=word_confidence_list,
@@ -615,6 +675,20 @@ async def transcribe_audio(audio_stream: io.BytesIO, language_code: str = "tha",
         print(f"[{datetime.datetime.now()}] ERROR: Error during Google Cloud STT: {e}. Stream pos: {current_pos_after_error}, size: {stream_size_after_error} after error.")
         print(f"[{datetime.datetime.now()}] DEBUG STT: Error category: {error_category.value}")
         print(f"[{datetime.datetime.now()}] DEBUG STT: Full error traceback: {traceback.format_exc()}")
+        
+        # Track failed STT call to PostHog
+        track_stt_call_to_posthog(
+            service_name="google_cloud_stt",
+            user_id=user_id,
+            session_id=session_id,
+            audio_duration_s=0.0,
+            processing_time_ms=int(metrics.processing_time * 1000) if hasattr(metrics, 'processing_time') else 0,
+            confidence_score=0.0,
+            word_count=0,
+            success=False,
+            error=str(e)
+        )
+        
         raise HTTPException(status_code=500, detail=f"Error during speech-to-text processing: {str(e)}")
 
 async def transcribe_audio_elevenlabs(audio_stream: io.BytesIO, language_code: str = "tha", expected_text: str = "") -> STTResult:

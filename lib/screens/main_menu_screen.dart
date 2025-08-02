@@ -12,6 +12,7 @@ import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
+import 'package:babblelon/services/posthog_service.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -19,6 +20,15 @@ class MainMenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'main_menu',
+      additionalProperties: {
+        'sound_effects_enabled': soundEffectsEnabled,
+      },
+    );
     
     return Scaffold(
       body: Container(
@@ -51,6 +61,17 @@ class MainMenuScreen extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () {
                   ref.playButtonSound();
+                  
+                  // Track screen navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'game_screen',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'start_game',
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -112,6 +133,18 @@ class MainMenuScreen extends ConsumerWidget {
                   );
                   
                   ref.playButtonSound();
+                  
+                  // Track boss fight navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'boss_fight',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_boss_fight',
+                      'boss_name': tuktukBoss.name,
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(

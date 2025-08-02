@@ -12,6 +12,7 @@ import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
+import '../services/posthog_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -32,6 +33,15 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
+    );
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'game_screen',
+      additionalProperties: {
+        'game_initialized': false,
+      },
     );
     
     // Start background initialization (non-blocking)

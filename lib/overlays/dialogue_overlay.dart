@@ -23,6 +23,7 @@ import '../widgets/dialogue_ui.dart';
 import '../widgets/character_tracing_widget.dart';
 import '../widgets/npc_response_modal.dart';
 import 'dialogue_overlay/dialogue_models.dart';
+import '../services/posthog_service.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -294,7 +295,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   String _currentlyAnimatingEntryId = "";
   String _displayedTextForAnimation = "";
   int _currentCharIndexForAnimation = 0;
-  final Map<String, String> _fullyAnimatedMainNpcTexts = {}; 
+  final Map<String, String> _fullyAnimatedMainNpcTexts = {};
+
+  // --- Conversation tracking ---
+  late final DateTime _conversationStartTime; 
 
   bool _isProcessingBackend = false;
 
@@ -310,6 +314,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     // Look up the NPC data using the widget's npcId
     _npcData = npcDataMap[widget.npcId]!;
+
+    // Initialize conversation tracking
+    _conversationStartTime = DateTime.now();
+
+    // Track conversation start
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'start',
+      additionalProperties: {
+        'npc_display_name': _npcData?.name ?? 'Unknown',
+      },
+    );
 
     // --- ML Kit Initialization ---
     _initializeMLKit();
@@ -425,8 +441,22 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
 
+  /// Calculate conversation duration in seconds
+  int _getConversationDuration() {
+    return DateTime.now().difference(_conversationStartTime).inSeconds;
+  }
+
   @override
   void dispose() {
+    // Track conversation end
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'end',
+      additionalProperties: {
+        'conversation_duration_seconds': _getConversationDuration(),
+      },
+    );
+
     _replayPlayer.stop(); // Stop any playing audio on exit
     _audioRecorder.dispose();
     _animationController?.dispose();
@@ -476,6 +506,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       // Optionally, show a dialog to the user explaining why you need the permission.
       return;
     }
+
+    // Track recording start
+    PostHogService.trackAudioInteraction(
+      service: 'recording',
+      event: 'start',
+      additionalProperties: {
+        'npc_name': widget.npcId,
+      },
+    );
 
     // Clean up previous recording if user decides to re-record
     if (_lastRecordingPath != null) {
@@ -527,6 +566,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       final path = await _audioRecorder.stop();
       if (path != null) {
         print("Recording stopped for review, file at: $path");
+        
+        // Track recording stop
+        PostHogService.trackAudioInteraction(
+          service: 'recording',
+          event: 'stop',
+          success: true,
+          additionalProperties: {
+            'npc_name': widget.npcId,
+            'has_audio_file': true,
+          },
+        );
+
         setState(() {
           _lastRecordingPath = path;
           _recordingState = RecordingState.reviewing;
@@ -534,6 +585,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         });
       } else {
         print("Error: Recording path is null after stopping.");
+        
+        // Track recording failure
+        PostHogService.trackAudioInteraction(
+          service: 'recording',
+          event: 'stop',
+          success: false,
+          error: 'Recording path is null',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         setState(() {
           _recordingState = RecordingState.idle;
           _isRecording = false; // Sync for animation
@@ -541,6 +604,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     } catch (e) {
       print("Error stopping recording: $e");
+      
+      // Track recording error
+      PostHogService.trackAudioInteraction(
+        service: 'recording',
+        event: 'stop',
+        success: false,
+        error: e.toString(),
+        additionalProperties: {
+          'npc_name': widget.npcId,
+        },
+      );
+
       setState(() {
         _recordingState = RecordingState.idle;
         _isRecording = false; // Sync for animation
@@ -567,6 +642,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   void _sendApprovedRecording() {
     if (_lastRecordingPath != null) {
+      // Track recording approval
+      PostHogService.trackAudioInteraction(
+        service: 'recording',
+        event: 'approved',
+        success: true,
+        additionalProperties: {
+          'npc_name': widget.npcId,
+        },
+      );
+
       // First transcribe the audio to show user response, then send to NPC
       _transcribeAndSendRecording(_lastRecordingPath!);
       setState(() {
@@ -660,10 +745,24 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     print("Mic button action triggered. Sending audio to new endpoint.");
     setState(() { _isProcessingBackend = true; });
 
+    final startTime = DateTime.now();
+
     final File audioFileToSend = File(audioPath);
 
     if (!await audioFileToSend.exists()) {
         print("Error: Recorded audio file does not exist at path: $audioPath");
+        
+        // Track STT failure
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: false,
+          error: 'Audio file does not exist',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         setState(() { _isProcessingBackend = false; });
         return;
     }
@@ -694,13 +793,27 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['npc_id'] = _npcData.id
         ..fields['npc_name'] = _npcData.name
         ..fields['charm_level'] = charmLevelForRequest.toString() // Use provider value
-        ..fields['previous_conversation_history'] = previousHistoryPayload;
+        ..fields['previous_conversation_history'] = previousHistoryPayload
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
       
       print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
+        // Track successful STT request
+        final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: true,
+          durationMs: processingTimeMs,
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         Uint8List npcAudioBytes = response.bodyBytes;
         String? npcResponseDataJsonB64 = response.headers['x-npc-response-data'];
 
@@ -724,6 +837,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
         List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
+
+        // Track NPC response received
+        PostHogService.trackNPCConversation(
+          npcName: widget.npcId,
+          event: 'response_received',
+          playerMessage: playerTranscription,
+          npcResponse: npcText,
+          additionalProperties: {
+            'player_english': playerEnglishTranslation,
+            'response_has_audio': npcAudioBytes.isNotEmpty,
+          },
+        );
 
                   // Processing NPC response data
 
@@ -830,6 +955,20 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       } else {
         print("Backend processing failed. Status: ${response.statusCode}, Body: ${response.body}");
         
+        // Track failed STT request
+        final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: false,
+          durationMs: processingTimeMs,
+          error: 'HTTP ${response.statusCode}',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+            'status_code': response.statusCode,
+          },
+        );
+        
         String errorMessage = "An unexpected error occurred.";
         try {
           final errorBody = json.decode(response.body);
@@ -869,6 +1008,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     } catch (e, stackTrace) {
       print("Exception in _sendAudioToBackend: $e\\n$stackTrace");
+      
+      // Track exception in STT request
+      final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+      PostHogService.trackAudioInteraction(
+        service: 'stt',
+        event: 'request',
+        success: false,
+        durationMs: processingTimeMs,
+        error: e.toString(),
+        additionalProperties: {
+          'npc_name': widget.npcId,
+          'error_type': 'exception',
+        },
+      );
+
       if (mounted) {
         _showErrorDialog("A client-side error occurred: ${e.toString()}");
       }
@@ -1269,7 +1423,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['npc_name'] = _npcData.name
         ..fields['charm_level'] = charmLevelForRequest.toString()
         ..fields['previous_conversation_history'] = previousHistoryPayload
-        ..fields['custom_message'] = transcription; // Send transcription as custom message
+        ..fields['custom_message'] = transcription // Send transcription as custom message
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
 
       print('Sending request to backend: ${uri.toString()}');
       var response = await request.send();
@@ -3739,7 +3895,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['action_type'] = 'GIVE_ITEM'
         ..fields['action_item'] = thaiName  // Send Thai text only
         ..fields['custom_message'] = 'User gives $itemName to ${_npcData.name}'  // Proper format for conversation history
-        ..fields['quest_state_json'] = '{}'; // TODO: Implement quest state tracking
+        ..fields['quest_state_json'] = '{}' // TODO: Implement quest state tracking
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
 
       print('Sending GIVE_ITEM request to backend for item: $thaiName ($itemName)');
       var response = await request.send();
@@ -3864,6 +4022,17 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     if (mounted) {
       Navigator.of(context).pop(); // Close Language Tools dialog (safe - last dialog in chain)
     }
+    
+    // Track item giving
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'item_given',
+      additionalProperties: {
+        'item_english': itemData['english'] ?? 'Unknown',
+        'item_thai': itemData['thai'] ?? 'Unknown',
+        'target_language': targetLanguage,
+      },
+    );
     
     // Start backend processing immediately (fire-and-forget)
     _sendItemToBackend(itemData, targetLanguage);
@@ -4803,6 +4972,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       request.fields['target_language'] = targetLanguage;
       request.fields['custom_message'] = customMessage; // This bypasses STT
       request.fields['previous_conversation_history'] = historyLinesForBackend.join('\n');
+      request.fields['user_id'] = PostHogService.userId ?? 'unknown_user';
+      request.fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
 
       print("Sending item giving request for $itemName to $currentNPCName");
 
