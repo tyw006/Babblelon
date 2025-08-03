@@ -32,11 +32,11 @@ class GradientText extends StatelessWidget {
       key: key,
       style: useAlternateFont ? BabbleFonts.logoAlternate : BabbleFonts.logo,
       gradient: const LinearGradient(
-        colors: [BabbleFonts.butterYellow, BabbleFonts.cherryRed],
+        colors: [BabbleFonts.sunshineYellow, BabbleFonts.cherryRed],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      outlineColor: BabbleFonts.navyOutline,
+      outlineColor: BabbleFonts.chocolateBrown,
       outlineWidth: 4.0,
       hasOutline: true,
     );
@@ -54,8 +54,8 @@ class GradientText extends StatelessWidget {
       style: BabbleFonts.taglineVerb,
       gradient: LinearGradient(
         colors: [
-          isLiveVerb ? BabbleFonts.butterYellow : BabbleFonts.cherryRed,
-          isLiveVerb ? BabbleFonts.butterYellow : BabbleFonts.cherryRed,
+          isLiveVerb ? BabbleFonts.sunshineYellow : BabbleFonts.cherryRed,
+          isLiveVerb ? BabbleFonts.sunshineYellow : BabbleFonts.cherryRed,
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -68,7 +68,7 @@ class GradientText extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveStyle = style ?? Theme.of(context).textTheme.displayLarge;
     final effectiveGradient = gradient ?? const LinearGradient(
-      colors: [BabbleFonts.butterYellow, BabbleFonts.cherryRed],
+      colors: [BabbleFonts.sunshineYellow, BabbleFonts.cherryRed],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
@@ -83,7 +83,7 @@ class GradientText extends StatelessWidget {
               foreground: Paint()
                 ..style = PaintingStyle.stroke
                 ..strokeWidth = outlineWidth
-                ..color = outlineColor ?? BabbleFonts.navyOutline,
+                ..color = outlineColor ?? BabbleFonts.chocolateBrown,
             ),
           ),
           // Gradient fill layer

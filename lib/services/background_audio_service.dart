@@ -1,5 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/game_providers.dart';
 
 /// Service for managing background music and sound effects
 class BackgroundAudioService {
@@ -17,9 +19,14 @@ class BackgroundAudioService {
   
   String? _currentBackgroundMusic;
   bool _isMusicPlaying = false;
+  
+  // WidgetRef for accessing Riverpod providers
+  WidgetRef? _ref;
 
-  /// Initialize the audio service
-  Future<void> initialize() async {
+  /// Initialize the audio service with optional Riverpod connection
+  Future<void> initialize({WidgetRef? ref}) async {
+    _ref = ref;
+    
     await _musicPlayer.setVolume(_musicVolume);
     await _effectsPlayer.setVolume(_effectsVolume);
     
@@ -27,11 +34,39 @@ class BackgroundAudioService {
     await _musicPlayer.setReleaseMode(ReleaseMode.loop);
     await _effectsPlayer.setReleaseMode(ReleaseMode.stop);
     
+    // Sync with Riverpod state if available
+    if (_ref != null) {
+      _syncWithGameState();
+    }
+    
     debugPrint('BackgroundAudioService: Initialized with music volume $_musicVolume, effects volume $_effectsVolume');
+  }
+  
+  /// Sync internal settings with Riverpod game state
+  void _syncWithGameState() {
+    if (_ref == null) return;
+    
+    final gameState = _ref!.read(gameStateProvider);
+    _isMusicEnabled = gameState.musicEnabled;
+    _areEffectsEnabled = gameState.soundEffectsEnabled;
+    
+    // Stop music if it was disabled
+    if (!_isMusicEnabled && _isMusicPlaying) {
+      stopBackgroundMusic();
+    }
+    
+    debugPrint('BackgroundAudioService: Synced with game state - music: $_isMusicEnabled, effects: $_areEffectsEnabled');
+  }
+  
+  /// Set WidgetRef for Riverpod integration
+  void setWidgetRef(WidgetRef ref) {
+    _ref = ref;
+    _syncWithGameState();
   }
 
   /// Play background music for the intro screen
   Future<void> playIntroMusic() async {
+    _syncWithGameState(); // Sync before playing
     if (!_isMusicEnabled) return;
     
     const musicPath = 'audio/bg/background_introscreen.wav';
@@ -50,9 +85,54 @@ class BackgroundAudioService {
       debugPrint('BackgroundAudioService: Error playing intro music: $e');
     }
   }
+  
+  /// Play background music for the game
+  Future<void> playGameMusic() async {
+    _syncWithGameState(); // Sync before playing
+    if (!_isMusicEnabled) return;
+    
+    const musicPath = 'audio/bg/background_yaowarat.wav';
+    
+    try {
+      // Stop any currently playing music
+      await stopBackgroundMusic();
+      
+      // Play the game music
+      await _musicPlayer.play(AssetSource(musicPath));
+      _currentBackgroundMusic = musicPath;
+      _isMusicPlaying = true;
+      
+      debugPrint('BackgroundAudioService: Started playing game music');
+    } catch (e) {
+      debugPrint('BackgroundAudioService: Error playing game music: $e');
+    }
+  }
+  
+  /// Play background music for boss fight
+  Future<void> playBossFightMusic() async {
+    _syncWithGameState(); // Sync before playing
+    if (!_isMusicEnabled) return;
+    
+    const musicPath = 'audio/bg/background_tuktukbossfight.wav';
+    
+    try {
+      // Stop any currently playing music
+      await stopBackgroundMusic();
+      
+      // Play the boss fight music
+      await _musicPlayer.play(AssetSource(musicPath));
+      _currentBackgroundMusic = musicPath;
+      _isMusicPlaying = true;
+      
+      debugPrint('BackgroundAudioService: Started playing boss fight music');
+    } catch (e) {
+      debugPrint('BackgroundAudioService: Error playing boss fight music: $e');
+    }
+  }
 
   /// Play sound effect for the start game zoom animation
   Future<void> playStartGameSound() async {
+    _syncWithGameState(); // Sync before playing
     if (!_areEffectsEnabled) return;
     
     const soundPath = 'audio/soundeffects/soundeffect_startgame.mp3';
@@ -72,6 +152,7 @@ class BackgroundAudioService {
 
   /// Play portal sound effect
   Future<void> playPortalSound() async {
+    _syncWithGameState(); // Sync before playing
     if (!_areEffectsEnabled) return;
     
     const soundPath = 'audio/soundeffects/soundeffect_portal_v2.mp3';
@@ -83,6 +164,22 @@ class BackgroundAudioService {
       debugPrint('BackgroundAudioService: Played portal sound effect');
     } catch (e) {
       debugPrint('BackgroundAudioService: Error playing portal sound: $e');
+    }
+  }
+  
+  /// Play any sound effect by path
+  Future<void> playSoundEffect(String path, {double volume = 1.0}) async {
+    _syncWithGameState(); // Sync before playing
+    if (!_areEffectsEnabled) return;
+    
+    try {
+      await _effectsPlayer.stop();
+      await _effectsPlayer.setVolume(volume * _effectsVolume);
+      await _effectsPlayer.play(AssetSource(path));
+      
+      debugPrint('BackgroundAudioService: Played sound effect: $path');
+    } catch (e) {
+      debugPrint('BackgroundAudioService: Error playing sound effect $path: $e');
     }
   }
 

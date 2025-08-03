@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/onboarding_provider.dart';
 import 'package:babblelon/screens/main_navigation_screen.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
-import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 
 /// Streamlined onboarding flow with skip-first design
 /// Performance optimized with fast transitions
@@ -21,27 +20,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final List<OnboardingPage> _pages = [
     OnboardingPage(
       title: 'Welcome to BabbleOn',
-      description: 'Learn Thai through immersive conversations with AI-powered NPCs in Bangkok\'s vibrant Yaowarat district.',
+      description: 'Learn Thai through fun conversations with friendly characters in Bangkok\'s colorful Yaowarat district!',
       icon: Icons.waving_hand,
-      color: ModernDesignSystem.electricCyan,
+      color: cartoon.CartoonDesignSystem.sunshineYellow,
     ),
     OnboardingPage(
-      title: 'Voice Interaction',
-      description: 'Practice speaking Thai naturally. Our AI listens, understands, and responds to help you improve your pronunciation.',
+      title: 'Voice Adventure',
+      description: 'Talk and play! Our friendly AI friends will listen to you speak Thai and help you sound amazing.',
       icon: Icons.mic,
-      color: ModernDesignSystem.warmOrange,
+      color: cartoon.CartoonDesignSystem.cherryRed,
     ),
     OnboardingPage(
-      title: 'Character Learning',
-      description: 'Master Thai script by tracing characters. Learn to read and write with interactive guided practice.',
+      title: 'Writing Fun',
+      description: 'Draw beautiful Thai letters! Trace characters and learn to write in this exciting adventure.',
       icon: Icons.edit,
-      color: ModernDesignSystem.electricCyan,
+      color: cartoon.CartoonDesignSystem.warmOrange,
     ),
     OnboardingPage(
-      title: 'Ready to Start?',
-      description: 'Your Thai learning adventure awaits. Explore Bangkok, meet characters, and build your language skills naturally.',
+      title: 'Let\'s Go Adventure!',
+      description: 'Your amazing Thai learning journey starts now. Meet new friends and explore the wonderful world of Thai!',
       icon: Icons.rocket_launch,
-      color: ModernDesignSystem.warmOrange,
+      color: cartoon.CartoonDesignSystem.skyBlue,
     ),
   ];
 
@@ -89,7 +88,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
       body: SafeArea(
         child: Column(
           children: [
@@ -103,8 +102,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onPressed: _skipOnboarding,
                     child: Text(
                       'Skip',
-                      style: AppTheme.textTheme.titleMedium?.copyWith(
-                        color: ModernDesignSystem.electricCyan,
+                      style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+                        color: cartoon.CartoonDesignSystem.cherryRed,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -153,17 +152,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       onPressed: _nextPage,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _pages[_currentPage].color,
-                        foregroundColor: ModernDesignSystem.deepSpaceBlue,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor: cartoon.CartoonDesignSystem.textOnBright,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                          borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
                         ),
+                        elevation: 8,
+                        shadowColor: _pages[_currentPage].color.withValues(alpha: 0.4),
                       ),
                       child: Text(
-                        _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                        style: const TextStyle(
+                        _currentPage == _pages.length - 1 ? 'Let\'s Start!' : 'Next Adventure',
+                        style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
+                          color: cartoon.CartoonDesignSystem.textOnBright,
                         ),
                       ),
                     ),
@@ -200,12 +202,19 @@ class _OnboardingPageWidget extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: page.color.withValues(alpha: 0.1),
+              color: page.color.withValues(alpha: 0.2),
               shape: BoxShape.circle,
               border: Border.all(
-                color: page.color.withValues(alpha: 0.3),
-                width: 2,
+                color: page.color,
+                width: 4,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: page.color.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Icon(
               page.icon,
@@ -219,8 +228,8 @@ class _OnboardingPageWidget extends StatelessWidget {
           // Title
           Text(
             page.title,
-            style: AppTheme.textTheme.headlineMedium?.copyWith(
-              color: page.color,
+            style: cartoon.CartoonDesignSystem.headlineLarge.copyWith(
+              color: cartoon.CartoonDesignSystem.textPrimary,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -231,9 +240,10 @@ class _OnboardingPageWidget extends StatelessWidget {
           // Description
           Text(
             page.description,
-            style: AppTheme.textTheme.bodyLarge?.copyWith(
-              color: ModernDesignSystem.slateGray,
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textSecondary,
               height: 1.6,
+              fontSize: 16,
             ),
             textAlign: TextAlign.center,
           ),
@@ -260,7 +270,7 @@ class _PageIndicator extends StatelessWidget {
       width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive ? color : ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+        color: isActive ? color : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(4),
       ),
     );

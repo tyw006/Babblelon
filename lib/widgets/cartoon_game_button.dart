@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
-class ModernSpaceButton extends StatefulWidget {
+class CartoonGameButton extends ConsumerStatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isEnabled;
@@ -11,7 +13,7 @@ class ModernSpaceButton extends StatefulWidget {
   final double? width;
   final double height;
 
-  const ModernSpaceButton({
+  const CartoonGameButton({
     super.key,
     required this.text,
     this.onPressed,
@@ -23,10 +25,10 @@ class ModernSpaceButton extends StatefulWidget {
   });
 
   @override
-  State<ModernSpaceButton> createState() => _ModernSpaceButtonState();
+  ConsumerState<CartoonGameButton> createState() => _CartoonGameButtonState();
 }
 
-class _ModernSpaceButtonState extends State<ModernSpaceButton>
+class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
     with TickerProviderStateMixin {
   late AnimationController _hoverController;
   late AnimationController _pressController;
@@ -76,7 +78,7 @@ class _ModernSpaceButtonState extends State<ModernSpaceButton>
   }
 
   @override
-  void didUpdateWidget(ModernSpaceButton oldWidget) {
+  void didUpdateWidget(CartoonGameButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     
     if (widget.isEnabled && !widget.isLoading && !_glowController.isAnimating) {
@@ -104,6 +106,7 @@ class _ModernSpaceButtonState extends State<ModernSpaceButton>
   void _onTapUp(TapUpDetails details) {
     _pressController.reverse();
     if (widget.isEnabled && !widget.isLoading) {
+      ref.playButtonSound();
       widget.onPressed?.call();
     }
   }
@@ -150,40 +153,40 @@ class _ModernSpaceButtonState extends State<ModernSpaceButton>
                 height: widget.height,
                 decoration: BoxDecoration(
                   gradient: isInteractive
-                      ? ModernDesignSystem.primaryGradient
+                      ? CartoonDesignSystem.primaryGradient
                       : LinearGradient(
                           colors: [
-                            ModernDesignSystem.slateGray.withValues(alpha: 0.5),
-                            ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+                            CartoonDesignSystem.textMuted.withValues(alpha: 0.5),
+                            CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
                           ],
                         ),
-                  borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                  borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
                   border: Border.all(
                     color: isInteractive
-                        ? ModernDesignSystem.electricCyan.withValues(
+                        ? CartoonDesignSystem.sunshineYellow.withValues(
                             alpha: 0.3 + (_glowAnimation.value * 0.4),
                           )
-                        : ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+                        : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                   boxShadow: isInteractive
                       ? [
                           BoxShadow(
-                            color: ModernDesignSystem.electricCyan.withValues(
+                            color: CartoonDesignSystem.sunshineYellow.withValues(
                               alpha: 0.2 + (_glowAnimation.value * 0.3),
                             ),
                             blurRadius: 20 + (_glowAnimation.value * 10),
                             spreadRadius: 2 + (_glowAnimation.value * 3),
                           ),
                           BoxShadow(
-                            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.8),
+                            color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
                         ]
                       : [
                           BoxShadow(
-                            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.5),
+                            color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.5),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -197,7 +200,7 @@ class _ModernSpaceButtonState extends State<ModernSpaceButton>
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              ModernDesignSystem.ghostWhite,
+                              CartoonDesignSystem.textOnBright,
                             ),
                           ),
                         )
@@ -208,23 +211,23 @@ class _ModernSpaceButtonState extends State<ModernSpaceButton>
                               Icon(
                                 widget.icon,
                                 color: isInteractive
-                                    ? ModernDesignSystem.deepSpaceBlue
-                                    : ModernDesignSystem.slateGray,
+                                    ? CartoonDesignSystem.textPrimary
+                                    : CartoonDesignSystem.textMuted,
                                 size: 20,
                               ),
-                              const SizedBox(width: ModernDesignSystem.spaceSM),
+                              const SizedBox(width: CartoonDesignSystem.spaceSM),
                             ],
                             Text(
                               widget.text,
                               style: AppTheme.textTheme.titleMedium?.copyWith(
                                 color: isInteractive
-                                    ? ModernDesignSystem.deepSpaceBlue
-                                    : ModernDesignSystem.slateGray,
+                                    ? CartoonDesignSystem.textPrimary
+                                    : CartoonDesignSystem.textMuted,
                                 fontWeight: FontWeight.w600,
                                 shadows: isInteractive
                                     ? [
                                         Shadow(
-                                          color: ModernDesignSystem.ghostWhite.withValues(alpha: 0.8),
+                                          color: CartoonDesignSystem.textOnBright.withValues(alpha: 0.8),
                                           blurRadius: 2,
                                         ),
                                       ]

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/premium/premium_npc_chat_screen.dart';
 import 'package:babblelon/screens/premium/premium_boss_battle_screen.dart';
@@ -13,7 +13,7 @@ class PremiumScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Premium Features',
@@ -66,7 +66,7 @@ class _HeroSection extends StatelessWidget {
             Color(0xFFFF8C00), // Dark Orange
           ],
         ),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFFFD700).withValues(alpha: 0.3),
@@ -79,14 +79,14 @@ class _HeroSection extends StatelessWidget {
         children: [
           Icon(
             Icons.star,
-            color: ModernDesignSystem.deepSpaceBlue,
+            color: CartoonDesignSystem.creamWhite,
             size: 48,
           ),
           const SizedBox(height: 16),
           Text(
             'Practice Anytime, Anywhere',
             style: AppTheme.textTheme.headlineSmall?.copyWith(
-              color: ModernDesignSystem.deepSpaceBlue,
+              color: CartoonDesignSystem.creamWhite,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -95,7 +95,7 @@ class _HeroSection extends StatelessWidget {
           Text(
             'Chat with NPCs and battle bosses outside of the main adventure',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.8),
+              color: CartoonDesignSystem.creamWhite.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.center,
           ),
@@ -131,8 +131,8 @@ class _NPCChatCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.creamWhite.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
           color: const Color(0xFFFFD700).withValues(alpha: 0.3),
           width: 1,
@@ -154,7 +154,7 @@ class _NPCChatCard extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(ModernDesignSystem.radiusSmall),
+                  borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
                 ),
                 child: const Icon(
                   Icons.chat_bubble_outline,
@@ -177,7 +177,7 @@ class _NPCChatCard extends StatelessWidget {
                     Text(
                       'Chat with your favorite NPCs',
                       style: AppTheme.textTheme.bodyMedium?.copyWith(
-                        color: ModernDesignSystem.slateGray,
+                        color: CartoonDesignSystem.textSecondary,
                       ),
                     ),
                   ],
@@ -189,7 +189,7 @@ class _NPCChatCard extends StatelessWidget {
           Text(
             'Practice conversations with Amara, Somchai, and other NPCs outside of the main game. Perfect for focused language practice!',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.ghostWhite.withValues(alpha: 0.8),
+              color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 20),
@@ -199,7 +199,7 @@ class _NPCChatCard extends StatelessWidget {
               Text(
                 '💬 Unlimited conversations\n🎤 Voice practice\n📝 Conversation history',
                 style: AppTheme.textTheme.bodySmall?.copyWith(
-                  color: ModernDesignSystem.slateGray,
+                  color: CartoonDesignSystem.textSecondary,
                 ),
               ),
               ElevatedButton(
@@ -212,7 +212,7 @@ class _NPCChatCard extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
-                  foregroundColor: ModernDesignSystem.deepSpaceBlue,
+                  foregroundColor: CartoonDesignSystem.creamWhite,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
                 child: const Text('Start Chat'),
@@ -235,8 +235,8 @@ class _BossBattleCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.creamWhite.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
           color: const Color(0xFFFFD700).withValues(alpha: 0.3),
           width: 1,
@@ -258,7 +258,7 @@ class _BossBattleCard extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(ModernDesignSystem.radiusSmall),
+                  borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
                 ),
                 child: const Icon(
                   Icons.sports_mma,
@@ -281,7 +281,7 @@ class _BossBattleCard extends StatelessWidget {
                     Text(
                       'Practice pronunciation battles',
                       style: AppTheme.textTheme.bodyMedium?.copyWith(
-                        color: ModernDesignSystem.slateGray,
+                        color: CartoonDesignSystem.textSecondary,
                       ),
                     ),
                   ],
@@ -293,7 +293,7 @@ class _BossBattleCard extends StatelessWidget {
           Text(
             'Train against boss monsters in focused pronunciation battles. Perfect your accent and earn high scores!',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.ghostWhite.withValues(alpha: 0.8),
+              color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 20),
@@ -303,7 +303,7 @@ class _BossBattleCard extends StatelessWidget {
               Text(
                 '⚔️ Quick battles\n🏆 Score tracking\n📊 Difficulty levels',
                 style: AppTheme.textTheme.bodySmall?.copyWith(
-                  color: ModernDesignSystem.slateGray,
+                  color: CartoonDesignSystem.textSecondary,
                 ),
               ),
               ElevatedButton(
@@ -316,7 +316,7 @@ class _BossBattleCard extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
-                  foregroundColor: ModernDesignSystem.deepSpaceBlue,
+                  foregroundColor: CartoonDesignSystem.creamWhite,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
                 child: const Text('Start Battle'),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 
 /// Premium NPC chat screen for practicing conversations outside of game context
@@ -46,7 +46,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'NPC Conversations',
@@ -83,7 +83,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                   Color(0xFFFFA500),
                 ],
               ),
-              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
             ),
             child: Row(
               children: [
@@ -159,7 +159,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.8),
+            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
             border: Border(
               bottom: BorderSide(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.3),
@@ -192,7 +192,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                     Text(
                       selectedNPC.description,
                       style: AppTheme.textTheme.bodyMedium?.copyWith(
-                        color: ModernDesignSystem.slateGray,
+                        color: CartoonDesignSystem.textSecondary,
                       ),
                     ),
                   ],
@@ -200,7 +200,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.close),
-                color: ModernDesignSystem.slateGray,
+                color: CartoonDesignSystem.textSecondary,
                 onPressed: () => setState(() => selectedNpcId = null),
               ),
             ],
@@ -218,7 +218,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFD700).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                    borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
                     border: Border.all(
                       color: const Color(0xFFFFD700).withValues(alpha: 0.3),
                     ),
@@ -257,10 +257,10 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                    color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
                     border: Border.all(
-                      color: ModernDesignSystem.electricCyan.withValues(alpha: 0.3),
+                      color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -274,7 +274,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                       Text(
                         selectedNPC.specialization,
                         style: AppTheme.textTheme.bodyMedium?.copyWith(
-                          color: ModernDesignSystem.slateGray,
+                          color: CartoonDesignSystem.textSecondary,
                         ),
                       ),
                     ],
@@ -291,7 +291,7 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.9),
+            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.9),
             border: Border(
               top: BorderSide(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.3),
@@ -347,15 +347,15 @@ class _PremiumNPCChatScreenState extends ConsumerState<PremiumNPCChatScreen> {
                     onPressed: () {
                       // Show conversation history
                     },
-                    icon: const Icon(Icons.history, color: ModernDesignSystem.electricCyan),
-                    label: const Text('History', style: TextStyle(color: ModernDesignSystem.electricCyan)),
+                    icon: const Icon(Icons.history, color: CartoonDesignSystem.sunshineYellow),
+                    label: const Text('History', style: TextStyle(color: CartoonDesignSystem.sunshineYellow)),
                   ),
                   TextButton.icon(
                     onPressed: () {
                       setState(() => selectedNpcId = null);
                     },
-                    icon: const Icon(Icons.people, color: ModernDesignSystem.electricCyan),
-                    label: const Text('Change NPC', style: TextStyle(color: ModernDesignSystem.electricCyan)),
+                    icon: const Icon(Icons.people, color: CartoonDesignSystem.sunshineYellow),
+                    label: const Text('Change NPC', style: TextStyle(color: CartoonDesignSystem.sunshineYellow)),
                   ),
                 ],
               ),
@@ -418,13 +418,13 @@ class _NPCCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: npc.isAvailable 
-            ? ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6)
-            : ModernDesignSystem.slateGray.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            ? CartoonDesignSystem.softPeach.withValues(alpha: 0.6)
+            : CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
           border: Border.all(
             color: npc.isAvailable 
               ? const Color(0xFFFFD700).withValues(alpha: 0.3)
-              : ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+              : CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -435,10 +435,10 @@ class _NPCCard extends StatelessWidget {
               radius: 30,
               backgroundColor: npc.isAvailable 
                 ? const Color(0xFFFFD700).withValues(alpha: 0.2)
-                : ModernDesignSystem.slateGray.withValues(alpha: 0.2),
+                : CartoonDesignSystem.textSecondary.withValues(alpha: 0.2),
               child: Icon(
                 Icons.person,
-                color: npc.isAvailable ? const Color(0xFFFFD700) : ModernDesignSystem.slateGray,
+                color: npc.isAvailable ? const Color(0xFFFFD700) : CartoonDesignSystem.textSecondary,
                 size: 32,
               ),
             ),
@@ -446,14 +446,14 @@ class _NPCCard extends StatelessWidget {
             Text(
               npc.name,
               style: AppTheme.textTheme.titleMedium?.copyWith(
-                color: npc.isAvailable ? const Color(0xFFFFD700) : ModernDesignSystem.slateGray,
+                color: npc.isAvailable ? const Color(0xFFFFD700) : CartoonDesignSystem.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               npc.description,
               style: AppTheme.textTheme.bodySmall?.copyWith(
-                color: ModernDesignSystem.slateGray,
+                color: CartoonDesignSystem.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -462,13 +462,13 @@ class _NPCCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+                  color: CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'Coming Soon',
                   style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: ModernDesignSystem.slateGray,
+                    color: CartoonDesignSystem.textSecondary,
                     fontSize: 10,
                   ),
                 ),

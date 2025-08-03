@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
 
@@ -12,7 +12,7 @@ class LearnScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Learn Thai',
@@ -50,11 +50,11 @@ class _GameModeSection extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.electricCyan.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
-          color: ModernDesignSystem.electricCyan.withValues(alpha: 0.5),
-          width: 2,
+          color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.6),
+          width: 3,
         ),
       ),
       child: Column(
@@ -62,12 +62,12 @@ class _GameModeSection extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ModernDesignSystem.electricCyan.withValues(alpha: 0.2),
+              color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.videogame_asset,
-              color: ModernDesignSystem.electricCyan,
+              color: CartoonDesignSystem.cherryRed,
               size: 48,
             ),
           ),
@@ -75,14 +75,14 @@ class _GameModeSection extends ConsumerWidget {
           Text(
             'Bangkok Adventure',
             style: AppTheme.textTheme.headlineSmall?.copyWith(
-              color: ModernDesignSystem.electricCyan,
+              color: CartoonDesignSystem.cherryRed,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Explore Yaowarat and practice Thai with AI-powered NPCs',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.slateGray,
+              color: CartoonDesignSystem.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -96,11 +96,11 @@ class _GameModeSection extends ConsumerWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: ModernDesignSystem.electricCyan,
-              foregroundColor: ModernDesignSystem.deepSpaceBlue,
+              backgroundColor: CartoonDesignSystem.sunshineYellow,
+              foregroundColor: CartoonDesignSystem.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
               ),
             ),
             child: Row(
@@ -139,7 +139,7 @@ class _LearningOptionsSection extends StatelessWidget {
           title: 'Conversation Practice',
           description: 'Chat with NPCs to improve speaking skills',
           icon: Icons.chat_bubble_outline,
-          color: ModernDesignSystem.warmOrange,
+          color: CartoonDesignSystem.warmOrange,
           isAvailable: true,
         ),
         const SizedBox(height: 12),
@@ -147,7 +147,7 @@ class _LearningOptionsSection extends StatelessWidget {
           title: 'Character Writing',
           description: 'Learn to write Thai characters',
           icon: Icons.edit_outlined,
-          color: ModernDesignSystem.electricCyan,
+          color: CartoonDesignSystem.sunshineYellow,
           isAvailable: true,
         ),
         const SizedBox(height: 12),
@@ -155,7 +155,7 @@ class _LearningOptionsSection extends StatelessWidget {
           title: 'Pronunciation Training',
           description: 'Perfect your Thai pronunciation',
           icon: Icons.record_voice_over_outlined,
-          color: ModernDesignSystem.warmOrange,
+          color: CartoonDesignSystem.cherryRed,
           isAvailable: true,
         ),
       ],
@@ -184,13 +184,13 @@ class _LearningOptionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
           color: isAvailable 
-            ? color.withValues(alpha: 0.3)
-            : ModernDesignSystem.slateGray.withValues(alpha: 0.3),
-          width: 1,
+            ? color.withValues(alpha: 0.5)
+            : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+          width: 2,
         ),
       ),
       child: Row(
@@ -200,12 +200,12 @@ class _LearningOptionCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: isAvailable 
                 ? color.withValues(alpha: 0.2)
-                : ModernDesignSystem.slateGray.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusSmall),
+                : CartoonDesignSystem.textMuted.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
             ),
             child: Icon(
               icon,
-              color: isAvailable ? color : ModernDesignSystem.slateGray,
+              color: isAvailable ? color : CartoonDesignSystem.textMuted,
               size: 24,
             ),
           ),
@@ -218,15 +218,15 @@ class _LearningOptionCard extends StatelessWidget {
                   title,
                   style: AppTheme.textTheme.titleMedium?.copyWith(
                     color: isAvailable 
-                      ? ModernDesignSystem.ghostWhite
-                      : ModernDesignSystem.slateGray,
+                      ? CartoonDesignSystem.textPrimary
+                      : CartoonDesignSystem.textMuted,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
                   style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: ModernDesignSystem.slateGray,
+                    color: CartoonDesignSystem.textSecondary,
                   ),
                 ),
               ],
@@ -261,32 +261,32 @@ class _QuickStartSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
             border: Border.all(
-              color: ModernDesignSystem.slateGray.withValues(alpha: 0.3),
-              width: 1,
+              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
+              width: 2,
             ),
           ),
           child: Column(
             children: [
               Icon(
                 Icons.play_circle_outline,
-                color: ModernDesignSystem.slateGray,
+                color: CartoonDesignSystem.textSecondary,
                 size: 48,
               ),
               const SizedBox(height: 16),
               Text(
                 'No recent lessons',
                 style: AppTheme.textTheme.bodyLarge?.copyWith(
-                  color: ModernDesignSystem.slateGray,
+                  color: CartoonDesignSystem.textSecondary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Start your first adventure to begin learning',
                 style: AppTheme.textTheme.bodyMedium?.copyWith(
-                  color: ModernDesignSystem.slateGray.withValues(alpha: 0.7),
+                  color: CartoonDesignSystem.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),

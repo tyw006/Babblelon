@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:babblelon/screens/main_screen/widgets/twinkling_stars.dart';
 import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
-import 'package:babblelon/screens/splash_screen.dart';
-import 'package:babblelon/widgets/modern_design_system.dart' as modern;
-import 'package:babblelon/theme/font_extensions.dart';
+import 'package:babblelon/screens/cartoon_splash_screen.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 
 class CombinedSelectionScreen extends ConsumerStatefulWidget {
@@ -193,7 +191,7 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: modern.ModernDesignSystem.spaceGradient,
+          gradient: CartoonDesignSystem.backgroundGradient,
         ),
         child: SafeArea(
           child: Center(
@@ -203,28 +201,28 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                 const Icon(
                   Icons.construction,
                   size: 80,
-                  color: modern.ModernDesignSystem.butterYellow,
+                  color: CartoonDesignSystem.cherryRed,
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Coming Soon!',
-                  style: modern.ModernDesignSystem.headlineLarge.copyWith(
-                    color: Colors.white,
+                  style: CartoonDesignSystem.headlineLarge.copyWith(
+                    color: CartoonDesignSystem.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   '${_languageToCountry[_selectedLanguage]} adventures are\nunder construction',
                   textAlign: TextAlign.center,
-                  style: modern.ModernDesignSystem.bodyMedium.copyWith(
-                    color: Colors.white70,
+                  style: CartoonDesignSystem.bodyMedium.copyWith(
+                    color: CartoonDesignSystem.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
-                modern.ModernButton(
+                CartoonButton(
                   text: 'Back to Selection',
                   onPressed: _handleBackNavigation,
-                  style: modern.ButtonStyle.secondary,
+                  style: CartoonButtonStyle.secondary,
                 ),
               ],
             ),
@@ -239,7 +237,7 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const SplashScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => const CartoonSplashScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -273,20 +271,11 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                 scale: zoomValue,
                 child: Container(
                   decoration: const BoxDecoration(
-                    gradient: modern.ModernDesignSystem.spaceGradient,
+                    gradient: CartoonDesignSystem.backgroundGradient,
                   ),
                   child: SafeArea(
                     child: Stack(
                       children: [
-                        // Twinkling stars background - reduced for performance
-                        const Positioned.fill(
-                          child: TwinklingStars(
-                            starCount: 15,
-                            minSize: 0.8,
-                            maxSize: 1.8,
-                            duration: Duration(seconds: 10),
-                          ),
-                        ),
                         
                         // Main content with split layout
                         Column(
@@ -391,14 +380,25 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
           IconButton(
             onPressed: _handleBackNavigation,
             icon: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: CartoonDesignSystem.creamWhite,
+                borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
+                border: Border.all(
+                  color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: const Icon(
                 Icons.arrow_back_ios_rounded,
-                color: Colors.white,
+                color: CartoonDesignSystem.textPrimary,
                 size: 18,
               ),
             ),
@@ -407,9 +407,9 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
           Expanded(
             child: Text(
               'Choose Your Journey',
-              style: BabbleFonts.logo.copyWith(
+              style: CartoonDesignSystem.headlineLarge.copyWith(
                 fontSize: 24,
-                color: Colors.white,
+                color: CartoonDesignSystem.textPrimary,
               ),
             ),
           ),
@@ -428,21 +428,28 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              gradient: modern.ModernDesignSystem.primaryGradient,
-              borderRadius: BorderRadius.circular(12),
+              gradient: CartoonDesignSystem.primaryGradient,
+              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
+              boxShadow: [
+                BoxShadow(
+                  color: CartoonDesignSystem.warmOrange.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               icon,
-              color: Colors.white,
-              size: 20,
+              color: CartoonDesignSystem.textOnBright,
+              size: 22,
             ),
           ),
           const SizedBox(width: 12),
           Text(
             title,
-            style: BabbleFonts.taglineVerb.copyWith(
+            style: CartoonDesignSystem.headlineMedium.copyWith(
               fontSize: 18,
-              color: Colors.white,
+              color: CartoonDesignSystem.textPrimary,
             ),
           ),
         ],
@@ -473,13 +480,13 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                           ? null 
                           : language.code;
                     });
-                    modern.ModernDesignSystem.triggerSelectionFeedback();
+                    CartoonDesignSystem.triggerSelectionFeedback();
                   }
                 : null,
             child: Container(
               decoration: BoxDecoration(
                 gradient: isSelected 
-                    ? modern.ModernDesignSystem.primaryGradient
+                    ? CartoonDesignSystem.primaryGradient
                     : LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -498,14 +505,14 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                 boxShadow: [
                   BoxShadow(
                     color: isSelected 
-                        ? modern.ModernDesignSystem.primaryIndigo.withValues(alpha: 0.3)
+                        ? CartoonDesignSystem.cherryRed.withValues(alpha: 0.3)
                         : Colors.black.withValues(alpha: 0.1),
                     blurRadius: isSelected ? 20 : 8,
                     offset: const Offset(0, 4),
                   ),
                   if (isSelected)
                     BoxShadow(
-                      color: modern.ModernDesignSystem.electricCyan.withValues(alpha: 0.2),
+                      color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.2),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -527,10 +534,10 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                           const SizedBox(height: 8),
                           Text(
                             language.name,
-                            style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                            style: CartoonDesignSystem.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: isSelected ? Colors.white : modern.ModernDesignSystem.textOnSurface,
+                              color: isSelected ? CartoonDesignSystem.textOnBright : CartoonDesignSystem.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -538,11 +545,11 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                           const SizedBox(height: 4),
                           Text(
                             language.nativeName,
-                            style: modern.ModernDesignSystem.caption.copyWith(
+                            style: CartoonDesignSystem.caption.copyWith(
                               fontSize: 12,
                               color: isSelected 
-                                  ? Colors.white.withValues(alpha: 0.8)
-                                  : modern.ModernDesignSystem.softGray,
+                                  ? CartoonDesignSystem.textOnBright.withValues(alpha: 0.8)
+                                  : CartoonDesignSystem.textSecondary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -560,11 +567,11 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                             width: 12,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: Colors.green,
+                              color: CartoonDesignSystem.forestGreen,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.green.withValues(alpha: 0.6),
+                                  color: CartoonDesignSystem.forestGreen.withValues(alpha: 0.6),
                                   blurRadius: 8,
                                   spreadRadius: 2,
                                 ),
@@ -574,14 +581,19 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                         : Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(12),
+                              color: CartoonDesignSystem.coralPink,
+                              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
+                              border: Border.all(
+                                color: CartoonDesignSystem.cherryRed,
+                                width: 1,
+                              ),
                             ),
                             child: Text(
                               'Soon',
-                              style: modern.ModernDesignSystem.caption.copyWith(
+                              style: CartoonDesignSystem.caption.copyWith(
                                 fontSize: 10,
-                                color: Colors.white,
+                                color: CartoonDesignSystem.textOnBright,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -617,12 +629,12 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                     ? null 
                     : character.id;
               });
-              modern.ModernDesignSystem.triggerSelectionFeedback();
+              CartoonDesignSystem.triggerSelectionFeedback();
             },
             child: Container(
               decoration: BoxDecoration(
                 gradient: isSelected 
-                    ? modern.ModernDesignSystem.primaryGradient
+                    ? CartoonDesignSystem.primaryGradient
                     : LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -641,14 +653,14 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                 boxShadow: [
                   BoxShadow(
                     color: isSelected 
-                        ? modern.ModernDesignSystem.primaryIndigo.withValues(alpha: 0.3)
+                        ? CartoonDesignSystem.cherryRed.withValues(alpha: 0.3)
                         : Colors.black.withValues(alpha: 0.15),
                     blurRadius: isSelected ? 20 : 10,
                     offset: const Offset(0, 4),
                   ),
                   if (isSelected)
                     BoxShadow(
-                      color: modern.ModernDesignSystem.electricCyan.withValues(alpha: 0.2),
+                      color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.2),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -665,8 +677,8 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                         character.id == 'male' ? Icons.person : Icons.person_4,
                         size: 80,
                         color: isSelected 
-                            ? Colors.white
-                            : modern.ModernDesignSystem.slateGray,
+                            ? CartoonDesignSystem.textOnBright
+                            : CartoonDesignSystem.textSecondary,
                       );
                     },
                   ),
@@ -692,21 +704,22 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
             borderRadius: BorderRadius.circular(16),
             boxShadow: _canContinue ? [
               BoxShadow(
-                color: modern.ModernDesignSystem.cherryRed.withValues(alpha: glow * 0.3),
+                color: CartoonDesignSystem.cherryRed.withValues(alpha: glow * 0.4),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
             ] : [],
           ),
-          child: modern.ModernButton(
+          child: CartoonButton(
             text: _canContinue 
                 ? 'Travel to ${_languageToCountry[_selectedLanguage] ?? 'Adventure'}!' 
                 : 'Select Language & Character',
             onPressed: _canContinue && !_isNavigating ? _onContinue : null,
             isLoading: _isNavigating,
-            style: modern.ButtonStyle.primary,
+            style: CartoonButtonStyle.accent,
             width: double.infinity,
             icon: _canContinue && !_isNavigating ? Icons.arrow_forward_rounded : null,
+            isLarge: true,
           ),
         );
       },

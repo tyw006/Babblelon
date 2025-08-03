@@ -62,12 +62,6 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
   }
   
   Future<void> _startLoading() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    // Start timing to enforce minimum 2-second duration
-    final startTime = DateTime.now();
-    const minimumDuration = Duration(seconds: 2);
-    
     final success = await _preloadService.preloadAssets(
       context: mounted ? context : null,
       onProgress: (progress, step) {
@@ -87,19 +81,7 @@ class _CapybaraLoadingOverlayState extends State<CapybaraLoadingOverlay>
         _loadingText = 'Ready to start your adventure!';
       });
       
-      // Calculate remaining time to reach minimum duration
-      final elapsedTime = DateTime.now().difference(startTime);
-      final remainingTime = minimumDuration - elapsedTime;
-      
-      // Wait for remaining time if less than minimum duration has passed
-      if (remainingTime.inMilliseconds > 0) {
-        await Future.delayed(remainingTime);
-      }
-      
-      await Future.delayed(const Duration(milliseconds: 500));
       _fadeController.forward();
-      
-      await Future.delayed(const Duration(milliseconds: 400));
       widget.onComplete();
     }
   }

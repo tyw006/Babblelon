@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/models/local_storage_models.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 
 /// Progress screen with performance-optimized charts and statistics
@@ -13,7 +13,7 @@ class ProgressScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Your Progress',
@@ -52,11 +52,11 @@ class _OverviewSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.softPeach,
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
-          color: ModernDesignSystem.electricCyan.withValues(alpha: 0.3),
-          width: 1,
+          color: CartoonDesignSystem.cherryRed.withValues(alpha: 0.3),
+          width: 2,
         ),
       ),
       child: Column(
@@ -73,7 +73,7 @@ class _OverviewSection extends StatelessWidget {
                 child: _ProgressCircle(
                   title: 'Overall Progress',
                   progress: 0.35,
-                  color: ModernDesignSystem.electricCyan,
+                  color: CartoonDesignSystem.sunshineYellow,
                   centerText: '35%',
                 ),
               ),
@@ -82,7 +82,7 @@ class _OverviewSection extends StatelessWidget {
                 child: _ProgressCircle(
                   title: 'Weekly Goal',
                   progress: 0.68,
-                  color: ModernDesignSystem.warmOrange,
+                  color: CartoonDesignSystem.cherryRed,
                   centerText: '68%',
                 ),
               ),
@@ -138,7 +138,7 @@ class _ProgressCircle extends StatelessWidget {
         Text(
           title,
           style: AppTheme.textTheme.bodyMedium?.copyWith(
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
           ),
           textAlign: TextAlign.center,
         ),
@@ -184,14 +184,14 @@ class _ProgressMetricsSection extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 1.6,
+              childAspectRatio: 2.0,
               children: [
                 _MetricCard(
                   title: 'Words Learned',
                   value: '$masteredWords',
                   subtitle: 'of $totalWords practiced',
                   icon: Icons.text_fields,
-                  color: ModernDesignSystem.electricCyan,
+                  color: CartoonDesignSystem.sunshineYellow,
                   progress: totalWords > 0 ? masteredWords / totalWords : 0.0,
                 ),
                 _MetricCard(
@@ -199,7 +199,7 @@ class _ProgressMetricsSection extends ConsumerWidget {
                   value: '$masteredCharacters',
                   subtitle: 'mastered',
                   icon: Icons.text_format,
-                  color: ModernDesignSystem.warmOrange,
+                  color: CartoonDesignSystem.cherryRed,
                   progress: totalWords > 0 ? masteredCharacters / totalWords : 0.0,
                 ),
                 _MetricCard(
@@ -207,7 +207,7 @@ class _ProgressMetricsSection extends ConsumerWidget {
                   value: '${(averageScore * 100).toInt()}%',
                   subtitle: 'average score',
                   icon: Icons.trending_up,
-                  color: Colors.green,
+                  color: CartoonDesignSystem.forestGreen,
                   progress: averageScore,
                 ),
                 _MetricCard(
@@ -215,7 +215,7 @@ class _ProgressMetricsSection extends ConsumerWidget {
                   value: '${phrases.fold(0, (sum, p) => sum + p.timesPracticed)}',
                   subtitle: 'sessions',
                   icon: Icons.timer,
-                  color: Colors.purple,
+                  color: CartoonDesignSystem.lavenderPurple,
                   progress: 0.7, // Placeholder progress
                 ),
               ],
@@ -248,10 +248,10 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         border: Border.all(
           color: color.withValues(alpha: 0.3),
           width: 1,
@@ -266,14 +266,14 @@ class _MetricCard extends StatelessWidget {
               Icon(
                 icon,
                 color: color,
-                size: 18,
+                size: 16,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 3),
               Expanded(
                 child: Text(
                   title,
                   style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: ModernDesignSystem.slateGray,
+                    color: CartoonDesignSystem.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -281,7 +281,7 @@ class _MetricCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             value,
             style: AppTheme.textTheme.titleLarge?.copyWith(
@@ -289,17 +289,17 @@ class _MetricCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
           Text(
             subtitle,
             style: AppTheme.textTheme.bodySmall?.copyWith(
-              color: ModernDesignSystem.slateGray.withValues(alpha: 0.8),
-              fontSize: 11,
+              color: CartoonDesignSystem.textMuted,
+              fontSize: 10,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           LinearProgressIndicator(
             value: progress,
             backgroundColor: color.withValues(alpha: 0.2),
@@ -328,32 +328,32 @@ class _AchievementsSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            color: CartoonDesignSystem.softPeach,
+            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
             border: Border.all(
-              color: ModernDesignSystem.slateGray.withValues(alpha: 0.3),
-              width: 1,
+              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
+              width: 2,
             ),
           ),
           child: Column(
             children: [
               Icon(
                 Icons.emoji_events_outlined,
-                color: ModernDesignSystem.slateGray,
+                color: CartoonDesignSystem.textSecondary,
                 size: 48,
               ),
               const SizedBox(height: 16),
               Text(
                 'No achievements yet',
                 style: AppTheme.textTheme.bodyLarge?.copyWith(
-                  color: ModernDesignSystem.slateGray,
+                  color: CartoonDesignSystem.textSecondary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Start learning to unlock your first achievement',
                 style: AppTheme.textTheme.bodyMedium?.copyWith(
-                  color: ModernDesignSystem.slateGray.withValues(alpha: 0.7),
+                  color: CartoonDesignSystem.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -424,18 +424,18 @@ class _StatRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusSmall),
+        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
         border: Border.all(
-          color: ModernDesignSystem.slateGray.withValues(alpha: 0.2),
-          width: 1,
+          color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
+          width: 2,
         ),
       ),
       child: Row(
         children: [
           Icon(
             icon,
-            color: ModernDesignSystem.electricCyan,
+            color: CartoonDesignSystem.cherryRed,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -448,7 +448,7 @@ class _StatRow extends StatelessWidget {
           Text(
             value,
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.electricCyan,
+              color: CartoonDesignSystem.cherryRed,
               fontWeight: FontWeight.w600,
             ),
           ),

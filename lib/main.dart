@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Babblelon',
-      theme: AppTheme.lightTheme, // Use modern unified theme
+      theme: AppTheme.lightTheme, // Use cartoon unified theme
       home: const AppController(), // New app controller with onboarding flow
     );
   }

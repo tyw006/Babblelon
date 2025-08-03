@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flame/events.dart';
@@ -18,6 +17,7 @@ import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
+import '../services/background_audio_service.dart';
 
 class BabblelonGame extends FlameGame with
     RiverpodGameMixin,
@@ -54,15 +54,18 @@ class BabblelonGame extends FlameGame with
 
   just_audio.AudioPlayer? _portalSoundPlayer;
   
+  // Track music state for manual checking
+  bool? _previousMusicEnabled;
+  
+  // Background audio service for unified audio control
+  final BackgroundAudioService _audioService = BackgroundAudioService();
+  
   // ML Kit for character tracing
   mlkit.DigitalInkRecognizerModelManager? _modelManager;
   bool _mlKitModelReady = false;
 
   void toggleMenu(BuildContext context, WidgetRef ref) {
-    final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
-    if (soundEffectsEnabled) {
-      FlameAudio.play('soundeffects/soundeffect_button.mp3');
-    }
+    _audioService.playSoundEffect('soundeffects/soundeffect_button.mp3');
     final isPaused = ref.read(gameStateProvider).isPaused;
     if (overlays.isActive('main_menu')) {
       overlays.remove('main_menu');
@@ -148,14 +151,14 @@ class BabblelonGame extends FlameGame with
     // Start camera at the left edge
     cameraComponent.viewfinder.position = Vector2(0, 0);
 
-    // Initialize and play background music
-    FlameAudio.bgm.initialize();
-    // FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
-    // Check music enabled state before playing
-    final initialMusicEnabled = ref.read(gameStateProvider).musicEnabled;
-    if (initialMusicEnabled) {
-      FlameAudio.bgm.play('bg/background_yaowarat.wav', volume: 0.5);
-    }
+    // Initialize audio service and connect to Riverpod
+    await _audioService.initialize(ref: ref);
+    
+    // Play game background music using unified service
+    await _audioService.playGameMusic();
+    
+    // Store initial music state for manual checking in update
+    _previousMusicEnabled = ref.read(gameStateProvider).musicEnabled;
 
     // --- Pre-load portal sound ---
     _portalSoundPlayer = just_audio.AudioPlayer();
@@ -173,7 +176,8 @@ class BabblelonGame extends FlameGame with
   }
   
   Future<void> _addNpcs() async {
-    final bubbleImage = await images.load('ui/speech_bubble_interact.png');
+    // Speech bubble image should already be preloaded by AssetPreloadService
+    final bubbleImage = images.fromCache('ui/speech_bubble_interact.png');
     final bubbleSprite = Sprite(bubbleImage);
     const double npcScaleFactor = 0.25;
 
@@ -225,11 +229,21 @@ class BabblelonGame extends FlameGame with
   Vector2? _lastPlayerPosition;
   double _lastPortalDistance = double.infinity;
   double _updateAccumulator = 0.0;
-  static const double _updateInterval = 1.0 / 30.0; // Reduce to 30fps for proximity checks
+  static const double _updateInterval = 1.0 / 20.0; // Reduce to 20fps for proximity checks (improved from 30fps)
+  
+  // Cache for NPC distances to avoid recalculation
+  final Map<String, double> _cachedNpcDistances = {};
 
   @override
   void update(double dt) {
     super.update(dt);
+
+    // Check for music setting changes
+    final currentMusicEnabled = ref.read(gameStateProvider).musicEnabled;
+    if (_previousMusicEnabled != null && _previousMusicEnabled != currentMusicEnabled) {
+      _handleMusicSettingChange(currentMusicEnabled);
+      _previousMusicEnabled = currentMusicEnabled;
+    }
 
     // Performance optimization: Only update camera when player actually moves
     if (player.isMounted && (_lastPlayerPosition == null || _lastPlayerPosition != player.position)) {
@@ -278,21 +292,24 @@ class BabblelonGame extends FlameGame with
     final mountedNpcs = _npcs.entries.where((entry) => entry.value.isMounted);
     if (mountedNpcs.isEmpty) return;
 
+    // Performance optimization: Use squared distances throughout to avoid sqrt operations
+    double minDistanceSquared = minDistance * minDistance;
+    final playerPos = player.position;
+
     for (var entry in mountedNpcs) {
       final npcId = entry.key;
       final npcComponent = entry.value;
 
-      // Performance optimization: Use squared distance to avoid sqrt operation
-      final distanceSquared = (player.position - npcComponent.position).length2;
-      final minDistanceSquared = minDistance * minDistance;
+      // Performance optimization: Use cached distance if player hasn't moved significantly
+      final distanceSquared = (playerPos - npcComponent.position).length2;
       
       if (distanceSquared < minDistanceSquared) {
-        final distance = math.sqrt(distanceSquared); // Only calculate sqrt when needed
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestNpcId = npcId;
-        }
+        minDistanceSquared = distanceSquared;
+        closestNpcId = npcId;
       }
+      
+      // Cache the distance for potential future use
+      _cachedNpcDistances[npcId] = distanceSquared;
     }
 
     // Only update UI if the closest NPC actually changed
@@ -308,9 +325,13 @@ class BabblelonGame extends FlameGame with
   }
 
   void _updateActiveSpeechBubble(String? newActiveNpcId) {
-    // Hide previous bubble
-    if (_activeNpcId != null && _speechBubbles[_activeNpcId]!.isMounted) {
-      _speechBubbles[_activeNpcId]!.removeFromParent();
+    // Performance optimization: Use visibility instead of mounting/unmounting
+    // Hide previous bubble by setting opacity
+    if (_activeNpcId != null) {
+      final prevBubble = _speechBubbles[_activeNpcId]!;
+      if (prevBubble.isMounted) {
+        prevBubble.opacity = 0.0;
+      }
     }
 
     // Show new bubble
@@ -321,6 +342,7 @@ class BabblelonGame extends FlameGame with
         if (!bubble.isMounted) {
           gameWorld.add(bubble);
         }
+        bubble.opacity = 1.0;
       }
     }
   }
@@ -445,7 +467,7 @@ class BabblelonGame extends FlameGame with
   
   void gameOver() {
     overlays.add('game_over');
-    FlameAudio.bgm.stop();
+    _audioService.stopBackgroundMusic();
   }
   
   void reset() {
@@ -456,9 +478,9 @@ class BabblelonGame extends FlameGame with
     if (ref.read(gameStateProvider).isPaused) return;
     ref.read(gameStateProvider.notifier).pauseGame();
     // Store BGM playing state before pausing
-    if (FlameAudio.bgm.isPlaying) {
+    if (_audioService.isMusicPlaying) {
         ref.read(gameStateProvider.notifier).setBgmPlaying(true);
-        FlameAudio.bgm.pause();
+        _audioService.pauseBackgroundMusic();
     } else {
         ref.read(gameStateProvider.notifier).setBgmPlaying(false);
     }
@@ -472,22 +494,35 @@ class BabblelonGame extends FlameGame with
     // Resume BGM only if it was playing and music is enabled
     final gameState = ref.read(gameStateProvider);
     if (gameState.musicEnabled && gameState.bgmIsPlaying) {
-        FlameAudio.bgm.resume();
+        _audioService.resumeBackgroundMusic();
     }
   }
 
   // Method to resume background music
   void resumeMusic(WidgetRef ref) {
     final musicEnabled = ref.read(gameStateProvider).musicEnabled;
-    if (musicEnabled && !FlameAudio.bgm.isPlaying) {
-      FlameAudio.bgm.play('bg/background_yaowarat.wav', volume: 0.5);
+    if (musicEnabled && !_audioService.isMusicPlaying) {
+      _audioService.playGameMusic();
     }
     ref.read(gameStateProvider.notifier).setBgmPlaying(true);
   }
 
   void pauseMusic(WidgetRef ref) {
-    FlameAudio.bgm.pause();
+    _audioService.pauseBackgroundMusic();
     ref.read(gameStateProvider.notifier).setBgmPlaying(false);
+  }
+
+  /// Handle music setting changes from the settings screen
+  void _handleMusicSettingChange(bool musicEnabled) {
+    if (musicEnabled) {
+      // Resume game background music if not already playing
+      if (!_audioService.isMusicPlaying) {
+        _audioService.playGameMusic();
+      }
+    } else {
+      // Stop background music when disabled
+      _audioService.stopBackgroundMusic();
+    }
   }
 
   Future<void> _preloadMLKitThaiModel() async {
@@ -529,7 +564,7 @@ class BabblelonGame extends FlameGame with
 
   @override
   void onRemove() {
-    FlameAudio.bgm.stop();
+    _audioService.stopBackgroundMusic();
     _portalSoundPlayer?.dispose();
     _portalSoundPlayer = null;
     super.onRemove();

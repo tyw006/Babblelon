@@ -4,7 +4,8 @@ import 'package:babblelon/screens/main_screen/widgets/location_marker_widget.dar
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
-import 'package:babblelon/theme/font_extensions.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/widgets/modern_design_system.dart';
 
 class ThailandMapScreen extends ConsumerStatefulWidget {
   const ThailandMapScreen({super.key});
@@ -140,15 +141,17 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2D4A7A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: cartoon.CartoonDesignSystem.softPeach,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge)),
         title: Row(
           children: [
-            const Icon(Icons.construction, color: Colors.orange),
+            Icon(Icons.construction, color: cartoon.CartoonDesignSystem.cherryRed),
             const SizedBox(width: 10),
             Text(
               location.name,
-              style: const TextStyle(color: Colors.white),
+              style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
+                color: cartoon.CartoonDesignSystem.textPrimary,
+              ),
             ),
           ],
         ),
@@ -189,8 +192,8 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2D4A7A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: cartoon.CartoonDesignSystem.softPeach,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge)),
         title: const Row(
           children: [
             Icon(Icons.flight_takeoff, color: Colors.orange),
@@ -272,15 +275,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1A472A), // Forest green
-              Color(0xFF2D5B3D), // Medium green
-              Color(0xFF4A7C59), // Lighter green
-            ],
-          ),
+          gradient: ModernDesignSystem.spaceGradient,
         ),
         child: Stack(
           children: [
@@ -314,21 +309,21 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                               fit: BoxFit.cover, // Use cover to fill entire screen
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  color: const Color(0xFF2D5B3D),
-                                  child: const Center(
+                                  color: ModernDesignSystem.deepSpaceBlue,
+                                  child: Center(
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.map,
                                           color: Colors.white,
                                           size: 64,
                                         ),
-                                        SizedBox(height: 16),
+                                        const SizedBox(height: 16),
                                         Text(
                                           'Thailand Map',
-                                          style: TextStyle(
-                                            color: Colors.white,
+                                          style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
+                                            color: ModernDesignSystem.electricCyan,
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -388,14 +383,25 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
               left: 20,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black26,
+                  color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: ModernDesignSystem.electricCyan.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ModernDesignSystem.electricCyan.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 child: IconButton(
                   onPressed: _handleBackNavigation,
                   icon: const Icon(
                     Icons.arrow_back_ios_rounded,
-                    color: Colors.white,
+                    color: ModernDesignSystem.electricCyan,
                     size: 24,
                   ),
                 ),
@@ -409,9 +415,10 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
               right: 20,
               child: Text(
                 'Choose Your Destination',
-                style: BabbleFonts.taglineVerb.copyWith(
+                style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
                   fontSize: 18,
-                  color: Colors.white,
+                  color: ModernDesignSystem.electricCyan,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

@@ -88,7 +88,7 @@ class _WarmBabbleOnTitleState extends State<WarmBabbleOnTitle>
         ShaderMask(
           shaderCallback: (rect) => const LinearGradient(
             colors: [
-              BabbleFonts.butterYellow, // #FFE07B
+              BabbleFonts.sunshineYellow, // #FFE07B
               BabbleFonts.cherryRed,    // #FF4F4F
             ],
             begin: Alignment.topLeft,
@@ -122,7 +122,7 @@ class _WarmBabbleOnTitleState extends State<WarmBabbleOnTitle>
                 spreadRadius: 2 * _glowAnimation.value,
               ),
               BoxShadow(
-                color: BabbleFonts.butterYellow.withValues(alpha: _glowAnimation.value * 0.2),
+                color: BabbleFonts.sunshineYellow.withValues(alpha: _glowAnimation.value * 0.2),
                 blurRadius: 30 * _glowAnimation.value,
                 spreadRadius: 4 * _glowAnimation.value,
               ),

@@ -1,45 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Custom font extensions for BabbleOn Modern 2025
-/// Provides themed fonts matching modern mobile game design trends
+/// Custom font extensions for BabbleOn Cartoon 2025
+/// Provides themed fonts matching playful cartoon game design
 class BabbleFonts {
-  // Logo fonts - modern geometric style
-  static TextStyle get logo => GoogleFonts.inter(
+  // Logo fonts - rounded, friendly style
+  static TextStyle get logo => GoogleFonts.quicksand(
     fontSize: 56,
     fontWeight: FontWeight.w800, // ExtraBold
     height: 1.1,
-    letterSpacing: 1.5, // Increased spacing for modern look
+    letterSpacing: 1.5, // Increased spacing for friendly look
   );
 
-  static TextStyle get logoAlternate => GoogleFonts.workSans(
+  static TextStyle get logoAlternate => GoogleFonts.quicksand(
     fontSize: 56,
-    fontWeight: FontWeight.w800, // ExtraBold
+    fontWeight: FontWeight.w700, // Bold
     height: 1.1,
-    letterSpacing: 1.5, // Increased spacing for modern look
+    letterSpacing: 1.2, // Slightly less spacing for alternate
   );
 
   // Tagline verb fonts - for highlighted words like "Live", "Learn"
-  static TextStyle get taglineVerb => GoogleFonts.inter(
+  static TextStyle get taglineVerb => GoogleFonts.nunito(
     fontSize: 16,
-    fontWeight: FontWeight.w600, // SemiBold
+    fontWeight: FontWeight.w700, // Bold for emphasis
     height: 1.3,
-    letterSpacing: 0.5, // Slightly increased for modern look
+    letterSpacing: 0.3, // Friendly spacing
   );
 
   // Tagline particle fonts - for supporting text like "the City", "the Language"
-  static TextStyle get taglineParticle => GoogleFonts.inter(
+  static TextStyle get taglineParticle => GoogleFonts.nunito(
     fontSize: 16,
     fontWeight: FontWeight.w400, // Regular
     height: 1.5,
-    letterSpacing: 0.2, // Subtle spacing for readability
+    letterSpacing: 0.1, // Subtle spacing for readability
   );
 
-  // Color constants from design guide
-  static const Color butterYellow = Color(0xFFFFE07B);
-  static const Color cherryRed = Color(0xFFFF4F4F);
-  static const Color navyOutline = Color(0xFF0D1B2A);
-  static const Color auraIndigo = Color(0xFF3A67FF);
+  // Color constants from cartoon design guide
+  static const Color sunshineYellow = Color(0xFFFFD700);
+  static const Color cherryRed = Color(0xFFFF4757);
+  static const Color chocolateBrown = Color(0xFF8D6E63);
+  static const Color warmOrange = Color(0xFFFFA726);
 }
 
 /// Theme extension for easy access to custom fonts
@@ -85,31 +85,35 @@ class BabbleFontTheme extends ThemeExtension<BabbleFontTheme> {
     );
   }
 
-  /// Default font theme
+  /// Default font theme - cartoon style
   static const BabbleFontTheme defaultTheme = BabbleFontTheme(
     logo: TextStyle(
       fontSize: 56,
       fontWeight: FontWeight.w800,
       height: 1.1,
       letterSpacing: 1.5,
+      fontFamily: 'Quicksand',
     ),
     logoAlternate: TextStyle(
       fontSize: 56,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w700,
       height: 1.1,
-      letterSpacing: 1.5,
+      letterSpacing: 1.2,
+      fontFamily: 'Quicksand',
     ),
     taglineVerb: TextStyle(
       fontSize: 16,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w700,
       height: 1.3,
-      letterSpacing: 0.5,
+      letterSpacing: 0.3,
+      fontFamily: 'Nunito',
     ),
     taglineParticle: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w400,
       height: 1.5,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
+      fontFamily: 'Nunito',
     ),
   );
 }

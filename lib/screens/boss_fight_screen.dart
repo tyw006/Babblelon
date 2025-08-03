@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import '../services/background_audio_service.dart';
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
@@ -112,6 +113,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   late final ApiService _apiService;
   late final EchoAudioService _echoAudioService;
   final GlobalKey<FloatingDamageOverlayState> damageOverlayKey = GlobalKey<FloatingDamageOverlayState>();
+  
+  // Background audio service for unified audio control
+  final BackgroundAudioService _audioService = BackgroundAudioService();
   bool _isRecording = false;
   bool _isLoading = false;
   bool _showProjectile = false;
@@ -153,6 +157,19 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
   }
 
+  /// Handle music setting changes from the settings screen
+  void _handleMusicSettingChange(bool musicEnabled) {
+    if (musicEnabled) {
+      // Resume boss fight background music if not already playing
+      if (!_audioService.isMusicPlaying) {
+        _audioService.playBossFightMusic();
+      }
+    } else {
+      // Stop background music when disabled
+      _audioService.stopBackgroundMusic();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -163,9 +180,16 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _initializeRecorder();
     
     // Initialize and start boss fight background music
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlameAudio.bgm.stop(); // Stop any previous music
-      FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _audioService.initialize(ref: ref);
+      await _audioService.playBossFightMusic();
+      
+      // Listen for music setting changes
+      ref.listen<GameStateData>(gameStateProvider, (previous, next) {
+        if (previous?.musicEnabled != next.musicEnabled) {
+          _handleMusicSettingChange(next.musicEnabled);
+        }
+      });
 
       // Start tracking battle metrics
       ref.read(battleTrackingProvider.notifier).startBattle(

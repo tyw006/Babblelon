@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/models/local_storage_models.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
-import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 import 'package:babblelon/providers/navigation_provider.dart';
 
 /// Home screen dashboard with fast-loading stats
@@ -13,11 +12,15 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'BabbleOn',
-          style: AppTheme.textTheme.headlineMedium,
+          style: cartoon.CartoonDesignSystem.headlineLarge.copyWith(
+            color: cartoon.CartoonDesignSystem.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -52,25 +55,35 @@ class _WelcomeSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        gradient: cartoon.CartoonDesignSystem.primaryGradient,
+        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
         border: Border.all(
-          color: ModernDesignSystem.electricCyan.withValues(alpha: 0.3),
-          width: 1,
+          color: cartoon.CartoonDesignSystem.cherryRed.withValues(alpha: 0.3),
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: cartoon.CartoonDesignSystem.warmOrange.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Welcome back!',
-            style: AppTheme.textTheme.headlineSmall,
+            style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textOnBright,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Ready to continue your Thai learning journey?',
-            style: AppTheme.textTheme.bodyLarge?.copyWith(
-              color: ModernDesignSystem.slateGray,
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textOnBright.withValues(alpha: 0.9),
             ),
           ),
         ],
@@ -114,25 +127,25 @@ class _StatsGrid extends ConsumerWidget {
               title: 'Level',
               value: '${profile?.playerLevel ?? 1}',
               icon: Icons.star_outlined,
-              color: ModernDesignSystem.warmOrange,
+              color: cartoon.CartoonDesignSystem.sunshineYellow,
             ),
             _StatCard(
               title: 'XP',
               value: '${profile?.experiencePoints ?? 0}',
               icon: Icons.psychology_outlined,
-              color: ModernDesignSystem.electricCyan,
+              color: cartoon.CartoonDesignSystem.skyBlue,
             ),
             _StatCard(
               title: 'Gold',
               value: '${profile?.gold ?? 0}',
               icon: Icons.monetization_on_outlined,
-              color: ModernDesignSystem.warmOrange,
+              color: cartoon.CartoonDesignSystem.warmOrange,
             ),
             _StatCard(
               title: 'Streak',
               value: '0', // TODO: Implement streak tracking
               icon: Icons.local_fire_department_outlined,
-              color: Colors.red,
+              color: cartoon.CartoonDesignSystem.cherryRed,
             ),
           ],
         );
@@ -160,12 +173,19 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        color: cartoon.CartoonDesignSystem.lightBlue.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
+          color: color.withValues(alpha: 0.6),
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -178,16 +198,18 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: AppTheme.textTheme.headlineSmall?.copyWith(
+            style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
               color: color,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              fontSize: 32,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.slateGray,
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -206,45 +228,51 @@ class _ContinueLearningSection extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ModernDesignSystem.electricCyan.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        gradient: cartoon.CartoonDesignSystem.warmGradient,
+        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
         border: Border.all(
-          color: ModernDesignSystem.electricCyan.withValues(alpha: 0.5),
-          width: 1,
+          color: cartoon.CartoonDesignSystem.cherryRed,
+          width: 3,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: cartoon.CartoonDesignSystem.warmOrange.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Icon(
             Icons.play_circle_filled,
-            color: ModernDesignSystem.electricCyan,
-            size: 48,
+            color: cartoon.CartoonDesignSystem.textOnBright,
+            size: 56,
           ),
           const SizedBox(height: 16),
           Text(
             'Continue Learning',
-            style: AppTheme.textTheme.headlineSmall?.copyWith(
-              color: ModernDesignSystem.electricCyan,
+            style: cartoon.CartoonDesignSystem.headlineLarge.copyWith(
+              color: cartoon.CartoonDesignSystem.textOnBright,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Jump back into your Thai adventure',
-            style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: ModernDesignSystem.slateGray,
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textOnBright.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+          cartoon.CartoonButton(
+            text: 'Start Learning',
             onPressed: () {
               ref.read(navigationControllerProvider).goToLearn();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ModernDesignSystem.electricCyan,
-              foregroundColor: ModernDesignSystem.deepSpaceBlue,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            ),
-            child: const Text('Start Learning'),
+            style: cartoon.CartoonButtonStyle.accent,
+            isLarge: true,
+            icon: Icons.rocket_launch,
           ),
         ],
       ),
@@ -263,38 +291,49 @@ class _RecentActivitySection extends StatelessWidget {
       children: [
         Text(
           'Recent Activity',
-          style: AppTheme.textTheme.headlineSmall,
+          style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
+            color: cartoon.CartoonDesignSystem.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            color: cartoon.CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
             border: Border.all(
-              color: ModernDesignSystem.slateGray.withValues(alpha: 0.3),
-              width: 1,
+              color: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.4),
+              width: 2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Icon(
                 Icons.emoji_events_outlined,
-                color: ModernDesignSystem.slateGray,
+                color: cartoon.CartoonDesignSystem.textMuted,
                 size: 48,
               ),
               const SizedBox(height: 16),
               Text(
                 'No recent activity',
-                style: AppTheme.textTheme.bodyLarge?.copyWith(
-                  color: ModernDesignSystem.slateGray,
+                style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+                  color: cartoon.CartoonDesignSystem.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Start learning to see your progress here',
-                style: AppTheme.textTheme.bodyMedium?.copyWith(
-                  color: ModernDesignSystem.slateGray.withValues(alpha: 0.7),
+                style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                  color: cartoon.CartoonDesignSystem.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),

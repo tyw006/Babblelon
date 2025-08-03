@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/navigation_provider.dart';
+import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/screens/home_screen.dart';
 import 'package:babblelon/screens/learn_screen.dart';
 import 'package:babblelon/screens/progress_screen.dart';
 import 'package:babblelon/screens/premium_screen.dart';
 import 'package:babblelon/screens/settings_screen.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 
 /// Main navigation screen with bottom tab navigation
 /// Optimized for performance with minimal animations
@@ -18,7 +19,7 @@ class MainNavigationScreen extends ConsumerWidget {
     final currentTab = ref.watch(currentTabProvider);
     
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
       body: _buildBody(currentTab),
       bottomNavigationBar: _buildBottomNavigation(context, ref, currentTab),
     );
@@ -44,13 +45,20 @@ class MainNavigationScreen extends ConsumerWidget {
   Widget _buildBottomNavigation(BuildContext context, WidgetRef ref, AppTab currentTab) {
     return Container(
       decoration: BoxDecoration(
-        color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.95),
+        color: cartoon.CartoonDesignSystem.softPeach,
         border: Border(
           top: BorderSide(
-            color: ModernDesignSystem.electricCyan.withValues(alpha: 0.2),
-            width: 1,
+            color: cartoon.CartoonDesignSystem.cherryRed.withValues(alpha: 0.3),
+            width: 2,
           ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -58,20 +66,21 @@ class MainNavigationScreen extends ConsumerWidget {
         elevation: 0,
         currentIndex: currentTab.index,
         onTap: (index) {
+          ref.playButtonSound();
           final tab = AppTab.values[index];
           ref.read(navigationControllerProvider).switchToTab(tab);
         },
-        selectedItemColor: ModernDesignSystem.electricCyan,
-        unselectedItemColor: ModernDesignSystem.slateGray,
+        selectedItemColor: cartoon.CartoonDesignSystem.cherryRed,
+        unselectedItemColor: cartoon.CartoonDesignSystem.textMuted,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        selectedLabelStyle: const TextStyle(
+        selectedLabelStyle: cartoon.CartoonDesignSystem.caption.copyWith(
           fontWeight: FontWeight.w600,
-          fontFamily: 'Poppins',
+          color: cartoon.CartoonDesignSystem.cherryRed,
         ),
-        unselectedLabelStyle: const TextStyle(
+        unselectedLabelStyle: cartoon.CartoonDesignSystem.caption.copyWith(
           fontWeight: FontWeight.w400,
-          fontFamily: 'Poppins',
+          color: cartoon.CartoonDesignSystem.textMuted,
         ),
         items: const [
           BottomNavigationBarItem(

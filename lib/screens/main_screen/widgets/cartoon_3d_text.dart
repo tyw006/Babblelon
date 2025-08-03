@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:text_3d/text_3d.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:babblelon/widgets/modern_design_system.dart' as modern;
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'dart:math';
 
-class Space3DText extends StatefulWidget {
+class Cartoon3DText extends StatefulWidget {
   final String text;
   final double fontSize;
   final Color primaryColor;
@@ -15,12 +15,12 @@ class Space3DText extends StatefulWidget {
   final bool enableGlow;
   final bool enableAnimation;
 
-  const Space3DText({
+  const Cartoon3DText({
     super.key,
     required this.text,
     this.fontSize = 32,
-    this.primaryColor = modern.ModernDesignSystem.textOnSurface, // Use design guide text color
-    this.secondaryColor = modern.ModernDesignSystem.primaryIndigo, // Use Aura Indigo
+    this.primaryColor = CartoonDesignSystem.textPrimary, // Use cartoon text color
+    this.secondaryColor = CartoonDesignSystem.cherryRed, // Use cherry red
     this.depth = 8.0,
     this.textAlign = TextAlign.center,
     this.fontWeight = FontWeight.bold,
@@ -29,10 +29,10 @@ class Space3DText extends StatefulWidget {
   });
 
   @override
-  State<Space3DText> createState() => _Space3DTextState();
+  State<Cartoon3DText> createState() => _Cartoon3DTextState();
 }
 
-class _Space3DTextState extends State<Space3DText>
+class _Cartoon3DTextState extends State<Cartoon3DText>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _glowAnimation;
@@ -122,12 +122,12 @@ class _Space3DTextState extends State<Space3DText>
   }
 }
 
-class SpaceTitleText extends StatelessWidget {
+class CartoonTitleText extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool enableAnimation;
 
-  const SpaceTitleText({
+  const CartoonTitleText({
     super.key,
     required this.title,
     this.subtitle,
@@ -139,12 +139,12 @@ class SpaceTitleText extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Main title - Using design guide typography (displayLarge = 40sp)
-        Space3DText(
+        // Main title - Using cartoon design typography
+        Cartoon3DText(
           text: title,
           fontSize: 40, // Design guide displayLarge size
-          primaryColor: modern.ModernDesignSystem.textOnSurface,
-          secondaryColor: modern.ModernDesignSystem.primaryIndigo,
+          primaryColor: CartoonDesignSystem.textPrimary,
+          secondaryColor: CartoonDesignSystem.cherryRed,
           depth: 12.0, // Moderate depth for better performance
           fontWeight: FontWeight.w800, // Design guide Baloo 2 Bold weight
           enableAnimation: enableAnimation,
@@ -177,21 +177,21 @@ class SpaceTitleText extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Space3DText(
+            Cartoon3DText(
               text: 'Live',
               fontSize: 60, // Increased by 50% from 40 for better visibility
-              primaryColor: modern.ModernDesignSystem.dillGreen, // Success color for "Live"
-              secondaryColor: modern.ModernDesignSystem.primaryIndigo,
+              primaryColor: CartoonDesignSystem.forestGreen, // Success color for "Live"
+              secondaryColor: CartoonDesignSystem.cherryRed,
               depth: 6.0, // Reduced depth for better performance
               fontWeight: FontWeight.w600, // Design guide headlineLarge weight
               enableAnimation: enableAnimation,
             ),
             const SizedBox(width: 12),
-            Space3DText(
+            Cartoon3DText(
               text: 'the City',
               fontSize: 54, // Increased by 50% from 36 for better visibility
-              primaryColor: modern.ModernDesignSystem.textOnSurface.withValues(alpha: 0.8),
-              secondaryColor: modern.ModernDesignSystem.slateGray,
+              primaryColor: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
+              secondaryColor: CartoonDesignSystem.textSecondary,
               depth: 4.0, // Reduced depth
               fontWeight: FontWeight.w500,
               enableAnimation: false,
@@ -207,21 +207,21 @@ class SpaceTitleText extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Space3DText(
+            Cartoon3DText(
               text: 'Learn',
               fontSize: 60, // Increased by 50% from 40 for better visibility
-              primaryColor: modern.ModernDesignSystem.butterYellow, // Butter Yellow for "Learn"
-              secondaryColor: modern.ModernDesignSystem.primaryIndigo,
+              primaryColor: CartoonDesignSystem.sunshineYellow, // Butter Yellow for "Learn"
+              secondaryColor: CartoonDesignSystem.cherryRed,
               depth: 6.0, // Reduced depth for better performance
               fontWeight: FontWeight.w600, // Design guide headlineLarge weight
               enableAnimation: enableAnimation,
             ),
             const SizedBox(width: 12),
-            Space3DText(
+            Cartoon3DText(
               text: 'the Language',
               fontSize: 54, // Increased by 50% from 36 for better visibility
-              primaryColor: modern.ModernDesignSystem.textOnSurface.withValues(alpha: 0.8),
-              secondaryColor: modern.ModernDesignSystem.slateGray,
+              primaryColor: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
+              secondaryColor: CartoonDesignSystem.textSecondary,
               depth: 4.0, // Reduced depth
               fontWeight: FontWeight.w500,
               enableAnimation: false,
@@ -235,14 +235,14 @@ class SpaceTitleText extends StatelessWidget {
   }
 }
 
-class SpaceGameButton extends StatefulWidget {
+class CartoonGameButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isEnabled;
   final Color primaryColor;
   final Color secondaryColor;
 
-  const SpaceGameButton({
+  const CartoonGameButton({
     super.key,
     required this.text,
     this.onPressed,
@@ -252,10 +252,10 @@ class SpaceGameButton extends StatefulWidget {
   });
 
   @override
-  State<SpaceGameButton> createState() => _SpaceGameButtonState();
+  State<CartoonGameButton> createState() => _CartoonGameButtonState();
 }
 
-class _SpaceGameButtonState extends State<SpaceGameButton>
+class _CartoonGameButtonState extends State<CartoonGameButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -305,19 +305,19 @@ class _SpaceGameButtonState extends State<SpaceGameButton>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusSmall), // 16dp from design guide
+                borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall), // 16dp from design guide
                 gradient: widget.isEnabled
-                    ? modern.ModernDesignSystem.accentGradient // Cherry Red gradient
+                    ? CartoonDesignSystem.accentGradient // Cherry Red gradient
                     : LinearGradient(
                         colors: [
-                          modern.ModernDesignSystem.slateGray.withValues(alpha: 0.5),
-                          modern.ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+                          CartoonDesignSystem.textSecondary.withValues(alpha: 0.5),
+                          CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
                         ],
                       ),
                 boxShadow: [
                   BoxShadow(
                     color: widget.isEnabled
-                        ? modern.ModernDesignSystem.cherryRed.withValues(alpha: _glowAnimation.value * 0.3)
+                        ? CartoonDesignSystem.cherryRed.withValues(alpha: _glowAnimation.value * 0.3)
                         : Colors.transparent,
                     blurRadius: 20,
                     spreadRadius: 2,

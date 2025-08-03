@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 
 /// Settings screen with instant toggles and simple layout
@@ -14,7 +14,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.deepSpaceBlue,
+      backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Settings',
@@ -62,9 +62,13 @@ class _AudioSection extends ConsumerWidget {
           trailing: Switch(
             value: gameState.musicEnabled,
             onChanged: (value) {
-              ref.read(gameStateProvider.notifier).toggleMusic();
+              // Play toggle sound before changing setting
+              if (gameState.soundEffectsEnabled) {
+                ref.playButtonSound();
+              }
+              ref.read(gameStateProvider.notifier).setMusicEnabled(value);
             },
-            activeColor: ModernDesignSystem.electricCyan,
+            activeColor: CartoonDesignSystem.sunshineYellow,
           ),
         ),
         _SettingsTile(
@@ -73,9 +77,17 @@ class _AudioSection extends ConsumerWidget {
           trailing: Switch(
             value: gameState.soundEffectsEnabled,
             onChanged: (value) {
+              // Play toggle sound before disabling sound effects (if currently enabled)
+              if (gameState.soundEffectsEnabled && !value) {
+                ref.playButtonSound();
+              }
               ref.read(gameStateProvider.notifier).setSoundEffectsEnabled(value);
+              // Play toggle sound after enabling sound effects
+              if (value) {
+                ref.playButtonSound();
+              }
             },
-            activeColor: ModernDesignSystem.electricCyan,
+            activeColor: CartoonDesignSystem.sunshineYellow,
           ),
         ),
       ],
@@ -103,7 +115,7 @@ class _AccessibilitySection extends StatelessWidget {
                 onChanged: (value) {
                   motionPrefs.setReduceMotion(value);
                 },
-                activeColor: ModernDesignSystem.electricCyan,
+                activeColor: CartoonDesignSystem.sunshineYellow,
               ),
             ),
           ],
@@ -128,7 +140,7 @@ class _LanguageSection extends StatelessWidget {
           subtitle: 'English',
           trailing: Icon(
             Icons.arrow_forward_ios,
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -136,7 +148,7 @@ class _LanguageSection extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Language selection coming soon'),
-                backgroundColor: ModernDesignSystem.electricCyan,
+                backgroundColor: CartoonDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -146,7 +158,7 @@ class _LanguageSection extends StatelessWidget {
           subtitle: 'Thai',
           trailing: Icon(
             Icons.arrow_forward_ios,
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -154,7 +166,7 @@ class _LanguageSection extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Target language selection coming soon'),
-                backgroundColor: ModernDesignSystem.electricCyan,
+                backgroundColor: CartoonDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -179,7 +191,7 @@ class _AboutSection extends StatelessWidget {
           subtitle: 'View our privacy policy',
           trailing: Icon(
             Icons.open_in_new,
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -187,7 +199,7 @@ class _AboutSection extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Privacy policy link coming soon'),
-                backgroundColor: ModernDesignSystem.electricCyan,
+                backgroundColor: CartoonDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -197,7 +209,7 @@ class _AboutSection extends StatelessWidget {
           subtitle: 'View our terms of service',
           trailing: Icon(
             Icons.open_in_new,
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -205,7 +217,7 @@ class _AboutSection extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Terms of service link coming soon'),
-                backgroundColor: ModernDesignSystem.electricCyan,
+                backgroundColor: CartoonDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -220,7 +232,7 @@ class _AboutSection extends StatelessWidget {
           subtitle: 'Get help and contact support',
           trailing: Icon(
             Icons.open_in_new,
-            color: ModernDesignSystem.slateGray,
+            color: CartoonDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -228,7 +240,7 @@ class _AboutSection extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Support link coming soon'),
-                backgroundColor: ModernDesignSystem.electricCyan,
+                backgroundColor: CartoonDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -261,14 +273,14 @@ class _SettingsSection extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: ModernDesignSystem.electricCyan,
+                color: CartoonDesignSystem.cherryRed,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 title,
                 style: AppTheme.textTheme.headlineSmall?.copyWith(
-                  color: ModernDesignSystem.electricCyan,
+                  color: CartoonDesignSystem.cherryRed,
                 ),
               ),
             ],
@@ -276,10 +288,10 @@ class _SettingsSection extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
             border: Border.all(
-              color: ModernDesignSystem.slateGray.withValues(alpha: 0.3),
+              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -312,7 +324,7 @@ class _SettingsTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -329,7 +341,7 @@ class _SettingsTile extends StatelessWidget {
                     Text(
                       subtitle,
                       style: AppTheme.textTheme.bodySmall?.copyWith(
-                        color: ModernDesignSystem.slateGray,
+                        color: CartoonDesignSystem.textSecondary,
                       ),
                     ),
                   ],

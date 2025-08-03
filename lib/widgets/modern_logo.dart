@@ -89,7 +89,7 @@ class _ModernLogoState extends State<ModernLogo>
         // Gradient main text
         ShaderMask(
           shaderCallback: (rect) => const LinearGradient(
-            colors: [BabbleFonts.butterYellow, BabbleFonts.cherryRed],
+            colors: [BabbleFonts.sunshineYellow, BabbleFonts.cherryRed],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ).createShader(rect),
@@ -119,7 +119,7 @@ class _ModernLogoState extends State<ModernLogo>
         // Main gradient text - SIMPLIFIED
         ShaderMask(
           shaderCallback: (rect) => const LinearGradient(
-            colors: [BabbleFonts.butterYellow, BabbleFonts.cherryRed],
+            colors: [BabbleFonts.sunshineYellow, BabbleFonts.cherryRed],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ).createShader(rect),
@@ -240,7 +240,7 @@ class _ModernTaglineState extends State<ModernTagline>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildVerbText('Live', BabbleFonts.butterYellow),
+                    _buildVerbText('Live', BabbleFonts.sunshineYellow),
                     const SizedBox(width: 8),
                     _buildParticleText('the City'),
                   ],

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:babblelon/models/game_models.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:flutter/material.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
@@ -147,7 +146,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
         if (widget.isFlippable) {
           // Play reveal sound effect on every flip (front <-> back)
           if (soundEffectsEnabled) {
-            FlameAudio.play('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
+            ref.playSound('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
           }
           if (_controller.isCompleted) {
             _controller.reverse();

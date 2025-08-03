@@ -7,8 +7,10 @@ import 'package:provider/provider.dart' as provider;
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:babblelon/models/game_models.dart';
+import 'package:babblelon/services/isar_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';
+import '../services/background_audio_service.dart';
 
 part 'game_providers.g.dart';
 
@@ -49,7 +51,10 @@ class GameStateData {
 @Riverpod(keepAlive: true)
 class GameState extends _$GameState {
   @override
-  GameStateData build() => const GameStateData();
+  GameStateData build() {
+    _loadSettings();
+    return const GameStateData();
+  }
 
   void pauseGame() => state = state.copyWith(isPaused: true);
   void resumeGame() => state = state.copyWith(isPaused: false);
@@ -60,10 +65,63 @@ class GameState extends _$GameState {
 
   void setMusicEnabled(bool isEnabled) {
     state = state.copyWith(musicEnabled: isEnabled);
+    _saveSettings();
+    
+    // Notify BackgroundAudioService of the change
+    final audioService = BackgroundAudioService();
+    audioService.setMusicEnabled(isEnabled);
+    
+    // Also control FlameAudio.bgm for backward compatibility
+    if (!isEnabled) {
+      // Stop all background music when disabled
+      FlameAudio.bgm.stop();
+    } else {
+      // When enabled, resume appropriate background music if it was playing
+      if (state.bgmIsPlaying) {
+        // Resume or start background music - this will be handled by individual screens
+        // that need to play their specific background music
+      }
+    }
   }
 
   void setSoundEffectsEnabled(bool isEnabled) {
     state = state.copyWith(soundEffectsEnabled: isEnabled);
+    _saveSettings();
+    
+    // Notify BackgroundAudioService of the change
+    final audioService = BackgroundAudioService();
+    audioService.setEffectsEnabled(isEnabled);
+    
+    // Stop all currently playing sound effects when disabled
+    if (!isEnabled) {
+      // FlameAudio doesn't have a global stop for all sound effects,
+      // but individual effects will check this setting before playing
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final musicEnabled = prefs.getBool('music_enabled') ?? true;
+      final soundEffectsEnabled = prefs.getBool('sound_effects_enabled') ?? true;
+      
+      state = state.copyWith(
+        musicEnabled: musicEnabled,
+        soundEffectsEnabled: soundEffectsEnabled,
+      );
+    } catch (e) {
+      // If loading fails, use defaults
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('music_enabled', state.musicEnabled);
+      await prefs.setBool('sound_effects_enabled', state.soundEffectsEnabled);
+    } catch (e) {
+      // If saving fails, continue without error
+    }
   }
 }
 
@@ -138,6 +196,12 @@ final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId)
 @riverpod
 Future<SharedPreferences> sharedPreferences(AutoDisposeFutureProviderRef ref) async {
   return SharedPreferences.getInstance();
+}
+
+// Provider for the Isar service instance
+@Riverpod(keepAlive: true)
+IsarService isarService(IsarServiceRef ref) {
+  return IsarService();
 }
 
 // Provider to track if a special item has been received from an NPC

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:babblelon/overlays/capybara_loading_overlay.dart';
-import 'package:babblelon/screens/splash_screen.dart';
+import 'package:babblelon/screens/cartoon_splash_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 
 /// Space loading screen wrapper that shows loading overlay over 3D earth background
@@ -28,10 +28,7 @@ class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
   }
   
   Future<void> _checkEarthRenderingStatus() async {
-    // Simulate 3D earth rendering completion check
-    // In a real implementation, this would wait for actual 3D model loading
-    await Future.delayed(const Duration(milliseconds: 3000));
-    
+    // Earth rendering is now considered complete immediately
     if (mounted) {
       setState(() {
         _earthRenderingComplete = true;
@@ -55,8 +52,8 @@ class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
     return Stack(
       children: [
         // Background: 3D Earth renders immediately but may not be visible
-        SplashScreen(
-          key: const ValueKey('splash_screen'),
+        CartoonSplashScreen(
+          key: const ValueKey('cartoon_splash_screen'),
           audioService: _audioService,
         ),
         
@@ -99,9 +96,6 @@ class SpaceAssetPreloader {
     
     try {
       for (int i = 0; i < _criticalAssets.length; i++) {
-        // Simulate asset loading time
-        await Future.delayed(const Duration(milliseconds: 500));
-        
         _progress = (i + 1) / _criticalAssets.length;
         
         // In a real implementation, you would preload actual assets here

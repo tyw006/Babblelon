@@ -31,10 +31,11 @@ class AssetPreloadService {
     'npcs/sprite_dimsum_vendor_female.png',
     'npcs/sprite_kwaychap_vendor.png',
     'npcs/sprite_noodle_vendor_female.png',
-    'ui/speech_bubble_interact.png',
+    'ui/speech_bubble_interact.png', // Speech bubble sprite for NPC interactions
     'bosses/tuktuk/portal.png',
     'bosses/tuktuk/sprite_tuktukmonster.png',
     'background/bossfight_tuktuk_bg.png',
+    'background/yaowarat_bg2.png', // Main game background
     'maps/map_thailand.png',
   ];
   
@@ -111,50 +112,32 @@ class AssetPreloadService {
   ) async {
     _updateProgress(0.05, 'Loading critical UI assets...', onProgress);
     
-    // Add delay to let users read the text
-    await Future.delayed(const Duration(milliseconds: 800));
-    
     // Skip Flutter precacheImage to avoid context disposal issues
     // Use Flame's image cache instead for better reliability
-    final List<Future<void>> futures = [];
-    
     for (int i = 0; i < _criticalImages.length; i++) {
       final imagePath = _criticalImages[i];
       
       // Convert full asset path to Flame-compatible path
       final flamePath = imagePath.replaceFirst('assets/images/', '');
       
-      futures.add(
-        Flame.images.load(flamePath).catchError((error) {
-          print('⚠️ Failed to preload critical image $flamePath: $error');
-          // Return null to satisfy the return type requirement
-          return null;
-        }),
-      );
+      try {
+        await Flame.images.load(flamePath);
+      } catch (error) {
+        debugPrint('⚠️ Failed to preload critical image $flamePath: $error');
+        // Continue despite error - don't break the loading process
+      }
       
-      // Update progress for each image with delay
+      // Update progress for each image
       final progress = 0.05 + (0.25 * ((i + 1) / _criticalImages.length));
       _updateProgress(progress, 'Loading UI assets... (${i + 1}/${_criticalImages.length})', onProgress);
-      
-      // Add small delay between updates
-      await Future.delayed(const Duration(milliseconds: 300));
     }
     
-    // Wait for all critical assets to load
-    await Future.wait(futures);
-    
     _updateProgress(0.3, 'Critical assets loaded', onProgress);
-    
-    // Add delay to let users read completion message
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   /// Preload game assets using Flame's image cache
   Future<void> _preloadGameAssets(Function(double, String)? onProgress) async {
     _updateProgress(0.3, 'Loading game assets...', onProgress);
-    
-    // Add delay to let users read the text
-    await Future.delayed(const Duration(milliseconds: 800));
     
     for (int i = 0; i < _gameImages.length; i++) {
       final imagePath = _gameImages[i];
@@ -166,26 +149,17 @@ class AssetPreloadService {
         // Continue with other assets
       }
       
-      // Update progress for each image with delay
+      // Update progress for each image
       final progress = 0.3 + (0.4 * ((i + 1) / _gameImages.length));
       _updateProgress(progress, 'Loading game assets... (${i + 1}/${_gameImages.length})', onProgress);
-      
-      // Add small delay between updates
-      await Future.delayed(const Duration(milliseconds: 250));
     }
     
     _updateProgress(0.7, 'Game assets loaded', onProgress);
-    
-    // Add delay to let users read completion message
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   /// Preload audio files using FlameAudio
   Future<void> _preloadAudioAssets(Function(double, String)? onProgress) async {
     _updateProgress(0.7, 'Loading audio files...', onProgress);
-    
-    // Add delay to let users read the text
-    await Future.delayed(const Duration(milliseconds: 800));
     
     for (int i = 0; i < _audioFiles.length; i++) {
       final audioPath = _audioFiles[i];
@@ -197,26 +171,17 @@ class AssetPreloadService {
         // Continue with other assets
       }
       
-      // Update progress for each audio file with delay
+      // Update progress for each audio file
       final progress = 0.7 + (0.2 * ((i + 1) / _audioFiles.length));
       _updateProgress(progress, 'Loading audio... (${i + 1}/${_audioFiles.length})', onProgress);
-      
-      // Add small delay between updates
-      await Future.delayed(const Duration(milliseconds: 200));
     }
     
     _updateProgress(0.9, 'Audio files loaded', onProgress);
-    
-    // Add delay to let users read completion message
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   /// Preload data files into memory
   Future<void> _preloadDataAssets(Function(double, String)? onProgress) async {
     _updateProgress(0.9, 'Loading data files...', onProgress);
-    
-    // Add delay to let users read the text
-    await Future.delayed(const Duration(milliseconds: 800));
     
     for (int i = 0; i < _dataFiles.length; i++) {
       final dataPath = _dataFiles[i];
@@ -229,18 +194,12 @@ class AssetPreloadService {
         // Continue with other assets
       }
       
-      // Update progress for each data file with delay
+      // Update progress for each data file
       final progress = 0.9 + (0.1 * ((i + 1) / _dataFiles.length));
       _updateProgress(progress, 'Loading data... (${i + 1}/${_dataFiles.length})', onProgress);
-      
-      // Add small delay between updates
-      await Future.delayed(const Duration(milliseconds: 300));
     }
     
     _updateProgress(1.0, 'Data files loaded', onProgress);
-    
-    // Add delay to let users read completion message
-    await Future.delayed(const Duration(milliseconds: 800));
   }
 
   /// Preload specific assets for a screen
