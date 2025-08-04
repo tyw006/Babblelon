@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12.6"
 dependencies = [
+    "aiohttp>=3.12.15",
     "assemblyai>=0.42.0",
     "azure-cognitiveservices-speech>=1.44.0",
     "deepl>=1.17.0",

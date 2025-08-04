@@ -1,4 +1,5 @@
 import os
+import logging
 from openai import OpenAI as OpenAIClient # Renamed to avoid conflict if OpenAI is used elsewhere
 from pydantic import BaseModel, Field # Added Field
 from typing import Literal, Dict, List, Optional # Added List, Optional
@@ -38,12 +39,12 @@ if OPENAI_API_KEY:
             base_url="https://oai.helicone.ai/v1",
             default_headers=default_headers
         )
-        print("✅ OpenAI client initialized with Helicone integration")
-        print(f"✅ Helicone headers configured: Helicone-Auth, Helicone-Posthog-Key: {'present' if POSTHOG_API_KEY else 'missing'}")
-        print(f"📊 Helicone integration: OpenAI via https://oai.helicone.ai/v1")
-        print(f"🚀 LLM Service initialized - OpenAI: configured, Helicone: enabled, PostHog: {'enabled' if POSTHOG_API_KEY else 'disabled'}")
+        logging.info("✅ OpenAI client initialized with Helicone integration")
+        logging.info(f"✅ Helicone headers configured: Helicone-Auth, Helicone-Posthog-Key: {'present' if POSTHOG_API_KEY else 'missing'}")
+        logging.info(f"📊 Helicone integration: OpenAI via https://oai.helicone.ai/v1")
+        logging.info(f"🚀 LLM Service initialized - OpenAI: configured, Helicone: enabled, PostHog: {'enabled' if POSTHOG_API_KEY else 'disabled'}")
     except Exception as e:
-        print(f"Error initializing OpenAI client: {e}")
+        logging.error(f"Error initializing OpenAI client: {e}")
 
 # --- Helper function to load prompts ---
 def load_prompt_from_file(npc_id: str) -> str | None:
@@ -175,33 +176,23 @@ def initialize_quest_state(npc_vocab_data: dict, npc_name: str = None) -> dict:
 
 def process_item_giving(npc_response: 'NPCResponse', npc_config: dict) -> dict:
     """Process item after NPC judgment - updates external config state"""
-    print(f"DEBUG: Processing item giving - Item: {npc_response.user_item_given}, Accepted: {npc_response.user_item_accepted}, Category: {npc_response.item_category}")
     
     if npc_response.user_item_given:
         # Add to items given history (external config)
         if "items_given" not in npc_config:
             npc_config["items_given"] = []
         npc_config["items_given"].append(npc_response.user_item_given)
-        print(f"DEBUG: Added item '{npc_response.user_item_given}' to items_given. Total items given: {len(npc_config['items_given'])}")
         
         # If accepted, track the category (external config)
         if npc_response.user_item_accepted and npc_response.item_category:
             if "categories_accepted" not in npc_config:
                 npc_config["categories_accepted"] = {}
             npc_config["categories_accepted"][npc_response.item_category] = npc_response.user_item_given
-            print(f"DEBUG: Accepted item '{npc_response.user_item_given}' in category '{npc_response.item_category}'. Categories satisfied: {len(npc_config['categories_accepted'])}")
             
             # Check if quest complete (all categories satisfied)
             categories_needed = npc_config["quest_state"]["categories_needed"]
             if len(npc_config["categories_accepted"]) == len(categories_needed):
                 npc_config["quest_state"]["scenario_complete"] = True
-                print(f"DEBUG: Quest complete! All {len(categories_needed)} categories satisfied.")
-            else:
-                print(f"DEBUG: Quest not complete. {len(npc_config['categories_accepted'])}/{len(categories_needed)} categories satisfied.")
-        else:
-            print(f"DEBUG: Item '{npc_response.user_item_given}' was rejected or had no category.")
-    else:
-        print(f"DEBUG: No item given in this interaction.")
     
     return npc_config
 
@@ -405,7 +396,6 @@ async def get_llm_response(
     quest_summary = get_quest_summary(npc_config)
     
     # Debug logging for quest state
-    print(f"DEBUG: Quest state for {npc_name}:")
     print(f"  Categories needed: {npc_config['quest_state']['categories_needed']}")
     print(f"  Categories satisfied: {quest_summary['categories_satisfied']}")
     print(f"  Current category needed: {quest_summary['current_category_needed']}")

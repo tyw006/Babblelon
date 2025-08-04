@@ -3100,10 +3100,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
         
         // Format the data for item giving and character tracing
+        print('DEBUG: API response structure: ${data.keys.toList()}');
+        print('DEBUG: target_text: ${data['target_text']}');
+        print('DEBUG: romanized_text: ${data['romanized_text']}');
+        
         _customItemDataNotifier.value = {
-          'target': data['translated_text'] ?? '',
-          'thai': data['translated_text'] ?? '',
-          'transliteration': data['transliteration'] ?? '',
+          'target': data['target_text'] ?? '',            // Fixed: was 'translated_text'
+          'thai': data['target_text'] ?? '',              // Fixed: was 'translated_text'
+          'transliteration': data['romanized_text'] ?? '', // Fixed: was 'transliteration'
           'translation': englishText,
           'english': englishText,
           'audio_path': data['audio_base64'] ?? '', // This will be base64 data for custom items

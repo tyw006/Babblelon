@@ -476,16 +476,20 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       final bool useParallelProcessing = dialogueSettings.enableParallelProcessing;
       
       print('DEBUG: Parallel processing enabled: $useParallelProcessing');
+      print('DEBUG: Translation Service Usage:');
+      print('  - STT Processing (Thai→English): Google Translate API');
+      print('  - Language Helper (English→Thai): DeepL API');
       
-      // Use the DeepL-enhanced transcribe and translate endpoint
-      final result = await ApiService.transcribeAndTranslateWithDeepL(
+      // Use Google Translate API for STT processing (Thai→English)
+      print('DEBUG: Using Google Translate API for STT processing (Thai→English)');
+      final result = await ApiService.transcribeAndTranslate(
         audioPath: audioPath,
         sourceLanguage: widget.targetLanguage,
         targetLanguage: 'en',
         expectedText: expectedText,
       );
       
-      print('DEBUG: API endpoint used: transcribe-and-translate');
+      print('DEBUG: STT processing completed with Google Translate API');
 
       if (mounted && result != null) {
         // DEBUG: Log the entire API response to understand what's being returned
@@ -821,12 +825,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     });
 
     try {
-      // Use the DeepL translation method for more natural translations
-      // This provides word-by-word breakdown with individual Thai words, romanization, and English meanings
+      // Use DeepL API for language helper translation (English→Thai)
+      print('DEBUG: Using DeepL API for language helper translation (English→Thai)');
+      print('DEBUG: Translating: "$englishText" to ${widget.targetLanguage}');
       final result = await ApiService.translateTextWithDeepL(
         englishText: englishText,
         targetLanguage: widget.targetLanguage,
       );
+      print('DEBUG: Language helper translation completed with DeepL API');
 
       if (mounted && result != null) {
         setState(() {

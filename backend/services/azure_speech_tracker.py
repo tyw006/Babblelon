@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 from enum import Enum
 import requests
+from .connection_pool import get_connection_pool
 from collections import defaultdict
 import threading
 
@@ -289,8 +290,9 @@ class AzureSpeechTracker:
                 if response_data.error_message:
                     event_data["properties"]["error_message"] = response_data.error_message
             
-            # Send to PostHog
-            response = requests.post(
+            # Send to PostHog using connection pool
+            connection_pool = get_connection_pool()
+            response = connection_pool.post(
                 "https://app.posthog.com/capture/",
                 json=event_data,
                 timeout=5
@@ -301,8 +303,7 @@ class AzureSpeechTracker:
                       f"Cost: ${response_data.estimated_cost_usd:.6f}, User: {request_data.user_id}")
             else:
                 print(f"[{datetime.datetime.now()}] ⚠️ PostHog: Failed to track Azure Speech event - "
-                      f"Status: {response.status_code}, Response: {response.text}")
-                print(f"[{datetime.datetime.now()}] DEBUG: PostHog event data: {json.dumps(event_data, indent=2)}")
+                      f"Status: {response.status_code}")
                 
         except Exception as e:
             print(f"[{datetime.datetime.now()}] ⚠️ PostHog: Error tracking Azure Speech event: {e}")

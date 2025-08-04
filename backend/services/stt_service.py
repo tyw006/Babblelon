@@ -18,6 +18,7 @@ import logging
 import asyncio
 import numpy as np
 import requests  # For PostHog tracking
+from .connection_pool import get_connection_pool
 import json
 
 # AssemblyAI and Speechmatics imports
@@ -48,18 +49,18 @@ speech_client = None
 
 try:
     speech_client = SpeechClient(client_options=ClientOptions(api_endpoint=api_endpoint))
-    print(f"[{datetime.datetime.now()}] INFO: Google Cloud Speech client initialized successfully")
+    logging.info("Google Cloud Speech client initialized successfully")
 except Exception as e:
-    print(f"[{datetime.datetime.now()}] ERROR: Failed to initialize Google Cloud Speech client: {e}")
+    logging.error(f"Failed to initialize Google Cloud Speech client: {e}")
 
 # Initialize ElevenLabs client
 elevenlabs_client = None
 if ELEVENLABS_API_KEY:
     try:
         elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
-        print(f"[{datetime.datetime.now()}] INFO: ElevenLabs client initialized successfully")
+        logging.info("ElevenLabs client initialized successfully")
     except Exception as e:
-        print(f"[{datetime.datetime.now()}] ERROR: Failed to initialize ElevenLabs client: {e}")
+        logging.error(f"Failed to initialize ElevenLabs client: {e}")
 
 # PostHog Configuration
 POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
@@ -102,8 +103,9 @@ def track_stt_call_to_posthog(
         if error:
             event_data["properties"]["error"] = error
             
-        # Send to PostHog
-        requests.post(
+        # Send to PostHog using connection pool
+        connection_pool = get_connection_pool()
+        connection_pool.post(
             "https://app.posthog.com/capture/",
             json=event_data,
             timeout=5
@@ -443,7 +445,6 @@ async def transcribe_audio(
         stream_size = audio_stream.tell()
         audio_stream.seek(initial_stream_pos)
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Stream initial_pos: {initial_stream_pos}, size: {stream_size} before calling Google Cloud STT.")
         
         if stream_size == 0:
             print(f"[{datetime.datetime.now()}] ERROR STT: Stream is empty before calling Google Cloud STT.")
@@ -533,7 +534,6 @@ async def transcribe_audio(
         )
 
         # Perform recognition with retry logic and exponential backoff
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Starting Google Cloud STT using Chirp_2 model for language: {gcloud_language_code}")
         
         max_retries = 3
         base_delay = 1.0  # Start with 1 second delay
@@ -550,7 +550,6 @@ async def transcribe_audio(
                 metrics.record_api_end()
                 
                 # If we get here, the request succeeded
-                print(f"[{datetime.datetime.now()}] DEBUG STT: Google Cloud STT succeeded on attempt {attempt + 1}")
                 break
                 
             except Exception as retry_exception:
@@ -600,8 +599,6 @@ async def transcribe_audio(
                         })
 
                 print(f"[{datetime.datetime.now()}] INFO: Google Cloud STT successful. Transcription: '{transcribed_text}'")
-                print(f"[{datetime.datetime.now()}] DEBUG: Overall confidence: {alternative.confidence:.4f}, Words with confidence: {len(word_confidence_list)}")
-                print(f"[{datetime.datetime.now()}] DEBUG: Model: {model_used}, Language: {language_detected}")
                 
                 # Perform word comparison if expected text is provided
                 word_comparisons = compare_expected_vs_transcribed(word_confidence_list, expected_text)
@@ -673,8 +670,6 @@ async def transcribe_audio(
         log_performance_metrics(metrics, "Google Cloud STT", success=False)
 
         print(f"[{datetime.datetime.now()}] ERROR: Error during Google Cloud STT: {e}. Stream pos: {current_pos_after_error}, size: {stream_size_after_error} after error.")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Error category: {error_category.value}")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Full error traceback: {traceback.format_exc()}")
         
         # Track failed STT call to PostHog
         track_stt_call_to_posthog(
@@ -716,7 +711,6 @@ async def transcribe_audio_elevenlabs(audio_stream: io.BytesIO, language_code: s
         stream_size = audio_stream.tell()
         audio_stream.seek(initial_stream_pos)
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Stream initial_pos: {initial_stream_pos}, size: {stream_size} before calling ElevenLabs STT.")
         
         if stream_size == 0:
             print(f"[{datetime.datetime.now()}] ERROR STT: Stream is empty before calling ElevenLabs STT.")
@@ -908,7 +902,6 @@ async def transcribe_audio_short(audio_stream: io.BytesIO, language_code: str = 
         stream_size = audio_stream.tell()
         audio_stream.seek(initial_stream_pos)
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Stream initial_pos: {initial_stream_pos}, size: {stream_size} before calling Google Cloud STT (short).")
         
         if stream_size == 0:
             print(f"[{datetime.datetime.now()}] ERROR STT: Stream is empty before calling Google Cloud STT (short).")
@@ -1002,7 +995,6 @@ async def transcribe_audio_short(audio_stream: io.BytesIO, language_code: str = 
         )
 
         # Perform recognition with metrics tracking
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Starting Google Cloud STT using short model for language: {gcloud_language_code}")
         metrics.record_api_start()
         response = speech_client.recognize(request=request)
         metrics.record_api_end()
@@ -1049,12 +1041,8 @@ async def transcribe_audio_short(audio_stream: io.BytesIO, language_code: str = 
                         })
 
                 print(f"[{datetime.datetime.now()}] INFO: Google Cloud STT (latest_short) successful. Transcription: '{transcribed_text}'")
-                print(f"[{datetime.datetime.now()}] DEBUG: Overall confidence: {best_alternative.confidence:.4f} (NOTE: not true confidence), Words: {len(word_confidence_list)}, Alternatives: {len(all_alternatives)}")
-                print(f"[{datetime.datetime.now()}] DEBUG: Model: {model_used}, Language: {language_detected}")
                 
                 # Log all alternatives for debugging
-                for i, alt in enumerate(all_alternatives):
-                    print(f"[{datetime.datetime.now()}] DEBUG: Alternative {i+1}: '{alt['transcript'][:50]}...' (confidence: {alt['confidence']:.3f})")
                 
                 # Perform word comparison if expected text is provided
                 word_comparisons = compare_expected_vs_transcribed(word_confidence_list, expected_text)
@@ -1114,8 +1102,6 @@ async def transcribe_audio_short(audio_stream: io.BytesIO, language_code: str = 
         log_performance_metrics(metrics, "Google Cloud STT (latest_short)", success=False)
 
         print(f"[{datetime.datetime.now()}] ERROR: Error during Google Cloud STT (latest_short): {e}. Stream pos: {current_pos_after_error}, size: {stream_size_after_error} after error.")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Error category: {error_category.value}")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Full error traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error during speech-to-text processing: {str(e)}")
 
 async def parallel_transcribe_audio(audio_stream: io.BytesIO, language_code: str = "tha", expected_text: str = "") -> Dict[str, STTResult]:
@@ -1146,9 +1132,7 @@ async def parallel_transcribe_audio(audio_stream: io.BytesIO, language_code: str
     
     # Process Google Cloud STT with Chirp_2 model
     try:
-        print(f"[{datetime.datetime.now()}] DEBUG: Starting Google Chirp_2 transcription...")
         results["google_chirp2"] = await transcribe_audio(google_chirp2_stream, language_code, expected_text)
-        print(f"[{datetime.datetime.now()}] DEBUG: Google Chirp_2 completed: '{results['google_chirp2'].text[:50]}...'")
     except Exception as e:
         print(f"[{datetime.datetime.now()}] ERROR: Google Cloud STT (Chirp_2) failed: {e}")
         results["google_chirp2"] = STTResult(
@@ -1160,9 +1144,7 @@ async def parallel_transcribe_audio(audio_stream: io.BytesIO, language_code: str
     
     # Process AssemblyAI Universal-1 model
     try:
-        print(f"[{datetime.datetime.now()}] DEBUG: Starting AssemblyAI Universal-1 transcription...")
         results["assemblyai_universal"] = await transcribe_audio_assemblyai(assemblyai_stream, language_code, expected_text)
-        print(f"[{datetime.datetime.now()}] DEBUG: AssemblyAI Universal-1 completed: '{results['assemblyai_universal'].text[:50]}...'")
     except Exception as e:
         print(f"[{datetime.datetime.now()}] ERROR: AssemblyAI Universal-1 failed: {e}")
         results["assemblyai_universal"] = STTResult(
@@ -1174,9 +1156,7 @@ async def parallel_transcribe_audio(audio_stream: io.BytesIO, language_code: str
     
     # Process Speechmatics Ursa 2 model
     try:
-        print(f"[{datetime.datetime.now()}] DEBUG: Starting Speechmatics Ursa 2 transcription...")
         results["speechmatics_ursa"] = await transcribe_audio_speechmatics(speechmatics_stream, language_code, expected_text)
-        print(f"[{datetime.datetime.now()}] DEBUG: Speechmatics Ursa 2 completed: '{results['speechmatics_ursa'].text[:50]}...'")
     except Exception as e:
         print(f"[{datetime.datetime.now()}] ERROR: Speechmatics Ursa 2 failed: {e}")
         results["speechmatics_ursa"] = STTResult(
@@ -1196,7 +1176,6 @@ async def parallel_transcribe_audio(audio_stream: io.BytesIO, language_code: str
             result.confidence_variance = np.var(confidences) if len(confidences) > 1 else 0.0
             result.low_confidence_words = [w['word'] for w in result.word_confidence if w['confidence'] < 0.7]
             
-            print(f"[{datetime.datetime.now()}] DEBUG: {service_name} - Avg confidence: {result.average_word_confidence:.3f}, Low confidence words: {len(result.low_confidence_words)}")
         else:
             result.average_word_confidence = result.overall_confidence
             result.confidence_variance = 0.0
@@ -1235,7 +1214,6 @@ async def transcribe_audio_assemblyai(audio_stream: io.BytesIO, language_code: s
         stream_size = audio_stream.tell()
         audio_stream.seek(initial_stream_pos)
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Stream initial_pos: {initial_stream_pos}, size: {stream_size} before calling AssemblyAI.")
         
         if stream_size == 0:
             print(f"[{datetime.datetime.now()}] ERROR STT: Stream is empty before calling AssemblyAI.")
@@ -1254,7 +1232,6 @@ async def transcribe_audio_assemblyai(audio_stream: io.BytesIO, language_code: s
                 sample_width = wav_file.getsampwidth()
                 actual_duration = frames / float(sample_rate)
                 
-                print(f"[{datetime.datetime.now()}] DEBUG STT: Audio format - Sample rate: {sample_rate}Hz, Channels: {channels}, Sample width: {sample_width} bytes, Duration: {actual_duration:.3f}s")
                 
                 # Check if audio format is optimal for AssemblyAI
                 if sample_rate == 16000:
@@ -1291,7 +1268,6 @@ async def transcribe_audio_assemblyai(audio_stream: io.BytesIO, language_code: s
 
             # Create transcriber and perform transcription
             transcriber = aai.Transcriber(config=config)
-            print(f"[{datetime.datetime.now()}] DEBUG STT: Starting AssemblyAI Universal-1 transcription for language: th")
             
             metrics.record_api_start()
             transcript = transcriber.transcribe(temp_file_path)
@@ -1318,10 +1294,8 @@ async def transcribe_audio_assemblyai(audio_stream: io.BytesIO, language_code: s
                         'start_time': word.start / 1000.0 if word.start is not None else 0.0,  # Convert ms to seconds
                         'end_time': word.end / 1000.0 if word.end is not None else 0.0,      # Convert ms to seconds
                     })
-                    
-                print(f"[{datetime.datetime.now()}] DEBUG STT: Extracted {len(word_confidence_list)} words with confidence scores")
             else:
-                print(f"[{datetime.datetime.now()}] DEBUG STT: No word-level data available from AssemblyAI")
+                pass
 
             # Calculate enhanced metrics
             word_count = len(word_confidence_list) if word_confidence_list else len(transcribed_text.split())
@@ -1390,8 +1364,6 @@ async def transcribe_audio_assemblyai(audio_stream: io.BytesIO, language_code: s
         log_performance_metrics(metrics, "AssemblyAI Universal-1", success=False)
 
         print(f"[{datetime.datetime.now()}] ERROR: Error during AssemblyAI transcription: {e}. Stream pos: {current_pos_after_error}, size: {stream_size_after_error} after error.")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Error category: {error_category.value}")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Full error traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error during speech-to-text processing: {str(e)}")
 
 async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code: str = "tha", expected_text: str = "") -> STTResult:
@@ -1424,7 +1396,6 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
         stream_size = audio_stream.tell()
         audio_stream.seek(initial_stream_pos)
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Stream initial_pos: {initial_stream_pos}, size: {stream_size} before calling Speechmatics.")
         
         if stream_size == 0:
             print(f"[{datetime.datetime.now()}] ERROR STT: Stream is empty before calling Speechmatics.")
@@ -1443,7 +1414,6 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
                 sample_width = wav_file.getsampwidth()
                 actual_duration = frames / float(sample_rate)
                 
-                print(f"[{datetime.datetime.now()}] DEBUG STT: Audio format - Sample rate: {sample_rate}Hz, Channels: {channels}, Sample width: {sample_width} bytes, Duration: {actual_duration:.3f}s")
                 
                 # Check if audio format is optimal for Speechmatics
                 if sample_rate in [16000, 22050, 44100, 48000]:
@@ -1463,7 +1433,6 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
             language="th" if language_code.startswith("th") else "en"  # Thai language code
         )
 
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Starting Speechmatics Ursa 2 transcription for language: th")
         
         metrics.record_api_start()
         
@@ -1484,7 +1453,6 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
                     transcription_config=transcription_config
                 )
                 job_id = job_details.id
-            print(f"[{datetime.datetime.now()}] DEBUG STT: Speechmatics job submitted with ID: {job_id}")
             
             # Wait for completion with timeout
             transcript_result = await client.wait_for_completion(
@@ -1530,7 +1498,7 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
         if not transcribed_text:
             print(f"[{datetime.datetime.now()}] INFO: Speechmatics detected no speech in audio")
         else:
-            print(f"[{datetime.datetime.now()}] DEBUG STT: Extracted {len(word_confidence_list)} words with confidence scores from Speechmatics")
+            pass
 
         # Calculate enhanced metrics
         word_count = len(word_confidence_list) if word_confidence_list else len(transcribed_text.split())
@@ -1592,8 +1560,6 @@ async def transcribe_audio_speechmatics(audio_stream: io.BytesIO, language_code:
         log_performance_metrics(metrics, "Speechmatics Ursa 2", success=False)
 
         print(f"[{datetime.datetime.now()}] ERROR: Error during Speechmatics transcription: {e}. Stream pos: {current_pos_after_error}, size: {stream_size_after_error} after error.")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Error category: {error_category.value}")
-        print(f"[{datetime.datetime.now()}] DEBUG STT: Full error traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error during speech-to-text processing: {str(e)}")
 
 # Backward compatibility function for existing code

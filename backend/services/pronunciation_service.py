@@ -10,6 +10,7 @@ import tempfile
 from dotenv import load_dotenv
 import wave
 import requests  # For PostHog tracking
+from .connection_pool import get_connection_pool
 from typing import Optional
 import uuid
 
@@ -65,8 +66,9 @@ def track_pronunciation_assessment_to_posthog(
         if error:
             event_data["properties"]["error"] = error
             
-        # Send to PostHog
-        requests.post(
+        # Send to PostHog using connection pool
+        connection_pool = get_connection_pool()
+        connection_pool.post(
             "https://app.posthog.com/capture/",
             json=event_data,
             timeout=5

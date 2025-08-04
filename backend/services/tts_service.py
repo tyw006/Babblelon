@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from google import genai
 from google.genai import types as genai_types # Alias to avoid conflict
 from fastapi import HTTPException
@@ -8,6 +9,7 @@ import wave # Import the wave module
 import io   # Import the io module
 from typing import Optional
 import requests  # For PostHog tracking
+from .connection_pool import get_connection_pool
 import json
 import time
 
@@ -25,16 +27,16 @@ if not GEMINI_API_KEY:
     # Depending on deployment, you might raise an error or have a fallback.
 
 if not HELICONE_API_KEY:
-    print(f"[{datetime.datetime.now()}] WARNING: HELICONE_API_KEY not found in environment variables. Cost tracking disabled.")
+    logging.warning("HELICONE_API_KEY not found in environment variables. Cost tracking disabled.")
 else:
-    print(f"[{datetime.datetime.now()}] ✅ HELICONE_API_KEY configured - Gemini cost tracking enabled")
+    logging.info("✅ HELICONE_API_KEY configured - Gemini cost tracking enabled")
 
 if POSTHOG_API_KEY:
-    print(f"[{datetime.datetime.now()}] ✅ POSTHOG_API_KEY configured - TTS event tracking enabled")
+    logging.info("✅ POSTHOG_API_KEY configured - TTS event tracking enabled")
 else:
-    print(f"[{datetime.datetime.now()}] WARNING: POSTHOG_API_KEY not found - TTS event tracking disabled")
+    logging.warning("POSTHOG_API_KEY not found - TTS event tracking disabled")
 
-print(f"[{datetime.datetime.now()}] 🚀 TTS Service initialized - Gemini API: {'configured' if GEMINI_API_KEY else 'missing'}, Helicone: {'enabled' if HELICONE_API_KEY else 'disabled'}, PostHog: {'enabled' if POSTHOG_API_KEY else 'disabled'}")
+logging.info(f"🚀 TTS Service initialized - Gemini API: {'configured' if GEMINI_API_KEY else 'missing'}, Helicone: {'enabled' if HELICONE_API_KEY else 'disabled'}, PostHog: {'enabled' if POSTHOG_API_KEY else 'disabled'}")
 
 def track_tts_call_to_posthog(
     user_id: Optional[str] = None,
@@ -71,8 +73,9 @@ def track_tts_call_to_posthog(
         if error:
             event_data["properties"]["error"] = error
             
-        # Send to PostHog
-        requests.post(
+        # Send to PostHog using connection pool
+        connection_pool = get_connection_pool()
+        connection_pool.post(
             "https://app.posthog.com/capture/",
             json=event_data,
             timeout=5
@@ -185,8 +188,7 @@ async def text_to_speech_stream(text_to_speak: str):
             # Add more detailed logging here if stream issues persist
             # else: print(f"[{datetime.datetime.now()}] DEBUG: TTS Stream - No relevant data in chunk_response: {chunk_response}")
         
-        print(f"[{datetime.datetime.now()}] DEBUG: TTS Stream - Streaming completed. Chunks: {chunk_count}, Total bytes: {total_bytes}")
-        print(f"[{datetime.datetime.now()}] ✅ Helicone: TTS streaming call completed via Gateway - text_length: {len(text_to_speak)}, chunks: {chunk_count}")
+        logging.info(f"TTS streaming completed - chunks: {chunk_count}, bytes: {total_bytes}, text_length: {len(text_to_speak)}")
         
         # Track successful streaming call to PostHog (Helicone tracking happens automatically via Gateway)
         track_tts_call_to_posthog(
@@ -302,7 +304,7 @@ async def text_to_speech_full(
             
             return wav_bytes
         else:
-            print(f"[{datetime.datetime.now()}] ERROR: TTS Full - No audio data received from Gemini. Response: {response}")
+            print(f"[{datetime.datetime.now()}] ERROR: TTS Full - No audio data received from Gemini")
             raise HTTPException(status_code=500, detail="TTS Full: Failed to generate audio, no data in response.")
 
     except Exception as e:

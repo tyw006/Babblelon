@@ -5,24 +5,57 @@ import 'dart:developer' as developer;
 class PostHogService {
   static String? _userId;
   static String? _sessionId;
+  static DateTime? _lastActiveDate;
+  static Map<String, dynamic> _userProperties = {};
 
   /// Initialize user session for tracking
-  static void initializeUser({String? userId}) {
+  static void initializeUser({
+    String? userId,
+    String? username,
+    int? playerLevel,
+    DateTime? accountCreatedAt,
+  }) {
     _userId = userId ?? _generateUserId();
     _sessionId = _generateSessionId();
     
-    // Identify user in PostHog
-    Posthog().identify(userId: _userId!);
-    developer.log('✅ PostHog: User identified - userId: $_userId', name: 'PostHogService');
+    // Set up user properties with PostHog reserved properties
+    final now = DateTime.now();
+    final userProps = <String, dynamic>{
+      '\$created_at': (accountCreatedAt ?? now).toIso8601String(),
+      'platform': 'mobile_flutter',
+      'app_version': '0.1.0',
+      'device_type': 'mobile',
+      'game_name': 'BabbleOn',
+      'first_seen': now.toIso8601String(),
+      'total_sessions': 1,
+    };
     
-    // Track session start
+    // Add optional user properties
+    if (username != null) userProps['\$name'] = username;
+    if (playerLevel != null) userProps['player_level'] = playerLevel;
+    
+    // Store properties for later use
+    _userProperties = userProps;
+    
+    // Identify user in PostHog with properties
+    Posthog().identify(
+      userId: _userId!,
+      userProperties: userProps.cast<String, Object>(),
+    );
+    developer.log('✅ PostHog: User identified with properties - userId: $_userId, username: $username', name: 'PostHogService');
+    
+    // Track daily active user event
+    _trackDailyActiveUser();
+    
+    // Track session start with enhanced properties
     Posthog().capture(
       eventName: 'session_start',
       properties: {
         'session_id': _sessionId!,
-        'platform': 'mobile_flutter',
-        'app_version': '0.1.0',
-        'session_start_time': DateTime.now().toIso8601String(),
+        'user_id': _userId!,
+        'session_start_time': now.toIso8601String(),
+        'is_new_user': accountCreatedAt == null,
+        ...userProps,
       },
     );
     developer.log('✅ PostHog: Session start tracked - sessionId: $_sessionId', name: 'PostHogService');
@@ -35,12 +68,50 @@ class PostHogService {
     int? experiencePoints,
     int? gold,
     String? avatarUrl,
+    int? totalSessions,
   }) {
-    // For Flutter SDK, we can only identify with userId
-    // User properties are not supported in the same way as web SDK
-    if (_userId != null) {
-      Posthog().identify(userId: _userId!);
+    if (_userId == null) return;
+    
+    // Build updated properties
+    final updatedProps = <String, dynamic>{};
+    
+    if (username != null) {
+      updatedProps['\$name'] = username;
+      _userProperties['\$name'] = username;
     }
+    if (playerLevel != null) {
+      updatedProps['player_level'] = playerLevel;
+      _userProperties['player_level'] = playerLevel;
+    }
+    if (experiencePoints != null) {
+      updatedProps['experience_points'] = experiencePoints;
+      _userProperties['experience_points'] = experiencePoints;
+    }
+    if (gold != null) {
+      updatedProps['gold'] = gold;
+      _userProperties['gold'] = gold;
+    }
+    if (avatarUrl != null) {
+      updatedProps['avatar_url'] = avatarUrl;
+      _userProperties['avatar_url'] = avatarUrl;
+    }
+    if (totalSessions != null) {
+      updatedProps['total_sessions'] = totalSessions;
+      _userProperties['total_sessions'] = totalSessions;
+    }
+    
+    // Always update last active
+    final now = DateTime.now();
+    updatedProps['last_active'] = now.toIso8601String();
+    _userProperties['last_active'] = now.toIso8601String();
+    
+    // Update user properties in PostHog
+    Posthog().identify(
+      userId: _userId!,
+      userProperties: updatedProps.cast<String, Object>(),
+    );
+    
+    developer.log('✅ PostHog: User profile updated - userId: $_userId, properties: ${updatedProps.keys.join(", ")}', name: 'PostHogService');
   }
 
   /// Set device/platform specific properties (stored for event tracking)
@@ -191,6 +262,91 @@ class PostHogService {
       properties: properties,
     );
     developer.log('✅ PostHog: Boss fight tracked - event: boss_fight_$event, boss: $bossName, userId: $_userId', name: 'PostHogService');
+  }
+
+  /// Track daily active user (DAU) - only once per day per user
+  static void _trackDailyActiveUser() {
+    if (_userId == null) return;
+    
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    
+    // Check if we already tracked today
+    if (_lastActiveDate != null) {
+      final lastActiveStr = '${_lastActiveDate!.year}-${_lastActiveDate!.month.toString().padLeft(2, '0')}-${_lastActiveDate!.day.toString().padLeft(2, '0')}';
+      if (lastActiveStr == todayStr) {
+        return; // Already tracked today
+      }
+    }
+    
+    _lastActiveDate = today;
+    
+    // Track DAU event
+    Posthog().capture(
+      eventName: 'daily_active_user',
+      properties: {
+        'user_id': _userId!,
+        if (_sessionId != null) 'session_id': _sessionId!,
+        'date': todayStr,
+        'timestamp': today.toIso8601String(),
+        'platform': 'mobile_flutter',
+        ..._userProperties,
+      },
+    );
+    
+    developer.log('✅ PostHog: Daily active user tracked - userId: $_userId, date: $todayStr', name: 'PostHogService');
+  }
+
+  /// Track app lifecycle events
+  static void trackAppLifecycle({
+    required String event, // 'app_opened', 'app_backgrounded', 'app_resumed', 'app_closed'
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    if (_userId == null) return;
+    
+    final properties = <String, Object>{
+      'user_id': _userId!,
+      if (_sessionId != null) 'session_id': _sessionId!,
+      'timestamp': DateTime.now().toIso8601String(),
+      'platform': 'mobile_flutter',
+      if (additionalProperties != null) ...additionalProperties.cast<String, Object>(),
+    };
+
+    Posthog().capture(
+      eventName: 'app_$event',
+      properties: properties,
+    );
+    
+    // Track DAU when app is opened or resumed
+    if (event == 'opened' || event == 'resumed') {
+      _trackDailyActiveUser();
+    }
+    
+    developer.log('✅ PostHog: App lifecycle tracked - event: app_$event, userId: $_userId', name: 'PostHogService');
+  }
+
+  /// Track user return (for retention analysis)
+  static void trackUserReturn({
+    int? daysSinceLastSession,
+    String? returnType, // 'same_day', 'next_day', 'weekly', 'monthly'
+  }) {
+    if (_userId == null) return;
+    
+    final properties = <String, Object>{
+      'user_id': _userId!,
+      if (_sessionId != null) 'session_id': _sessionId!,
+      if (daysSinceLastSession != null) 'days_since_last_session': daysSinceLastSession,
+      if (returnType != null) 'return_type': returnType,
+      'timestamp': DateTime.now().toIso8601String(),
+      ..._userProperties,
+    };
+
+    Posthog().capture(
+      eventName: 'user_return',
+      properties: properties,
+    );
+    
+    developer.log('✅ PostHog: User return tracked - userId: $_userId, returnType: $returnType, daysSince: $daysSinceLastSession', name: 'PostHogService');
   }
 
   /// Track session end

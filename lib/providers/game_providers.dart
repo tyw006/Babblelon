@@ -9,6 +9,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:babblelon/models/game_models.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:babblelon/services/posthog_service.dart';
 
 part 'game_providers.g.dart';
 
@@ -228,5 +229,46 @@ extension WidgetRefSoundEffects on WidgetRef {
     if (soundEffectsEnabled) {
       FlameAudio.play(path, volume: volume);
     }
+  }
+}
+
+// Provider for app lifecycle management
+@Riverpod(keepAlive: true)
+class AppLifecycleManager extends _$AppLifecycleManager {
+  @override
+  void build() {
+    // Initialize app lifecycle tracking
+    PostHogService.trackAppLifecycle(event: 'opened');
+  }
+
+  void appResumed() {
+    PostHogService.trackAppLifecycle(
+      event: 'resumed',
+      additionalProperties: {
+        'previous_state': 'background',
+      },
+    );
+  }
+
+  void appPaused() {
+    PostHogService.trackAppLifecycle(
+      event: 'backgrounded',
+      additionalProperties: {
+        'previous_state': 'foreground',
+      },
+    );
+  }
+
+  void appInactive() {
+    PostHogService.trackAppLifecycle(event: 'inactive');
+  }
+
+  void appHidden() {
+    PostHogService.trackAppLifecycle(event: 'hidden');
+  }
+
+  void appClosed() {
+    PostHogService.trackAppLifecycle(event: 'closed');
+    PostHogService.trackSessionEnd();
   }
 }

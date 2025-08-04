@@ -157,12 +157,7 @@ async def transcribe_audio_openai(
             processing_time = end_time - start_time
             real_time_factor = processing_time / audio_duration if audio_duration > 0 else 0.0
 
-            print(f"[{datetime.datetime.now()}] SUCCESS: OpenAI Whisper transcription completed")
-            print(f"  - Text: '{transcribed_text}'")
-            print(f"  - Processing time: {processing_time:.3f}s")
-            print(f"  - API response time: {api_response_time:.3f}s")
-            print(f"  - Real-time factor: {real_time_factor:.3f}")
-            print(f"  - Actual cost: ${cost_estimate:.4f}")
+            logging.info(f"OpenAI Whisper transcription completed - text: '{transcribed_text[:50]}...', processing: {processing_time:.2f}s")
 
             return OpenAIWhisperResult(
                 text=transcribed_text,

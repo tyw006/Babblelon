@@ -24,7 +24,8 @@ class BabblelonGame extends FlameGame with
     RiverpodGameMixin,
     TapCallbacks,
     KeyboardEvents,
-    HasCollisionDetection {
+    HasCollisionDetection,
+    WidgetsBindingObserver {
   
   // UI Components
   
@@ -78,6 +79,12 @@ class BabblelonGame extends FlameGame with
   @override
   Future<void> onLoad() async {
     await super.onLoad(); // Call super.onLoad first
+    
+    // Initialize app lifecycle manager
+    ref.read(appLifecycleManagerProvider);
+    
+    // Add app lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
     
     // Set gameResolution for iPhone Plus portrait
     gameResolution = Vector2(414, 896); 
@@ -530,7 +537,31 @@ class BabblelonGame extends FlameGame with
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final appLifecycleManager = ref.read(appLifecycleManagerProvider.notifier);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        appLifecycleManager.appResumed();
+        break;
+      case AppLifecycleState.paused:
+        appLifecycleManager.appPaused();
+        break;
+      case AppLifecycleState.detached:
+        appLifecycleManager.appClosed();
+        break;
+      case AppLifecycleState.inactive:
+        appLifecycleManager.appInactive();
+        break;
+      case AppLifecycleState.hidden:
+        appLifecycleManager.appHidden();
+        break;
+    }
+  }
+
+  @override
   void onRemove() {
+    WidgetsBinding.instance.removeObserver(this);
     FlameAudio.bgm.stop();
     _portalSoundPlayer?.dispose();
     _portalSoundPlayer = null;

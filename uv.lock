@@ -249,6 +249,7 @@ name = "babblelon"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "assemblyai" },
     { name = "azure-cognitiveservices-speech" },
     { name = "deepl" },
@@ -285,6 +286,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.12.15" },
     { name = "assemblyai", specifier = ">=0.42.0" },
     { name = "azure-cognitiveservices-speech", specifier = ">=1.44.0" },
     { name = "deepl", specifier = ">=1.17.0" },
