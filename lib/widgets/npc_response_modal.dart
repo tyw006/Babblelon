@@ -477,22 +477,15 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       
       print('DEBUG: Parallel processing enabled: $useParallelProcessing');
       
-      // Call appropriate API endpoint based on parallel processing setting
-      final result = useParallelProcessing
-        ? await ApiService.parallelTranscribeTranslate(
-            audioPath: audioPath,
-            sourceLanguage: widget.targetLanguage,
-            targetLanguage: 'en',
-            expectedText: expectedText,
-          )
-        : await ApiService.transcribeAndTranslate(
-            audioPath: audioPath,
-            sourceLanguage: widget.targetLanguage,
-            targetLanguage: 'en',
-            expectedText: expectedText,
-          );
+      // Use the DeepL-enhanced transcribe and translate endpoint
+      final result = await ApiService.transcribeAndTranslateWithDeepL(
+        audioPath: audioPath,
+        sourceLanguage: widget.targetLanguage,
+        targetLanguage: 'en',
+        expectedText: expectedText,
+      );
       
-      print('DEBUG: API endpoint used: ${useParallelProcessing ? 'parallel-transcribe-translate' : 'transcribe-and-translate'}');
+      print('DEBUG: API endpoint used: transcribe-and-translate');
 
       if (mounted && result != null) {
         // DEBUG: Log the entire API response to understand what's being returned
@@ -828,9 +821,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     });
 
     try {
-      // Use the existing translateText method which already calls translate_and_syllabify
+      // Use the DeepL translation method for more natural translations
       // This provides word-by-word breakdown with individual Thai words, romanization, and English meanings
-      final result = await ApiService.translateText(
+      final result = await ApiService.translateTextWithDeepL(
         englishText: englishText,
         targetLanguage: widget.targetLanguage,
       );

@@ -2,7 +2,6 @@ import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
-import 'package:babblelon/screens/stt_comparison_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
@@ -13,6 +12,7 @@ import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/services/posthog_service.dart';
+import 'package:babblelon/widgets/stt_translation_test_widget.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -213,22 +213,33 @@ class MainMenuScreen extends ConsumerWidget {
                 ),
                 child: const Text('Test Character Tracing'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
                   ref.playButtonSound();
+                  
+                  // Track navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'stt_translation_test',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_stt_translation',
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const STTComparisonScreen(),
+                      builder: (context) => const STTTranslationTestWidget(),
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
+                  backgroundColor: Colors.purple.shade700,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('STT Service Comparison'),
+                child: const Text('Test STT/Translation Services'),
               ),
             ],
           ),

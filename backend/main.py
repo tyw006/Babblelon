@@ -56,10 +56,11 @@ else:
 
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse, regenerate_npc_vocabulary, process_item_giving
-from services.stt_service import transcribe_audio_simple as transcribe_audio, transcribe_audio as transcribe_audio_advanced, STTResult, parallel_transcribe_audio
-from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation, translate_and_syllabify
+from services.stt_service import transcribe_audio_simple as transcribe_audio, transcribe_audio as transcribe_audio_advanced, STTResult, parallel_transcribe_audio, transcribe_audio_elevenlabs
+from services.translation_service import translate_text, romanize_target_text, synthesize_speech, create_word_level_translation_mapping, get_language_name, get_thai_writing_tips, get_drawable_vocabulary_items, generate_syllable_writing_guide, analyze_character_components, detect_complex_vowel_patterns, get_complex_vowel_info, generate_complex_vowel_explanation, translate_and_syllabify, translate_with_deepl, translate_and_syllabify_deepl, translate_and_syllabify_enhanced
 from services.pronunciation_service import assess_pronunciation, PronunciationAssessmentResponse
 from services.azure_speech_tracker import get_azure_speech_tracker
+from services.openai_whisper_service import transcribe_audio_openai, translate_audio_openai, OpenAIWhisperResult
 
 app = FastAPI()
 
@@ -746,9 +747,149 @@ async def transcribe_and_translate_endpoint(
     except Exception as e:
         print(f"[{datetime.datetime.now()}] CRITICAL: /transcribe-and-translate/ Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in transcribe-and-translate: {str(e)}")
-    finally:
-        total_time = datetime.datetime.now() - request_time
-        print(f"[{datetime.datetime.now()}] INFO: /transcribe-and-translate/ finished. Total time: {total_time}")
+
+@app.post("/transcribe-translate-deepl/", response_model=TranscribeTranslateResponse)
+async def transcribe_translate_deepl_endpoint(
+    audio_file: UploadFile = File(...),
+    source_language: Optional[str] = Form("tha"),  # Language of audio
+    target_language: Optional[str] = Form("en"),   # Language to translate to
+    expected_text: Optional[str] = Form("")        # Expected text for comparison
+):
+    """
+    Combined STT + DeepL Translation endpoint with word-level confidence.
+    Uses Google Cloud STT (Chirp2 model) + DeepL Translation + Google word-by-word translation.
+    
+    This endpoint combines:
+    - Google Cloud STT with Chirp2 for accurate Thai transcription
+    - DeepL for natural sentence-level translation
+    - Google Translate for word-by-word mappings
+    - Thai2rom with newmm tokenization for proper romanization
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /transcribe-translate-deepl/ endpoint hit. File: {audio_file.filename}, Source: {source_language}, Target: {target_language}")
+    
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Audio file content is empty.")
+
+        audio_content_stream = io.BytesIO(audio_bytes)
+        
+        # Step 1: STT with word-level confidence using Chirp2 model (reuse existing function)
+        print(f"[{datetime.datetime.now()}] DEBUG: Starting STT with Chirp2 model...")
+        
+        stt_result: STTResult = None
+        try:
+            stt_result = await transcribe_audio_advanced(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+        except Exception as e:
+            print(f"[{datetime.datetime.now()}] ERROR: Google Cloud STT failed: {e}")
+            # Try ElevenLabs as fallback
+            try:
+                print(f"[{datetime.datetime.now()}] INFO: Falling back to ElevenLabs STT...")
+                audio_content_stream.seek(0)
+                stt_result = await transcribe_audio_elevenlabs(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+            except Exception as e2:
+                print(f"[{datetime.datetime.now()}] ERROR: ElevenLabs STT also failed: {e2}")
+                # Return empty result on all failures
+                return TranscribeTranslateResponse(
+                    transcription="",
+                    translation="",
+                    romanization="",
+                    word_confidence=[],
+                    word_comparisons=[],
+                    pronunciation_score=0.0,
+                    expected_text=expected_text or ""
+                )
+        
+        print(f"[{datetime.datetime.now()}] INFO: STT successful. Transcription: '{stt_result.text}'")
+        
+        # Step 2: Translation using DeepL with word mappings (if different languages)
+        if source_language != target_language and stt_result.text:
+            print(f"[{datetime.datetime.now()}] DEBUG: Starting DeepL translation with word mappings...")
+            
+            # Use the existing translate_and_syllabify_deepl function
+            # This already provides DeepL sentence translation + Google word-by-word + thai2rom romanization
+            deepl_result = await translate_and_syllabify_deepl(
+                stt_result.text,
+                source_language if source_language in ["th", "tha"] else "th"  # DeepL expects 'th' for Thai
+            )
+            
+            # Extract results from DeepL response
+            translation_text = deepl_result.get("target_text", "")
+            word_mappings = deepl_result.get("word_mappings", [])
+            
+            # Build romanization from word mappings
+            romanization = " ".join([
+                mapping.get("transliteration", "") 
+                for mapping in word_mappings 
+                if mapping.get("transliteration")
+            ])
+            
+            print(f"[{datetime.datetime.now()}] INFO: DeepL translation complete: '{translation_text}'")
+            print(f"[{datetime.datetime.now()}] DEBUG: Word mappings count: {len(word_mappings)}")
+            
+        else:
+            # Same language or empty text - no translation needed
+            translation_text = stt_result.text
+            romanization = ""
+            word_mappings = []
+        
+        # Step 3: Enhance word confidence with DeepL word mappings
+        enhanced_word_confidence = []
+        if stt_result.word_confidence and word_mappings:
+            # Match STT word confidence with DeepL word mappings
+            for i, word_conf in enumerate(stt_result.word_confidence):
+                enhanced_word = word_conf.copy()
+                
+                # Find corresponding word mapping from DeepL result
+                if i < len(word_mappings):
+                    mapping = word_mappings[i]
+                    enhanced_word["transliteration"] = mapping.get("transliteration", "")
+                    enhanced_word["translation"] = mapping.get("translation", "")
+                
+                enhanced_word_confidence.append(enhanced_word)
+        elif stt_result.word_confidence:
+            # No word mappings, use original word confidence
+            enhanced_word_confidence = stt_result.word_confidence
+        
+        # Step 4: Calculate pronunciation score if expected text provided
+        pronunciation_score = 0.0
+        if expected_text and stt_result.text:
+            from difflib import SequenceMatcher
+            pronunciation_score = SequenceMatcher(None, stt_result.text.lower(), expected_text.lower()).ratio() * 100
+        
+        # Convert word comparisons to response format
+        word_comparison_data = [
+            WordComparisonData(
+                word=comp.word,
+                confidence=comp.confidence,
+                expected=comp.expected,
+                match_type=comp.match_type,
+                similarity=comp.similarity,
+                start_time=comp.start_time,
+                end_time=comp.end_time
+            )
+            for comp in stt_result.word_comparisons
+        ]
+        
+        return TranscribeTranslateResponse(
+            transcription=stt_result.text,
+            translation=translation_text,
+            romanization=romanization,
+            word_confidence=enhanced_word_confidence,
+            word_comparisons=word_comparison_data,
+            pronunciation_score=pronunciation_score,
+            expected_text=expected_text or ""
+        )
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /transcribe-translate-deepl/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /transcribe-translate-deepl/ Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in transcribe-translate-deepl: {str(e)}")
 
 # --- Three-Way Transcription Comparison Endpoint ---
 @app.post("/three-way-transcribe/", response_model=ThreeWayTranscriptionResponse)
@@ -1222,8 +1363,8 @@ async def gcloud_translate_tts_endpoint(request: TranslationRequest):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /gcloud-translate-tts/ received request for text: '{request.english_text[:50]}...' in {request.target_language}")
     try:
-        # Use the new translate_and_syllabify function for better compound word handling
-        syllable_result = await translate_and_syllabify(request.english_text, request.target_language)
+        # Use the enhanced translate_and_syllabify function for context-aware processing
+        syllable_result = await translate_and_syllabify_enhanced(request.english_text, request.target_language)
         
         # Extract target text from word mappings
         target_text = ' '.join([mapping['target'] for mapping in syllable_result['word_mappings']])
@@ -1231,16 +1372,15 @@ async def gcloud_translate_tts_endpoint(request: TranslationRequest):
         # Generate audio for the full target text
         audio_result = await synthesize_speech(target_text, request.target_language)
         
-        # Build response in the expected format
+        # Build response in the expected format (cleaned up - removed duplicates)
         response_payload = {
             "english_text": request.english_text,
             "target_text": target_text,
-            "translated_text": target_text,  # Add this field for frontend compatibility
             "romanized_text": ' '.join([mapping['transliteration'] for mapping in syllable_result['word_mappings']]),
-            "transliteration": ' '.join([mapping['transliteration'] for mapping in syllable_result['word_mappings']]),  # Add this field for frontend compatibility
             "audio_base64": audio_result.get("audio_base64", ""),
             "word_mappings": syllable_result['word_mappings'],
-            "target_language_name": get_language_name(request.target_language)
+            "target_language_name": get_language_name(request.target_language),
+            "method": syllable_result.get('method', 'enhanced_context_aware')
         }
         
         return JSONResponse(content=response_payload)
@@ -1249,6 +1389,119 @@ async def gcloud_translate_tts_endpoint(request: TranslationRequest):
         raise e
     except Exception as e:
         print(f"[{datetime.datetime.now()}] ERROR: in /gcloud-translate-tts/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- DeepL Translation Endpoint ---
+@app.post("/deepl-translate-tts/", response_model=GoogleTranslationResponse)
+async def deepl_translate_tts_endpoint(request: TranslationRequest):
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /deepl-translate-tts/ received request for text: '{request.english_text[:50]}...' in {request.target_language}")
+    try:
+        # Use the new translate_and_syllabify_deepl function for DeepL translation
+        syllable_result = await translate_and_syllabify_deepl(request.english_text, request.target_language)
+        
+        # Extract target text from the result
+        target_text = syllable_result['target_text']
+        
+        # Generate audio for the full target text using Google TTS (since DeepL doesn't have TTS)
+        audio_result = await synthesize_speech(target_text, request.target_language)
+        
+        # Build response in the expected format (cleaned up - removed duplicates)
+        response_payload = {
+            "english_text": request.english_text,
+            "target_text": target_text,
+            "romanized_text": ' '.join([mapping['transliteration'] for mapping in syllable_result['word_mappings']]),
+            "audio_base64": audio_result.get("audio_base64", ""),
+            "word_mappings": syllable_result['word_mappings'],
+            "target_language_name": get_language_name(request.target_language),
+            "service": "deepl",
+            "method": syllable_result.get('method', 'deepl_hybrid')
+        }
+        
+        return JSONResponse(content=response_payload)
+    except HTTPException as e:
+        # Re-raise HTTPException to let FastAPI handle it
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /deepl-translate-tts/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Enhanced Homograph-Aware Translation Endpoint ---
+@app.post("/enhanced-translate-homographs/", response_model=GoogleTranslationResponse)
+async def enhanced_translate_homographs_endpoint(request: TranslationRequest):
+    """
+    Enhanced translation endpoint with homograph detection and context-aware translation.
+    Based on research from "Handling Homographs in Neural Machine Translation" (Liu et al., 2017)
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /enhanced-translate-homographs/ received request for text: '{request.english_text[:50]}...' in {request.target_language}")
+    
+    try:
+        # Import homograph service
+        from services.homograph_service import homograph_service
+        
+        # Standard translation first
+        syllable_result = await translate_and_syllabify_enhanced(request.english_text, request.target_language)
+        target_text = ' '.join([mapping['target'] for mapping in syllable_result['word_mappings']])
+        
+        # Enhanced homograph analysis
+        homograph_analysis = homograph_service.analyze_sentence_homographs(target_text)
+        
+        # Enhance word mappings with homograph detection
+        enhanced_word_mappings = homograph_service.get_word_mappings_enhanced(
+            request.english_text,
+            target_text,
+            syllable_result['word_mappings']
+        )
+        
+        # Generate audio for the target text
+        audio_result = await synthesize_speech(target_text, request.target_language)
+        
+        # Build enhanced response
+        response_payload = {
+            "english_text": request.english_text,
+            "target_text": target_text,
+            "romanized_text": ' '.join([mapping.get('enhanced_romanization', mapping.get('transliteration', '')) for mapping in enhanced_word_mappings]),
+            "audio_base64": audio_result.get("audio_base64", ""),
+            "word_mappings": enhanced_word_mappings,
+            "target_language_name": get_language_name(request.target_language),
+            "method": "homograph_enhanced",
+            # Enhanced homograph information
+            "homograph_analysis": {
+                "total_words": homograph_analysis['total_words'],
+                "total_homographs": homograph_analysis['total_homographs'],
+                "homograph_percentage": homograph_analysis['homograph_percentage'],
+                "romanization_engine": homograph_analysis['romanization_engine']
+            },
+            "homograph_statistics": homograph_service.get_homograph_statistics()
+        }
+        
+        return JSONResponse(content=response_payload)
+        
+    except ImportError:
+        # Fallback to standard translation if homograph service not available
+        print(f"[{datetime.datetime.now()}] WARNING: Homograph service not available, falling back to standard translation")
+        return await gcloud_translate_tts_endpoint(request)
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /enhanced-translate-homographs/: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Homograph Statistics Endpoint ---
+@app.get("/homograph-statistics/")
+async def get_homograph_statistics():
+    """
+    Get statistics about the homograph dictionary for monitoring and debugging.
+    """
+    try:
+        from services.homograph_service import homograph_service
+        return JSONResponse(content=homograph_service.get_homograph_statistics())
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Homograph service not available")
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] ERROR: in /homograph-statistics/: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- Pronunciation Assessment Endpoint ---
@@ -1609,6 +1862,312 @@ async def get_azure_speech_costs(time_range_hours: int = 24):
         print(f"[{datetime.datetime.now()}] ERROR: Failed to get Azure Speech costs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve cost summary: {str(e)}")
 
+# --- Multi-Service STT/Translation Test Endpoint ---
+
+class MultiServiceTestRequest(BaseModel):
+    """Request model for testing multiple STT/Translation service combinations"""
+    test_name: str = "STT Translation Test"
+    include_cloud_services: bool = True
+
+class ServiceTestResult(BaseModel):
+    """Individual service test result"""
+    service_name: str
+    stt_provider: str
+    translation_provider: str
+    transcription: str
+    romanization: str
+    translation: str
+    processing_time_ms: int
+    confidence_score: float
+    is_offline: bool
+    error: Optional[str] = None
+    cost_estimate: float = 0.0
+
+class MultiServiceTestResponse(BaseModel):
+    """Response for multi-service test endpoint"""
+    test_name: str
+    audio_duration_seconds: float
+    results: List[ServiceTestResult]
+    fastest_service: str
+    most_accurate_service: str
+    cost_comparison: Dict[str, float]
+
+@app.post("/test-stt-translation-combinations/", response_model=MultiServiceTestResponse)
+async def test_stt_translation_combinations_endpoint(
+    audio_file: UploadFile = File(...),
+    source_language: str = Form("th"),
+    target_language: str = Form("en"),
+    test_name: str = Form("STT Translation Test"),
+    include_cloud_services: bool = Form(True),
+):
+    """
+    Test multiple STT and translation service combinations for comparison.
+    Supports:
+    - Google Cloud STT + Google Translate
+    - ElevenLabs STT + Google Translate
+    - OpenAI Whisper + Google Translate
+    
+    Note: Whisper (on-device) testing is handled client-side in Flutter.
+    Note: OpenAI Whisper Direct Translation removed due to lower quality.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /test-stt-translation-combinations/ endpoint hit. Source: {source_language}, Target: {target_language}")
+    
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Audio file content is empty.")
+        
+        # Save audio temporarily for processing
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+            temp_audio.write(audio_bytes)
+            temp_audio_path = temp_audio.name
+        
+        results = []
+        
+        # Test Google Cloud STT + Google Translate
+        if include_cloud_services:
+            try:
+                start_time = datetime.datetime.now()
+                
+                # Use existing backend functions
+                audio_stream = io.BytesIO(audio_bytes)
+                
+                # Transcribe with Google Cloud STT
+                stt_result = await transcribe_audio_advanced(
+                    audio_stream,
+                    language_code=source_language
+                )
+                
+                # Translate the transcription
+                if stt_result and stt_result.text:
+                    translation_result = await translate_text(
+                        text=stt_result.text,
+                        target_language=target_language,
+                        source_language=source_language
+                    )
+                    
+                    # Generate romanization if source is Thai
+                    romanization = ""
+                    if source_language in ["th", "tha"]:
+                        romanization_result = await romanize_target_text(stt_result.text, source_language)
+                        romanization = romanization_result.get("romanized_text", "")
+                    
+                    google_result = {
+                        'transcription': stt_result.text,
+                        'romanization': romanization,
+                        'translation': translation_result.get('translated_text', ''),
+                        'confidence_score': stt_result.overall_confidence,
+                        'word_confidence': stt_result.word_confidence
+                    }
+                else:
+                    google_result = {
+                        'transcription': '',
+                        'romanization': '',
+                        'translation': '',
+                        'confidence_score': 0.0,
+                        'word_confidence': []
+                    }
+                
+                processing_time = (datetime.datetime.now() - start_time).total_seconds() * 1000
+                
+                results.append(ServiceTestResult(
+                    service_name="Google Cloud STT + Google Translate",
+                    stt_provider="Google Cloud STT",
+                    translation_provider="Google Translate",
+                    transcription=google_result.get('transcription', ''),
+                    romanization=google_result.get('romanization', ''),
+                    translation=google_result.get('translation', ''),
+                    processing_time_ms=int(processing_time),
+                    confidence_score=google_result.get('confidence_score', 0.0),
+                    is_offline=False,
+                    cost_estimate=0.016  # $0.016/min for Google Cloud STT
+                ))
+            except Exception as e:
+                results.append(ServiceTestResult(
+                    service_name="Google Cloud STT + Google Translate",
+                    stt_provider="Google Cloud STT",
+                    translation_provider="Google Translate",
+                    transcription="",
+                    romanization="",
+                    translation="",
+                    processing_time_ms=0,
+                    confidence_score=0.0,
+                    is_offline=False,
+                    error=str(e)
+                ))
+        
+        # Test ElevenLabs STT + Google Translate
+        if include_cloud_services:
+            try:
+                start_time = datetime.datetime.now()
+                
+                # Use ElevenLabs STT directly
+                audio_stream = io.BytesIO(audio_bytes)
+                elevenlabs_result = await transcribe_audio_elevenlabs(
+                    audio_stream,
+                    language_code=source_language
+                )
+                
+                # Translate using Google if we got transcription
+                if elevenlabs_result and elevenlabs_result.text:
+                    translation_result = await translate_text(
+                        text=elevenlabs_result.text,
+                        target_language=target_language,
+                        source_language=source_language
+                    )
+                    
+                    # Generate romanization if source is Thai
+                    romanization = ""
+                    if source_language in ["th", "tha"]:
+                        romanization_result = await romanize_target_text(elevenlabs_result.text, source_language)
+                        romanization = romanization_result.get("romanized_text", "")
+                    
+                    processing_time = (datetime.datetime.now() - start_time).total_seconds() * 1000
+                    
+                    results.append(ServiceTestResult(
+                        service_name="ElevenLabs STT + Google Translate",
+                        stt_provider="ElevenLabs STT",
+                        translation_provider="Google Translate",
+                        transcription=elevenlabs_result.text,
+                        romanization=romanization,
+                        translation=translation_result.get('translated_text', ''),
+                        processing_time_ms=int(processing_time),
+                        confidence_score=elevenlabs_result.overall_confidence,
+                        is_offline=False,
+                        cost_estimate=0.005  # Estimate for ElevenLabs
+                    ))
+                else:
+                    results.append(ServiceTestResult(
+                        service_name="ElevenLabs STT + Google Translate",
+                        stt_provider="ElevenLabs STT",
+                        translation_provider="Google Translate",
+                        transcription="",
+                        romanization="",
+                        translation="",
+                        processing_time_ms=int((datetime.datetime.now() - start_time).total_seconds() * 1000),
+                        confidence_score=0.0,
+                        is_offline=False,
+                        error="No transcription received from ElevenLabs"
+                    ))
+            except Exception as e:
+                results.append(ServiceTestResult(
+                    service_name="ElevenLabs STT + Google Translate",
+                    stt_provider="ElevenLabs STT",
+                    translation_provider="Google Translate",
+                    transcription="",
+                    romanization="",
+                    translation="",
+                    processing_time_ms=0,
+                    confidence_score=0.0,
+                    is_offline=False,
+                    error=str(e)
+                ))
+        
+        
+        # Test OpenAI Whisper transcription
+        if include_cloud_services:
+            try:
+                start_time = datetime.datetime.now()
+                
+                # Transcribe with OpenAI Whisper
+                audio_stream = io.BytesIO(audio_bytes)
+                whisper_result = await transcribe_audio_openai(
+                    audio_stream=audio_stream,
+                    language_code=source_language
+                )
+                
+                # Translate using Google Translate if needed
+                translation_result = {}
+                if target_language != source_language:
+                    translation_result = await translate_text(
+                        text=whisper_result.text,
+                        target_language=target_language,
+                        source_language=source_language
+                    )
+                
+                # Generate romanization if source is Thai
+                romanization = ""
+                if source_language in ["th", "tha"]:
+                    romanization_result = await romanize_target_text(whisper_result.text, source_language)
+                    romanization = romanization_result.get("romanized_text", "")
+                
+                processing_time = (datetime.datetime.now() - start_time).total_seconds() * 1000
+                
+                results.append(ServiceTestResult(
+                    service_name="OpenAI Whisper + Google Translate",
+                    stt_provider="OpenAI Whisper",
+                    translation_provider="Google Translate",
+                    transcription=whisper_result.text,
+                    romanization=romanization,
+                    translation=translation_result.get('translated_text', ''),
+                    processing_time_ms=int(processing_time),
+                    confidence_score=0.0,  # OpenAI Whisper doesn't provide confidence scores
+                    is_offline=False,
+                    cost_estimate=whisper_result.cost_estimate
+                ))
+            except Exception as e:
+                results.append(ServiceTestResult(
+                    service_name="OpenAI Whisper + Google Translate",
+                    stt_provider="OpenAI Whisper",
+                    translation_provider="Google Translate",
+                    transcription="",
+                    romanization="",
+                    translation="",
+                    processing_time_ms=0,
+                    confidence_score=0.0,
+                    is_offline=False,
+                    error=str(e)
+                ))
+        
+        
+        # Clean up temp file
+        import os
+        try:
+            os.unlink(temp_audio_path)
+        except:
+            pass
+        
+        # Calculate audio duration (approximate based on file size)
+        audio_duration_seconds = len(audio_bytes) / (16000 * 2)  # Assuming 16kHz, 16-bit mono
+        
+        # Determine fastest and most accurate services
+        valid_results = [r for r in results if not r.error]
+        
+        fastest_service = min(valid_results, key=lambda r: r.processing_time_ms).service_name if valid_results else "None"
+        most_accurate_service = max(valid_results, key=lambda r: r.confidence_score).service_name if valid_results else "None"
+        
+        # Cost comparison
+        cost_comparison = {
+            r.service_name: r.cost_estimate * (audio_duration_seconds / 60.0)
+            for r in results
+        }
+        
+        response = MultiServiceTestResponse(
+            test_name=test_name,
+            audio_duration_seconds=audio_duration_seconds,
+            results=results,
+            fastest_service=fastest_service,
+            most_accurate_service=most_accurate_service,
+            cost_comparison=cost_comparison
+        )
+        
+        print(f"[{datetime.datetime.now()}] INFO: /test-stt-translation-combinations/ completed successfully")
+        return response
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /test-stt-translation-combinations/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /test-stt-translation-combinations/ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unexpected error during multi-service test: {str(e)}")
+
 @app.get("/azure-speech/health")
 async def azure_speech_health_check():
     """Health check endpoint for Azure Speech Services tracking"""
@@ -1642,6 +2201,131 @@ async def azure_speech_health_check():
                 "tracker_initialized": False
             }
         )
+
+# OpenAI Whisper endpoints
+@app.post("/openai-transcribe/")
+async def openai_transcribe_endpoint(
+    audio_file: UploadFile = File(...),
+    language_code: str = Form("th"),
+    prompt: str = Form(None)
+):
+    """
+    Transcribe audio using OpenAI Whisper API.
+    Maintains original language - Thai audio becomes Thai text.
+    
+    Args:
+        audio_file: Audio file to transcribe
+        language_code: Language code (e.g., 'th' for Thai)
+        prompt: Optional prompt to guide transcription
+    
+    Returns:
+        OpenAI Whisper transcription result with metrics
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /openai-transcribe/ endpoint hit. Language: {language_code}")
+    
+    try:
+        # Read audio file into BytesIO stream
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        
+        if len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+        
+        audio_stream = io.BytesIO(audio_bytes)
+        
+        # Call OpenAI Whisper transcription service
+        result = await transcribe_audio_openai(
+            audio_stream=audio_stream,
+            language_code=language_code,
+            prompt=prompt if prompt else None
+        )
+        
+        # Convert result to dict for JSON response
+        response_data = {
+            "text": result.text,
+            "processing_time": result.processing_time,
+            "service_used": result.service_used,
+            "language_detected": result.language_detected,
+            "model_used": result.model_used,
+            "audio_duration": result.audio_duration,
+            "real_time_factor": result.real_time_factor,
+            "cost_estimate": result.cost_estimate,
+            "is_translation": result.is_translation
+        }
+        
+        print(f"[{datetime.datetime.now()}] INFO: /openai-transcribe/ completed successfully")
+        return response_data
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /openai-transcribe/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /openai-transcribe/ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"OpenAI Whisper transcription error: {str(e)}")
+
+@app.post("/openai-translate/")
+async def openai_translate_endpoint(
+    audio_file: UploadFile = File(...),
+    prompt: str = Form(None)
+):
+    """
+    Translate audio using OpenAI Whisper API.
+    Converts any language audio to English text.
+    
+    Args:
+        audio_file: Audio file to translate
+        prompt: Optional prompt to guide translation
+    
+    Returns:
+        OpenAI Whisper translation result with metrics
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /openai-translate/ endpoint hit")
+    
+    try:
+        # Read audio file into BytesIO stream
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        
+        if len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+        
+        audio_stream = io.BytesIO(audio_bytes)
+        
+        # Call OpenAI Whisper translation service
+        result = await translate_audio_openai(
+            audio_stream=audio_stream,
+            prompt=prompt if prompt else None
+        )
+        
+        # Convert result to dict for JSON response
+        response_data = {
+            "text": result.text,
+            "processing_time": result.processing_time,
+            "service_used": result.service_used,
+            "language_detected": result.language_detected,
+            "model_used": result.model_used,
+            "audio_duration": result.audio_duration,
+            "real_time_factor": result.real_time_factor,
+            "cost_estimate": result.cost_estimate,
+            "is_translation": result.is_translation
+        }
+        
+        print(f"[{datetime.datetime.now()}] INFO: /openai-translate/ completed successfully")
+        return response_data
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /openai-translate/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /openai-translate/ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"OpenAI Whisper translation error: {str(e)}")
+
 
 if __name__ == "__main__":
     # Changed host from "127.0.0.1" to "0.0.0.0" to allow connections

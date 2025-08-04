@@ -41,6 +41,8 @@ dependencies:
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   google_mlkit_digital_ink_recognition: ^0.14.1
+  whisper_flutter_new: ^1.0.1  # On-device Whisper processing
+  fl_chart: ^0.68.0  # Charts for benchmarking visualization
 
 dev_dependencies:
   sentry_dart_plugin: ^3.1.1

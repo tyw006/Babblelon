@@ -329,6 +329,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.0"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
+      sha256: "567c64b3cb4cf82397aac55f4f0cbd3ca20d77c6c03bedbc4ceaddc08904aef7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.7"
   fake_async:
     dependency: transitive
     description:
@@ -361,6 +369,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  fl_chart:
+    dependency: "direct main"
+    description:
+      name: fl_chart
+      sha256: d0f0d49112f2f4b192481c16d05b6418bd7820e021e265a3c22db98acf7ed7fb
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.68.0"
   flame:
     dependency: "direct main"
     description:
@@ -1573,6 +1589,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  whisper_flutter_new:
+    dependency: "direct main"
+    description:
+      name: whisper_flutter_new
+      sha256: "56f5449cd459ed9bbb9d3641aae6a72ed594e1a200f56b1939891996fbd7dd4d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   win32:
     dependency: transitive
     description:

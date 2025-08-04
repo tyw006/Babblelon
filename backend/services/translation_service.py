@@ -17,6 +17,15 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from data.language_data import KNOWN_THAI_COMPOUNDS
 
+# Import homograph detection service
+try:
+    from services.homograph_service import homograph_service
+    HOMOGRAPH_SERVICE_AVAILABLE = True
+    logging.info("Homograph detection service loaded successfully")
+except ImportError as e:
+    HOMOGRAPH_SERVICE_AVAILABLE = False
+    logging.warning(f"Homograph detection service not available: {e}")
+
 # Language-specific configurations
 LANGUAGE_CONFIGS = {
     "th": {
@@ -27,7 +36,7 @@ LANGUAGE_CONFIGS = {
         "tokenizer_available": True,
         "romanizer_available": True,
         "tokenizer_engine": "newmm",
-        "romanizer_engine": "thai2rom"
+        "romanizer_engine": "thai2rom"  # Using thai2rom for better English learner pronunciation
     },
     "vi": {
         "code": "vi",
@@ -68,9 +77,116 @@ def get_language_name(target_language: str) -> str:
     config = LANGUAGE_CONFIGS.get(target_language.lower(), LANGUAGE_CONFIGS["th"])
     return config.get("name", target_language.upper())
 
+def get_best_romanization_engine(preferred_engine: str = "tltk") -> str:
+    """
+    Get the best available romanization engine with fallback.
+    Tries preferred engine first, falls back to reliable alternatives.
+    """
+    try:
+        from pythainlp.transliterate import romanize
+        
+        # Test the preferred engine
+        test_result = romanize('ไหม', engine=preferred_engine)
+        logging.info(f"✅ Using {preferred_engine} romanization engine")
+        return preferred_engine
+        
+    except Exception as e:
+        logging.warning(f"⚠️  {preferred_engine} engine not available: {e}")
+        
+        # Fallback hierarchy: thai2rom -> royin -> tltk
+        fallback_engines = ['thai2rom', 'royin']
+        
+        for engine in fallback_engines:
+            try:
+                test_result = romanize('ไหม', engine=engine)
+                logging.info(f"✅ Falling back to {engine} romanization engine")
+                return engine
+            except Exception as fallback_error:
+                logging.warning(f"⚠️  {engine} engine also failed: {fallback_error}")
+        
+        # Ultimate fallback
+        logging.error("❌ No romanization engine available, using royin as final fallback")
+        return 'royin'
+
+def post_process_thai2rom_romanization(word: str, romanized: str) -> str:
+    """
+    Fix known thai2rom romanization issues based on research.
+    
+    Args:
+        word: Original Thai word
+        romanized: Result from thai2rom engine
+        
+    Returns:
+        Corrected romanization
+    """
+    # Handle punctuation - should remain unchanged
+    import string
+    if word in string.punctuation or word in '？！。，、；：「」『』（）［］｛｝':
+        return word
+    
+    corrections = {
+        # Question particles (Critical for conversation)
+        'ไหม': 'mai',      # Question particle, not 'haimai'
+        'หรือ': 'rue',     # Or/question word
+        'ไหน': 'nai',      # Where/which question word
+        'มั้ย': 'mai',     # Informal variant of ไหม
+        'เหรอ': 'roe',     # Question particle
+        'หรือเปล่า': 'rue plao',  # Or not?
+        
+        # Polite particles (Essential for learners)
+        'ครับ': 'khrap',   # Male polite particle
+        'คับ': 'khap',     # Informal male polite
+        'ค่ะ': 'kha',      # Female polite (statement)
+        'คะ': 'kha',       # Female polite (question)
+        'จ้ะ': 'ja',       # Informal polite
+        'จ๊ะ': 'ja',       # Informal polite
+        
+        # Common words with known issues (from research)
+        'กรม': 'krom',     # Department, not 'knm'
+        'มหา': 'maha',     # Great/grand, not 'ma'
+        'อยาก': 'yak',     # Want, not 'ak'
+        'กลัว': 'klua',    # Afraid, not 'knua'
+        'หยาก': 'yak',     # Itchy, not 'hyak'
+        
+        # Common conversational words
+        'ใหม่': 'mai',     # New/fresh
+        'ไม่': 'mai',      # Not/no
+        'ใช่': 'chai',     # Yes/correct
+        'เข้า': 'khao',    # Enter
+        'ขาว': 'khao',     # White
+        
+        # Restaurant/food vocabulary (BabbleOn context)
+        'ข้าว': 'khao',    # Rice
+        'ผัด': 'phat',     # Stir-fry
+        'แกง': 'kaeng',    # Curry
+        'ต้ม': 'tom',      # Boil/soup
+        'ยำ': 'yam',       # Spicy salad
+        'ปลา': 'pla',      # Fish
+        'ไก่': 'kai',      # Chicken
+        'หมู': 'mu',       # Pork
+        'เนื้อ': 'nuea',   # Beef
+        'กุ้ง': 'kung',    # Shrimp
+    }
+    
+    # Apply correction if found, otherwise return original
+    corrected = corrections.get(word, romanized)
+    
+    # Log if correction was applied
+    if corrected != romanized and word in corrections:
+        logging.debug(f"Romanization corrected: '{word}' from '{romanized}' to '{corrected}'")
+    
+    return corrected
+
 def get_language_config(target_language: str) -> dict:
-    """Get language-specific configuration."""
-    return LANGUAGE_CONFIGS.get(target_language.lower(), LANGUAGE_CONFIGS["th"])
+    """Get language-specific configuration with dynamic romanization engine selection."""
+    config = LANGUAGE_CONFIGS.get(target_language.lower(), LANGUAGE_CONFIGS["th"]).copy()
+    
+    # Dynamic engine selection for Thai
+    if target_language.lower() == "th" and config.get("romanizer_available", False):
+        preferred_engine = config.get("romanizer_engine", "tltk")
+        config["romanizer_engine"] = get_best_romanization_engine(preferred_engine)
+    
+    return config
 
 def load_thai_writing_guide() -> dict:
     """Load the Thai writing guide JSON data."""
@@ -2699,3 +2815,697 @@ async def translate_and_syllabify(english_text: str, target_language: str = 'th'
 def is_known_compound(word: str) -> bool:
     """Checks if a word is in our predefined list of compounds."""
     return word in KNOWN_THAI_COMPOUNDS
+
+
+# DeepL Translation Services
+async def translate_with_deepl(text: str, target_language: str = "th", source_language: str = "en") -> dict:
+    """
+    Translate text using DeepL API from English to Thai.
+    """
+    try:
+        import deepl
+        
+        # Get DeepL API key from environment
+        deepl_api_key = os.getenv("DEEPL_API_KEY")
+        if not deepl_api_key:
+            raise HTTPException(status_code=500, detail="DeepL API key not configured")
+        
+        # Initialize DeepL translator
+        translator = deepl.Translator(deepl_api_key)
+        
+        # DeepL language code mapping
+        deepl_target_lang = "TH" if target_language == "th" else target_language.upper()
+        deepl_source_lang = "EN" if source_language == "en" else source_language.upper()
+        
+        # Translate using DeepL
+        result = translator.translate_text(
+            text, 
+            source_lang=deepl_source_lang,
+            target_lang=deepl_target_lang
+        )
+        
+        translated_text = result.text
+        
+        return {
+            "translated_text": translated_text,
+            "source_text": text,
+            "source_language": source_language,
+            "target_language": target_language,
+            "service": "deepl"
+        }
+        
+    except ImportError:
+        raise HTTPException(status_code=500, detail="DeepL library not installed")
+    except Exception as e:
+        logging.error(f"DeepL translation error: {e}")
+        raise HTTPException(status_code=500, detail=f"DeepL translation failed: {str(e)}")
+
+
+async def translate_and_syllabify_deepl(english_text: str, target_language: str = 'th') -> dict:
+    """
+    Pure DeepL approach: DeepL translation with proper romanization of the actual DeepL Thai text.
+    This ensures consistency between the Thai text and its romanization/word mappings.
+    """
+    try:
+        # 1. Get DeepL sentence translation
+        deepl_result = await translate_with_deepl(english_text, target_language, "en")
+        deepl_thai_text = deepl_result["translated_text"]
+        
+        # 2. Romanize the ACTUAL DeepL Thai text (not Google's different translation)
+        romanization_result = await romanize_sentence_contextual(deepl_thai_text, target_language)
+        
+        # 3. Create word mappings from the DeepL Thai text
+        word_mappings = []
+        thai_words = romanization_result['thai_words']
+        romanized_words = romanization_result['romanized_words']
+        
+        for i, thai_word in enumerate(thai_words):
+            # Skip empty words or whitespace-only words
+            if not thai_word or not thai_word.strip():
+                continue
+            
+            # Get corresponding romanization
+            romanization = romanized_words[i] if i < len(romanized_words) else thai_word
+            
+            # Get contextual translation for this Thai word
+            translation = await get_contextual_word_translation(
+                thai_word, deepl_thai_text, english_text, i
+            )
+            
+            word_mappings.append({
+                'target': thai_word,
+                'transliteration': romanization,
+                'translation': translation,
+                'service': 'deepl_native',
+                'context_preserved': True,
+                'is_homograph': False  # Will be enhanced with homograph detection later
+            })
+        
+        # 4. Return consistent DeepL-based response
+        return {
+            'target_text': deepl_thai_text,  # DeepL translation
+            'word_mappings': word_mappings,  # Word mappings from actual DeepL text
+            'source_text': english_text,
+            'service': 'deepl_native',
+            'translation_method': 'deepl_with_native_romanization',
+            'full_romanization': romanization_result.get('full_romanization', '')
+        }
+        
+    except Exception as e:
+        logging.error(f"DeepL hybrid translate_and_syllabify error: {e}")
+        # Fallback to pure DeepL with basic word analysis
+        return await translate_and_syllabify_deepl_fallback(english_text, target_language)
+
+
+async def translate_and_syllabify_deepl_fallback(english_text: str, target_language: str = 'th') -> dict:
+    """
+    Fallback DeepL implementation when hybrid approach fails.
+    Uses the original DeepL word-by-word approach.
+    """
+    try:
+        # First translate the entire text using DeepL
+        deepl_result = await translate_with_deepl(english_text, target_language, "en")
+        translated_text = deepl_result["translated_text"]
+        
+        # Now we need to create word mappings by translating individual words
+        # Split English text into words
+        english_words = english_text.strip().split()
+        word_mappings = []
+        
+        for english_word in english_words:
+            try:
+                # Clean the word (remove punctuation)
+                clean_word = english_word.strip('.,!?;:"()[]{}')
+                if not clean_word:
+                    continue
+                
+                # Translate individual word with DeepL
+                word_result = await translate_with_deepl(clean_word, target_language, "en")
+                thai_word = word_result["translated_text"]
+                
+                # Generate romanization for the Thai word
+                romanization_result = await romanize_target_text(thai_word, target_language)
+                romanization = romanization_result.get("romanized_text", "")
+                
+                # Create word mapping
+                word_mappings.append({
+                    'target': thai_word,
+                    'transliteration': romanization,
+                    'translation': clean_word,  # Original English word
+                    'service': 'deepl_fallback'
+                })
+                
+            except Exception as word_error:
+                logging.warning(f"Failed to translate word '{english_word}' with DeepL: {word_error}")
+                # Add a fallback entry
+                word_mappings.append({
+                    'target': english_word,  # Fallback to original
+                    'transliteration': '',
+                    'translation': english_word,
+                    'service': 'deepl_fallback'
+                })
+        
+        return {
+            'target_text': translated_text,
+            'word_mappings': word_mappings,
+            'source_text': english_text,
+            'service': 'deepl_fallback'
+        }
+        
+    except Exception as e:
+        logging.error(f"DeepL fallback translate_and_syllabify error: {e}")
+        raise HTTPException(status_code=500, detail=f"DeepL translation and syllabification failed: {str(e)}")
+
+
+# Enhanced Context-Aware Romanization and Translation Functions
+
+async def romanize_sentence_contextual_fallback(thai_sentence: str, target_language: str = "th", engine: str = "thai2rom") -> dict:
+    """
+    Fallback romanization using word-by-word approach.
+    Used when TLTK is not available or fails.
+    """
+    lang_config = get_language_config(target_language)
+    
+    try:
+        from pythainlp.transliterate import romanize
+        from pythainlp.tokenize import word_tokenize
+        
+        # 1. Tokenize Thai sentence into words first
+        thai_words = word_tokenize(thai_sentence, engine=lang_config["tokenizer_engine"])
+        
+        # 2. Romanize each word individually
+        romanized_words = []
+        for word in thai_words:
+            if word.strip():
+                romanized_word = romanize(word, engine=engine)
+                # Apply post-processing corrections for thai2rom
+                if engine == "thai2rom":
+                    romanized_word = post_process_thai2rom_romanization(word, romanized_word)
+                romanized_words.append(romanized_word)
+            else:
+                romanized_words.append(word)
+        
+        # 3. Create full romanization from individual words
+        full_romanization = ' '.join(romanized_words)
+        
+        logging.info(f"Fallback romanization ({engine}): '{thai_sentence}' → '{full_romanization}'")
+        logging.info(f"Word boundaries: {list(zip(thai_words, romanized_words))}")
+        
+        return {
+            'thai_words': thai_words,
+            'romanized_words': romanized_words,
+            'full_romanization': full_romanization,
+            'method': f'{engine}_word_by_word'
+        }
+        
+    except Exception as e:
+        logging.error(f"Fallback romanization error: {e}")
+        return {
+            'thai_words': [thai_sentence],
+            'romanized_words': [thai_sentence],
+            'full_romanization': thai_sentence,
+            'method': 'error_fallback'
+        }
+
+async def romanize_sentence_contextual(thai_sentence: str, target_language: str = "th") -> dict:
+    """
+    Romanize entire Thai sentence with proper word spacing for accurate boundaries.
+    Uses TLTK engine when available for native spacing and improved accuracy.
+    """
+    if not thai_sentence or not thai_sentence.strip():
+        return {
+            'thai_words': [],
+            'romanized_words': [],
+            'full_romanization': "",
+            'method': 'spaced_sentence_romanization'
+        }
+    
+    lang_config = get_language_config(target_language)
+    
+    if not lang_config.get("romanizer_available", False):
+        logging.warning(f"Romanization not available for {target_language}")
+        return {
+            'thai_words': [thai_sentence],
+            'romanized_words': [thai_sentence],
+            'full_romanization': thai_sentence,
+            'method': 'no_romanization'
+        }
+    
+    try:
+        # Get the best available romanization engine
+        preferred_engine = lang_config.get("romanizer_engine", "royin")
+        best_engine = get_best_romanization_engine(preferred_engine)
+        
+        # Use word-by-word romanization approach for all engines
+        from pythainlp.transliterate import romanize
+        from pythainlp.tokenize import word_tokenize
+        
+        # 1. Tokenize Thai sentence into words first
+        thai_words = word_tokenize(thai_sentence, engine=lang_config["tokenizer_engine"])
+        
+        # 2. Romanize each word individually using the best available engine
+        romanized_words = []
+        for word in thai_words:
+            if word.strip():
+                romanized_word = romanize(word, engine=best_engine)
+                # Apply post-processing corrections for thai2rom
+                if best_engine == "thai2rom":
+                    romanized_word = post_process_thai2rom_romanization(word, romanized_word)
+                romanized_words.append(romanized_word)
+            else:
+                romanized_words.append(word)
+        
+        # 3. Create full romanization from individual words
+        full_romanization = ' '.join(romanized_words)
+        
+        logging.info(f"Individual word romanization ({best_engine}): '{thai_sentence}' → '{full_romanization}'")
+        logging.info(f"Word boundaries: {list(zip(thai_words, romanized_words))}")
+        
+        return {
+            'thai_words': thai_words,
+            'romanized_words': romanized_words,
+            'full_romanization': full_romanization,
+            'method': f'spaced_sentence_romanization_{best_engine}'
+        }
+        
+    except Exception as e:
+        logging.error(f"Error in spaced sentence romanization: {e}")
+        # Fallback to word-level approach
+        return await romanize_word_level_fallback(thai_sentence, target_language)
+
+
+def romanize_with_word_boundaries(thai_words: List[str], spaced_thai_sentence: str, full_romanization: str) -> List[str]:
+    """
+    Map romanized sentence to individual words using space-based splitting.
+    This is much more reliable than character position estimation.
+    """
+    try:
+        # Split romanization by spaces - should align with Thai word boundaries
+        romanized_parts = full_romanization.split()
+        
+        # Filter out empty Thai words for alignment
+        non_empty_thai_words = [word for word in thai_words if word.strip()]
+        
+        # If we have matching counts, use direct mapping
+        if len(romanized_parts) == len(non_empty_thai_words):
+            # Create full mapping including empty words
+            romanized_words = []
+            romanized_index = 0
+            
+            for thai_word in thai_words:
+                if thai_word.strip():
+                    romanized_words.append(romanized_parts[romanized_index])
+                    romanized_index += 1
+                else:
+                    romanized_words.append(thai_word)  # Keep whitespace as-is
+            
+            return romanized_words
+        
+        # If counts don't match, try intelligent mapping
+        return map_mismatched_romanization(thai_words, romanized_parts)
+        
+    except Exception as e:
+        logging.warning(f"Error in word boundary mapping: {e}")
+        # Fallback: romanize each word individually
+        return [romanize(word) if word.strip() else word for word in thai_words]
+
+
+def map_mismatched_romanization(thai_words: List[str], romanized_parts: List[str]) -> List[str]:
+    """
+    Handle cases where romanized parts don't match Thai word count exactly.
+    This can happen with compound words or romanization variations.
+    """
+    romanized_words = []
+    romanized_index = 0
+    
+    for thai_word in thai_words:
+        if not thai_word.strip():
+            romanized_words.append(thai_word)
+            continue
+        
+        if romanized_index < len(romanized_parts):
+            # Try to match word length or use next available romanized part
+            romanized_word = romanized_parts[romanized_index]
+            romanized_words.append(romanized_word)
+            romanized_index += 1
+        else:
+            # Fallback: romanize individual word
+            try:
+                individual_rom = romanize(thai_word)
+                romanized_words.append(individual_rom)
+            except:
+                romanized_words.append(thai_word)
+    
+    return romanized_words
+
+
+def map_romanization_to_words(thai_words: List[str], thai_sentence: str, romanized_sentence: str) -> List[str]:
+    """
+    Map romanized sentence back to individual word boundaries.
+    Uses character position mapping to preserve context-aware romanization.
+    """
+    romanized_words = []
+    
+    # Handle edge cases
+    if not thai_words or not romanized_sentence:
+        return romanized_words
+    
+    try:
+        # Simple approach: split romanized sentence by spaces and map to Thai words
+        romanized_parts = romanized_sentence.split()
+        
+        # If we have matching counts, use direct mapping
+        if len(romanized_parts) == len(thai_words):
+            return romanized_parts
+        
+        # Otherwise, use character position-based mapping
+        char_position = 0
+        romanized_position = 0
+        
+        for thai_word in thai_words:
+            # Skip whitespace in Thai sentence
+            while char_position < len(thai_sentence) and thai_sentence[char_position].isspace():
+                char_position += 1
+            
+            # Calculate expected romanized length (rough estimate)
+            thai_word_len = len(thai_word)
+            estimated_rom_len = thai_word_len * 2  # Thai chars often map to 2+ roman chars
+            
+            # Extract corresponding romanized segment
+            end_pos = min(romanized_position + estimated_rom_len, len(romanized_sentence))
+            romanized_word = romanized_sentence[romanized_position:end_pos].strip()
+            
+            # Find next word boundary in romanized text
+            if romanized_position < len(romanized_sentence):
+                space_pos = romanized_sentence.find(' ', romanized_position)
+                if space_pos != -1 and space_pos < end_pos + 5:  # Allow some tolerance
+                    romanized_word = romanized_sentence[romanized_position:space_pos].strip()
+                    romanized_position = space_pos + 1
+                else:
+                    romanized_position = end_pos
+            
+            romanized_words.append(romanized_word if romanized_word else thai_word)
+            char_position += len(thai_word)
+        
+        return romanized_words
+        
+    except Exception as e:
+        logging.warning(f"Error in word boundary mapping: {e}")
+        # Fallback: romanize each word individually (loses context but safer)
+        return [romanize(word) for word in thai_words if word.strip()]
+
+
+async def romanize_word_level_fallback(thai_sentence: str, target_language: str = "th") -> dict:
+    """
+    Fallback to word-level romanization when sentence-level fails.
+    This is the original approach but wrapped for consistency.
+    """
+    try:
+        from pythainlp.transliterate import romanize
+        from pythainlp.tokenize import word_tokenize
+        
+        lang_config = get_language_config(target_language)
+        thai_words = word_tokenize(thai_sentence, engine=lang_config["tokenizer_engine"])
+        
+        romanized_words = []
+        for word in thai_words:
+            if word.strip():
+                romanized_word = romanize(word, engine=lang_config["romanizer_engine"])
+                # Apply post-processing corrections for thai2rom
+                if lang_config["romanizer_engine"] == "thai2rom":
+                    romanized_word = post_process_thai2rom_romanization(word, romanized_word)
+                romanized_words.append(romanized_word)
+            else:
+                romanized_words.append(word)
+        
+        full_romanization = " ".join(romanized_words)
+        
+        return {
+            'thai_words': thai_words,
+            'romanized_words': romanized_words,
+            'full_romanization': full_romanization,
+            'method': 'word_level_fallback'
+        }
+        
+    except Exception as e:
+        logging.error(f"Error in word-level romanization fallback: {e}")
+        return {
+            'thai_words': [thai_sentence],
+            'romanized_words': [thai_sentence],
+            'full_romanization': thai_sentence,
+            'method': 'error_fallback'
+        }
+
+
+async def get_contextual_word_translation(thai_word: str, thai_sentence: str, english_sentence: str, word_index: int = 0) -> str:
+    """
+    Enhanced contextual word translation with homograph detection and phrase context preservation.
+    This resolves homophone issues and maintains contextual accuracy.
+    
+    Priority order:
+    1. Homograph-aware translation (NEW - highest accuracy for ambiguous words)
+    2. Curated vocabulary database 
+    3. Phrase context translation (3-word window)
+    4. Contextual mapping from original English sentence
+    5. Enhanced back-translation with context hints
+    6. Simple back-translation (final fallback)
+    """
+    try:
+        # 1. NEW: Try homograph-aware translation first for ambiguous words
+        if HOMOGRAPH_SERVICE_AVAILABLE:
+            try:
+                # Tokenize sentence for context
+                from pythainlp.tokenize import word_tokenize
+                words = word_tokenize(thai_sentence, engine='newmm')
+                
+                # Detect homograph context
+                detected_context = homograph_service.detect_homograph_context(thai_word, thai_sentence, words)
+                if detected_context:
+                    enhanced_translation_data = homograph_service.get_enhanced_translation(thai_word, detected_context)
+                    homograph_translation = enhanced_translation_data.get('translation', '')
+                    
+                    if homograph_translation and homograph_translation.strip() and homograph_translation != thai_word:
+                        logging.info(f"Found homograph translation for '{thai_word}' (context: {detected_context}): '{homograph_translation}'")
+                        return homograph_translation
+            except Exception as e:
+                logging.warning(f"Homograph detection error for '{thai_word}': {e}")
+
+        # 2. Try curated vocabulary database
+        vocab_translation = await get_translation_from_vocabulary(thai_word)
+        if vocab_translation and vocab_translation.strip():
+            logging.info(f"Found vocabulary translation for '{thai_word}': '{vocab_translation}'")
+            return vocab_translation
+        
+        # 2. Try phrase context translation (3-word window for context)
+        phrase_translation = await get_phrase_context_translation(
+            thai_word, thai_sentence, english_sentence, word_index
+        )
+        if phrase_translation and phrase_translation.strip():
+            logging.info(f"Found phrase context translation for '{thai_word}': '{phrase_translation}'")
+            return phrase_translation
+        
+        # 3. Try contextual mapping from original English sentence
+        contextual_translation = get_english_word_by_position(english_sentence, thai_sentence, thai_word, word_index)
+        if contextual_translation and contextual_translation.strip():
+            logging.info(f"Found positional translation for '{thai_word}': '{contextual_translation}'")
+            return contextual_translation
+        
+        # 4. Enhanced back-translation with context hints
+        enhanced_translation = await get_enhanced_back_translation(
+            thai_word, thai_sentence, english_sentence
+        )
+        if enhanced_translation and enhanced_translation.strip():
+            logging.info(f"Found enhanced back-translation for '{thai_word}': '{enhanced_translation}'")
+            return enhanced_translation
+        
+        # 5. Final fallback to simple back-translation
+        logging.info(f"Using simple back-translation fallback for '{thai_word}'")
+        back_translation = await translate_text(thai_word, 'en', source_language='th')
+        return back_translation.get('translated_text', thai_word)
+        
+    except Exception as e:
+        logging.warning(f"Error in contextual word translation for '{thai_word}': {e}")
+        return thai_word  # Return original word if all methods fail
+
+
+async def get_phrase_context_translation(thai_word: str, thai_sentence: str, english_sentence: str, word_index: int) -> str:
+    """
+    Translate word using 3-word phrase context to preserve meaning.
+    This helps resolve homophone issues by providing surrounding context.
+    """
+    try:
+        from pythainlp import word_tokenize
+        
+        # Tokenize the Thai sentence to get word boundaries
+        thai_words = word_tokenize(thai_sentence, engine='newmm')
+        
+        # Create a 3-word window around the target word
+        start_idx = max(0, word_index - 1)
+        end_idx = min(len(thai_words), word_index + 2)
+        
+        # Extract the phrase context
+        phrase_words = thai_words[start_idx:end_idx]
+        thai_phrase = ' '.join(phrase_words)
+        
+        # If phrase is just the single word, no context available
+        if len(phrase_words) <= 1:
+            return ""
+        
+        # Translate the phrase for context
+        phrase_translation = await translate_text(thai_phrase, 'en', source_language='th')
+        english_phrase = phrase_translation.get('translated_text', '')
+        
+        if not english_phrase:
+            return ""
+        
+        # Extract the word from the phrase translation that corresponds to our target
+        english_words = english_phrase.split()
+        target_word_pos = word_index - start_idx  # Position within the phrase
+        
+        if 0 <= target_word_pos < len(english_words):
+            target_translation = english_words[target_word_pos].strip('.,!?;:"()[]{}')
+            
+            # Validate that this makes sense in context
+            if target_translation and len(target_translation) > 0:
+                logging.info(f"Phrase context: '{thai_phrase}' → '{english_phrase}' → '{target_translation}'")
+                return target_translation
+        
+        return ""
+        
+    except Exception as e:
+        logging.warning(f"Error in phrase context translation: {e}")
+        return ""
+
+
+async def get_enhanced_back_translation(thai_word: str, thai_sentence: str, english_sentence: str) -> str:
+    """
+    Enhanced back-translation using original English sentence as context hint.
+    Uses Google Translate with contextual prompting for better disambiguation.
+    """
+    try:
+        # Create context-aware prompt for translation
+        context_prompt = f"Translate '{thai_word}' to English. Context: The original English was '{english_sentence}' and the Thai sentence is '{thai_sentence}'"
+        
+        # Use the context in translation request
+        # Note: Google Translate doesn't support prompts directly, but we can use the sentence context
+        # by providing both the word and a portion of the sentence
+        
+        # Find the word's position and create a mini-context
+        from pythainlp import word_tokenize
+        thai_words = word_tokenize(thai_sentence, engine='newmm')
+        
+        if thai_word in thai_words:
+            word_idx = thai_words.index(thai_word)
+            
+            # Create a small context window (word + 1-2 surrounding words)
+            start_idx = max(0, word_idx - 1)
+            end_idx = min(len(thai_words), word_idx + 2)
+            context_words = thai_words[start_idx:end_idx]
+            context_phrase = ' '.join(context_words)
+            
+            # Translate the contextual phrase
+            context_translation = await translate_text(context_phrase, 'en', source_language='th')
+            context_english = context_translation.get('translated_text', '')
+            
+            if context_english:
+                # Extract the target word from the context translation
+                english_words = context_english.split()
+                target_pos = word_idx - start_idx
+                
+                if 0 <= target_pos < len(english_words):
+                    return english_words[target_pos].strip('.,!?;:"()[]{}')
+        
+        # Fallback to simple word translation
+        translation = await translate_text(thai_word, 'en', source_language='th')
+        return translation.get('translated_text', '')
+        
+    except Exception as e:
+        logging.warning(f"Error in enhanced back-translation: {e}")
+        return ""
+
+
+def get_english_word_by_position(english_sentence: str, thai_sentence: str, thai_word: str, word_index: int) -> str:
+    """
+    Map Thai word to corresponding English word by position in sentence.
+    This preserves the original context and meaning.
+    """
+    try:
+        # Simple approach: split English sentence and map by position
+        english_words = english_sentence.strip().split()
+        
+        # If we have a valid index and it's within bounds
+        if 0 <= word_index < len(english_words):
+            english_word = english_words[word_index].strip('.,!?;:"()[]{}')  # Remove punctuation
+            if english_word:
+                return english_word
+        
+        # Advanced approach: use word similarity/alignment
+        # This is a simplified version - in practice, you might use more sophisticated alignment
+        thai_words = thai_sentence.split()  # Simple split for demonstration
+        if len(english_words) == len(thai_words) and word_index < len(english_words):
+            return english_words[word_index].strip('.,!?;:"()[]{}')
+        
+        # If word counts don't match, try to find the best match
+        # This is where more sophisticated alignment algorithms could be used
+        
+        return ""  # Return empty if no mapping found
+        
+    except Exception as e:
+        logging.warning(f"Error in position-based word mapping: {e}")
+        return ""
+
+
+async def translate_and_syllabify_enhanced(english_text: str, target_language: str = 'th') -> dict:
+    """
+    Enhanced version of translate_and_syllabify using sentence-first approach.
+    This preserves context in both romanization and translation.
+    """
+    try:
+        # 1. Translate English → Thai sentence (preserves context)
+        full_translation = await translate_text(english_text, target_language)
+        target_text = full_translation['translated_text']
+        
+        # 2. Sentence-level romanization (preserves context)
+        romanization_result = await romanize_sentence_contextual(target_text, target_language)
+        
+        # 3. Context-aware word translation and mapping
+        word_mappings = []
+        thai_words = romanization_result['thai_words']
+        romanized_words = romanization_result['romanized_words']
+        
+        for i, thai_word in enumerate(thai_words):
+            # Skip empty words or whitespace-only words
+            if not thai_word or not thai_word.strip():
+                continue
+            
+            # Get context-aware translation
+            translation = await get_contextual_word_translation(
+                thai_word, target_text, english_text, i
+            )
+            
+            # Get corresponding romanization
+            romanization = romanized_words[i] if i < len(romanized_words) else thai_word
+            
+            # Check if this is a compound word
+            is_compound = len(thai_word) > 2  # Simple heuristic
+            
+            word_mappings.append({
+                'target': thai_word,
+                'transliteration': romanization,
+                'translation': translation,
+                'context_preserved': True,
+                'method': romanization_result['method'],
+                'is_compound': is_compound
+            })
+        
+        logging.info(f"Enhanced translation completed: {len(word_mappings)} word mappings")
+        return {
+            'word_mappings': word_mappings,
+            'full_romanization': romanization_result['full_romanization'],
+            'method': 'enhanced_context_aware'
+        }
+        
+    except Exception as e:
+        logging.error(f"Error in enhanced translate_and_syllabify: {e}")
+        # Fallback to original method
+        return await translate_and_syllabify(english_text, target_language)

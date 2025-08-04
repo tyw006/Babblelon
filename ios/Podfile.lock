@@ -98,6 +98,8 @@ PODS:
   - SSZipArchive (2.6.0)
   - url_launcher_ios (0.0.1):
     - Flutter
+  - whisper_flutter_new (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
@@ -118,6 +120,7 @@ DEPENDENCIES:
   - sentry_flutter (from `.symlinks/plugins/sentry_flutter/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
+  - whisper_flutter_new (from `.symlinks/plugins/whisper_flutter_new/ios`)
 
 SPEC REPOS:
   trunk:
@@ -175,6 +178,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
+  whisper_flutter_new:
+    :path: ".symlinks/plugins/whisper_flutter_new/ios"
 
 SPEC CHECKSUMS:
   app_links: 76b66b60cc809390ca1ad69bfd66b998d2387ac7
@@ -211,7 +216,8 @@ SPEC CHECKSUMS:
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   SSZipArchive: 8a6ee5677c8e304bebc109e39cf0da91ccef22ea
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
+  whisper_flutter_new: 9276535665f51f845831fe94859b2cccd0334a70
 
-PODFILE CHECKSUM: 7b6a06fbb7483036004d5e8259be6cfbe7ac48a8
+PODFILE CHECKSUM: 03c3cb3698f27b0602522e3e7d8c0b389989ac7d
 
 COCOAPODS: 1.16.2
