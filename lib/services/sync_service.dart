@@ -178,7 +178,7 @@ class SyncService {
             'times_used': word.timesUsed,
             'first_discovered_at': word.firstDiscoveredAt.toIso8601String(),
             'last_used_at': word.lastUsedAt.toIso8601String(),
-            'pronunciation_score': word.pronunciationScore,
+            'pronunciation_score': word.pronunciationScores.isNotEmpty ? word.pronunciationScores.last : null,
             'is_mastered': word.isMastered,
             'updated_at': DateTime.now().toIso8601String(),
           })
@@ -318,7 +318,9 @@ class SyncService {
       local.posTag = remote['pos_tag'] ?? local.posTag;
       local.npcContext = remote['npc_context'] ?? local.npcContext;
       local.timesUsed = remote['times_used'] ?? local.timesUsed;
-      local.pronunciationScore = remote['pronunciation_score']?.toDouble();
+      if (remote['pronunciation_score'] != null) {
+        local.pronunciationScores = [remote['pronunciation_score'].toDouble()];
+      }
       local.isMastered = remote['is_mastered'] ?? local.isMastered;
       local.supabaseId = remote['id'];
       local.lastSyncedAt = remoteUpdatedAt;
@@ -354,7 +356,7 @@ class SyncService {
       ..timesUsed = remote['times_used'] ?? 1
       ..firstDiscoveredAt = DateTime.parse(remote['first_discovered_at'])
       ..lastUsedAt = DateTime.parse(remote['last_used_at'])
-      ..pronunciationScore = remote['pronunciation_score']?.toDouble()
+      ..pronunciationScores = remote['pronunciation_score'] != null ? [remote['pronunciation_score'].toDouble()] : []
       ..isMastered = remote['is_mastered'] ?? false
       ..supabaseId = remote['id']
       ..lastSyncedAt = DateTime.parse(remote['updated_at'])

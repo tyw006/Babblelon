@@ -2,6 +2,7 @@ import '../models/local_storage_models.dart';
 import 'isar_service.dart';
 import 'sync_service.dart';
 import 'supabase_service.dart';
+import 'posthog_service.dart';
 
 /// Service that provides sync-aware access to player data
 /// This acts as a layer between providers and the underlying storage/sync services
@@ -211,8 +212,195 @@ class PlayerDataService {
     }
   }
 
+  // Vocabulary tracking with analytics
+  Future<void> recordWordDiscovery({
+    required String wordThai,
+    String? wordEnglish,
+    String? discoveredFromNpc,
+    String? learningContext,
+  }) async {
+    // Update local vocabulary
+    final customWord = CustomVocabularyEntry()
+      ..wordThai = wordThai
+      ..wordEnglish = wordEnglish
+      ..discoveredFromNpc = discoveredFromNpc
+      ..firstDiscoveredAt = DateTime.now()
+      ..lastUsedAt = DateTime.now()
+      ..needsSync = true;
+
+    await _isarService.saveCustomVocabulary(customWord);
+    
+    // Track in PostHog
+    PostHogService.trackVocabularyLearning(
+      event: 'word_discovered',
+      wordThai: wordThai,
+      wordEnglish: wordEnglish,
+      discoveredFromNpc: discoveredFromNpc,
+      learningContext: learningContext,
+    );
+    
+    // Update session progress
+    final session = await getCurrentSession();
+    if (session != null) {
+      session.wordsDiscoveredThisSession += 1;
+      await _isarService.saveCurrentSession(session);
+    }
+  }
+  
+  Future<void> recordWordMastery({
+    required String wordThai,
+    required double pronunciationScore,
+    required int attemptNumber,
+  }) async {
+    // Mark word as mastered locally
+    final word = await _isarService.getCustomVocabulary(wordThai);
+    if (word != null) {
+      word.isMastered = true;
+      word.pronunciationScores.add(pronunciationScore);
+      word.lastUsedAt = DateTime.now();
+      word.needsSync = true;
+      await _isarService.saveCustomVocabulary(word);
+    }
+    
+    // Track in PostHog
+    PostHogService.trackVocabularyLearning(
+      event: 'word_mastered',
+      wordThai: wordThai,
+      pronunciationScore: pronunciationScore,
+      attemptNumber: attemptNumber,
+    );
+  }
+
   Future<List<CustomVocabularyEntry>> getCustomWordsForNpc(String npcId) async {
     final allWords = await getAllCustomVocabulary();
-    return allWords.where((w) => w.npcContext?.contains(npcId) == true).toList();
+    return allWords.where((w) => w.discoveredFromNpc == npcId).toList();
+  }
+
+  // Character Tracing methods (now tracked via PostHog)
+  Future<void> recordCharacterTracingAttempt({
+    required String phraseId,
+    required int characterPosition,
+    required String expectedCharacter,
+    required bool isCorrect,
+    required double accuracyPercentage,
+    String? recognizedText,
+    double? confidenceScore,
+  }) async {
+    // Track in PostHog for analytics
+    PostHogService.trackCharacterTracing(
+      event: isCorrect ? 'character_traced' : 'character_failed',
+      character: expectedCharacter,
+      phraseId: phraseId,
+      characterPosition: characterPosition,
+      isCorrect: isCorrect,
+      accuracyPercentage: accuracyPercentage,
+      recognizedText: recognizedText,
+      confidenceScore: confidenceScore,
+    );
+    
+    // If mastery threshold reached, track mastery event
+    if (isCorrect && accuracyPercentage >= 80.0) {
+      PostHogService.trackCharacterTracing(
+        event: 'character_mastered',
+        character: expectedCharacter,
+        phraseId: phraseId,
+        accuracyPercentage: accuracyPercentage,
+      );
+    }
+  }
+
+  // NPC Interaction methods (local game state + PostHog analytics)
+  Future<void> recordNpcInteraction({
+    required String npcId,
+    required String interactionType,
+    required int charmLevel,
+    int charmChange = 0,
+    List<String> wordsLearned = const [],
+    double? pronunciationScore,
+    bool conversationSuccess = true,
+    String? questCompleted,
+  }) async {
+    // Update local NPC state (game state)
+    final localNpcState = await _isarService.getNpcInteractionState(npcId) ?? 
+        NpcInteractionState()..npcId = npcId;
+    
+    final previousCharm = localNpcState.charmLevel;
+    localNpcState.charmLevel = charmLevel;
+    localNpcState.lastInteractionAt = DateTime.now();
+    localNpcState.totalInteractions += 1;
+    
+    if (questCompleted != null) {
+      localNpcState.completedQuests.add(questCompleted);
+    }
+    
+    await _isarService.saveNpcInteractionState(localNpcState);
+    
+    // Track analytics in PostHog
+    PostHogService.trackNPCConversation(
+      npcName: npcId,
+      event: interactionType,
+      charmLevel: charmLevel,
+      additionalProperties: {
+        'conversation_success': conversationSuccess,
+        'words_learned_count': wordsLearned.length,
+        if (pronunciationScore != null) 'pronunciation_score': pronunciationScore,
+      },
+    );
+    
+    // Track charm changes
+    if (charmChange != 0) {
+      PostHogService.trackNpcRelationship(
+        event: charmChange > 0 ? 'charm_increased' : 'charm_decreased',
+        npcId: npcId,
+        charmBefore: previousCharm,
+        charmAfter: charmLevel,
+        charmChange: charmChange,
+        wordsLearned: wordsLearned,
+      );
+    }
+    
+    // Track quest completion
+    if (questCompleted != null) {
+      PostHogService.trackNpcRelationship(
+        event: 'quest_completed',
+        npcId: npcId,
+        questId: questCompleted,
+        charmAfter: charmLevel,
+      );
+    }
+  }
+
+  // Session tracking methods (simplified for PostHog analytics)
+  Future<void> startLearningSession({
+    required String sessionId,
+  }) async {
+    final session = CurrentSession()
+      ..sessionId = sessionId
+      ..startTime = DateTime.now();
+
+    await _isarService.saveCurrentSession(session);
+    
+    // Session start is tracked by PostHogService.initializeUser()
+  }
+
+  Future<void> endLearningSession() async {
+    final session = await _isarService.getCurrentSession();
+    if (session != null) {
+      final duration = DateTime.now().difference(session.startTime).inSeconds;
+      
+      // Track learning session analytics in PostHog
+      PostHogService.trackSessionEnd(
+        wordsDiscovered: session.wordsDiscoveredThisSession,
+        wordsImproved: session.wordsImprovedThisSession,
+        durationSeconds: duration,
+      );
+      
+      // Clear the current session
+      await _isarService.clearCurrentSession();
+    }
+  }
+
+  Future<CurrentSession?> getCurrentSession() async {
+    return await _isarService.getCurrentSession();
   }
 }

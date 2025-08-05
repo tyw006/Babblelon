@@ -109,8 +109,8 @@ class VocabularyDetectionService {
     existingWord.needsSync = true;
     
     // Update NPC context if different
-    if (existingWord.npcContext != npcId) {
-      existingWord.npcContext = '${existingWord.npcContext}, $npcId';
+    if (!existingWord.npcContext.contains(npcId)) {
+      existingWord.npcContext.add(npcId);
     }
     
     await _isarService.saveCustomVocabulary(existingWord);
@@ -134,7 +134,7 @@ class VocabularyDetectionService {
       ..wordEnglish = wordEnglish
       ..transliteration = transliteration
       ..posTag = posTag
-      ..npcContext = npcContext
+      ..npcContext = [npcContext]
       ..timesUsed = 1
       ..firstDiscoveredAt = DateTime.now()
       ..lastUsedAt = DateTime.now()
@@ -172,7 +172,7 @@ class VocabularyDetectionService {
   ) async {
     final customWord = await _isarService.getCustomVocabulary(wordThai);
     if (customWord != null) {
-      customWord.pronunciationScore = pronunciationScore;
+      customWord.pronunciationScores.add(pronunciationScore);
       customWord.isMastered = pronunciationScore >= 60.0; // Mastery threshold
       customWord.needsSync = true;
       

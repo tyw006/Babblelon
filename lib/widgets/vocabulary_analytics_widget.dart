@@ -216,10 +216,10 @@ class VocabularyAnalyticsWidget extends ConsumerWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                if (word.npcContext != null)
+                if (word.npcContext.isNotEmpty)
                   Chip(
                     label: Text(
-                      word.npcContext!,
+                      word.npcContext.first,
                       style: const TextStyle(fontSize: 10),
                     ),
                     backgroundColor: Colors.blue.withOpacity(0.1),
@@ -240,12 +240,12 @@ class VocabularyAnalyticsWidget extends ConsumerWidget {
               word.isMastered ? Icons.check_circle : Icons.circle_outlined,
               color: word.isMastered ? Colors.green : Colors.grey,
             ),
-            if (word.pronunciationScore != null)
+            if (word.pronunciationScores.isNotEmpty)
               Text(
-                '${word.pronunciationScore!.toStringAsFixed(0)}%',
+                '${word.pronunciationScores.last.toStringAsFixed(0)}%',
                 style: TextStyle(
                   fontSize: 12,
-                  color: word.pronunciationScore! >= 60 ? Colors.green : Colors.orange,
+                  color: word.pronunciationScores.last >= 60 ? Colors.green : Colors.orange,
                 ),
               ),
           ],

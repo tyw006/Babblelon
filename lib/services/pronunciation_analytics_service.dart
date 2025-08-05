@@ -59,12 +59,11 @@ class PronunciationAnalyticsService {
     if (userId == null || !await _syncService.hasConnectivity) return [];
 
     try {
-      var query = SupabaseService.client
+      dynamic query = SupabaseService.client
           .from('pronunciation_history')
           .select('pronunciation_score, accuracy_score, fluency_score, recorded_at')
           .eq('user_id', userId)
-          .gte('recorded_at', DateTime.now().subtract(Duration(days: daysBack)).toIso8601String())
-          .order('recorded_at');
+          .gte('recorded_at', DateTime.now().subtract(Duration(days: daysBack)).toIso8601String());
 
       if (phraseId != null) {
         query = query.eq('phrase_id', phraseId);
@@ -72,6 +71,8 @@ class PronunciationAnalyticsService {
       if (customWordId != null) {
         query = query.eq('custom_word_id', customWordId);
       }
+
+      query = query.order('recorded_at');
 
       return await query;
     } catch (e) {

@@ -17,7 +17,13 @@ class IsarService {
     if (Isar.instanceNames.isEmpty) {
       final dir = await getApplicationDocumentsDirectory();
       _instance.isar = await Isar.open(
-        [PlayerProfileSchema, MasteredPhraseSchema, CustomVocabularyEntrySchema],
+        [
+          PlayerProfileSchema, 
+          MasteredPhraseSchema, 
+          CustomVocabularyEntrySchema,
+          CurrentSessionSchema,
+          NpcInteractionStateSchema
+        ],
         directory: dir.path,
         inspector: true,
       );
@@ -62,5 +68,38 @@ class IsarService {
 
   Future<List<CustomVocabularyEntry>> getAllCustomVocabulary() async {
     return await isar.customVocabularyEntrys.where().findAll();
+  }
+
+  // Current Session methods (only active session)
+  Future<void> saveCurrentSession(CurrentSession session) async {
+    await isar.writeTxn(() async {
+      await isar.currentSessions.put(session);
+    });
+  }
+
+  Future<CurrentSession?> getCurrentSession() async {
+    // Only one active session at a time
+    return await isar.currentSessions.where().findFirst();
+  }
+
+  Future<void> clearCurrentSession() async {
+    await isar.writeTxn(() async {
+      await isar.currentSessions.clear();
+    });
+  }
+
+  // NPC Interaction State methods
+  Future<void> saveNpcInteractionState(NpcInteractionState state) async {
+    await isar.writeTxn(() async {
+      await isar.npcInteractionStates.put(state);
+    });
+  }
+
+  Future<NpcInteractionState?> getNpcInteractionState(String npcId) async {
+    return await isar.npcInteractionStates.where().npcIdEqualTo(npcId).findFirst();
+  }
+
+  Future<List<NpcInteractionState>> getAllNpcInteractionStates() async {
+    return await isar.npcInteractionStates.where().findAll();
   }
 } 
