@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/models/popup_models.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/models/npc_data.dart';
 import 'package:flame/components.dart';

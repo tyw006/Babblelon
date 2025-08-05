@@ -11,6 +11,7 @@ import 'package:babblelon/services/isar_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/background_audio_service.dart';
+import '../models/popup_models.dart';
 
 part 'game_providers.g.dart';
 
@@ -53,7 +54,11 @@ class GameState extends _$GameState {
   @override
   GameStateData build() {
     _loadSettings();
-    return const GameStateData();
+    // Return default state with proper audio settings enabled
+    return const GameStateData(
+      musicEnabled: true,
+      soundEffectsEnabled: true,
+    );
   }
 
   void pauseGame() => state = state.copyWith(isPaused: true);
@@ -207,26 +212,6 @@ IsarService isarService(IsarServiceRef ref) {
 // Provider to track if a special item has been received from an NPC
 final specialItemReceivedProvider = StateProvider.family<bool, String>((ref, npcId) => false);
 
-@immutable
-class PopupConfig {
-  final String title;
-  final String message;
-  final String? confirmText;
-  final void Function(BuildContext context)? onConfirm;
-  final String? cancelText;
-  final void Function(BuildContext context)? onCancel;
-
-  const PopupConfig({
-    required this.title,
-    required this.message,
-    this.confirmText,
-    this.onConfirm,
-    this.cancelText,
-    this.onCancel,
-  });
-}
-
-final popupConfigProvider = StateProvider<PopupConfig?>((ref) => null);
 
 class VocabularyProvider with ChangeNotifier {
   List<Vocabulary> _vocabulary = [];
@@ -281,3 +266,99 @@ extension WidgetRefSoundEffects on WidgetRef {
     }
   }
 }
+
+// --- Tutorial System Providers ---
+
+// Provider to track if the main tutorial has been completed
+@Riverpod(keepAlive: true)
+class TutorialCompleted extends _$TutorialCompleted {
+  @override
+  bool build() {
+    _loadTutorialStatus();
+    return false;
+  }
+
+  void markCompleted() {
+    state = true;
+    _saveTutorialStatus();
+  }
+
+  void reset() {
+    state = false;
+    _saveTutorialStatus();
+  }
+
+  Future<void> _loadTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('tutorial_completed') ?? false;
+    state = completed;
+  }
+
+  Future<void> _saveTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tutorial_completed', state);
+  }
+}
+
+// Provider to track tutorial progress through steps
+@Riverpod(keepAlive: true)
+class TutorialProgress extends _$TutorialProgress {
+  @override
+  Set<String> build() {
+    // Load tutorial progress asynchronously after initialization
+    // Using Future.microtask to avoid blocking but load quickly
+    Future.microtask(() => _loadTutorialProgress());
+    return <String>{};
+  }
+
+  void markStepCompleted(String stepId) {
+    state = {...state, stepId};
+    _saveTutorialProgress();
+  }
+
+  void resetProgress() {
+    state = <String>{};
+    _saveTutorialProgress();
+  }
+
+  bool isStepCompleted(String stepId) {
+    return state.contains(stepId);
+  }
+
+  Future<void> _loadTutorialProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final progressJson = prefs.getString('tutorial_progress');
+      if (progressJson != null) {
+        final List<dynamic> progressList = json.decode(progressJson);
+        state = Set<String>.from(progressList);
+        // Tutorial progress loaded successfully
+      }
+    } catch (e) {
+      // If loading fails, continue with empty progress
+      // Failed to load tutorial progress - continue with empty set
+    }
+  }
+  
+  // Debug method to reset dialogue tutorials for testing
+  void resetDialogueTutorials() {
+    state = state.difference({'charm_explanation', 'item_types', 'regular_vs_special'});
+    _saveTutorialProgress();
+    // Dialogue tutorials reset for testing
+  }
+
+  Future<void> _saveTutorialProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final progressList = state.toList();
+    await prefs.setString('tutorial_progress', json.encode(progressList));
+  }
+}
+
+// Provider to track if tutorial is currently active
+final tutorialActiveProvider = StateProvider<bool>((ref) => false);
+
+// Provider to track current tutorial step
+final currentTutorialStepProvider = StateProvider<String?>((ref) => null);
+
+// Provider to track if the game has finished loading (onLoad completed)
+final gameLoadingCompletedProvider = StateProvider<bool>((ref) => false);

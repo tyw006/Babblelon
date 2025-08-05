@@ -35,6 +35,7 @@ import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/models/local_storage_models.dart' as isar_models;
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
+import '../services/tutorial_service.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -179,26 +180,51 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _echoAudioService = EchoAudioService();
     _initializeRecorder();
     
+    // Get initial values before callback to avoid ref usage after disposal
+    final initialPlayerHealth = ref.read(playerHealthProvider);
+    final gameState = ref.read(gameStateProvider);
+    
+    // Debug: Check game state values
+    debugPrint('BossFightScreen: gameState.musicEnabled = ${gameState.musicEnabled}');
+    debugPrint('BossFightScreen: gameState.soundEffectsEnabled = ${gameState.soundEffectsEnabled}');
+    
     // Initialize and start boss fight background music
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _audioService.initialize(ref: ref);
+      if (!mounted) return;
+      
+      await _audioService.initialize(
+        musicEnabled: gameState.musicEnabled,
+        soundEffectsEnabled: gameState.soundEffectsEnabled,
+      );
       await _audioService.playBossFightMusic();
       
-      // Listen for music setting changes
-      ref.listen<GameStateData>(gameStateProvider, (previous, next) {
-        if (previous?.musicEnabled != next.musicEnabled) {
-          _handleMusicSettingChange(next.musicEnabled);
-        }
-      });
+      // Trigger boss fight tutorial after initialization
+      _triggerBossFightTutorial();
 
-      // Start tracking battle metrics
-      ref.read(battleTrackingProvider.notifier).startBattle(
-            playerStartingHealth: ref.read(playerHealthProvider),
-            bossMaxHealth: widget.bossData.maxHealth,
-          );
+      // Start tracking battle metrics with stored values
+      if (mounted) {
+        ref.read(battleTrackingProvider.notifier).startBattle(
+              playerStartingHealth: initialPlayerHealth,
+              bossMaxHealth: widget.bossData.maxHealth,
+            );
+      }
           
       // Pre-load sound effects that will be used in dialogs to avoid lag
       _preloadSoundEffects();
+    });
+  }
+  
+  void _triggerBossFightTutorial() async {
+    // Wait a bit for screen to fully load
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      if (mounted) {
+        try {
+          final tutorialManager = TutorialManager(context: context, ref: ref);
+          await tutorialManager.startTutorial(TutorialTrigger.bossFight);
+        } catch (e) {
+          // Context might be disposed, skip tutorial
+        }
+      }
     });
   }
 
@@ -1062,6 +1088,13 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     final animationState = ref.watch(animationStateProvider);
     final vocabularyAsyncValue = ref.watch(bossVocabularyProvider(widget.bossData.vocabularyPath));
     final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Listen for music setting changes
+    ref.listen<GameStateData>(gameStateProvider, (previous, next) {
+      if (previous?.musicEnabled != next.musicEnabled) {
+        _handleMusicSettingChange(next.musicEnabled);
+      }
+    });
 
     return FloatingDamageOverlay(
       key: damageOverlayKey,

@@ -7,12 +7,14 @@ import '../overlays/dialogue_overlay.dart';
 import '../widgets/info_popup_overlay.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import '../providers/game_providers.dart';
+import '../models/popup_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -45,6 +47,32 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       _game = BabblelonGame(character: character);
     });
+    
+    // Bangkok tutorial will be triggered when game loading completes (via provider listener)
+  }
+  
+  void _triggerBangkokTutorial() {
+    // Trigger tutorial immediately after game loads
+    if (mounted && _game != null) {
+      try {
+        final tutorialManager = TutorialManager(context: context, ref: _ref);
+        tutorialManager.startTutorial(TutorialTrigger.npcInteraction);
+      } catch (e) {
+        // Context might be disposed, skip tutorial
+      }  
+    }
+  }
+  
+  void _showPortalTutorial() async {
+    if (mounted && _game != null) {
+      try {
+        // Show tutorial without pausing game or affecting background music
+        final tutorialManager = TutorialManager(context: context, ref: _ref);
+        await tutorialManager.startTutorial(TutorialTrigger.bossPortal);
+      } catch (e) {
+        // Context might be disposed, continue without error
+      }
+    }
   }
 
   /// Initialize game assets in the background without blocking the game
@@ -86,6 +114,27 @@ class _GameScreenState extends State<GameScreen> {
     return Consumer(
       builder: (context, ref, _) {
         _ref = ref;
+        
+        // Listen for portal tutorial triggers
+        final currentTutorialStep = ref.watch(currentTutorialStepProvider);
+        if (currentTutorialStep == 'portal_approach_trigger') {
+          // Reset the trigger and show tutorial
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(currentTutorialStepProvider.notifier).state = null;
+            _showPortalTutorial();
+          });
+        }
+        
+        // Listen for game loading completion to trigger Bangkok tutorial
+        final gameLoadingCompleted = ref.watch(gameLoadingCompletedProvider);
+        if (gameLoadingCompleted && _game != null) {
+          // Reset the loading flag and trigger tutorial
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(gameLoadingCompletedProvider.notifier).state = false;
+            _triggerBangkokTutorial();
+          });
+        }
+        
         return Scaffold(
           body: Stack(
             children: [

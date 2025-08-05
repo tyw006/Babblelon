@@ -8,14 +8,62 @@ import 'package:babblelon/screens/progress_screen.dart';
 import 'package:babblelon/screens/premium_screen.dart';
 import 'package:babblelon/screens/settings_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/services/tutorial_service.dart';
 
 /// Main navigation screen with bottom tab navigation
 /// Optimized for performance with minimal animations
-class MainNavigationScreen extends ConsumerWidget {
+class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Check and show tutorial on first load with additional delay for stability
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _checkAndShowMainTutorial();
+        }
+      });
+    });
+  }
+
+  Future<void> _checkAndShowMainTutorial() async {
+    if (!mounted) return;
+    
+    // Check if main tutorial has been completed
+    final tutorialCompleted = ref.read(tutorialCompletedProvider);
+    
+    if (!tutorialCompleted && mounted) {
+      // Additional delay to ensure navigation is stable
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+      
+      // Start tutorial
+      final tutorialManager = TutorialManager(context: context, ref: ref);
+      ref.read(tutorialActiveProvider.notifier).state = true;
+      
+      try {
+        await tutorialManager.startTutorial(TutorialTrigger.startAdventure);
+        // Mark tutorial as completed
+        if (mounted) {
+          ref.read(tutorialCompletedProvider.notifier).markCompleted();
+        }
+      } finally {
+        if (mounted) {
+          ref.read(tutorialActiveProvider.notifier).state = false;
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentTab = ref.watch(currentTabProvider);
     
     return Scaffold(

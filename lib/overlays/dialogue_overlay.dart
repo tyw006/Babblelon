@@ -19,8 +19,10 @@ import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
 import '../services/isar_service.dart'; // For database operations
+import '../services/tutorial_service.dart'; // For tutorial functionality
 import '../widgets/dialogue_ui.dart';
 import '../widgets/character_tracing_widget.dart';
+import '../widgets/popups/charm_change_popup.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -344,6 +346,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // --- Tutorial Check - Show dialogue tutorials BEFORE loading dialogue ---
+      await _checkAndShowDialogueTutorial();
+      
       await _loadInitialGreetingData();
 
       final history = ref.read(fullConversationHistoryProvider(widget.npcId));
@@ -369,8 +374,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           npcName: _npcData.name,
           posMappings: [],
         );
-        // ONLY set the current display entry. Do NOT add the placeholder to the full history yet.
-        currentNpcDisplayNotifier.state = placeholderForAnimation;
+        // DON'T set the display entry yet - let the animation handle it to prevent full text showing first
         
         _startNpcTextAnimation(
           idForAnimation: placeholderForAnimation.id,
@@ -430,6 +434,49 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           curve: Curves.easeOut,
         );
       });
+    }
+  }
+
+  // --- Tutorial Method ---
+  Future<void> _checkAndShowDialogueTutorial() async {
+    // Wait a bit for tutorial progress to load from SharedPreferences
+    // This handles the race condition where the provider hasn't loaded yet
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    if (!mounted) return;
+    
+    // Check if dialogue tutorials have been shown
+    final tutorialProgress = ref.read(tutorialProgressProvider);
+    final hasShownDialogueTutorials = tutorialProgress.contains('charm_explanation') && 
+                                    tutorialProgress.contains('item_types') && 
+                                    tutorialProgress.contains('regular_vs_special');
+
+    // Debug: Tutorial progress check
+    debugPrint('📚 Dialogue tutorial check - Progress: ${tutorialProgress.toList()}');
+    debugPrint('📚 Has shown dialogue tutorials: $hasShownDialogueTutorials');
+    debugPrint('📚 Individual checks: charm=${tutorialProgress.contains('charm_explanation')}, items=${tutorialProgress.contains('item_types')}, special=${tutorialProgress.contains('regular_vs_special')}');
+
+    if (!hasShownDialogueTutorials) {
+      debugPrint('📚 Starting dialogue tutorial for NPC: ${widget.npcId}');
+      
+      // Additional delay to allow the dialogue UI to fully render
+      await Future.delayed(const Duration(milliseconds: 200));
+      
+      if (mounted) {
+        // Starting dialogue tutorial sequence
+        final tutorialManager = TutorialManager(context: context, ref: ref, npcId: widget.npcId);
+        ref.read(tutorialActiveProvider.notifier).state = true;
+        
+        try {
+          await tutorialManager.startTutorial(TutorialTrigger.firstDialogue);
+        } finally {
+          if (mounted) {
+            ref.read(tutorialActiveProvider.notifier).state = false;
+          }
+        }
+      }
+    } else {
+      debugPrint('📚 Dialogue tutorials already shown, skipping tutorial for NPC: ${widget.npcId}');
     }
   }
 
@@ -702,8 +749,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         fullHistoryNotifier.update((history) => [...history, playerEntryForHistory, npcEntryForDisplayAndHistory]);
         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(_historyDialogScrollController));
 
-        // Set current NPC display entry for the main box and start animation
-        ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntryForDisplayAndHistory;
+        // DON'T set display entry yet - let the animation handle it to prevent full text showing first
         _startNpcTextAnimation(
           idForAnimation: npcEntryId, // Pass the pre-generated ID
           speakerName: _npcData.name, // Pass speaker name
@@ -1135,25 +1181,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   // --- Charm Change Notification ---
   Future<void> _showCharmChangeNotification(BuildContext context, int charmDelta, String charmReason) {
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text("Charm Changed!"),
-          content: _CharmChangeDialogContent(
-            charmDelta: charmDelta,
-            charmReason: charmReason,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
+    return CharmChangePopup.show(
+      context,
+      charmDelta: charmDelta,
+      charmReason: charmReason,
     );
   }
 
@@ -4177,14 +4208,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         posMappings: posMappings
     );
 
-    currentNpcNotifier.state = entryWithCorrectIdForAnimation;
-
+    // Set animation state BEFORE setting provider state to prevent race condition
     setState(() {
       _currentlyAnimatingEntryId = entryWithCorrectIdForAnimation.id; 
       _displayedTextForAnimation = ""; 
       _currentCharIndexForAnimation = 0;
        _scrollToBottom(_mainDialogueScrollController);
     });
+
+    // Now set the provider state - UI will correctly identify this as an animating entry
+    currentNpcNotifier.state = entryWithCorrectIdForAnimation;
 
     Duration charDuration = Duration(milliseconds: 50); 
 
@@ -4270,111 +4303,6 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
 }
 
-class _CharmChangeDialogContent extends StatefulWidget {
-  final int charmDelta;
-  final String charmReason;
-
-  const _CharmChangeDialogContent({
-    required this.charmDelta,
-    required this.charmReason,
-  });
-
-  @override
-  _CharmChangeDialogContentState createState() => _CharmChangeDialogContentState();
-}
-
-class _CharmChangeDialogContentState extends State<_CharmChangeDialogContent> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: Duration(milliseconds: widget.charmDelta > 0 ? 800 : 500),
-      vsync: this,
-    );
-
-    if (widget.charmDelta > 0) {
-      // Bouncy, expanding animation for positive charm
-      _animation = TweenSequence<double>([
-        TweenSequenceItem(
-          tween: Tween<double>(begin: 1.0, end: 1.6).chain(CurveTween(curve: Curves.easeOut)),
-          weight: 50
-        ),
-        TweenSequenceItem(
-          tween: Tween<double>(begin: 1.6, end: 1.0).chain(CurveTween(curve: Curves.easeIn)),
-          weight: 50
-        ),
-      ]).animate(_controller);
-    } else {
-      // Shake animation for negative charm
-      _animation = TweenSequence<double>([
-        TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 5),
-        TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: -8.0), weight: 10),
-        TweenSequenceItem(tween: Tween<double>(begin: -8.0, end: 8.0), weight: 20),
-        TweenSequenceItem(tween: Tween<double>(begin: 8.0, end: -8.0), weight: 20),
-        TweenSequenceItem(tween: Tween<double>(begin: -8.0, end: 4.0), weight: 15),
-        TweenSequenceItem(tween: Tween<double>(begin: 4.0, end: -4.0), weight: 15),
-        TweenSequenceItem(tween: Tween<double>(begin: -4.0, end: 0.0), weight: 10),
-      ]).animate(_controller);
-    }
-    
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isPositive = widget.charmDelta > 0;
-    final Color deltaColor = isPositive ? Colors.green.shade600 : Colors.red.shade600;
-    final String sign = isPositive ? '+' : '';
-
-    final Widget textWidget = Text(
-      '$sign${widget.charmDelta}',
-      style: TextStyle(
-          fontSize: 36,
-          fontWeight: FontWeight.bold,
-          color: deltaColor,
-      ),
-    );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            if (isPositive) {
-              return Transform.scale(
-                scale: _animation.value,
-                child: child,
-              );
-            } else {
-              return Transform.translate(
-                offset: Offset(_animation.value, 0),
-                child: child,
-              );
-            }
-          },
-          child: textWidget,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          widget.charmReason,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18),
-        ),
-      ],
-    );
-  }
-}
 
 // Custom painter for ML Kit Digital Ink with real-time preview
 class _InkPainter extends CustomPainter {

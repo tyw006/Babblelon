@@ -63,6 +63,9 @@ class BabblelonGame extends FlameGame with
   // ML Kit for character tracing
   mlkit.DigitalInkRecognizerModelManager? _modelManager;
   bool _mlKitModelReady = false;
+  
+  // Tutorial tracking
+  bool _hasShownPortalTutorial = false;
 
   void toggleMenu(BuildContext context, WidgetRef ref) {
     _audioService.playSoundEffect('soundeffects/soundeffect_button.mp3');
@@ -151,14 +154,18 @@ class BabblelonGame extends FlameGame with
     // Start camera at the left edge
     cameraComponent.viewfinder.position = Vector2(0, 0);
 
-    // Initialize audio service and connect to Riverpod
-    await _audioService.initialize(ref: ref);
+    // Initialize audio service with current game settings
+    final gameState = ref.read(gameStateProvider);
+    await _audioService.initialize(
+      musicEnabled: gameState.musicEnabled,
+      soundEffectsEnabled: gameState.soundEffectsEnabled,
+    );
     
     // Play game background music using unified service
     await _audioService.playGameMusic();
     
     // Store initial music state for manual checking in update
-    _previousMusicEnabled = ref.read(gameStateProvider).musicEnabled;
+    _previousMusicEnabled = gameState.musicEnabled;
 
     // --- Pre-load portal sound ---
     _portalSoundPlayer = just_audio.AudioPlayer();
@@ -173,6 +180,11 @@ class BabblelonGame extends FlameGame with
       print("Failed to preload ML Kit Thai model: $e");
     }
     // --- End ML Kit preload ---
+    
+    // Notify that game loading is complete
+    ref.read(gameLoadingCompletedProvider.notifier).state = true;
+    
+    // Bangkok tutorial will be triggered from GameScreen after game loads
   }
   
   Future<void> _addNpcs() async {
@@ -370,6 +382,13 @@ class BabblelonGame extends FlameGame with
 
     final distance = player.position.distanceTo(_portal!.position);
     const maxDistance = 600.0;
+    const tutorialDistance = 400.0; // Closer than audio range for tutorial
+    
+    // Check for first-time portal approach tutorial
+    if (!_hasShownPortalTutorial && distance < tutorialDistance) {
+      _hasShownPortalTutorial = true;
+      _triggerPortalTutorial();
+    }
 
     // Performance optimization: Only update audio if distance changed significantly
     if ((distance - _lastPortalDistance).abs() > 10.0) {
@@ -560,6 +579,12 @@ class BabblelonGame extends FlameGame with
     if (_activeNpcId == npcId) {
       _activeNpcId = null;
     }
+  }
+
+  void _triggerPortalTutorial() {
+    // Mark tutorial as triggered (will be handled by GameScreen)
+    ref.read(tutorialActiveProvider.notifier).state = true;
+    ref.read(currentTutorialStepProvider.notifier).state = 'portal_approach_trigger';
   }
 
   @override
