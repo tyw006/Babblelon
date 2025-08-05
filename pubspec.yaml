@@ -7,6 +7,8 @@ environment:
   sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
+  sentry_flutter: ^9.5.0
+  posthog_flutter: ^4.7.1
   flutter:
     sdk: flutter
   flame: ^1.17.0
@@ -38,8 +40,12 @@ dependencies:
   animated_flip_counter: ^0.2.6
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
+  google_mlkit_digital_ink_recognition: ^0.14.1
+  whisper_flutter_new: ^1.0.1  # On-device Whisper processing
+  fl_chart: ^0.68.0  # Charts for benchmarking visualization
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.1.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
@@ -62,7 +68,14 @@ flutter:
     - assets/audio/bg/
     - assets/audio/soundeffects/
     - assets/audio/beginner_food_vocabulary/
+    - assets/audio/npc_vocabulary_amara/
+    - assets/audio/npc_vocabulary_somchai/
     - assets/images/bosses/tuktuk/
     - assets/data/
     - assets/lottie/
     - .env 
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: flutter
+  org: babbleon

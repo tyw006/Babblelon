@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
+import '../services/game_initialization_service.dart';
+import '../services/posthog_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -32,6 +34,28 @@ class _GameScreenState extends State<GameScreen> {
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'game_screen',
+      additionalProperties: {
+        'game_initialized': false,
+      },
+    );
+    
+    // Start background initialization (non-blocking)
+    _initializeGameAssetsInBackground();
+  }
+  
+  /// Initialize game assets in the background without blocking the game
+  void _initializeGameAssetsInBackground() {
+    final initService = GameInitializationService();
+    initService.initializeGame().then((success) {
+      print('🎮 Background initialization completed: $success');
+    }).catchError((error) {
+      print('⚠️ Background initialization failed, but game can continue: $error');
+    });
   }
 
   @override
@@ -237,7 +261,6 @@ class MainMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameStateProvider);
-    final dialogueSettings = ref.watch(dialogueSettingsProvider);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -280,20 +303,6 @@ class MainMenu extends ConsumerWidget {
                   label: gameState.soundEffectsEnabled ? 'SFX On' : 'SFX Off',
                   value: gameState.soundEffectsEnabled,
                   onChanged: (val) => ref.read(gameStateProvider.notifier).setSoundEffectsEnabled(val),
-                ),
-                const SizedBox(height: 12),
-                _MenuButton(
-                  icon: dialogueSettings.showEnglishTranslation ? Icons.visibility : Icons.visibility_off,
-                  label: 'English Translation',
-                  value: dialogueSettings.showEnglishTranslation,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
-                ),
-                const SizedBox(height: 12),
-                _MenuButton(
-                  icon: dialogueSettings.showWordByWordAnalysis ? Icons.segment : Icons.segment_outlined,
-                  label: 'Word Analysis',
-                  value: dialogueSettings.showWordByWordAnalysis,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

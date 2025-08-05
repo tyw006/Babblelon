@@ -9,6 +9,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:babblelon/models/game_models.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:babblelon/services/posthog_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'game_providers.g.dart';
 
@@ -72,22 +74,30 @@ class GameState extends _$GameState {
 class DialogueSettingsData {
   final bool showWordByWordAnalysis;
   final bool showEnglishTranslation;
+  final bool showTransliteration;
+  final bool enableParallelProcessing;
   final bool isMicEnabled;
 
   const DialogueSettingsData({
     this.showWordByWordAnalysis = false,
     this.showEnglishTranslation = false,
+    this.showTransliteration = false,
+    this.enableParallelProcessing = false,
     this.isMicEnabled = true,
   });
 
   DialogueSettingsData copyWith({
     bool? showWordByWordAnalysis,
     bool? showEnglishTranslation,
+    bool? showTransliteration,
+    bool? enableParallelProcessing,
     bool? isMicEnabled,
   }) {
     return DialogueSettingsData(
       showWordByWordAnalysis: showWordByWordAnalysis ?? this.showWordByWordAnalysis,
       showEnglishTranslation: showEnglishTranslation ?? this.showEnglishTranslation,
+      showTransliteration: showTransliteration ?? this.showTransliteration,
+      enableParallelProcessing: enableParallelProcessing ?? this.enableParallelProcessing,
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,
     );
   }
@@ -104,6 +114,14 @@ class DialogueSettings extends _$DialogueSettings {
 
   void toggleShowEnglishTranslation() {
     state = state.copyWith(showEnglishTranslation: !state.showEnglishTranslation);
+  }
+
+  void toggleShowTransliteration() {
+    state = state.copyWith(showTransliteration: !state.showTransliteration);
+  }
+
+  void toggleParallelProcessing() {
+    state = state.copyWith(enableParallelProcessing: !state.enableParallelProcessing);
   }
 
   void toggleMicUsage() => state = state.copyWith(isMicEnabled: !state.isMicEnabled);
@@ -213,4 +231,102 @@ extension WidgetRefSoundEffects on WidgetRef {
       FlameAudio.play(path, volume: volume);
     }
   }
+}
+
+// Provider for app lifecycle management
+@Riverpod(keepAlive: true)
+class AppLifecycleManager extends _$AppLifecycleManager {
+  @override
+  void build() {
+    // Initialize app lifecycle tracking
+    PostHogService.trackAppLifecycle(event: 'opened');
+  }
+
+  void appResumed() {
+    PostHogService.trackAppLifecycle(
+      event: 'resumed',
+      additionalProperties: {
+        'previous_state': 'background',
+      },
+    );
+  }
+
+  void appPaused() {
+    PostHogService.trackAppLifecycle(
+      event: 'backgrounded',
+      additionalProperties: {
+        'previous_state': 'foreground',
+      },
+    );
+  }
+
+  void appInactive() {
+    PostHogService.trackAppLifecycle(event: 'inactive');
+  }
+
+  void appHidden() {
+    PostHogService.trackAppLifecycle(event: 'hidden');
+  }
+
+  void appClosed() {
+    PostHogService.trackAppLifecycle(event: 'closed');
+    PostHogService.trackSessionEnd();
+  }
+}
+
+// --- Developer Settings ---
+@immutable
+class DeveloperSettingsData {
+  final bool useElevenLabsSTT;
+
+  const DeveloperSettingsData({
+    this.useElevenLabsSTT = false, // Default to Google Cloud STT for production safety
+  });
+
+  DeveloperSettingsData copyWith({
+    bool? useElevenLabsSTT,
+  }) {
+    return DeveloperSettingsData(
+      useElevenLabsSTT: useElevenLabsSTT ?? this.useElevenLabsSTT,
+    );
+  }
+}
+
+@Riverpod(keepAlive: true)
+class DeveloperSettings extends _$DeveloperSettings {
+  static const String _keyUseElevenLabsSTT = 'dev_use_elevenlabs_stt';
+
+  @override
+  DeveloperSettingsData build() {
+    _loadSettings();
+    return const DeveloperSettingsData();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final useElevenLabsSTT = prefs.getBool(_keyUseElevenLabsSTT) ?? false;
+      
+      state = state.copyWith(useElevenLabsSTT: useElevenLabsSTT);
+    } catch (e) {
+      print('DEBUG: Failed to load developer settings: $e');
+    }
+  }
+
+  Future<void> toggleSTTService() async {
+    final newValue = !state.useElevenLabsSTT;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyUseElevenLabsSTT, newValue);
+      
+      state = state.copyWith(useElevenLabsSTT: newValue);
+      
+      print('DEBUG: STT service toggled to: ${newValue ? "ElevenLabs" : "Google Cloud"}');
+    } catch (e) {
+      print('DEBUG: Failed to save STT service setting: $e');
+    }
+  }
+
+  String get currentSTTService => state.useElevenLabsSTT ? 'ElevenLabs' : 'Google Cloud';
 }

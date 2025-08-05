@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flame/events.dart';
@@ -17,12 +18,14 @@ import '../models/npc_data.dart'; // Import the new NPC data model
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
+import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
 
 class BabblelonGame extends FlameGame with
     RiverpodGameMixin,
     TapCallbacks,
     KeyboardEvents,
-    HasCollisionDetection {
+    HasCollisionDetection,
+    WidgetsBindingObserver {
   
   // UI Components
   
@@ -49,6 +52,10 @@ class BabblelonGame extends FlameGame with
   // --- End Refactored NPC Management ---
 
   just_audio.AudioPlayer? _portalSoundPlayer;
+  
+  // ML Kit for character tracing
+  mlkit.DigitalInkRecognizerModelManager? _modelManager;
+  bool _mlKitModelReady = false;
 
   void toggleMenu(BuildContext context, WidgetRef ref) {
     final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
@@ -72,6 +79,12 @@ class BabblelonGame extends FlameGame with
   @override
   Future<void> onLoad() async {
     await super.onLoad(); // Call super.onLoad first
+    
+    // Initialize app lifecycle manager
+    ref.read(appLifecycleManagerProvider);
+    
+    // Add app lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
     
     // Set gameResolution for iPhone Plus portrait
     gameResolution = Vector2(414, 896); 
@@ -160,6 +173,14 @@ class BabblelonGame extends FlameGame with
     await _portalSoundPlayer?.setAsset('assets/audio/bg/soundeffect_portal_v2.mp3');
     await _portalSoundPlayer?.setLoopMode(just_audio.LoopMode.one);
     // --- End pre-load ---
+    
+    // --- Pre-load ML Kit Thai model for character tracing ---
+    try {
+      await _preloadMLKitThaiModel();
+    } catch (e) {
+      print("Failed to preload ML Kit Thai model: $e");
+    }
+    // --- End ML Kit preload ---
   }
   
   Future<void> _addNpcs() async {
@@ -211,88 +232,136 @@ class BabblelonGame extends FlameGame with
     }
   }
   
+  // Performance optimization: Cache previous positions to avoid unnecessary calculations
+  Vector2? _lastPlayerPosition;
+  double _lastPortalDistance = double.infinity;
+  double _updateAccumulator = 0.0;
+  static const double _updateInterval = 1.0 / 30.0; // Reduce to 30fps for proximity checks
+
   @override
   void update(double dt) {
     super.update(dt);
 
-    // Camera deadzone logic (horizontal only)
-    if (player.isMounted) {
-      const double deadzoneWidth = 20.0; // Deadzone width in pixels
-      double cameraLeft = cameraComponent.viewfinder.position.x;
-      double cameraRight = cameraLeft + gameResolution.x;
-      double playerCenter = player.position.x;
-
-      double deadzoneLeft = cameraLeft + (gameResolution.x - deadzoneWidth) / 2;
-      double deadzoneRight = cameraRight - (gameResolution.x - deadzoneWidth) / 2;
-
-      if (playerCenter < deadzoneLeft) {
-        double newCameraX = (playerCenter - (gameResolution.x - deadzoneWidth) / 2)
-          .clamp(0.0, backgroundWidth - gameResolution.x);
-        cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
-      } else if (playerCenter > deadzoneRight) {
-        double newCameraX = (playerCenter + (gameResolution.x - deadzoneWidth) / 2 - gameResolution.x)
-          .clamp(0.0, backgroundWidth - gameResolution.x);
-        cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
-      }
-      // Otherwise, camera stays put (player is inside deadzone)
+    // Performance optimization: Only update camera when player actually moves
+    if (player.isMounted && (_lastPlayerPosition == null || _lastPlayerPosition != player.position)) {
+      _updateCameraPosition();
+      _lastPlayerPosition = player.position.clone();
     }
 
-    // --- NPC speech bubble sprite logic ---
-    if (!ref.read(gameStateProvider).isPaused && overlays.activeOverlays.isEmpty) {
-      String? closestNpcId;
-      double minDistance = 150.0; // Interaction distance
+    // Performance optimization: Throttle proximity checks to 30fps instead of 60fps
+    _updateAccumulator += dt;
+    if (_updateAccumulator >= _updateInterval) {
+      _updateNpcProximity();
+      _updatePortalProximity();
+      _updateAccumulator = 0.0;
+    }
+  }
 
-      for (var entry in _npcs.entries) {
-        final npcId = entry.key;
-        final npcComponent = entry.value;
+  void _updateCameraPosition() {
+    const double deadzoneWidth = 20.0;
+    double cameraLeft = cameraComponent.viewfinder.position.x;
+    double cameraRight = cameraLeft + gameResolution.x;
+    double playerCenter = player.position.x;
 
-        if (npcComponent.isMounted) {
-          final double distance = (player.position - npcComponent.position).length;
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestNpcId = npcId;
-          }
+    double deadzoneLeft = cameraLeft + (gameResolution.x - deadzoneWidth) / 2;
+    double deadzoneRight = cameraRight - (gameResolution.x - deadzoneWidth) / 2;
+
+    if (playerCenter < deadzoneLeft) {
+      double newCameraX = (playerCenter - (gameResolution.x - deadzoneWidth) / 2)
+        .clamp(0.0, backgroundWidth - gameResolution.x);
+      cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
+    } else if (playerCenter > deadzoneRight) {
+      double newCameraX = (playerCenter + (gameResolution.x - deadzoneWidth) / 2 - gameResolution.x)
+        .clamp(0.0, backgroundWidth - gameResolution.x);
+      cameraComponent.viewfinder.position = Vector2(newCameraX, cameraComponent.viewfinder.position.y);
+    }
+  }
+
+  void _updateNpcProximity() {
+    if (ref.read(gameStateProvider).isPaused || overlays.activeOverlays.isNotEmpty) {
+      return;
+    }
+
+    String? closestNpcId;
+    double minDistance = 150.0;
+
+    // Performance optimization: Early exit if no NPCs are mounted
+    final mountedNpcs = _npcs.entries.where((entry) => entry.value.isMounted);
+    if (mountedNpcs.isEmpty) return;
+
+    for (var entry in mountedNpcs) {
+      final npcId = entry.key;
+      final npcComponent = entry.value;
+
+      // Performance optimization: Use squared distance to avoid sqrt operation
+      final distanceSquared = (player.position - npcComponent.position).length2;
+      final minDistanceSquared = minDistance * minDistance;
+      
+      if (distanceSquared < minDistanceSquared) {
+        final distance = math.sqrt(distanceSquared); // Only calculate sqrt when needed
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestNpcId = npcId;
         }
-      }
-
-      // If a new NPC is the closest/active one
-      if (closestNpcId != _activeNpcId) {
-        // Hide the bubble for the previously active NPC
-        if (_activeNpcId != null && _speechBubbles[_activeNpcId]!.isMounted) {
-          _speechBubbles[_activeNpcId]!.removeFromParent();
-        }
-
-        // Show the bubble for the new active NPC, but only if they haven't given their special item
-        if (closestNpcId != null) {
-          final hasReceivedSpecialItem = ref.read(specialItemReceivedProvider(closestNpcId));
-          if (!hasReceivedSpecialItem) {
-            final bubble = _speechBubbles[closestNpcId]!;
-            if (!bubble.isMounted) {
-              gameWorld.add(bubble);
-            }
-          }
-        }
-        _activeNpcId = closestNpcId;
-      }
-
-      // Keep the active bubble positioned correctly
-      if (_activeNpcId != null) {
-        final npcComponent = _npcs[_activeNpcId]!;
-        final bubble = _speechBubbles[_activeNpcId]!;
-        final npcData = npcDataMap[_activeNpcId]!;
-        bubble.position = npcComponent.position - Vector2(0, npcComponent.size.y) + npcData.speechBubbleOffset;
       }
     }
-    // --- End NPC speech bubble sprite logic ---
 
-    // --- Portal proximity detection logic ---
-    if (_portal != null && player.isMounted && _portal!.isMounted) {
-      final isPaused = ref.read(gameStateProvider).isPaused;
-      final isOverlayActive = overlays.activeOverlays.isNotEmpty;
-      final distance = player.position.distanceTo(_portal!.position);
-      const maxDistance = 600.0;
+    // Only update UI if the closest NPC actually changed
+    if (closestNpcId != _activeNpcId) {
+      _updateActiveSpeechBubble(closestNpcId);
+      _activeNpcId = closestNpcId;
+    }
 
-      if (!isPaused && !isOverlayActive && distance < maxDistance) {
+    // Update bubble position only if there's an active NPC
+    if (_activeNpcId != null) {
+      _updateSpeechBubblePosition(_activeNpcId!);
+    }
+  }
+
+  void _updateActiveSpeechBubble(String? newActiveNpcId) {
+    // Hide previous bubble
+    if (_activeNpcId != null && _speechBubbles[_activeNpcId]!.isMounted) {
+      _speechBubbles[_activeNpcId]!.removeFromParent();
+    }
+
+    // Show new bubble
+    if (newActiveNpcId != null) {
+      final hasReceivedSpecialItem = ref.read(specialItemReceivedProvider(newActiveNpcId));
+      if (!hasReceivedSpecialItem) {
+        final bubble = _speechBubbles[newActiveNpcId]!;
+        if (!bubble.isMounted) {
+          gameWorld.add(bubble);
+        }
+      }
+    }
+  }
+
+  void _updateSpeechBubblePosition(String npcId) {
+    final npcComponent = _npcs[npcId]!;
+    final bubble = _speechBubbles[npcId]!;
+    final npcData = npcDataMap[npcId]!;
+    bubble.position = npcComponent.position - Vector2(0, npcComponent.size.y) + npcData.speechBubbleOffset;
+  }
+
+  void _updatePortalProximity() {
+    if (_portal == null || !player.isMounted || !_portal!.isMounted) return;
+
+    final isPaused = ref.read(gameStateProvider).isPaused;
+    final isOverlayActive = overlays.activeOverlays.isNotEmpty;
+    
+    if (isPaused || isOverlayActive) {
+      if (_portalSoundPlayer?.playing == true) {
+        _portalSoundPlayer?.pause();
+      }
+      return;
+    }
+
+    final distance = player.position.distanceTo(_portal!.position);
+    const maxDistance = 600.0;
+
+    // Performance optimization: Only update audio if distance changed significantly
+    if ((distance - _lastPortalDistance).abs() > 10.0) {
+      if (distance < maxDistance) {
         if (_portalSoundPlayer?.playing == false) {
           _portalSoundPlayer?.play();
         }
@@ -303,8 +372,8 @@ class BabblelonGame extends FlameGame with
           _portalSoundPlayer?.pause();
         }
       }
+      _lastPortalDistance = distance;
     }
-    // --- End portal proximity detection logic ---
   }
   
   void _startDialogue(String npcId) {
@@ -430,6 +499,29 @@ class BabblelonGame extends FlameGame with
     ref.read(gameStateProvider.notifier).setBgmPlaying(false);
   }
 
+  Future<void> _preloadMLKitThaiModel() async {
+    try {
+      _modelManager = mlkit.DigitalInkRecognizerModelManager();
+      const String thaiModelIdentifier = 'th';
+      final bool isDownloaded = await _modelManager!.isModelDownloaded(thaiModelIdentifier);
+      
+      if (!isDownloaded) {
+        print("Downloading Thai ML Kit model for character tracing...");
+        final bool success = await _modelManager!.downloadModel(thaiModelIdentifier);
+        _mlKitModelReady = success;
+        print("Thai model download result: $success");
+      } else {
+        _mlKitModelReady = true;
+        print("Thai ML Kit model already available");
+      }
+    } catch (e) {
+      print("Error initializing ML Kit Thai model: $e");
+      _mlKitModelReady = false;
+    }
+  }
+  
+  bool get isMLKitModelReady => _mlKitModelReady;
+
   void hideSpeechBubbleFor(String npcId) {
     if (_speechBubbles.containsKey(npcId)) {
       final bubble = _speechBubbles[npcId]!;
@@ -445,7 +537,31 @@ class BabblelonGame extends FlameGame with
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final appLifecycleManager = ref.read(appLifecycleManagerProvider.notifier);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        appLifecycleManager.appResumed();
+        break;
+      case AppLifecycleState.paused:
+        appLifecycleManager.appPaused();
+        break;
+      case AppLifecycleState.detached:
+        appLifecycleManager.appClosed();
+        break;
+      case AppLifecycleState.inactive:
+        appLifecycleManager.appInactive();
+        break;
+      case AppLifecycleState.hidden:
+        appLifecycleManager.appHidden();
+        break;
+    }
+  }
+
+  @override
   void onRemove() {
+    WidgetsBinding.instance.removeObserver(this);
     FlameAudio.bgm.stop();
     _portalSoundPlayer?.dispose();
     _portalSoundPlayer = null;

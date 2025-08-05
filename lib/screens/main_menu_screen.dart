@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
+import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
+import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
+import 'package:babblelon/services/posthog_service.dart';
+import 'package:babblelon/widgets/stt_translation_test_widget.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -16,6 +20,15 @@ class MainMenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'main_menu',
+      additionalProperties: {
+        'sound_effects_enabled': soundEffectsEnabled,
+      },
+    );
     
     return Scaffold(
       body: Container(
@@ -46,8 +59,19 @@ class MainMenuScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 50),
               ElevatedButton(
-                              onPressed: () {
-                ref.playButtonSound();
+                onPressed: () {
+                  ref.playButtonSound();
+                  
+                  // Track screen navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'game_screen',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'start_game',
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -109,6 +133,18 @@ class MainMenuScreen extends ConsumerWidget {
                   );
                   
                   ref.playButtonSound();
+                  
+                  // Track boss fight navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'boss_fight',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_boss_fight',
+                      'boss_name': tuktukBoss.name,
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -161,6 +197,49 @@ class MainMenuScreen extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () => _showDefeatDialog(context),
                 child: const Text('Test Defeat Dialog'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  ref.playButtonSound();
+                  showDialog(
+                    context: context,
+                    builder: (context) => const CharacterTracingTestWidget(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4ECCA3),
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text('Test Character Tracing'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  ref.playButtonSound();
+                  
+                  // Track navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'stt_translation_test',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_stt_translation',
+                    },
+                  );
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const STTTranslationTestWidget(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Test STT/Translation Services'),
               ),
             ],
           ),

@@ -53,6 +53,7 @@ babbleon-4cb3b57a2d79.json
 # AI code configs
 .gemini
 GEMINI.md
+.cursor/mcp.json
 
 
 # Firebase-related
@@ -76,4 +77,9 @@ supabase/.temp
 *.freezed.dart
 
 # Build runner
-.dart_tool/build/ 
+.dart_tool/build/
+
+# YoYo AI version control directory
+.yoyo/
+
+sentry.properties

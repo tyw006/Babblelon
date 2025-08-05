@@ -9,11 +9,72 @@ import azure.cognitiveservices.speech as speechsdk
 import tempfile
 from dotenv import load_dotenv
 import wave
+import requests  # For PostHog tracking
+from .connection_pool import get_connection_pool
+from typing import Optional
+import uuid
+
+# Import Azure Speech Tracker
+from .azure_speech_tracker import get_azure_speech_tracker, AzureSpeechService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
+
+# PostHog Configuration
+POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
+
+def track_pronunciation_assessment_to_posthog(
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    reference_text: str = "",
+    pronunciation_score: float = 0.0,
+    accuracy_score: float = 0.0,
+    processing_time_ms: int = 0,
+    item_type: str = "",
+    complexity: int = 0,
+    success: bool = True,
+    error: Optional[str] = None
+):
+    """Track pronunciation assessment calls to PostHog for analytics"""
+    if not POSTHOG_API_KEY:
+        return
+    
+    try:
+        event_data = {
+            "api_key": POSTHOG_API_KEY,
+            "event": "pronunciation_assessment",
+            "properties": {
+                "service": "azure_pronunciation",
+                "reference_text_length": len(reference_text),
+                "pronunciation_score": pronunciation_score,
+                "accuracy_score": accuracy_score,
+                "processing_time_ms": processing_time_ms,
+                "item_type": item_type,
+                "complexity": complexity,
+                "success": success,
+                "timestamp": time.time(),
+            },
+            "timestamp": time.time(),
+        }
+        
+        if user_id:
+            event_data["distinct_id"] = user_id
+        if session_id:
+            event_data["properties"]["session_id"] = session_id
+        if error:
+            event_data["properties"]["error"] = error
+            
+        # Send to PostHog using connection pool
+        connection_pool = get_connection_pool()
+        connection_pool.post(
+            "https://app.posthog.com/capture/",
+            json=event_data,
+            timeout=5
+        )
+    except Exception as e:
+        print(f"WARNING: Failed to track pronunciation assessment to PostHog: {e}")
 
 # --- Transliteration Helper ---
 
@@ -40,7 +101,7 @@ class PronunciationAssessmentRequest(BaseModel):
     item_type: str
     turn_type: str
     was_revealed: bool = False
-    word_mapping: List[Dict[str, str]] = []
+    azure_pron_mapping: List[Dict[str, str]] = []
 
 class WordFeedback(BaseModel):
     word: str
@@ -80,8 +141,10 @@ async def assess_pronunciation(
     item_type: str,
     turn_type: str,
     was_revealed: bool,
-    word_mapping: List[Dict[str, str]],
-    language: str = "th-TH"
+    azure_pron_mapping: List[Dict[str, str]],
+    language: str = "th-TH",
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None
 ) -> PronunciationAssessmentResponse:
     """
     Assesses pronunciation from audio bytes using Azure Speech SDK, calculates game logic,
@@ -89,6 +152,32 @@ async def assess_pronunciation(
     """
     start_time = time.time()
     temp_wav_file = None
+    
+    # Initialize Azure Speech Tracker
+    tracker = get_azure_speech_tracker()
+    request_id = str(uuid.uuid4())
+    
+    # Calculate audio duration for cost tracking
+    audio_duration_seconds = None
+    try:
+        # Quick estimate of audio duration from bytes (assuming 16kHz, 16-bit, mono WAV)
+        # More accurate duration calculation could be done by parsing WAV headers
+        audio_duration_seconds = len(audio_bytes) / (16000 * 2)  # bytes / (sample_rate * bytes_per_sample)
+    except Exception:
+        audio_duration_seconds = None
+    
+    # Start tracking the request
+    tracker.start_request(
+        request_id=request_id,
+        service=AzureSpeechService.PRONUNCIATION_ASSESSMENT,
+        user_id=user_id,
+        session_id=session_id,
+        audio_duration_seconds=audio_duration_seconds,
+        reference_text=reference_text,
+        language=language,
+        region=os.getenv("AZURE_SPEECH_REGION")
+    )
+    
     try:
         # Log the received request data for debugging
         request_data = {
@@ -145,12 +234,81 @@ async def assess_pronunciation(
 
         if result.reason == speechsdk.ResultReason.Canceled:
             cancellation_details = result.cancellation_details
-            raise ConnectionError(f"Azure Speech service error: {cancellation_details.reason}. Details: {cancellation_details.error_details}")
+            error_msg = f"Azure Speech service error: {cancellation_details.reason}. Details: {cancellation_details.error_details}"
+            
+            # End tracking with failure
+            response_time_ms = int((time.time() - start_time) * 1000)
+            tracker.end_request(
+                request_id=request_id,
+                success=False,
+                response_time_ms=response_time_ms,
+                error_code="AZURE_SERVICE_CANCELED",
+                error_message=error_msg
+            )
+            
+            # Track failed assessment to PostHog (legacy tracking)
+            track_pronunciation_assessment_to_posthog(
+                user_id=user_id,
+                session_id=session_id,
+                reference_text=reference_text,
+                processing_time_ms=response_time_ms,
+                item_type=item_type,
+                complexity=complexity,
+                success=False,
+                error=error_msg
+            )
+            raise ConnectionError(error_msg)
         if result.reason == speechsdk.ResultReason.NoMatch:
-            raise ValueError("Speech could not be recognized. Please try again with clearer audio.")
+            error_msg = "Speech could not be recognized. Please try again with clearer audio."
+            
+            # End tracking with failure
+            response_time_ms = int((time.time() - start_time) * 1000)
+            tracker.end_request(
+                request_id=request_id,
+                success=False,
+                response_time_ms=response_time_ms,
+                error_code="NO_SPEECH_RECOGNIZED",
+                error_message=error_msg
+            )
+            
+            # Track failed assessment to PostHog (legacy tracking)
+            track_pronunciation_assessment_to_posthog(
+                user_id=user_id,
+                session_id=session_id,
+                reference_text=reference_text,
+                processing_time_ms=response_time_ms,
+                item_type=item_type,
+                complexity=complexity,
+                success=False,
+                error=error_msg
+            )
+            raise ValueError(error_msg)
         
         if result.reason != speechsdk.ResultReason.RecognizedSpeech:
-            raise ValueError(f"Recognition failed with reason: {result.reason}")
+            error_msg = f"Recognition failed with reason: {result.reason}"
+            
+            # End tracking with failure
+            response_time_ms = int((time.time() - start_time) * 1000)
+            tracker.end_request(
+                request_id=request_id,
+                success=False,
+                response_time_ms=response_time_ms,
+                error_code="RECOGNITION_FAILED",
+                error_message=error_msg
+            )
+            
+            # Track failed assessment to PostHog (legacy tracking)
+            track_pronunciation_assessment_to_posthog(
+                user_id=user_id,
+                session_id=session_id,
+                reference_text=reference_text,
+                processing_time_ms=response_time_ms,
+                item_type=item_type,
+                complexity=complexity,
+                success=False,
+                error=error_msg
+            )
+            raise ValueError(error_msg)
 
         # --- 6. Parse Results and Apply Game Logic ---
         pron_result = speechsdk.PronunciationAssessmentResult(result)
@@ -177,7 +335,7 @@ async def assess_pronunciation(
 
         # --- Detailed Word Analysis ---
         detailed_feedback_list = []
-        translit_map = {word['thai']: word['transliteration'] for word in word_mapping}
+        translit_map = {word['thai']: word['transliteration'] for word in azure_pron_mapping}
         
         print(f"\n📝 WORD-BY-WORD ANALYSIS:")
         print(f"Static mapping available: {list(translit_map.keys())}")
@@ -328,10 +486,57 @@ async def assess_pronunciation(
         print("="*60)
         
         processing_end_time = time.time()
+        processing_time_ms = int((processing_end_time - start_time) * 1000)
         logging.info(f"Total processing time: {processing_end_time - start_time:.2f} seconds.")
+        
+        # End tracking with success
+        tracker.end_request(
+            request_id=request_id,
+            success=True,
+            response_time_ms=processing_time_ms,
+            pronunciation_score=pronunciation_score,
+            accuracy_score=pron_result.accuracy_score,
+            confidence_score=getattr(pron_result, 'confidence_score', None)
+        )
+        
+        # Track successful pronunciation assessment to PostHog (legacy tracking)
+        track_pronunciation_assessment_to_posthog(
+            user_id=user_id,
+            session_id=session_id,
+            reference_text=reference_text,
+            pronunciation_score=pronunciation_score,
+            accuracy_score=pron_result.accuracy_score,
+            processing_time_ms=processing_time_ms,
+            item_type=item_type,
+            complexity=complexity,
+            success=True
+        )
         
         return response
 
+    except Exception as e:
+        # Global exception handler for any unhandled errors
+        logging.error(f"Unhandled error in pronunciation assessment: {e}")
+        
+        # End tracking with failure if we have access to tracker
+        try:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            tracker.end_request(
+                request_id=request_id,
+                success=False,
+                response_time_ms=response_time_ms,
+                error_code="UNHANDLED_ERROR",
+                error_message=str(e)
+            )
+        except NameError:
+            # tracker not defined (shouldn't happen, but safety check)
+            logging.warning("Tracker not available for error tracking")
+        except Exception as tracker_error:
+            logging.warning(f"Failed to track error to Azure Speech Tracker: {tracker_error}")
+        
+        # Re-raise the original exception
+        raise e
+    
     finally:
         # Clean up the temporary file
         if temp_wav_file and os.path.exists(temp_wav_file):
