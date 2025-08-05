@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -471,25 +472,36 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         print('DEBUG: Using expected text for comparison: $_translatedText');
       }
       
+      // Check developer settings for STT service selection
+      final developerSettings = ref.read(developerSettingsProvider);
+      final bool useElevenLabsSTT = developerSettings.useElevenLabsSTT;
+      
       // Check if parallel processing is enabled in dialogue settings
       final dialogueSettings = ref.read(dialogueSettingsProvider);
       final bool useParallelProcessing = dialogueSettings.enableParallelProcessing;
       
       print('DEBUG: Parallel processing enabled: $useParallelProcessing');
       print('DEBUG: Translation Service Usage:');
-      print('  - STT Processing (Thai→English): Google Translate API');
+      print('  - STT Processing (Thai→English): ${useElevenLabsSTT ? "ElevenLabs API" : "Google Cloud API"}');
       print('  - Language Helper (English→Thai): DeepL API');
       
-      // Use Google Translate API for STT processing (Thai→English)
-      print('DEBUG: Using Google Translate API for STT processing (Thai→English)');
-      final result = await ApiService.transcribeAndTranslate(
-        audioPath: audioPath,
-        sourceLanguage: widget.targetLanguage,
-        targetLanguage: 'en',
-        expectedText: expectedText,
-      );
+      // Use selected STT service for processing (Thai→English)
+      print('DEBUG: Using ${useElevenLabsSTT ? "ElevenLabs" : "Google Cloud"} STT for processing (Thai→English)');
+      final result = useElevenLabsSTT
+          ? await ApiService.transcribeAndTranslateWithElevenLabs(
+              audioPath: audioPath,
+              sourceLanguage: widget.targetLanguage,
+              targetLanguage: 'en',
+              expectedText: expectedText,
+            )
+          : await ApiService.transcribeAndTranslate(
+              audioPath: audioPath,
+              sourceLanguage: widget.targetLanguage,
+              targetLanguage: 'en',
+              expectedText: expectedText,
+            );
       
-      print('DEBUG: STT processing completed with Google Translate API');
+      print('DEBUG: STT processing completed with ${useElevenLabsSTT ? "ElevenLabs" : "Google Cloud"} API');
 
       if (mounted && result != null) {
         // DEBUG: Log the entire API response to understand what's being returned
@@ -1010,8 +1022,75 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             ),
           ),
           
-          // Balanced spacing for perfect centering
-          const SizedBox(width: 72), // Adjusted for new button width
+          // STT Service Toggle (only in debug mode)
+          if (kDebugMode) _buildSTTServiceToggle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSTTServiceToggle() {
+    final developerSettings = ref.watch(developerSettingsProvider);
+    final isElevenLabs = developerSettings.useElevenLabsSTT;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isElevenLabs ? Colors.orange[100] : Colors.blue[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isElevenLabs ? Colors.orange[400]! : Colors.blue[400]!,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'STT',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: isElevenLabs ? Colors.orange[800] : Colors.blue[800],
+            ),
+          ),
+          const SizedBox(height: 2),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              ref.read(developerSettingsProvider.notifier).toggleSTTService();
+            },
+            child: Container(
+              width: 36,
+              height: 18,
+              decoration: BoxDecoration(
+                color: isElevenLabs ? Colors.orange[400] : Colors.blue[400],
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 200),
+                alignment: isElevenLabs ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            isElevenLabs ? 'ELabs' : 'Google',
+            style: TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              color: isElevenLabs ? Colors.orange[700] : Colors.blue[700],
+            ),
+          ),
         ],
       ),
     );

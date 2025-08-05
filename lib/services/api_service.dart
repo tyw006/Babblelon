@@ -299,6 +299,102 @@ class ApiService {
     }
   }
 
+  /// Transcribe and translate audio using ElevenLabs STT + Google Cloud Translation
+  static Future<Map<String, dynamic>?> transcribeAndTranslateWithElevenLabs({
+    required String audioPath,
+    String sourceLanguage = 'th',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+      
+      final uri = Uri.parse("$baseUrl/transcribe-and-translate-elevenlabs/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+      
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+      
+      debugPrint("Sending transcribe-and-translate-elevenlabs request to backend...");
+      final startTime = DateTime.now();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime).inMilliseconds;
+      
+      debugPrint("Received ElevenLabs response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Transcribe-and-translate-elevenlabs response: $responseData");
+        
+        // Track successful ElevenLabs transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'elevenlabs_transcribe_translate',
+          event: 'api_call_success',
+          durationMs: duration,
+          success: true,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'has_expected_text': expectedText.isNotEmpty,
+            'response_status': response.statusCode,
+          },
+        );
+        
+        return responseData;
+      } else {
+        debugPrint("Transcribe-and-translate-elevenlabs request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        
+        // Track failed ElevenLabs transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'elevenlabs_transcribe_translate',
+          event: 'api_call_failed',
+          durationMs: duration,
+          success: false,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'response_status': response.statusCode,
+            'error_body': response.body,
+          },
+        );
+        
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during transcribe-and-translate-elevenlabs request: $e");
+      
+      // Track ElevenLabs transcribe-and-translate error
+      PostHogService.trackAudioInteraction(
+        service: 'elevenlabs_transcribe_translate',
+        event: 'api_call_error',
+        success: false,
+        error: e.toString(),
+        additionalProperties: {
+          'source_language': sourceLanguage,
+          'target_language': targetLanguage,
+        },
+      );
+      
+      return null;
+    }
+  }
 
   /// Generate NPC response using enhanced STT (optional)
   static Future<Map<String, dynamic>?> generateNPCResponseEnhanced({

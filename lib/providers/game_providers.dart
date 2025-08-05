@@ -10,6 +10,7 @@ import 'package:babblelon/models/game_models.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/services/posthog_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'game_providers.g.dart';
 
@@ -271,4 +272,61 @@ class AppLifecycleManager extends _$AppLifecycleManager {
     PostHogService.trackAppLifecycle(event: 'closed');
     PostHogService.trackSessionEnd();
   }
+}
+
+// --- Developer Settings ---
+@immutable
+class DeveloperSettingsData {
+  final bool useElevenLabsSTT;
+
+  const DeveloperSettingsData({
+    this.useElevenLabsSTT = false, // Default to Google Cloud STT for production safety
+  });
+
+  DeveloperSettingsData copyWith({
+    bool? useElevenLabsSTT,
+  }) {
+    return DeveloperSettingsData(
+      useElevenLabsSTT: useElevenLabsSTT ?? this.useElevenLabsSTT,
+    );
+  }
+}
+
+@Riverpod(keepAlive: true)
+class DeveloperSettings extends _$DeveloperSettings {
+  static const String _keyUseElevenLabsSTT = 'dev_use_elevenlabs_stt';
+
+  @override
+  DeveloperSettingsData build() {
+    _loadSettings();
+    return const DeveloperSettingsData();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final useElevenLabsSTT = prefs.getBool(_keyUseElevenLabsSTT) ?? false;
+      
+      state = state.copyWith(useElevenLabsSTT: useElevenLabsSTT);
+    } catch (e) {
+      print('DEBUG: Failed to load developer settings: $e');
+    }
+  }
+
+  Future<void> toggleSTTService() async {
+    final newValue = !state.useElevenLabsSTT;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyUseElevenLabsSTT, newValue);
+      
+      state = state.copyWith(useElevenLabsSTT: newValue);
+      
+      print('DEBUG: STT service toggled to: ${newValue ? "ElevenLabs" : "Google Cloud"}');
+    } catch (e) {
+      print('DEBUG: Failed to save STT service setting: $e');
+    }
+  }
+
+  String get currentSTTService => state.useElevenLabsSTT ? 'ElevenLabs' : 'Google Cloud';
 }

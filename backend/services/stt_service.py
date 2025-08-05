@@ -719,11 +719,13 @@ async def transcribe_audio_elevenlabs(audio_stream: io.BytesIO, language_code: s
         # Start timing for performance comparison
         start_time = datetime.datetime.now()
         
-        # Call ElevenLabs Scribe API
+        # Call ElevenLabs Scribe API with word-level timestamps
         transcription_response = elevenlabs_client.speech_to_text.convert(
             file=audio_stream,  # Pass the BytesIO stream directly
             model_id="scribe_v1",  # Model to use
             language_code=language_code,  # Use the provided language code
+            timestamps_granularity="word",  # Explicitly request word-level timestamps
+            tag_audio_events=True,  # Include audio event tagging
         )
         
         # Calculate processing time
@@ -732,6 +734,18 @@ async def transcribe_audio_elevenlabs(audio_stream: io.BytesIO, language_code: s
         
         if transcription_response and hasattr(transcription_response, 'text'):
             transcribed_text = transcription_response.text
+            
+            # DEBUG: Log the full ElevenLabs response structure
+            print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs full response object type: {type(transcription_response)}")
+            print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs response attributes: {dir(transcription_response)}")
+            print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs transcribed text: '{transcribed_text}'")
+            if hasattr(transcription_response, 'words'):
+                print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs has 'words' attribute: {bool(transcription_response.words)}")
+                if transcription_response.words:
+                    print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs words count: {len(transcription_response.words)}")
+                    print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs first word structure: {dir(transcription_response.words[0]) if transcription_response.words else 'N/A'}")
+            else:
+                print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs response does NOT have 'words' attribute")
             
             # Extract word-level confidence data if available
             word_confidence_list = []
@@ -742,26 +756,60 @@ async def transcribe_audio_elevenlabs(audio_stream: io.BytesIO, language_code: s
                 if hasattr(transcription_response, 'words') and transcription_response.words:
                     # Use actual word-level data from ElevenLabs
                     confidence_scores = []
-                    for word_info in transcription_response.words:
+                    print(f"[{datetime.datetime.now()}] INFO: Processing {len(transcription_response.words)} words from ElevenLabs")
+                    
+                    for i, word_info in enumerate(transcription_response.words):
+                        # DEBUG: Log individual word structure
+                        print(f"[{datetime.datetime.now()}] DEBUG: Word {i+1} attributes: {dir(word_info)}")
+                        
+                        # ElevenLabs uses 'text' attribute, not 'word'
+                        word_text = getattr(word_info, 'text', '')
+                        print(f"[{datetime.datetime.now()}] DEBUG: Word {i+1} text: '{word_text}'")
+                        
                         # Convert logprob to confidence (logprob is negative, closer to 0 = higher confidence)
                         logprob = getattr(word_info, 'logprob', -1.0)
-                        # Convert logprob to confidence: exp(logprob) but cap it reasonably
-                        confidence = min(0.95, max(0.1, math.exp(logprob))) if logprob < 0 else 0.5
+                        confidence = min(0.95, max(0.1, math.exp(logprob))) if logprob < 0 else 0.7
                         confidence_scores.append(confidence)
                         
+                        # ElevenLabs uses 'start' and 'end', not 'start_time' and 'end_time'
+                        start_time = getattr(word_info, 'start', 0.0)
+                        end_time = getattr(word_info, 'end', 0.0)
+                        
+                        print(f"[{datetime.datetime.now()}] DEBUG: Word {i+1} timing: start={start_time}, end={end_time}, confidence={confidence:.3f}")
+                        
                         word_data = {
-                            "word": getattr(word_info, 'word', '') or getattr(word_info, 'text', ''),
+                            "word": word_text,
                             "confidence": confidence,
-                            "start_time": getattr(word_info, 'start_time', getattr(word_info, 'start', 0.0)),
-                            "end_time": getattr(word_info, 'end_time', getattr(word_info, 'end', 0.0)),
+                            "start_time": start_time,
+                            "end_time": end_time,
                         }
                         word_confidence_list.append(word_data)
                     
                     # Calculate overall confidence as average of word confidences
                     overall_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.5
                 else:
-                    # Fallback: split by spaces and use reasonable confidence estimate
-                    words = transcribed_text.strip().split()
+                    # Fallback: Use proper word segmentation for Thai text
+                    print(f"[{datetime.datetime.now()}] INFO: ElevenLabs API did not provide word-level data, using fallback segmentation")
+                    
+                    # Use Thai word tokenization for proper word boundaries
+                    if language_code in ["tha", "th"]:
+                        try:
+                            from pythainlp.tokenize import word_tokenize
+                            words = word_tokenize(transcribed_text.strip(), engine='newmm')
+                            # Filter out empty strings and whitespace-only tokens
+                            words = [word.strip() for word in words if word.strip()]
+                            print(f"[{datetime.datetime.now()}] INFO: Thai word tokenization: '{transcribed_text}' -> {words} ({len(words)} words)")
+                        except ImportError:
+                            print(f"[{datetime.datetime.now()}] WARNING: pythainlp not available, falling back to space splitting")
+                            words = transcribed_text.strip().split()
+                        except Exception as e:
+                            print(f"[{datetime.datetime.now()}] WARNING: Thai tokenization failed ({e}), falling back to space splitting")
+                            words = transcribed_text.strip().split()
+                    else:
+                        # For non-Thai languages, use space splitting
+                        words = transcribed_text.strip().split()
+                        print(f"[{datetime.datetime.now()}] INFO: Non-Thai language, using space splitting: {len(words)} words")
+                    
                     base_confidence = 0.7  # Reasonable default confidence
                     overall_confidence = base_confidence
                     

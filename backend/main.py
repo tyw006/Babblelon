@@ -515,7 +515,7 @@ async def generate_npc_response_endpoint(
         
         # Send metrics to PostHog and alerts to Sentry
         tracker.finalize(send_to_posthog=True)  # Use default threshold (25s)
-        
+
         print(f"[{datetime.datetime.now()}] INFO: Sending NPC response for {npc_id}. Header JSON (first 60 chars of b64): {response_data_b64[:60]}...")
         print(f"[{datetime.datetime.now()}] 📊 Request completed - Total: {tracker.get_duration('total'):.2f}s, "
               f"STT: {tracker.get_duration('stt') or 'N/A'}s, "
@@ -764,6 +764,246 @@ async def transcribe_and_translate_endpoint(
         print(f"[{datetime.datetime.now()}] CRITICAL: /transcribe-and-translate/ Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in transcribe-and-translate: {str(e)}")
 
+
+# --- ElevenLabs STT + Translation Endpoint ---
+@app.post("/transcribe-and-translate-elevenlabs/", response_model=TranscribeTranslateResponse)
+async def transcribe_and_translate_elevenlabs_endpoint(
+    audio_file: UploadFile = File(...),
+    source_language: Optional[str] = Form("tha"),  # Language of audio
+    target_language: Optional[str] = Form("en"),   # Language to translate to
+    expected_text: Optional[str] = Form("")        # Expected text for comparison
+):
+    """
+    Combined STT + Translation endpoint using ElevenLabs STT with word-level confidence for user verification.
+    Uses ElevenLabs STT + Google Cloud Translation.
+    """
+    request_time = datetime.datetime.now()
+    print(f"[{request_time}] INFO: /transcribe-and-translate-elevenlabs/ endpoint hit. File: {audio_file.filename}, Source: {source_language}, Target: {target_language}")
+    print(f"[{request_time}] INFO: Translation Service Usage - STT Processing: ElevenLabs API")
+    
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+        await audio_file.close()
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Audio file content is empty.")
+        audio_content_stream = io.BytesIO(audio_bytes)
+        
+        # Step 1: STT with word-level confidence using ElevenLabs and expected text comparison
+        stt_result: STTResult = None
+        try:
+            stt_result = await transcribe_audio_elevenlabs(audio_content_stream, language_code=source_language, expected_text=expected_text or "")
+            print(f"[{datetime.datetime.now()}] INFO: ElevenLabs STT succeeded")
+        except Exception as e:
+            print(f"[{datetime.datetime.now()}] ERROR: ElevenLabs STT failed: {e}")
+            raise HTTPException(status_code=503, detail=f"ElevenLabs STT service error: {str(e)}")
+        
+        if not stt_result or not stt_result.text.strip():
+            print(f"[{datetime.datetime.now()}] WARNING: Empty transcription from ElevenLabs STT")
+            # Return empty response structure
+            return TranscribeTranslateResponse(
+                transcription="",
+                translation="",
+                romanization="",
+                word_confidence=[],
+                word_comparisons=[],
+                pronunciation_score=0.0,
+                expected_text=expected_text or ""
+            )
+        
+        print(f"[{datetime.datetime.now()}] INFO: STT transcription: '{stt_result.text}'")
+        
+        # ELEVENLABS WORD RECONSTRUCTION: Fix character-level confidence issue
+        if stt_result and stt_result.word_confidence and source_language in ["tha", "th"]:
+            # Detect if we got character-level data instead of word-level data
+            text_chars = len(stt_result.text.replace(' ', ''))  # Count characters excluding spaces
+            confidence_entries = len(stt_result.word_confidence)
+            
+            print(f"[{datetime.datetime.now()}] DEBUG: ElevenLabs confidence analysis - Characters: {text_chars}, Confidence entries: {confidence_entries}")
+            
+            # If we have significantly more confidence entries than expected words, it's likely character-level
+            if confidence_entries > max(4, text_chars * 0.7):  # More than 70% of characters = character-level
+                print(f"[{datetime.datetime.now()}] INFO: Detected character-level confidence data from ElevenLabs, reconstructing word boundaries")
+                
+                try:
+                    from pythainlp.tokenize import word_tokenize
+                    
+                    # Get proper Thai word boundaries
+                    proper_words = word_tokenize(stt_result.text.strip(), engine='newmm')
+                    proper_words = [word.strip() for word in proper_words if word.strip()]
+                    
+                    print(f"[{datetime.datetime.now()}] INFO: Reconstructed words: {proper_words} ({len(proper_words)} words)")
+                    
+                    # Group character confidences into word confidences
+                    reconstructed_word_confidence = []
+                    char_index = 0
+                    
+                    for word in proper_words:
+                        word_confidences = []
+                        word_start_time = None
+                        word_end_time = None
+                        
+                        # Process each character in this word
+                        for char in word:
+                            if char_index < len(stt_result.word_confidence):
+                                char_data = stt_result.word_confidence[char_index]
+                                word_confidences.append(char_data.get("confidence", 0.7))
+                                
+                                # Capture timing data
+                                if word_start_time is None:
+                                    word_start_time = char_data.get("start_time", 0.0)
+                                word_end_time = char_data.get("end_time", 0.0)
+                                
+                                char_index += 1
+                        
+                        # Calculate average confidence for the word
+                        avg_confidence = sum(word_confidences) / len(word_confidences) if word_confidences else 0.7
+                        
+                        reconstructed_word_confidence.append({
+                            "word": word,
+                            "confidence": avg_confidence,
+                            "start_time": word_start_time or 0.0,
+                            "end_time": word_end_time or 0.0,
+                        })
+                    
+                    # Replace character-level data with reconstructed word-level data
+                    stt_result.word_confidence = reconstructed_word_confidence
+                    print(f"[{datetime.datetime.now()}] INFO: Successfully reconstructed {len(reconstructed_word_confidence)} word-level confidence entries")
+                    
+                except ImportError:
+                    print(f"[{datetime.datetime.now()}] WARNING: pythainlp not available for word reconstruction, using original data")
+                except Exception as e:
+                    print(f"[{datetime.datetime.now()}] WARNING: Word reconstruction failed ({e}), using original data")
+            else:
+                print(f"[{datetime.datetime.now()}] INFO: ElevenLabs provided proper word-level confidence data")
+        
+        # Step 2: Translation (Thai -> English) using Google Cloud Translation
+        translation_result = await translate_text(
+            text=stt_result.text,
+            source_language=source_language, 
+            target_language=target_language
+        )
+        
+        # Step 3: Romanization (if source is Thai)
+        romanization = ""
+        if source_language in ["tha", "th"]:
+            romanization_result = await romanize_target_text(stt_result.text, source_language)
+            romanization = romanization_result.get("romanized_text", "")
+        
+        # Step 4: Enhanced word confidence with parallel translation and romanization
+        enhanced_word_confidence = []
+        if stt_result and stt_result.word_confidence:
+            words_to_process = [word.get("word", "") for word in stt_result.word_confidence if word.get("word", "").strip()]
+            
+            # Prepare parallel tasks for word-level processing
+            tasks = []
+            
+            # Add romanization tasks for Thai source words
+            if source_language in ["tha", "th"] and words_to_process:
+                romanization_tasks = [
+                    romanize_target_text(word, source_language) for word in words_to_process
+                ]
+                tasks.extend(romanization_tasks)
+            
+            # Add translation tasks for each word
+            if words_to_process:
+                translation_tasks = [
+                    translate_text(word, target_language, source_language) for word in words_to_process
+                ]
+                if source_language in ["tha", "th"]:
+                    tasks.extend(translation_tasks)
+                else:
+                    tasks = translation_tasks
+            
+            # Execute all tasks in parallel
+            if tasks:
+                import asyncio
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Process results
+                num_words = len(words_to_process)
+                romanization_results = []
+                translation_results = []
+                
+                if source_language in ["tha", "th"]:
+                    # First half are romanization results, second half are translation results
+                    romanization_results = results[:num_words]
+                    translation_results = results[num_words:] if len(results) > num_words else []
+                else:
+                    # All results are translation results
+                    translation_results = results[:num_words]
+                
+                # Build enhanced word confidence
+                for i, original_word_data in enumerate(stt_result.word_confidence):
+                    enhanced_word = dict(original_word_data)  # Copy original data
+                    word_text = original_word_data.get("word", "")
+                    
+                    # Add transliteration if available
+                    if i < len(romanization_results) and not isinstance(romanization_results[i], Exception):
+                        transliteration = romanization_results[i].get("romanized_text", "")
+                        enhanced_word["transliteration"] = transliteration
+                    else:
+                        enhanced_word["transliteration"] = ""
+                    
+                    # Add translation if available
+                    if i < len(translation_results) and not isinstance(translation_results[i], Exception):
+                        translation = translation_results[i].get("translated_text", "")
+                        enhanced_word["translation"] = translation
+                    else:
+                        enhanced_word["translation"] = ""
+                    
+                    enhanced_word_confidence.append(enhanced_word)
+                
+            else:
+                # No parallel processing needed, just copy original data with empty fields
+                for word_data in stt_result.word_confidence:
+                    enhanced_word = dict(word_data)
+                    enhanced_word["transliteration"] = ""
+                    enhanced_word["translation"] = ""
+                    enhanced_word_confidence.append(enhanced_word)
+        else:
+            # No STT result available - use empty enhanced word confidence
+            enhanced_word_confidence = []
+        
+        # Step 5: Calculate pronunciation score based on word confidence
+        pronunciation_score = 0.0
+        if enhanced_word_confidence:
+            confidence_scores = [word["confidence"] for word in enhanced_word_confidence]
+            pronunciation_score = sum(confidence_scores) / len(confidence_scores)
+        
+        print(f"[{datetime.datetime.now()}] INFO: ElevenLabs translation successful. Result: '{translation_result}'")
+        print(f"[{datetime.datetime.now()}] INFO: Pronunciation score: {pronunciation_score:.3f}")
+        
+        # Convert word comparisons to response format
+        word_comparison_data = [
+            WordComparisonData(
+                word=comp.word,
+                confidence=comp.confidence,
+                expected=comp.expected,
+                match_type=comp.match_type,
+                similarity=comp.similarity,
+                start_time=comp.start_time,
+                end_time=comp.end_time
+            )
+            for comp in stt_result.word_comparisons
+        ]
+        
+        return TranscribeTranslateResponse(
+            transcription=stt_result.text,
+            translation=translation_result.get("translated_text", ""),
+            romanization=romanization,
+            word_confidence=enhanced_word_confidence,
+            word_comparisons=word_comparison_data,
+            pronunciation_score=pronunciation_score,
+            expected_text=expected_text or ""
+        )
+        
+    except HTTPException as e:
+        print(f"[{datetime.datetime.now()}] ERROR: /transcribe-and-translate-elevenlabs/ HTTPException: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"[{datetime.datetime.now()}] CRITICAL: /transcribe-and-translate-elevenlabs/ Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in transcribe-and-translate-elevenlabs: {str(e)}")
 
 
 # --- Parallel Transcription Comparison Endpoint (Legacy) ---
