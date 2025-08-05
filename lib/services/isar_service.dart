@@ -17,7 +17,7 @@ class IsarService {
     if (Isar.instanceNames.isEmpty) {
       final dir = await getApplicationDocumentsDirectory();
       _instance.isar = await Isar.open(
-        [PlayerProfileSchema, MasteredPhraseSchema],
+        [PlayerProfileSchema, MasteredPhraseSchema, CustomVocabularyEntrySchema],
         directory: dir.path,
         inspector: true,
       );
@@ -48,5 +48,19 @@ class IsarService {
 
   Future<List<MasteredPhrase>> getAllMasteredPhrases() async {
     return await isar.masteredPhrases.where().findAll();
+  }
+
+  Future<void> saveCustomVocabulary(CustomVocabularyEntry word) async {
+    await isar.writeTxn(() async {
+      await isar.customVocabularyEntrys.put(word);
+    });
+  }
+
+  Future<CustomVocabularyEntry?> getCustomVocabulary(String wordThai) async {
+    return await isar.customVocabularyEntrys.where().wordThaiEqualTo(wordThai).findFirst();
+  }
+
+  Future<List<CustomVocabularyEntry>> getAllCustomVocabulary() async {
+    return await isar.customVocabularyEntrys.where().findAll();
   }
 } 

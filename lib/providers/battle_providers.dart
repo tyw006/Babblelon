@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
+import '../services/player_data_service.dart';
 
 // Battle tracking data class
 class BattleMetrics {
@@ -265,6 +266,33 @@ class BattleTrackingNotifier extends StateNotifier<BattleMetrics?> {
       goldEarned: finalGold,
       newlyMasteredWords: newlyMastered,
     );
+  }
+
+  // Upload battle session data to Supabase
+  Future<void> uploadBattleSession(String bossId) async {
+    if (state == null) return;
+
+    final playerDataService = PlayerDataService();
+    
+    try {
+      await playerDataService.recordBattleSession(
+        bossId: bossId,
+        durationSeconds: state!.battleDuration.inSeconds,
+        avgPronunciationScore: state!.averagePronunciationScore,
+        totalDamage: state!.totalDamageDealt,
+        turnsTaken: state!.actualTurns,
+        grade: state!.overallGrade,
+        wordsUsed: {'words': state!.wordsUsed.toList()},
+        wordScores: state!.wordScores,
+        maxStreak: state!.maxStreak,
+        finalPlayerHealth: state!.finalPlayerHealth,
+        expGained: state!.expGained,
+        goldEarned: state!.goldEarned,
+        newlyMasteredWords: state!.newlyMasteredWords.toList(),
+      );
+    } catch (e) {
+      print('Failed to upload battle session: $e');
+    }
   }
   
   void resetBattle() {

@@ -18,6 +18,7 @@ import '../game/babblelon_game.dart';
 import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
+import '../services/vocabulary_detection_service.dart'; // For custom word detection
 import '../services/isar_service.dart'; // For database operations
 import '../widgets/dialogue_ui.dart';
 import '../widgets/character_tracing_widget.dart';
@@ -646,6 +647,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
         List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
+
+        // ** CUSTOM WORD DETECTION INTEGRATION **
+        await _detectAndProcessCustomWords(responsePayload['input_mapping'] as List? ?? [], widget.npcId);
 
         print("Received Player Transcription: $playerTranscription");
         print("Received NPC Text: $npcText");
@@ -4258,6 +4262,24 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
         });
     });
+  }
+
+  // Custom word detection and processing method
+  Future<void> _detectAndProcessCustomWords(List<dynamic> inputMappings, String npcId) async {
+    try {
+      final vocabularyService = VocabularyDetectionService();
+      final customWords = await vocabularyService.detectCustomWords(inputMappings, npcId);
+      
+      if (customWords.isNotEmpty) {
+        print('Found ${customWords.length} new custom words: ${customWords.map((w) => w.wordThai).join(', ')}');
+        
+        // Optionally show UI feedback for discovered words
+        // This could be a subtle notification or added to conversation history
+        // For now, just log the discovery
+      }
+    } catch (e) {
+      print('Error detecting custom words: $e');
+    }
   }
 }
 
