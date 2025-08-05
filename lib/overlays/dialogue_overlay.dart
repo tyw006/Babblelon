@@ -22,6 +22,9 @@ import '../services/vocabulary_detection_service.dart'; // For custom word detec
 import '../services/isar_service.dart'; // For database operations
 import '../widgets/dialogue_ui.dart';
 import '../widgets/character_tracing_widget.dart';
+import '../widgets/npc_response_modal.dart';
+import 'dialogue_overlay/dialogue_models.dart';
+import '../services/posthog_service.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -39,31 +42,6 @@ enum RecordingState {
 }
 // --- End Recording State Enum ---
 
-// --- POSMapping Model ---
-@immutable
-class POSMapping {
-  final String wordTarget;
-  final String wordTranslit;
-  final String wordEng;
-  final String pos;
-
-  const POSMapping({
-    required this.wordTarget,
-    required this.wordTranslit,
-    required this.wordEng,
-    required this.pos,
-  });
-
-  factory POSMapping.fromJson(Map<String, dynamic> json) {
-    return POSMapping(
-      wordTarget: _sanitizeString(json['word_target'] as String? ?? ''),
-      wordTranslit: _sanitizeString(json['word_translit'] as String? ?? ''),
-      wordEng: _sanitizeString(json['word_eng'] as String? ?? ''),
-      pos: _sanitizeString(json['pos'] as String? ?? ''),
-    );
-  }
-}
-// --- End POSMapping Model ---
 
 // --- POS Color Mapping ---
 final Map<String, Color> posColorMapping = {
@@ -151,11 +129,11 @@ class DialogueEntry {
   static String _generateId() => "${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999)}";
 
   // Factory constructors for convenience
-  factory DialogueEntry.player(String transcribedText, String audioPath, {List<POSMapping>? inputMappings}) {
+  factory DialogueEntry.player(String transcribedText, String audioPath, {List<POSMapping>? inputMappings, String? englishTranslation}) {
     return DialogueEntry(
       // customId will be null, so _generateId() is used by the main constructor
       text: transcribedText, // Player's own transcribed text
-      englishText: transcribedText,
+      englishText: englishTranslation ?? transcribedText,
       speaker: 'Player',
       audioPath: audioPath,
       isNpc: false,
@@ -254,8 +232,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   final ValueNotifier<String> _translationAudioNotifier = ValueNotifier<String>("");
   final ValueNotifier<bool> _translationIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _translationErrorNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> _customItemIsLoadingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String> _translationDialogTitleNotifier = ValueNotifier<String>('Language Tools'); // Default title
   final ValueNotifier<bool> _isTranscribing = ValueNotifier<bool>(false);
+  
+  // Category-based vocabulary selection state
+  String? _selectedCategory;
+  Map<String, dynamic>? _selectedVocabularyItem;
+  Map<String, List<Map<String, dynamic>>> _categorizedItems = {};
+  bool _vocabularyDataLoaded = false;
+  Future<void>? _vocabularyLoadingFuture;
 
   // State for the new practice recording feature
   final AudioRecorder _practiceAudioRecorder = AudioRecorder();
@@ -310,7 +296,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   String _currentlyAnimatingEntryId = "";
   String _displayedTextForAnimation = "";
   int _currentCharIndexForAnimation = 0;
-  final Map<String, String> _fullyAnimatedMainNpcTexts = {}; 
+  final Map<String, String> _fullyAnimatedMainNpcTexts = {};
+
+  // --- Conversation tracking ---
+  late final DateTime _conversationStartTime; 
 
   bool _isProcessingBackend = false;
 
@@ -326,6 +315,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     // Look up the NPC data using the widget's npcId
     _npcData = npcDataMap[widget.npcId]!;
+
+    // Initialize conversation tracking
+    _conversationStartTime = DateTime.now();
+
+    // Track conversation start
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'start',
+      additionalProperties: {
+        'npc_display_name': _npcData?.name ?? 'Unknown',
+      },
+    );
 
     // --- ML Kit Initialization ---
     _initializeMLKit();
@@ -353,7 +354,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
       if (_initialGreetingData == null) {
         print("Error: ${_npcData.name}'s initial greeting data could not be loaded.");
-        final errorEntry = DialogueEntry.npc(text: "Error loading greeting.", englishText: "Error loading greeting.", npcName: _npcData.name);
+        final errorEntry = DialogueEntry.npc(text: "ขออภัยค่า เกิดข้อผิดพลาดในการโหลดข้อมูล", englishText: "Error loading greeting.", npcName: _npcData.name);
         currentNpcDisplayNotifier.state = errorEntry;
         if (history.isEmpty) {
           fullHistoryNotifier.state = [errorEntry];
@@ -368,8 +369,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           text: '',
           englishText: '',
           npcName: _npcData.name,
-          posMappings: [],
+          posMappings: _initialGreetingData!.responseMapping, // Use the actual POS mappings from JSON
         );
+        // Debug: Log POS mappings being set in placeholder
+        print("DEBUG: Created placeholder with ${placeholderForAnimation.posMappings?.length ?? 0} POS mappings");
         // ONLY set the current display entry. Do NOT add the placeholder to the full history yet.
         currentNpcDisplayNotifier.state = placeholderForAnimation;
         
@@ -416,6 +419,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     if (greetingData != null) {
       _initialGreetingData = InitialNPCGreeting.fromJson(greetingData);
+      // Debug: Log POS mappings count from initial dialogue JSON
+      print("DEBUG: Loaded ${_initialGreetingData?.responseMapping?.length ?? 0} POS mappings from initial dialogue JSON for $npcId");
+      if (_initialGreetingData?.responseMapping?.isNotEmpty == true) {
+        print("DEBUG: First POS mapping - word: '${_initialGreetingData!.responseMapping.first.wordTarget}', pos: '${_initialGreetingData!.responseMapping.first.pos}'");
+      }
     } else {
       print("Error: No initial greeting data found for NPC: $npcId");
       _initialGreetingData = null; // Ensure it's null if not found
@@ -434,8 +442,22 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
 
+  /// Calculate conversation duration in seconds
+  int _getConversationDuration() {
+    return DateTime.now().difference(_conversationStartTime).inSeconds;
+  }
+
   @override
   void dispose() {
+    // Track conversation end
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'end',
+      additionalProperties: {
+        'conversation_duration_seconds': _getConversationDuration(),
+      },
+    );
+
     _replayPlayer.stop(); // Stop any playing audio on exit
     _audioRecorder.dispose();
     _animationController?.dispose();
@@ -454,6 +476,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _translationAudioNotifier.dispose();
     _translationIsLoadingNotifier.dispose();
     _translationErrorNotifier.dispose();
+    _customItemIsLoadingNotifier.dispose();
     _translationDialogTitleNotifier.dispose();
     
     // Dispose practice recording state
@@ -485,6 +508,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       return;
     }
 
+    // Track recording start
+    PostHogService.trackAudioInteraction(
+      service: 'recording',
+      event: 'start',
+      additionalProperties: {
+        'npc_name': widget.npcId,
+      },
+    );
+
     // Clean up previous recording if user decides to re-record
     if (_lastRecordingPath != null) {
       final file = File(_lastRecordingPath!);
@@ -507,7 +539,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     ref.read(tempFilePathsProvider.notifier).update((state) => [...state, path]);
 
     try {
-      await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,  // Optimal for STT APIs
+          numChannels: 1,     // Mono
+        ), 
+        path: path
+      );
       print("Recording started at path: $path");
     } catch (e) {
       print("Error starting recording: $e");
@@ -528,6 +567,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       final path = await _audioRecorder.stop();
       if (path != null) {
         print("Recording stopped for review, file at: $path");
+        
+        // Track recording stop
+        PostHogService.trackAudioInteraction(
+          service: 'recording',
+          event: 'stop',
+          success: true,
+          additionalProperties: {
+            'npc_name': widget.npcId,
+            'has_audio_file': true,
+          },
+        );
+
         setState(() {
           _lastRecordingPath = path;
           _recordingState = RecordingState.reviewing;
@@ -535,6 +586,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         });
       } else {
         print("Error: Recording path is null after stopping.");
+        
+        // Track recording failure
+        PostHogService.trackAudioInteraction(
+          service: 'recording',
+          event: 'stop',
+          success: false,
+          error: 'Recording path is null',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         setState(() {
           _recordingState = RecordingState.idle;
           _isRecording = false; // Sync for animation
@@ -542,6 +605,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     } catch (e) {
       print("Error stopping recording: $e");
+      
+      // Track recording error
+      PostHogService.trackAudioInteraction(
+        service: 'recording',
+        event: 'stop',
+        success: false,
+        error: e.toString(),
+        additionalProperties: {
+          'npc_name': widget.npcId,
+        },
+      );
+
       setState(() {
         _recordingState = RecordingState.idle;
         _isRecording = false; // Sync for animation
@@ -568,11 +643,101 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   void _sendApprovedRecording() {
     if (_lastRecordingPath != null) {
-      _sendAudioToBackend(_lastRecordingPath!);
+      // Track recording approval
+      PostHogService.trackAudioInteraction(
+        service: 'recording',
+        event: 'approved',
+        success: true,
+        additionalProperties: {
+          'npc_name': widget.npcId,
+        },
+      );
+
+      // First transcribe the audio to show user response, then send to NPC
+      _transcribeAndSendRecording(_lastRecordingPath!);
       setState(() {
         _recordingState = RecordingState.idle;
         _lastRecordingPath = null;
       });
+    }
+  }
+
+  Future<void> _transcribeAndSendRecording(String audioPath) async {
+    print("Transcribing recorded audio before sending to NPC...");
+    setState(() { _isProcessingBackend = true; });
+
+    final File audioFile = File(audioPath);
+    if (!await audioFile.exists()) {
+      print("Error: Audio file does not exist at path: $audioPath");
+      setState(() { _isProcessingBackend = false; });
+      return;
+    }
+
+    try {
+      // Transcribe audio using the same endpoint as modal
+      var uri = Uri.parse('http://127.0.0.1:8000/transcribe-and-translate/');
+      var request = http.MultipartRequest('POST', uri)
+        ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path))
+        ..fields['source_language'] = 'th'
+        ..fields['target_language'] = 'en';
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        final String transcription = result['transcription'] ?? '';
+        final String translation = result['translation'] ?? '';
+        
+        if (transcription.isNotEmpty) {
+          // Create unique audio file copy for conversation history to prevent audio conflicts
+          String? uniqueDirectAudioPath;
+          try {
+            final tempDir = await getTemporaryDirectory();
+            final entryId = DialogueEntry._generateId();
+            uniqueDirectAudioPath = '${tempDir.path}/player_direct_${entryId}.wav';
+            
+            // Copy the original audio file to the unique conversation-specific path
+            final originalFile = File(audioPath);
+            if (await originalFile.exists()) {
+              await originalFile.copy(uniqueDirectAudioPath);
+              print("Created unique direct audio for history: $uniqueDirectAudioPath");
+              
+              // Add to temp files for cleanup on level exit
+              ref.read(tempFilePathsProvider.notifier).update((state) => [...state, uniqueDirectAudioPath!]);
+            } else {
+              print("Original direct audio file not found: $audioPath");
+              uniqueDirectAudioPath = audioPath; // Fall back to original if copy fails
+            }
+          } catch (e) {
+            print("Error creating unique direct audio file: $e");
+            uniqueDirectAudioPath = audioPath; // Fall back to original if copy fails
+          }
+
+          // Create and display user response entry with unique audio path
+          final userEntry = DialogueEntry.player(transcription, uniqueDirectAudioPath!, englishTranslation: translation.isNotEmpty ? translation : null);
+          
+          // Add to conversation history for display
+          final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
+          fullHistoryNotifier.update((history) => [...history, userEntry]);
+          
+          print("User transcription: '$transcription'");
+          
+          // Now send the transcription to NPC (same as modal flow)
+          // Note: Direct recording flow already created player entry with audio path,
+          // so we don't need to pass it again here
+          _sendTranscriptionToNPC(transcription);
+        } else {
+          print("Empty transcription received");
+          setState(() { _isProcessingBackend = false; });
+        }
+      } else {
+        print("Transcription failed with status: ${response.statusCode}");
+        setState(() { _isProcessingBackend = false; });
+      }
+    } catch (e, stackTrace) {
+      print("Exception during transcription: $e\\n$stackTrace");
+      setState(() { _isProcessingBackend = false; });
     }
   }
   // --- End new functions ---
@@ -581,10 +746,24 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     print("Mic button action triggered. Sending audio to new endpoint.");
     setState(() { _isProcessingBackend = true; });
 
+    final startTime = DateTime.now();
+
     final File audioFileToSend = File(audioPath);
 
     if (!await audioFileToSend.exists()) {
         print("Error: Recorded audio file does not exist at path: $audioPath");
+        
+        // Track STT failure
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: false,
+          error: 'Audio file does not exist',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         setState(() { _isProcessingBackend = false; });
         return;
     }
@@ -615,19 +794,31 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['npc_id'] = _npcData.id
         ..fields['npc_name'] = _npcData.name
         ..fields['charm_level'] = charmLevelForRequest.toString() // Use provider value
-        ..fields['previous_conversation_history'] = previousHistoryPayload;
+        ..fields['previous_conversation_history'] = previousHistoryPayload
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
       
       print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
+        // Track successful STT request
+        final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: true,
+          durationMs: processingTimeMs,
+          additionalProperties: {
+            'npc_name': widget.npcId,
+          },
+        );
+
         Uint8List npcAudioBytes = response.bodyBytes;
         String? npcResponseDataJsonB64 = response.headers['x-npc-response-data'];
 
-        print("--- Frontend Received from Backend ---");
-        print("NPC Audio Bytes Length: ${npcAudioBytes.lengthInBytes}");
-        print("X-NPC-Response-Data (Base64): $npcResponseDataJsonB64");
+            // Backend response received
 
         if (npcResponseDataJsonB64 == null) {
           print("Error: X-NPC-Response-Data header is missing.");
@@ -636,24 +827,31 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
         
         String npcResponseDataJson = utf8.decode(base64Decode(npcResponseDataJsonB64));
-        print("Decoded X-NPC-Response-Data (JSON): $npcResponseDataJson");
-        print("-------------------------------------");
+        
 
         var responsePayload = json.decode(npcResponseDataJson);
         
         String playerTranscription = _sanitizeString(responsePayload['input_target'] ?? "Transcription unavailable");
+        String playerEnglishTranslation = _sanitizeString(responsePayload['input_english'] ?? "");
         String npcText = _sanitizeString(responsePayload['response_target'] ?? '...');
         List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
         List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List? ?? [])
             .map((m) => POSMapping.fromJson(m as Map<String, dynamic>)).toList();
 
-        // ** CUSTOM WORD DETECTION INTEGRATION **
-        await _detectAndProcessCustomWords(responsePayload['input_mapping'] as List? ?? [], widget.npcId);
+        // Track NPC response received
+        PostHogService.trackNPCConversation(
+          npcName: widget.npcId,
+          event: 'response_received',
+          playerMessage: playerTranscription,
+          npcResponse: npcText,
+          additionalProperties: {
+            'player_english': playerEnglishTranslation,
+            'response_has_audio': npcAudioBytes.isNotEmpty,
+          },
+        );
 
-        print("Received Player Transcription: $playerTranscription");
-        print("Received NPC Text: $npcText");
-        print("Received Player Input Mappings: ${playerInputMappings.length} words");
+                  // Processing NPC response data
 
         int charmDelta = 0;
         String charmReason = '';
@@ -671,7 +869,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
             
             charmNotifier.state = newCharm;
-            print("Charm level updated by delta $charmDelta to: ${ref.read(currentCharmLevelProvider(widget.npcId))}");
+            // Charm level updated
         }
 
         // Save NPC audio to a temporary file
@@ -684,8 +882,32 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           print("Error saving NPC audio to temp file: $e");
         }
 
-        // Create entries for full history
-        final playerEntryForHistory = DialogueEntry.player(playerTranscription, audioFileToSend.path, inputMappings: playerInputMappings);
+        // Create unique audio file copy for conversation history to prevent audio conflicts
+        String? uniquePlayerAudioPath;
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final entryId = DialogueEntry._generateId();
+          uniquePlayerAudioPath = '${tempDir.path}/player_history_${entryId}.wav';
+          
+          // Copy the original audio file to the unique conversation-specific path
+          final originalFile = File(audioFileToSend.path);
+          if (await originalFile.exists()) {
+            await originalFile.copy(uniquePlayerAudioPath);
+            print("Created unique player audio for history: $uniquePlayerAudioPath");
+            
+            // Add to temp files for cleanup on level exit
+            ref.read(tempFilePathsProvider.notifier).update((state) => [...state, uniquePlayerAudioPath!]);
+          } else {
+            print("Original audio file not found: ${audioFileToSend.path}");
+            uniquePlayerAudioPath = audioFileToSend.path; // Fall back to original if copy fails
+          }
+        } catch (e) {
+          print("Error creating unique player audio file: $e");
+          uniquePlayerAudioPath = audioFileToSend.path; // Fall back to original if copy fails
+        }
+
+        // Create entries for full history with unique audio path
+        final playerEntryForHistory = DialogueEntry.player(playerTranscription, uniquePlayerAudioPath!, inputMappings: playerInputMappings, englishTranslation: playerEnglishTranslation.isNotEmpty ? playerEnglishTranslation : null);
         
         // Generate a stable ID for the NPC entry BEFORE creating it
         final String npcEntryId = DialogueEntry._generateId();
@@ -706,7 +928,11 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         fullHistoryNotifier.update((history) => [...history, playerEntryForHistory, npcEntryForDisplayAndHistory]);
         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(_historyDialogScrollController));
 
+        // Clear stale text cache entries to ensure fresh display
+        _fullyAnimatedMainNpcTexts.clear();
+        
         // Set current NPC display entry for the main box and start animation
+        print("DEBUG: Setting currentNpcDisplayEntry with full data - ID: ${npcEntryForDisplayAndHistory.id}, hasAudio: ${npcEntryForDisplayAndHistory.audioBytes?.isNotEmpty == true || npcEntryForDisplayAndHistory.audioPath?.isNotEmpty == true}");
         ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntryForDisplayAndHistory;
         _startNpcTextAnimation(
           idForAnimation: npcEntryId, // Pass the pre-generated ID
@@ -720,13 +946,29 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           charmReason: charmReason,
           justReachedMaxCharm: justReachedMaxCharm,
           onAnimationComplete: (finalAnimatedEntry) {
-            // History is already updated. Just update the map for correct display on rebuild.
+            // Update the display provider with the final animated entry
+            ref.read(currentNpcDisplayEntryProvider.notifier).state = finalAnimatedEntry;
+            // Also update the text map for correct display on rebuild
             _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
           }
         );
 
       } else {
         print("Backend processing failed. Status: ${response.statusCode}, Body: ${response.body}");
+        
+        // Track failed STT request
+        final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+        PostHogService.trackAudioInteraction(
+          service: 'stt',
+          event: 'request',
+          success: false,
+          durationMs: processingTimeMs,
+          error: 'HTTP ${response.statusCode}',
+          additionalProperties: {
+            'npc_name': widget.npcId,
+            'status_code': response.statusCode,
+          },
+        );
         
         String errorMessage = "An unexpected error occurred.";
         try {
@@ -767,6 +1009,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       }
     } catch (e, stackTrace) {
       print("Exception in _sendAudioToBackend: $e\\n$stackTrace");
+      
+      // Track exception in STT request
+      final processingTimeMs = DateTime.now().difference(startTime).inMilliseconds;
+      PostHogService.trackAudioInteraction(
+        service: 'stt',
+        event: 'request',
+        success: false,
+        durationMs: processingTimeMs,
+        error: e.toString(),
+        additionalProperties: {
+          'npc_name': widget.npcId,
+          'error_type': 'exception',
+        },
+      );
+
       if (mounted) {
         _showErrorDialog("A client-side error occurred: ${e.toString()}");
       }
@@ -799,6 +1056,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
 
   Future<void> _playDialogueAudio(DialogueEntry entry) async {
+    print("DEBUG: _playDialogueAudio called - Entry ID: ${entry.id}, hasAudioPath: ${entry.audioPath?.isNotEmpty == true}, hasAudioBytes: ${entry.audioBytes?.isNotEmpty == true}");
+    
+    // Check if widget is still mounted before proceeding with audio playback
+    if (!mounted) {
+      print("DEBUG: Widget no longer mounted, skipping audio playback");
+      return;
+    }
+    
     final player = ref.read(dialogueReplayPlayerProvider);
     await player.stop();
 
@@ -828,6 +1093,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     try {
       if (audioPath.startsWith('assets/')) {
         await player.setAsset(audioPath);
+      } else if (audioPath.startsWith('data:') || audioPath.length > 1000) {
+        // Handle base64 audio data
+        String base64Data = audioPath;
+        if (audioPath.startsWith('data:')) {
+          // Extract base64 part from data URL
+          base64Data = audioPath.split(',').last;
+        }
+        
+        try {
+          final audioBytes = base64Decode(base64Data);
+          await player.setAudioSource(_MyCustomStreamAudioSource.fromBytes(audioBytes));
+        } catch (e) {
+          print("Error decoding base64 audio: $e");
+          return;
+        }
       } else {
         await player.setAudioSource(just_audio.AudioSource.uri(Uri.file(audioPath)));
       }
@@ -926,18 +1206,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       npcContentWidget: npcContentWidget,
-      topRightAction: (currentNpcDisplayEntry?.isNpc ?? false) && !isAnimatingThisNpcEntry && (currentNpcDisplayEntry?.audioPath != null || currentNpcDisplayEntry?.audioBytes != null)
-        ? Positioned(
-            top: -7,
-            right: -7, // Adjusted to be next to the history icon
-            child: IconButton(
-              icon: Icon(Icons.volume_up, color: Colors.grey.shade600, size: 27),
-              onPressed: () => _playDialogueAudio(currentNpcDisplayEntry!),
-            ),
-          )
-        : null,
+      topRightAction: null,
       giftIconAnimationController: _giftIconAnimationController,
-      onRequestItem: () => _showRequestItemDialog(context),
+      onRequestItem: () => _showGiveItemDialog(context),
+      onGiftIconTap: () => _showRequestItemDialog(context),
       onResumeGame: () {
         widget.game.overlays.remove('dialogue');
         widget.game.resumeGame(ref);
@@ -947,6 +1219,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       isProcessingBackend: _isProcessingBackend,
       mainDialogueScrollController: _mainDialogueScrollController,
       onShowHistory: () => _showFullConversationHistoryDialog(context),
+      showEnglish: dialogueSettings.showEnglishTranslation,
+      showTransliteration: dialogueSettings.showTransliteration,
+      showWordAnalysis: dialogueSettings.showWordByWordAnalysis,
+      onToggleEnglish: () => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
+      onToggleTransliteration: () => ref.read(dialogueSettingsProvider.notifier).toggleShowTransliteration(),
+      onToggleWordAnalysis: () => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
+      onReplayAudio: (currentNpcDisplayEntry?.isNpc ?? false) && (currentNpcDisplayEntry?.audioPath != null || currentNpcDisplayEntry?.audioBytes != null)
+        ? () => _playDialogueAudio(currentNpcDisplayEntry!)
+        : null,
     );
   }
 
@@ -1015,10 +1296,254 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         return _AnimatedPressWrapper(
           onTap: () {
             ref.playButtonSound();
-            _startRecording();
+            _showRecordingModal();
           },
           child: _buildMicButton(),
         );
+    }
+  }
+
+  // --- Recording Modal ---
+  void _showRecordingModal() async {
+    final dialogueSettings = ref.read(dialogueSettingsProvider);
+    
+    // Get the most recent NPC message for context
+    final currentFullHistory = ref.read(fullConversationHistoryProvider(widget.npcId));
+    String npcMessage = "สวัสดีค่า ฉันช่วยอะไรได้บ้างคะ?";
+    String npcMessageEnglish = "Hi! How can I help you?";
+    
+    String? npcAudioPath;
+    String? npcAudioBytes;
+    List<POSMapping>? npcPosMappings;
+    
+    if (currentFullHistory.isNotEmpty) {
+      // Debug: Log conversation history search
+      print("DEBUG: Searching through ${currentFullHistory.length} entries in conversation history");
+      
+      // Find the most recent NPC message
+      for (int i = currentFullHistory.length - 1; i >= 0; i--) {
+        final entry = currentFullHistory[i];
+        print("DEBUG: Entry $i - isNpc: ${entry.isNpc}, text: '${entry.text.substring(0, math.min(entry.text.length, 30))}...', posMappings: ${entry.posMappings?.length ?? 'null'}");
+        if (entry.isNpc) {
+          npcMessage = entry.text;
+          npcMessageEnglish = entry.englishText.isNotEmpty ? entry.englishText : entry.text;
+          npcAudioPath = entry.audioPath;
+          npcAudioBytes = entry.audioBytes != null ? base64Encode(entry.audioBytes!) : null;
+          npcPosMappings = entry.posMappings;
+          // Debug: Log POS mappings retrieval from conversation history
+          print("DEBUG: Retrieved ${npcPosMappings?.length ?? 0} POS mappings from conversation history for modal");
+          print("DEBUG: Using NPC message: '${npcMessage.substring(0, math.min(npcMessage.length, 50))}...'");
+          break;
+        }
+      }
+    } else {
+      print("DEBUG: No conversation history found, using fallback message");
+      // If no conversation history but we have initial greeting data, use that instead of fallback
+      if (_initialGreetingData != null) {
+        npcMessage = _initialGreetingData!.responseTarget;
+        npcMessageEnglish = _initialGreetingData!.responseEnglish;
+        npcPosMappings = _initialGreetingData!.responseMapping;
+        // Try to find the audio path/bytes (may not be available immediately)
+        npcAudioPath = _initialGreetingData!.responseAudioPath;
+        print("DEBUG: Using initial greeting data - message: '${npcMessage.substring(0, math.min(npcMessage.length, 50))}...', posMappings: ${npcPosMappings?.length ?? 'null'}");
+      } else {
+        print("DEBUG: No initial greeting data available either, using fallback");
+      }
+      print("DEBUG: Final fallback - npcMessage: '$npcMessage', npcPosMappings: ${npcPosMappings?.length ?? 'null'}");
+    }
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return NPCResponseModal(
+          npcData: _npcData,
+          npcMessage: npcMessage,
+          npcMessageEnglish: npcMessageEnglish,
+          showEnglish: dialogueSettings.showEnglishTranslation,
+          showTransliteration: dialogueSettings.showTransliteration,
+          onSendResponse: (String transcription, String? audioPath) {
+            Navigator.of(context).pop(); // Close the modal
+            _handleModalResponse(transcription, audioPath);
+          },
+          onClose: () {
+            Navigator.of(context).pop(); // Close the modal
+          },
+          npcAudioPath: npcAudioPath,
+          npcAudioBytes: npcAudioBytes,
+          npcPosMappings: npcPosMappings,
+        );
+      },
+    );
+  }
+
+  void _handleModalResponse(String transcription, String? audioPath) {
+    // Send the approved transcription through the existing NPC flow
+    _sendTranscriptionToNPC(transcription, audioPath);
+  }
+
+  void _sendTranscriptionToNPC(String transcription, [String? audioPath]) async {
+    print("Sending approved transcription to NPC: $transcription");
+    
+    // Check if widget is still mounted before proceeding
+    if (!mounted) {
+      print("Widget disposed, cancelling _sendTranscriptionToNPC");
+      return;
+    }
+    
+    setState(() { _isProcessingBackend = true; });
+
+    try {
+      // Construct conversation history for the backend (same as existing flow)
+      final currentFullHistory = ref.read(fullConversationHistoryProvider(widget.npcId));
+      List<String> historyLinesForBackend = [];
+      
+      for (var entry in currentFullHistory) {
+        if (entry.isNpc) {
+          historyLinesForBackend.add("NPC: ${entry.text}");
+        } else {
+          // Use the stored transcription for player entries
+          String playerContent = entry.playerTranscriptionForHistory ?? entry.text;
+          historyLinesForBackend.add("Player: $playerContent");
+        }
+      }
+
+      String previousHistoryPayload = historyLinesForBackend.join('\n');
+      print("Sending history to backend: $previousHistoryPayload");
+
+      // Get current charm level
+      final int currentCharmLevel = ref.read(currentCharmLevelProvider(widget.npcId));
+      int charmLevelForRequest = math.max(0, math.min(100, currentCharmLevel));
+
+      // Send custom message to backend (adapted from existing pattern)
+      var uri = Uri.parse('http://127.0.0.1:8000/generate-npc-response/');
+      var request = http.MultipartRequest('POST', uri)
+        ..fields['npc_id'] = _npcData.id
+        ..fields['npc_name'] = _npcData.name
+        ..fields['charm_level'] = charmLevelForRequest.toString()
+        ..fields['previous_conversation_history'] = previousHistoryPayload
+        ..fields['custom_message'] = transcription // Send transcription as custom message
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+
+      print('Sending request to backend: ${uri.toString()}');
+      var response = await request.send();
+      
+      if (response.statusCode == 200) {
+        print('Backend request succeeded with status: ${response.statusCode}');
+        
+        // Read the response body (audio bytes)
+        var responseBytes = await response.stream.toBytes();
+        
+        // Extract NPC response metadata from headers
+        var npcResponseDataHeader = response.headers['x-npc-response-data'];
+        if (npcResponseDataHeader == null) {
+          throw Exception('Missing NPC response data in headers');
+        }
+        
+        var npcResponseDataJson = utf8.decode(base64.decode(npcResponseDataHeader));
+        var responsePayload = json.decode(npcResponseDataJson);
+        
+        String playerTranscription = responsePayload['input_target'] ?? transcription;
+        String playerEnglishTranslation = responsePayload['input_english'] ?? '';
+        String npcText = responsePayload['response_target'] ?? 'Sorry, I did not understand.';
+        String englishTranslation = responsePayload['response_english'] ?? '';
+        
+        List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List<dynamic>?)
+          ?.map((mapping) => POSMapping.fromJson(mapping))
+          .toList() ?? [];
+        
+        List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List<dynamic>?)
+          ?.map((mapping) => POSMapping.fromJson(mapping))
+          .toList() ?? [];
+        
+        int charmDelta = responsePayload['charm_delta'] ?? 0;
+        String charmReason = responsePayload['charm_reason'] ?? '';
+
+        // Update charm level
+        if (charmDelta != 0 && mounted) {
+          ref.read(currentCharmLevelProvider(widget.npcId).notifier).update((current) => 
+            math.max(0, math.min(100, current + charmDelta))
+          );
+        }
+
+        // Create dialogue entries
+        final String playerId = DateTime.now().millisecondsSinceEpoch.toString() + '_player';
+        final String npcId = DateTime.now().millisecondsSinceEpoch.toString() + '_npc';
+
+        final playerEntry = DialogueEntry(
+          customId: playerId,
+          text: playerTranscription,
+          englishText: playerEnglishTranslation,
+          speaker: 'Player',
+          audioPath: audioPath, // Use the provided audio path from final recording
+          audioBytes: null,
+          isNpc: false,
+          posMappings: playerInputMappings,
+          playerTranscriptionForHistory: playerTranscription,
+        );
+
+        final npcEntry = DialogueEntry(
+          customId: npcId,
+          text: npcText,
+          englishText: englishTranslation,
+          speaker: _npcData.name,
+          audioPath: null,
+          audioBytes: responseBytes,
+          isNpc: true,
+          posMappings: npcPosMappings,
+          playerTranscriptionForHistory: null,
+        );
+
+        // Update conversation history
+        if (mounted) {
+          final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
+          fullHistoryNotifier.update((history) => [...history, playerEntry, npcEntry]);
+        }
+
+        // Clear stale text cache entries to ensure fresh display
+        _fullyAnimatedMainNpcTexts.clear();
+        
+        // Set current NPC display entry for the main box and start animation
+        print("DEBUG: Setting currentNpcDisplayEntry with full data - ID: ${npcEntry.id}, hasAudio: ${npcEntry.audioBytes?.isNotEmpty == true || npcEntry.audioPath?.isNotEmpty == true}");
+        ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntry;
+        _startNpcTextAnimation(
+          idForAnimation: npcId, // Use the generated ID
+          speakerName: _npcData.name, // Pass speaker name
+          fullText: npcText,
+          englishText: englishTranslation,
+          audioPathToPlayWhenDone: null, // No path since we have bytes
+          audioBytesToPlayWhenDone: responseBytes, // Pass audio bytes
+          posMappings: npcPosMappings,
+          charmDelta: charmDelta,
+          charmReason: charmReason,
+          justReachedMaxCharm: charmDelta > 0 && (ref.read(currentCharmLevelProvider(widget.npcId)) == 100),
+          onAnimationComplete: (finalAnimatedEntry) {
+            // Update the display provider with the final animated entry
+            ref.read(currentNpcDisplayEntryProvider.notifier).state = finalAnimatedEntry;
+            // Also update the text map for correct display on rebuild
+            _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
+          }
+        );
+
+        print("NPC response successfully processed and added to conversation");
+
+      } else {
+        String responseBody = await response.stream.bytesToString();
+        throw Exception('Backend returned ${response.statusCode}: $responseBody');
+      }
+      
+    } catch (e, stackTrace) {
+      print("Exception in _sendTranscriptionToNPC: $e\n$stackTrace");
+      if (mounted) {
+        _showErrorDialog("A client-side error occurred: ${e.toString()}");
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isProcessingBackend = false; });
+      }
     }
   }
 
@@ -1177,6 +1702,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
+          backgroundColor: Colors.grey[100], // Lighter background for better text readability
           title: const Text('Full Conversation History'),
           contentPadding: EdgeInsets.all(10), // Adjust padding
           content: Container(
@@ -1239,7 +1765,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     }
                   } else {
                     // Player's transcribed text
-                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
+                    bool isItemGivingAction = entry.text.startsWith('User gives ') && entry.text.contains(' to ');
+                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory && !isItemGivingAction) {
                       // Player with word analysis
                       List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
                         List<Widget> wordParts = [
@@ -1322,6 +1849,42 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
   
+  // --- Simple Give Item Dialog ---
+  Future<void> _showGiveItemDialog(BuildContext context, {String targetLanguage = "th"}) async {
+    // Reset giving item state when dialog opens
+    setState(() {
+      _selectedCategory = null;
+      _selectedVocabularyItem = null;
+      _categorizedItems.clear();
+      _vocabularyDataLoaded = false;
+      _vocabularyLoadingFuture = _loadAndCategorizeVocabulary();
+    });
+    print("DEBUG: Reset giving item state for direct dialog");
+    
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Give Item'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 500,
+            child: _buildItemGivingTab(dialogContext, targetLanguage),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // --- New Dialog for English to Target Language Translation Input ---
   Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th", int initialTabIndex = 0}) async {
     // Reset state when opening the dialog
@@ -1331,6 +1894,16 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     _translationErrorNotifier.value = null;
     _practiceRecordingState.value = RecordingState.idle;
     _lastPracticeRecordingPath.value = null;
+    
+    // Reset giving item state as well since this dialog includes the giving item tab
+    setState(() {
+      _selectedCategory = null;
+      _selectedVocabularyItem = null;
+      _categorizedItems.clear();
+      _vocabularyDataLoaded = false;
+      _vocabularyLoadingFuture = _loadAndCategorizeVocabulary();
+    });
+    print("DEBUG: Reset giving item state for translation dialog");
 
     // Set initial title when dialog is opened.
     _translationDialogTitleNotifier.value = 'Language Tools';
@@ -1616,44 +2189,137 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             ),
           ),
         ),
-        // NPC Vocabulary Dropdown
+        // Category-based NPC Vocabulary Selection
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _fetchNPCVocabulary(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              }
-              
-              final items = snapshot.data ?? [];
-              if (items.isEmpty) {
-                return const Text('No vocabulary items found.');
-              }
-              
-              return DropdownButtonFormField<Map<String, dynamic>>(
-                decoration: const InputDecoration(
-                  labelText: 'Select...',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                isExpanded: true,
-                items: items.map((item) {
-                  return DropdownMenuItem<Map<String, dynamic>>(
-                    value: item,
-                    child: Text(
-                      '${item['thai'] ?? item['target'] ?? ''} - ${item['english']}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (selectedItem) {
-                  if (selectedItem != null) {
-                    _handleWordSelection(selectedItem, dialogContext, targetLanguage);
+          child: Column(
+            children: [
+              // Loading/Error State Handler
+              FutureBuilder<void>(
+                future: _vocabularyLoadingFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 8),
+                        Text('Loading vocabulary...'),
+                      ],
+                    );
                   }
+                  
+                  if (snapshot.hasError) {
+                    print("DEBUG: Error loading vocabulary: ${snapshot.error}");
+                    return Column(
+                      children: [
+                        const Icon(Icons.error, color: Colors.red),
+                        const SizedBox(height: 8),
+                        Text('Failed to load vocabulary: ${snapshot.error}'),
+                      ],
+                    );
+                  }
+                  
+                  if (_categorizedItems.isEmpty) {
+                    return const Text('No vocabulary items found.');
+                  }
+                  
+                  // Data loaded successfully, return empty widget since UI is handled below
+                  return const SizedBox.shrink();
                 },
-              );
-            },
+              ),
+              
+              // StatefulBuilder Pattern - Guaranteed Local Rebuilds
+              StatefulBuilder(
+                builder: (context, localSetState) {
+                  print("DEBUG: StatefulBuilder rebuilding - Selected category: $_selectedCategory");
+                  print("DEBUG: StatefulBuilder - Vocabulary loaded: $_vocabularyDataLoaded, Items count: ${_categorizedItems.length}");
+                  
+                  return Column(
+                    children: [
+                      // Category Dropdown - Inline with localSetState
+                      if (_vocabularyDataLoaded && _categorizedItems.isNotEmpty) ...[
+                        () {
+                          final categories = _categorizedItems.keys.toList()..sort();
+                          print("DEBUG: Building category dropdown - Categories: $categories, Selected: $_selectedCategory");
+                          
+                          return DropdownButtonFormField<String>(
+                            key: ValueKey('category_dropdown_${_categorizedItems.length}'),
+                            decoration: const InputDecoration(
+                              labelText: 'Select Category...',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            isExpanded: true,
+                            value: _selectedCategory,
+                            items: categories.map((category) {
+                              return DropdownMenuItem<String>(
+                                value: category,
+                                child: Text(
+                                  category,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (selectedCategory) {
+                              print("DEBUG: Category selected: $selectedCategory");
+                              localSetState(() {
+                                _selectedCategory = selectedCategory;
+                                _selectedVocabularyItem = null; // Reset item selection when category changes
+                              });
+                              print("DEBUG: Local state updated, triggering StatefulBuilder rebuild");
+                              print("DEBUG: New state - Selected: $_selectedCategory, Available items: ${_categorizedItems[selectedCategory]?.length ?? 0}");
+                            },
+                          );
+                        }(),
+                      ],
+                      
+                      // Vocabulary Dropdown - Conditional inline with guaranteed rebuild
+                      if (_vocabularyDataLoaded && _categorizedItems.isNotEmpty && _selectedCategory != null) ...[
+                        () {
+                          final itemCount = _categorizedItems[_selectedCategory!]?.length ?? 0;
+                          print("DEBUG: Building vocabulary dropdown for category: $_selectedCategory with $itemCount items");
+                          print("DEBUG: Vocabulary dropdown key: vocab_$_selectedCategory");
+                          
+                          return Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<Map<String, dynamic>>(
+                                key: ValueKey('vocab_$_selectedCategory'),
+                                decoration: const InputDecoration(
+                                  labelText: 'Select Item...',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                isExpanded: true,
+                                value: _selectedVocabularyItem,
+                                items: (_categorizedItems[_selectedCategory!] ?? []).map((item) {
+                                  return DropdownMenuItem<Map<String, dynamic>>(
+                                    value: item,
+                                    child: Text(
+                                      '${item['thai'] ?? item['target'] ?? ''} - ${item['english']}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (selectedItem) {
+                                  print("DEBUG: Vocabulary item selected: ${selectedItem?['english']}");
+                                  localSetState(() {
+                                    _selectedVocabularyItem = selectedItem;
+                                  });
+                                  if (selectedItem != null) {
+                                    _handleWordSelection(selectedItem, dialogContext, targetLanguage);
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        }(),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -1701,13 +2367,33 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Enter English word...',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.language),
-                    onPressed: () => _translateCustomItem(targetLanguage),
+                  suffixIcon: ValueListenableBuilder<bool>(
+                    valueListenable: _customItemIsLoadingNotifier,
+                    builder: (context, isLoading, child) {
+                      return IconButton(
+                        icon: isLoading 
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            )
+                          : Icon(Icons.language),
+                        onPressed: isLoading ? null : () => _translateCustomItem(targetLanguage),
+                      );
+                    },
                   ),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                onSubmitted: (_) => _translateCustomItem(targetLanguage),
+                onSubmitted: (value) {
+                  if (!_customItemIsLoadingNotifier.value) {
+                    _translateCustomItem(targetLanguage);
+                  }
+                },
               ),
             ],
           ),
@@ -1718,39 +2404,52 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             child: ValueListenableBuilder<Map<String, dynamic>?>(
               valueListenable: _customItemDataNotifier,
               builder: (context, itemData, child) {
-                if (itemData == null) {
-                  return Center(
-                    child: Text(
-                      'Enter a word above to see translation',
-                      style: TextStyle(color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
-                
-                return SingleChildScrollView(
-                  child: Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Translation:',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                return ValueListenableBuilder<bool>(
+                  valueListenable: _customItemIsLoadingNotifier,
+                  builder: (context, isLoading, child) {
+                    if (isLoading && itemData == null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Processing your word...',
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
+                          ],
+                        ),
+                      );
+                    }
+                    if (itemData == null) {
+                      return Center(
+                        child: Text(
+                          'Enter a word above to see translation',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    
+                    return SingleChildScrollView(
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Translation:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: Text(
                                   itemData['target'] ?? itemData['thai'] ?? '',
                                   style: TextStyle(
                                     fontSize: 32,
@@ -1758,71 +2457,52 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                // Audio icon if audio_path is present
-                                if (itemData['audio_path'] != null && itemData['audio_path'].toString().isNotEmpty) ...[
-                                  const SizedBox(width: 12),
-                                  GestureDetector(
-                                    onTap: () => _playVocabularyAudio(itemData['audio_path']),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.teal.shade100,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Icon(
-                                        Icons.volume_up,
-                                        color: Colors.teal.shade700,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  itemData['english'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                Text(
-                                  itemData['romanized'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          // Only show Trace Character button for custom translations
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
-                              icon: Icon(Icons.edit, size: 18),
-                              label: Text('Trace Character', style: TextStyle(fontSize: 14)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4ECCA3),
-                                foregroundColor: Colors.black,
-                                padding: EdgeInsets.symmetric(vertical: 12),
                               ),
-                            ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      itemData['english'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    Text(
+                                      itemData['transliteration'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              // Only show Trace Character button for custom translations
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _startCharacterTracing(itemData, dialogContext, targetLanguage),
+                                  icon: Icon(Icons.edit, size: 18),
+                                  label: Text('Trace Character', style: TextStyle(fontSize: 14)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4ECCA3),
+                                    foregroundColor: Colors.black,
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -2229,9 +2909,144 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
 
+  Future<void> _loadAndCategorizeVocabulary() async {
+    if (_vocabularyDataLoaded) {
+      print("DEBUG: Vocabulary data already loaded, skipping");
+      return;
+    }
+
+    try {
+      print("DEBUG: Loading and categorizing vocabulary data");
+      final items = await _fetchNPCVocabulary();
+      
+      if (items.isEmpty) {
+        print("DEBUG: No vocabulary items found");
+        return;
+      }
+
+      // Group items by category and store in class variable
+      _categorizedItems.clear();
+      for (final item in items) {
+        final category = item['category'] ?? 'Uncategorized';
+        _categorizedItems.putIfAbsent(category, () => []).add(item);
+      }
+      
+      _vocabularyDataLoaded = true;
+      print("DEBUG: Vocabulary categorized into ${_categorizedItems.keys.length} categories: ${_categorizedItems.keys.toList()}");
+      
+      // Trigger rebuild to show categories
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (error) {
+      print("ERROR: Failed to load and categorize vocabulary: $error");
+      // Reset state on error
+      _vocabularyDataLoaded = false;
+      _categorizedItems.clear();
+      rethrow; // Let FutureBuilder handle the error display
+    }
+  }
+
+  /// Builds the category dropdown widget
+  Widget _buildCategoryDropdown() {
+    print("DEBUG: Building category dropdown (method called)");
+    
+    if (!_vocabularyDataLoaded || _categorizedItems.isEmpty) {
+      print("DEBUG: Category dropdown not ready - vocabularyLoaded: $_vocabularyDataLoaded, items: ${_categorizedItems.length}");
+      return const SizedBox.shrink();
+    }
+
+    final categories = _categorizedItems.keys.toList()..sort();
+    print("DEBUG: Category dropdown ready - Categories: $categories, Selected: $_selectedCategory");
+    
+    return DropdownButtonFormField<String>(
+      key: ValueKey('category_dropdown_${_categorizedItems.length}'),
+      decoration: const InputDecoration(
+        labelText: 'Select Category...',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      isExpanded: true,
+      value: _selectedCategory,
+      items: categories.map((category) {
+        return DropdownMenuItem<String>(
+          value: category,
+          child: Text(
+            category,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: (selectedCategory) {
+        print("DEBUG: Category selected: $selectedCategory");
+        setState(() {
+          _selectedCategory = selectedCategory;
+          _selectedVocabularyItem = null; // Reset item selection when category changes
+        });
+        print("DEBUG: State updated. Selected category: $_selectedCategory, Available items: ${_categorizedItems[selectedCategory]?.length ?? 0}");
+      },
+    );
+  }
+
+  /// Builds the vocabulary dropdown widget
+  Widget _buildVocabularyDropdown(BuildContext dialogContext, String targetLanguage) {
+    print("DEBUG: Building vocabulary dropdown (method called) - Selected category: $_selectedCategory");
+    
+    if (_selectedCategory == null) {
+      print("DEBUG: No category selected, returning empty widget");
+      return const SizedBox.shrink();
+    }
+    
+    final itemCount = _categorizedItems[_selectedCategory!]?.length ?? 0;
+    print("DEBUG: Vocabulary dropdown for category: $_selectedCategory with $itemCount items");
+    
+    if (itemCount == 0) {
+      print("DEBUG: No vocabulary items found for category: $_selectedCategory");
+      return const SizedBox.shrink();
+    }
+    
+    print("DEBUG: Creating vocabulary dropdown widget");
+    
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        DropdownButtonFormField<Map<String, dynamic>>(
+          key: ValueKey('vocab_dropdown_$_selectedCategory'),
+          decoration: const InputDecoration(
+            labelText: 'Select Item...',
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          isExpanded: true,
+          value: _selectedVocabularyItem,
+          items: (_categorizedItems[_selectedCategory!] ?? []).map((item) {
+            return DropdownMenuItem<Map<String, dynamic>>(
+              value: item,
+              child: Text(
+                '${item['thai'] ?? item['target'] ?? ''} - ${item['english']}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (selectedItem) {
+            print("DEBUG: Vocabulary item selected: ${selectedItem?['english']}");
+            setState(() {
+              _selectedVocabularyItem = selectedItem;
+            });
+            if (selectedItem != null) {
+              _handleWordSelection(selectedItem, dialogContext, targetLanguage);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
   Future<void> _translateCustomItem(String targetLanguage) async {
     final String englishText = _customItemController.text.trim();
     if (englishText.isEmpty) return;
+
+    _customItemIsLoadingNotifier.value = true;
 
     try {
       final response = await http.post(
@@ -2246,34 +3061,70 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Transform word_mappings from backend format to app format
+        // Transform word_mappings from backend format to app format, handling compound words
         List<Map<String, dynamic>> transformedMappings = [];
         if (data['word_mappings'] != null) {
-          transformedMappings = (data['word_mappings'] as List).map<Map<String, dynamic>>((mapping) => {
-            'target': mapping['target'] ?? '',
-            'transliteration': mapping['romanized'] ?? '',
-            'translation': mapping['english'] ?? '',
-          }).toList();
+          for (var mapping in data['word_mappings'] as List) {
+            final isCompound = mapping['is_compound'] == true;
+            final wordTranslation = mapping['translation'] as String? ?? '';
+            
+            if (mapping['syllable_mappings'] != null && (mapping['syllable_mappings'] as List).isNotEmpty) {
+              for (var syl in mapping['syllable_mappings']) {
+                String syllableTranslation;
+                
+                if (isCompound) {
+                  // For compound words, show contextual translation like "(part of Korea)"
+                  syllableTranslation = '(part of $wordTranslation)';
+                } else {
+                  // For non-compound words, show individual syllable translation
+                  syllableTranslation = syl['translation'] as String? ?? '';
+                }
+                
+                transformedMappings.add({
+                  'target': syl['syllable'] ?? '',
+                  'transliteration': syl['romanization'] ?? '',
+                  'translation': syllableTranslation,
+                  'is_compound': isCompound,
+                  'word_translation': wordTranslation, // Keep the full word translation for reference
+                });
+              }
+            } else {
+              transformedMappings.add({
+                'target': mapping['target'] ?? '',
+                'transliteration': mapping['romanized'] ?? '',
+                'translation': wordTranslation,
+                'is_compound': isCompound,
+                'word_translation': wordTranslation,
+              });
+            }
+          }
         }
         
         // Format the data for item giving and character tracing
-        final Map<String, dynamic> itemData = {
-          'english': englishText,
-          'thai': data['target_text'] ?? '', // Keep for backward compatibility
-          'target': data['target_text'] ?? '', // Add target field for app logic
-          'target_language': targetLanguage,
-          'romanized': data['romanized_text'] ?? '',
-          'transliteration': data['romanized_text'] ?? '',
+        print('DEBUG: API response structure: ${data.keys.toList()}');
+        print('DEBUG: target_text: ${data['target_text']}');
+        print('DEBUG: romanized_text: ${data['romanized_text']}');
+        
+        _customItemDataNotifier.value = {
+          'target': data['target_text'] ?? '',            // Fixed: was 'translated_text'
+          'thai': data['target_text'] ?? '',              // Fixed: was 'translated_text'
+          'transliteration': data['romanized_text'] ?? '', // Fixed: was 'transliteration'
           'translation': englishText,
-          'word_mapping': transformedMappings,
+          'english': englishText,
+          'audio_path': data['audio_base64'] ?? '', // This will be base64 data for custom items
+          'target_language': targetLanguage,
+          'syllable_mapping': transformedMappings,
+          'word_mapping': transformedMappings, // Use same data for both
         };
         
-        _customItemDataNotifier.value = itemData;
+        print('Custom item processed: ${_customItemDataNotifier.value}');
       } else {
-        print("Translation error: ${response.statusCode}");
+        print('Translation failed: ${response.statusCode}');
       }
     } catch (e) {
-      print("Error translating custom item: $e");
+      print('Translation error: $e');
+    } finally {
+      _customItemIsLoadingNotifier.value = false;
     }
   }
 
@@ -2971,13 +3822,225 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   }
 
   Future<void> _submitTracing(Map<String, dynamic> itemData, String targetLanguage) async {
-    // First ensure Thai model is downloaded
-    if (!_isModelDownloaded) {
-      await _downloadThaiModel();
+    print("Starting item submission process for traced item: ${itemData['english']}");
+    
+    // Check if widget is still mounted before proceeding
+    if (!mounted) {
+      print("Widget disposed, cancelling _submitTracing");
+      return;
     }
     
-    // Process the traced character with ML Kit Digital Ink Recognition
-    await _recognizeCharacter();
+    try {
+      // First ensure Thai model is downloaded
+      if (!_isModelDownloaded) {
+        await _downloadThaiModel();
+      }
+      
+      // Process the traced character with ML Kit Digital Ink Recognition
+      await _recognizeCharacter();
+      
+      // Now send the completed item to backend via GIVE_ITEM pipeline
+      // Start both dialog closure and backend processing concurrently for minimal latency
+      _sendItemToBackendConcurrent(itemData, targetLanguage);
+    } catch (e) {
+      print("Error during tracing submission: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit item: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _sendItemToBackend(Map<String, dynamic> itemData, String targetLanguage) async {
+    print("Sending completed item to backend: ${itemData['english']}");
+    
+    // Check if widget is still mounted before proceeding
+    if (!mounted) {
+      print("Widget disposed, cancelling _sendItemToBackend");
+      return;
+    }
+    
+    setState(() { _isProcessingBackend = true; });
+
+    try {
+      // Construct conversation history for the backend
+      final currentFullHistory = ref.read(fullConversationHistoryProvider(widget.npcId));
+      List<String> historyLinesForBackend = [];
+      
+      for (var entry in currentFullHistory) {
+        if (entry.isNpc) {
+          historyLinesForBackend.add("NPC: ${entry.text}");
+        } else {
+          String playerContent = entry.playerTranscriptionForHistory ?? entry.text;
+          historyLinesForBackend.add("Player: $playerContent");
+        }
+      }
+
+      String previousHistoryPayload = historyLinesForBackend.join('\n');
+      
+      // Get current charm level
+      final int currentCharmLevel = ref.read(currentCharmLevelProvider(widget.npcId));
+      int charmLevelForRequest = math.max(0, math.min(100, currentCharmLevel));
+
+      // Prepare GIVE_ITEM request data
+      final String itemName = itemData['english'] ?? 'Unknown Item';
+      final String thaiName = itemData['thai'] ?? itemData['target'] ?? '';
+      
+      // Send GIVE_ITEM request to backend
+      var uri = Uri.parse('http://127.0.0.1:8000/generate-npc-response/');
+      var request = http.MultipartRequest('POST', uri)
+        ..fields['npc_id'] = _npcData.id
+        ..fields['npc_name'] = _npcData.name
+        ..fields['charm_level'] = charmLevelForRequest.toString()
+        ..fields['previous_conversation_history'] = previousHistoryPayload
+        ..fields['action_type'] = 'GIVE_ITEM'
+        ..fields['action_item'] = thaiName  // Send Thai text only
+        ..fields['custom_message'] = 'User gives $itemName to ${_npcData.name}'  // Proper format for conversation history
+        ..fields['quest_state_json'] = '{}' // TODO: Implement quest state tracking
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+
+      print('Sending GIVE_ITEM request to backend for item: $thaiName ($itemName)');
+      var response = await request.send();
+      
+      if (response.statusCode == 200) {
+        print('GIVE_ITEM request succeeded with status: ${response.statusCode}');
+        
+        // Read the response body (audio bytes)
+        var responseBytes = await response.stream.toBytes();
+        
+        // Extract NPC response metadata from headers
+        var npcResponseDataHeader = response.headers['x-npc-response-data'];
+        if (npcResponseDataHeader == null) {
+          throw Exception('Missing NPC response data in headers');
+        }
+        
+        var npcResponseDataJson = utf8.decode(base64.decode(npcResponseDataHeader));
+        var responsePayload = json.decode(npcResponseDataJson);
+        
+        String playerMessage = 'User gives $itemName to ${_npcData.name}'; // Use English message instead of Thai input_target
+        String npcText = responsePayload['response_target'] ?? 'Thank you for the item!';
+        String englishTranslation = responsePayload['response_english'] ?? '';
+        
+        List<POSMapping> npcPosMappings = (responsePayload['response_mapping'] as List<dynamic>?)
+          ?.map((mapping) => POSMapping.fromJson(mapping))
+          .toList() ?? [];
+        
+        List<POSMapping> playerInputMappings = (responsePayload['input_mapping'] as List<dynamic>?)
+          ?.map((mapping) => POSMapping.fromJson(mapping))
+          .toList() ?? [];
+        
+        int charmDelta = responsePayload['charm_delta'] ?? 0;
+        String charmReason = responsePayload['charm_reason'] ?? '';
+
+        // Update charm level
+        if (charmDelta != 0 && mounted) {
+          ref.read(currentCharmLevelProvider(widget.npcId).notifier).update((current) => 
+            math.max(0, math.min(100, current + charmDelta))
+          );
+        }
+
+        // Create dialogue entries
+        final String playerId = DateTime.now().millisecondsSinceEpoch.toString() + '_player';
+        final String npcId = DateTime.now().millisecondsSinceEpoch.toString() + '_npc';
+
+        final playerEntry = DialogueEntry(
+          customId: playerId,
+          text: 'User gives $itemName to ${_npcData.name}',
+          englishText: '',
+          speaker: 'Player',
+          audioPath: null, // No audio for item giving
+          audioBytes: null,
+          isNpc: false,
+          posMappings: playerInputMappings,
+          playerTranscriptionForHistory: playerMessage,
+        );
+
+        final npcEntry = DialogueEntry(
+          customId: npcId,
+          text: npcText,
+          englishText: englishTranslation,
+          speaker: _npcData.name,
+          audioPath: null,
+          audioBytes: responseBytes,
+          isNpc: true,
+          posMappings: npcPosMappings,
+          playerTranscriptionForHistory: null,
+        );
+
+        // Add entries to conversation history
+        final fullHistoryNotifier = ref.read(fullConversationHistoryProvider(widget.npcId).notifier);
+        fullHistoryNotifier.update((history) => [...history, playerEntry, npcEntry]);
+
+        print("GIVE_ITEM response successfully processed and added to conversation");
+        
+        // Clear stale text cache entries to ensure fresh display
+        _fullyAnimatedMainNpcTexts.clear();
+        
+        // Set current NPC display entry for the main box and start animation
+        print("DEBUG: Setting currentNpcDisplayEntry for GIVE_ITEM - ID: ${npcEntry.id}, hasAudio: ${npcEntry.audioBytes?.isNotEmpty == true}");
+        ref.read(currentNpcDisplayEntryProvider.notifier).state = npcEntry;
+        _startNpcTextAnimation(
+          idForAnimation: npcId, // Pass the pre-generated ID
+          speakerName: _npcData.name, // Pass speaker name
+          fullText: npcText,
+          englishText: englishTranslation,
+          audioPathToPlayWhenDone: null, // No temp audio path for GIVE_ITEM
+          audioBytesToPlayWhenDone: responseBytes, // Pass audio bytes
+          posMappings: npcPosMappings,
+          charmDelta: charmDelta, // Use actual backend charm data
+          charmReason: charmReason, // Use actual backend charm reason
+          justReachedMaxCharm: ref.read(currentCharmLevelProvider(widget.npcId)) >= 100,
+          onAnimationComplete: (finalAnimatedEntry) {
+            // Update the display provider with the final animated entry
+            ref.read(currentNpcDisplayEntryProvider.notifier).state = finalAnimatedEntry;
+            // Also update the text map for correct display on rebuild
+            _fullyAnimatedMainNpcTexts[finalAnimatedEntry.id] = finalAnimatedEntry.text;
+          }
+        );
+        
+        // Note: Dialog closure is handled concurrently by _sendItemToBackendConcurrent
+
+      } else {
+        String responseBody = await response.stream.bytesToString();
+        throw Exception('Backend returned ${response.statusCode}: $responseBody');
+      }
+      
+    } catch (e, stackTrace) {
+      print("Exception in _sendItemToBackend: $e\n$stackTrace");
+      if (mounted) {
+        _showErrorDialog("Failed to send item to NPC: ${e.toString()}");
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isProcessingBackend = false; });
+      }
+    }
+  }
+
+  void _sendItemToBackendConcurrent(Map<String, dynamic> itemData, String targetLanguage) {
+    // Close the remaining Language Tools dialog (Assessment + Character Tracing already closed via callbacks)
+    if (mounted) {
+      Navigator.of(context).pop(); // Close Language Tools dialog (safe - last dialog in chain)
+    }
+    
+    // Track item giving
+    PostHogService.trackNPCConversation(
+      npcName: widget.npcId,
+      event: 'item_given',
+      additionalProperties: {
+        'item_english': itemData['english'] ?? 'Unknown',
+        'item_thai': itemData['thai'] ?? 'Unknown',
+        'target_language': targetLanguage,
+      },
+    );
+    
+    // Start backend processing immediately (fire-and-forget)
+    _sendItemToBackend(itemData, targetLanguage);
   }
 
   void _clearCanvas() {
@@ -3881,7 +4944,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       
       // Create custom message for LLM bypassing STT
       final String itemName = item['english'] ?? 'item';
-      final String customMessage = 'User gives $itemName to you';
+      final String customMessage = 'User gives $itemName to ${_npcData.name}';
       
       // Use the existing NPC ID from the widget and providers
       final currentNPCId = widget.npcId;
@@ -3914,6 +4977,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       request.fields['target_language'] = targetLanguage;
       request.fields['custom_message'] = customMessage; // This bypasses STT
       request.fields['previous_conversation_history'] = historyLinesForBackend.join('\n');
+      request.fields['user_id'] = PostHogService.userId ?? 'unknown_user';
+      request.fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
 
       print("Sending item giving request for $itemName to $currentNPCName");
 
@@ -3964,10 +5029,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
           // Create entries for conversation history
           final playerEntryForHistory = DialogueEntry(
             text: customMessage,
-            englishText: customMessage,
+            englishText: '', // No English translation for item giving to prevent toggle effects
             speaker: 'Player',
             isNpc: false,
-            posMappings: playerInputMappings,
+            posMappings: null, // No POS mappings for item giving to prevent word analysis toggle effects
             playerTranscriptionForHistory: customMessage,
           );
           
@@ -4123,7 +5188,14 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     try {
       final tempDir = await getTemporaryDirectory();
       final path = '${tempDir.path}/practice_input_${DateTime.now().millisecondsSinceEpoch}.wav';
-      await _practiceAudioRecorder.start(const RecordConfig(encoder: AudioEncoder.wav), path: path);
+      await _practiceAudioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,  // Optimal for STT APIs
+          numChannels: 1,     // Mono
+        ), 
+        path: path
+      );
       _lastPracticeRecordingPath.value = path; // Store path immediately
     } catch (e) {
       print("Error starting practice recording: $e");
@@ -4172,6 +5244,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         posMappings: posMappings
     );
 
+    print("DEBUG: _startNpcTextAnimation overwriting currentNpcDisplayEntry - ID: ${entryWithCorrectIdForAnimation.id}, hasAudio: ${entryWithCorrectIdForAnimation.audioBytes?.isNotEmpty == true || entryWithCorrectIdForAnimation.audioPath?.isNotEmpty == true}");
     currentNpcNotifier.state = entryWithCorrectIdForAnimation;
 
     setState(() {
@@ -4235,6 +5308,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     posMappings: entryWithCorrectIdForAnimation.posMappings
                 );
 
+                print("DEBUG: Animation complete, setting final entry - ID: ${finalAnimatedEntry.id}, hasAudio: ${finalAnimatedEntry.audioBytes?.isNotEmpty == true || finalAnimatedEntry.audioPath?.isNotEmpty == true}");
                 currentNpcNotifier.state = finalAnimatedEntry; // Update provider with full text
                 
                 setState(() {

@@ -78,3 +78,8 @@ supabase/.temp
 
 # Build runner
 .dart_tool/build/
+
+# YoYo AI version control directory
+.yoyo/
+
+sentry.properties

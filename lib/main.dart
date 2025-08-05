@@ -1,13 +1,15 @@
 import 'package:babblelon/screens/main_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/game_screen.dart';
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/debug_dialog_test.dart';
 import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:babblelon/services/posthog_service.dart';
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +42,52 @@ void main() async {
   // Initialize Isar DB
   await IsarService.init();
 
-  runApp(const ProviderScope(child: MyApp()));
+  // Initialize PostHog
+  final postHogApiKey = EnvLoader.getString('POSTHOG_API_KEY');
+  if (postHogApiKey.isNotEmpty) {
+    final config = PostHogConfig(postHogApiKey);
+    config.host = 'https://app.posthog.com';
+    config.debug = true; // Enable debug logging for development
+    config.captureApplicationLifecycleEvents = true; // Auto-track app lifecycle
+    
+    await Posthog().setup(config);
+    
+    // Initialize user session for tracking
+    PostHogService.initializeUser();
+    
+    // Set device properties
+    PostHogService.setDeviceProperties(
+      deviceOs: Platform.operatingSystem,
+      deviceModel: Platform.isAndroid ? 'Android Device' : 'iOS Device',
+      soundEffectsEnabled: true, // Default value
+      preferredLanguage: 'th', // Thai is the primary language for the game
+    );
+    
+    print('✅ PostHog initialized successfully with user session and device properties');
+  } else {
+    print('⚠️ PostHog API key not found, skipping initialization');
+  }
+
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = 'https://fcc9d3cb494e44a232ff849d964da146@o4509771667341312.ingest.us.sentry.io/4509771668586496';
+      // Adds request headers and IP for users, for more info visit:
+      // https://docs.sentry.io/platforms/dart/guides/flutter/data-management/data-collected/
+      options.sendDefaultPii = true;
+      // Set tracesSampleRate to 1.0 to capture 100% of transactions for tracing.
+      // We recommend adjusting this value in production.
+      options.tracesSampleRate = 1.0;
+      // The sampling rate for profiling is relative to tracesSampleRate
+      // Setting to 1.0 will profile 100% of sampled transactions:
+      options.profilesSampleRate = 1.0;
+      // Configure Session Replay
+      options.replay.sessionSampleRate = 0.1;
+      options.replay.onErrorSampleRate = 1.0;
+    },
+    appRunner: () => runApp(SentryWidget(child: const ProviderScope(child: MyApp()))),
+  );
+  // TODO: Remove this line after sending the first sample event to sentry.
+  await Sentry.captureException(StateError('This is a sample exception.'));
 }
 
 class MyApp extends StatelessWidget {

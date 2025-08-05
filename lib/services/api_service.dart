@@ -8,6 +8,7 @@ import 'package:babblelon/models/assessment_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'dart:async';
+import 'package:babblelon/services/posthog_service.dart';
 
 class ApiService {
   // Base URL is determined by the platform at runtime.
@@ -27,10 +28,10 @@ class ApiService {
     }
     
     final Directory tempDir = await getTemporaryDirectory();
-    final String path = '${tempDir.path}/recording.m4a';
+    final String path = '${tempDir.path}/recording.wav';
 
     const config = RecordConfig(
-      encoder: AudioEncoder.aacLc, // Using AAC for .m4a container
+      encoder: AudioEncoder.wav,   // Using WAV format for consistent audio processing
       sampleRate: 16000,           // 16kHz as recommended
       numChannels: 1,              // Mono
     );
@@ -77,24 +78,74 @@ class ApiService {
       await http.MultipartFile.fromPath(
         'audio_file',
         audioFile.path,
-        contentType: MediaType('audio', 'm4a'),
+        contentType: MediaType('audio', 'wav'),
       ),
     );
 
     try {
       debugPrint("Sending request to backend...");
+      final startTime = DateTime.now();
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime).inMilliseconds;
+      
       debugPrint("Received response with status: ${response.statusCode}");
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-        return PronunciationAssessmentResponse.fromJson(responseData);
+        final assessmentResponse = PronunciationAssessmentResponse.fromJson(responseData);
+        
+        // Track successful pronunciation assessment
+        PostHogService.trackPronunciationAssessment(
+          event: 'api_call_success',
+          referenceText: referenceText,
+          pronunciationScore: assessmentResponse.pronunciationScore,
+          accuracyScore: assessmentResponse.accuracyScore,
+          itemType: itemType,
+          complexity: complexity,
+          success: true,
+          additionalProperties: {
+            'api_duration_ms': duration,
+            'turn_type': turnType,
+            'response_status': response.statusCode,
+          },
+        );
+        
+        return assessmentResponse;
       } else {
+        // Track failed pronunciation assessment
+        PostHogService.trackPronunciationAssessment(
+          event: 'api_call_failed',
+          referenceText: referenceText,
+          itemType: itemType,
+          complexity: complexity,
+          success: false,
+          additionalProperties: {
+            'api_duration_ms': duration,
+            'turn_type': turnType,
+            'response_status': response.statusCode,
+            'error_body': response.body,
+          },
+        );
+        
         debugPrint("Error from backend: ${response.body}");
         throw Exception("Failed to get assessment: ${response.statusCode}");
       }
     } catch (e) {
+      // Track API error
+      PostHogService.trackPronunciationAssessment(
+        event: 'api_call_error',
+        referenceText: referenceText,
+        itemType: itemType,
+        complexity: complexity,
+        success: false,
+        additionalProperties: {
+          'turn_type': turnType,
+          'error': e.toString(),
+        },
+      );
+      
       debugPrint("An error occurred during API call: $e");
       rethrow;
     }
@@ -148,6 +199,627 @@ class ApiService {
     } catch (e) {
       debugPrint("An error occurred during API call: $e");
       rethrow;
+    }
+  }
+
+  /// Transcribe and translate audio using the new enhanced endpoint
+  static Future<Map<String, dynamic>?> transcribeAndTranslate({
+    required String audioPath,
+    String sourceLanguage = 'th',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/transcribe-and-translate/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending transcribe-and-translate request to backend...");
+      final startTime = DateTime.now();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime).inMilliseconds;
+      
+      debugPrint("Received response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Transcribe-and-translate response: $responseData");
+        
+        // Track successful transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'transcribe_translate',
+          event: 'api_call_success',
+          durationMs: duration,
+          success: true,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'has_expected_text': expectedText.isNotEmpty,
+            'response_status': response.statusCode,
+          },
+        );
+        
+        return responseData;
+      } else {
+        debugPrint("Transcribe-and-translate request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        
+        // Track failed transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'transcribe_translate',
+          event: 'api_call_failed',
+          durationMs: duration,
+          success: false,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'response_status': response.statusCode,
+            'error_body': response.body,
+          },
+        );
+        
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during transcribe-and-translate request: $e");
+      
+      // Track transcribe-and-translate error
+      PostHogService.trackAudioInteraction(
+        service: 'transcribe_translate',
+        event: 'api_call_error',
+        success: false,
+        error: e.toString(),
+        additionalProperties: {
+          'source_language': sourceLanguage,
+          'target_language': targetLanguage,
+        },
+      );
+      
+      return null;
+    }
+  }
+
+  /// Transcribe and translate audio using ElevenLabs STT + Google Cloud Translation
+  static Future<Map<String, dynamic>?> transcribeAndTranslateWithElevenLabs({
+    required String audioPath,
+    String sourceLanguage = 'th',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+      
+      final uri = Uri.parse("$baseUrl/transcribe-and-translate-elevenlabs/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+      
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+      
+      debugPrint("Sending transcribe-and-translate-elevenlabs request to backend...");
+      final startTime = DateTime.now();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime).inMilliseconds;
+      
+      debugPrint("Received ElevenLabs response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Transcribe-and-translate-elevenlabs response: $responseData");
+        
+        // Track successful ElevenLabs transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'elevenlabs_transcribe_translate',
+          event: 'api_call_success',
+          durationMs: duration,
+          success: true,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'has_expected_text': expectedText.isNotEmpty,
+            'response_status': response.statusCode,
+          },
+        );
+        
+        return responseData;
+      } else {
+        debugPrint("Transcribe-and-translate-elevenlabs request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        
+        // Track failed ElevenLabs transcribe-and-translate
+        PostHogService.trackAudioInteraction(
+          service: 'elevenlabs_transcribe_translate',
+          event: 'api_call_failed',
+          durationMs: duration,
+          success: false,
+          additionalProperties: {
+            'source_language': sourceLanguage,
+            'target_language': targetLanguage,
+            'response_status': response.statusCode,
+            'error_body': response.body,
+          },
+        );
+        
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during transcribe-and-translate-elevenlabs request: $e");
+      
+      // Track ElevenLabs transcribe-and-translate error
+      PostHogService.trackAudioInteraction(
+        service: 'elevenlabs_transcribe_translate',
+        event: 'api_call_error',
+        success: false,
+        error: e.toString(),
+        additionalProperties: {
+          'source_language': sourceLanguage,
+          'target_language': targetLanguage,
+        },
+      );
+      
+      return null;
+    }
+  }
+
+  /// Generate NPC response using enhanced STT (optional)
+  static Future<Map<String, dynamic>?> generateNPCResponseEnhanced({
+    required String audioPath,
+    required String npcId,
+    required String npcName,
+    int charmLevel = 50,
+    String targetLanguage = 'th',
+    String previousConversationHistory = '',
+    String questStateJson = '{}',
+    bool useEnhancedSTT = true,
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/generate-npc-response/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['npc_id'] = npcId
+        ..fields['npc_name'] = npcName
+        ..fields['charm_level'] = charmLevel.toString()
+        ..fields['target_language'] = targetLanguage
+        ..fields['previous_conversation_history'] = previousConversationHistory
+        ..fields['quest_state_json'] = questStateJson
+        ..fields['use_enhanced_stt'] = useEnhancedSTT.toString()
+        ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
+        ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending enhanced NPC response request to backend...");
+      final startTime = DateTime.now();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime).inMilliseconds;
+      
+      debugPrint("Received response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Enhanced NPC response: $responseData");
+        
+        // Track successful NPC response generation
+        PostHogService.trackNPCConversation(
+          npcName: npcId,
+          event: 'api_response_success',
+          charmLevel: charmLevel,
+          additionalProperties: {
+            'api_duration_ms': duration,
+            'npc_display_name': npcName,
+            'target_language': targetLanguage,
+            'use_enhanced_stt': useEnhancedSTT,
+            'has_conversation_history': previousConversationHistory.isNotEmpty,
+            'response_status': response.statusCode,
+          },
+        );
+        
+        return responseData;
+      } else {
+        debugPrint("Enhanced NPC response request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        
+        // Track failed NPC response generation
+        PostHogService.trackNPCConversation(
+          npcName: npcId,
+          event: 'api_response_failed',
+          charmLevel: charmLevel,
+          additionalProperties: {
+            'api_duration_ms': duration,
+            'npc_display_name': npcName,
+            'target_language': targetLanguage,
+            'response_status': response.statusCode,
+            'error_body': response.body,
+          },
+        );
+        
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during enhanced NPC response request: $e");
+      
+      // Track NPC response error
+      PostHogService.trackNPCConversation(
+        npcName: npcId,
+        event: 'api_response_error',
+        charmLevel: charmLevel,
+        additionalProperties: {
+          'npc_display_name': npcName,
+          'target_language': targetLanguage,
+          'error': e.toString(),
+        },
+      );
+      
+      return null;
+    }
+  }
+
+  /// Parallel transcription using both Google Cloud STT and ElevenLabs
+  static Future<Map<String, dynamic>?> parallelTranscribe({
+    required String audioPath,
+    String sourceLanguage = 'th',
+    String targetLanguage = 'en',
+    String expectedText = '',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/parallel-transcribe/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['expected_text'] = expectedText;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending parallel transcription request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received parallel transcription response with status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Parallel transcription response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Parallel transcription request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during parallel transcription request: $e");
+      return null;
+    }
+  }
+
+
+  /// Translate English text to Thai with romanization
+  static Future<Map<String, dynamic>?> translateText({
+    required String englishText,
+    String targetLanguage = 'th',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final uri = Uri.parse("$baseUrl/gcloud-translate-tts/");
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/json';
+      
+      final requestBody = {
+        'english_text': englishText,
+        'target_language': targetLanguage,
+      };
+      
+      request.body = json.encode(requestBody);
+      
+      debugPrint("Sending translation request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received translation response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Translation response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Translation request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during translation request: $e");
+      return null;
+    }
+  }
+
+  /// Translate English text to Thai with enhanced homograph detection
+  static Future<Map<String, dynamic>?> translateTextWithHomographs({
+    required String englishText,
+    String targetLanguage = 'th',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final uri = Uri.parse("$baseUrl/enhanced-translate-homographs/");
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/json';
+      
+      final requestBody = {
+        'english_text': englishText,
+        'target_language': targetLanguage,
+      };
+      
+      request.body = json.encode(requestBody);
+      
+      debugPrint("Sending enhanced homograph translation request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received enhanced translation response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Enhanced translation response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("Enhanced translation request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during enhanced translation request: $e");
+      return null;
+    }
+  }
+
+  /// Translate English text to Thai using DeepL with romanization
+  static Future<Map<String, dynamic>?> translateTextWithDeepL({
+    required String englishText,
+    String targetLanguage = 'th',
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final uri = Uri.parse("$baseUrl/deepl-translate-tts/");
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/json';
+      
+      final requestBody = {
+        'english_text': englishText,
+        'target_language': targetLanguage,
+      };
+      
+      request.body = json.encode(requestBody);
+      
+      debugPrint("Sending DeepL translation request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received DeepL translation response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("DeepL translation response: $responseData");
+        return responseData;
+      } else {
+        debugPrint("DeepL translation request failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during DeepL translation request: $e");
+      return null;
+    }
+  }
+
+  /// Test multiple STT/Translation service combinations
+  static Future<Map<String, dynamic>?> testSTTTranslationCombinations({
+    required String audioPath,
+    String sourceLanguage = 'th',
+    String targetLanguage = 'en',
+    String testName = 'STT Translation Test',
+    bool includeCloudServices = true,
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file does not exist: $audioPath");
+        return null;
+      }
+      
+      final uri = Uri.parse("$baseUrl/test-stt-translation-combinations/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['source_language'] = sourceLanguage
+        ..fields['target_language'] = targetLanguage
+        ..fields['test_name'] = testName
+        ..fields['include_cloud_services'] = includeCloudServices.toString();
+      
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+      
+      debugPrint("Sending multi-service test request to backend...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint("Received multi-service test response with status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("Multi-service test completed successfully");
+        return responseData;
+      } else {
+        debugPrint("Multi-service test failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during multi-service test: $e");
+      return null;
+    }
+  }
+
+  /// Transcribe audio using OpenAI Whisper API
+  static Future<Map<String, dynamic>?> transcribeWithOpenAIWhisper({
+    required String audioPath,
+    String languageCode = 'th',
+    String? prompt,
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file not found: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/openai-transcribe/");
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['language_code'] = languageCode;
+      
+      if (prompt != null && prompt.isNotEmpty) {
+        request.fields['prompt'] = prompt;
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending OpenAI Whisper transcription request...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("OpenAI Whisper transcription successful");
+        return responseData;
+      } else {
+        debugPrint("OpenAI Whisper transcription failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during OpenAI Whisper transcription: $e");
+      return null;
+    }
+  }
+
+
+  /// Translate audio using OpenAI Whisper API (direct translation to English)
+  static Future<Map<String, dynamic>?> translateWithOpenAIWhisper({
+    required String audioPath,
+    String? prompt,
+  }) async {
+    final String baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+    
+    try {
+      final File audioFile = File(audioPath);
+      if (!audioFile.existsSync()) {
+        debugPrint("Audio file not found: $audioPath");
+        return null;
+      }
+
+      final uri = Uri.parse("$baseUrl/openai-translate/");
+      final request = http.MultipartRequest('POST', uri);
+      
+      if (prompt != null && prompt.isNotEmpty) {
+        request.fields['prompt'] = prompt;
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'audio_file',
+          audioFile.path,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      debugPrint("Sending OpenAI Whisper translation request...");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint("OpenAI Whisper translation successful");
+        return responseData;
+      } else {
+        debugPrint("OpenAI Whisper translation failed with status: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error during OpenAI Whisper translation: $e");
+      return null;
     }
   }
 
