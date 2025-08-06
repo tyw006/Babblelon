@@ -9,6 +9,8 @@ import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/app_controller.dart';
+import 'package:babblelon/providers/motion_preferences_provider.dart';
+import 'package:provider/provider.dart' as provider;
 import 'dart:io';
 
 void main() async {
@@ -84,7 +86,14 @@ void main() async {
       options.replay.sessionSampleRate = 0.1;
       options.replay.onErrorSampleRate = 1.0;
     },
-    appRunner: () => runApp(SentryWidget(child: const ProviderScope(child: MyApp()))),
+    appRunner: () => runApp(SentryWidget(
+      child: provider.MultiProvider(
+        providers: [
+          provider.ChangeNotifierProvider(create: (context) => MotionPreferences()..init()),
+        ],
+        child: const ProviderScope(child: MyApp()),
+      ),
+    )),
   );
   // TODO: Remove this line after sending the first sample event to sentry.
   await Sentry.captureException(StateError('This is a sample exception.'));
