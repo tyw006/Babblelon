@@ -13,6 +13,7 @@ import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
+import '../models/popup_models.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 

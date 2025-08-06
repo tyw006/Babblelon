@@ -4,7 +4,6 @@ import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';

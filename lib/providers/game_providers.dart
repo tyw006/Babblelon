@@ -380,6 +380,7 @@ class DeveloperSettings extends _$DeveloperSettings {
   }
 
   String get currentSTTService => state.useElevenLabsSTT ? 'ElevenLabs' : 'Google Cloud';
+}
 
 // --- Tutorial System Providers ---
 
@@ -476,4 +477,3 @@ final currentTutorialStepProvider = StateProvider<String?>((ref) => null);
 
 // Provider to track if the game has finished loading (onLoad completed)
 final gameLoadingCompletedProvider = StateProvider<bool>((ref) => false);
-}

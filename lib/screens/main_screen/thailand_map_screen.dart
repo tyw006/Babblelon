@@ -93,7 +93,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const GameScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return AnimatedBuilder(
             animation: animation,

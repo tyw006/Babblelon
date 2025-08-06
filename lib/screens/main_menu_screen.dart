@@ -1,6 +1,5 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
-import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
