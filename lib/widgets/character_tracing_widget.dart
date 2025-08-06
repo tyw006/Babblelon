@@ -7,8 +7,33 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
 import '../services/character_audio_service.dart';
 import '../services/game_initialization_service.dart';
+import '../services/character_recognition_service.dart';
+import '../services/posthog_service.dart';
+import '../widgets/tracing_confirmation_dialog.dart';
+import '../widgets/character_assessment_dialog.dart';
+
+/// Custom StreamAudioSource for playing base64 audio data on iOS
+class Base64AudioSource extends just_audio.StreamAudioSource {
+  final List<int> _bytes;
+
+  Base64AudioSource(this._bytes);
+
+  @override
+  Future<just_audio.StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= _bytes.length;
+    return just_audio.StreamAudioResponse(
+      sourceLength: _bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(_bytes.sublist(start, end)),
+      contentType: 'audio/wav',
+    );
+  }
+}
 
 /// A reusable character tracing widget that provides live stroke rendering
 /// and character tracing functionality.
@@ -39,6 +64,15 @@ class CharacterTracingWidget extends StatefulWidget {
   
   /// Whether to show writing tips panel
   final bool showWritingTips;
+  
+  /// NPC ID for item giving functionality
+  final String? npcId;
+  
+  /// NPC name for display in assessment dialog
+  final String? npcName;
+  
+  /// Called when user wants to give item to NPC
+  final VoidCallback? onGiveItem;
 
   const CharacterTracingWidget({
     super.key,
@@ -50,6 +84,9 @@ class CharacterTracingWidget extends StatefulWidget {
     this.headerTitle,
     this.headerSubtitle,
     this.showWritingTips = true,
+    this.npcId,
+    this.npcName,
+    this.onGiveItem,
   });
 
   @override
@@ -76,11 +113,12 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   // Canvas overflow detection
   bool _isOverflowing = false;
   
-  // Drawing state  
-  final mlkit.Ink _ink = mlkit.Ink();
-  mlkit.Stroke? _currentStroke;
+  // Drawing state - Per-character isolation
+  final Map<int, mlkit.Ink> _characterInks = {};
+  final Map<int, List<mlkit.Stroke>> _characterStrokeHistory = {};
+  final Map<int, mlkit.Stroke?> _currentStrokes = {};
+  final Map<int, bool> _characterHasStrokes = {};
   final List<mlkit.StrokePoint> _currentStrokePoints = [];
-  final List<mlkit.Stroke> _strokeHistory = []; // For undo functionality
   
   // Writing tips and guidance
   String _writingTips = "";
@@ -90,7 +128,13 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   
   // Audio services
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final just_audio.AudioPlayer _justAudioPlayer = just_audio.AudioPlayer();
   final CharacterAudioService _audioService = CharacterAudioService();
+  
+  // TTS loading state for custom words
+  bool _isGeneratingTTS = false;
+  bool _ttsGenerationFailed = false;
+  Map<String, String> _ttsAudioCache = {};
 
   // Add Thai writing guide data cache
   Map<String, dynamic>? _thaiWritingGuideData;
@@ -117,6 +161,15 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Initialize widget with proper async sequencing
   Future<void> _initializeAsync() async {
+    // Track writing session start
+    PostHogService.trackGameEvent(
+      event: 'writing_session_start',
+      additionalProperties: {
+        'word_mapping_count': widget.wordMapping.length,
+        'show_writing_tips': widget.showWritingTips,
+      },
+    );
+
     // Load Thai writing guide first
     await _loadThaiWritingGuide();
     // Then initialize characters (which will load writing tips)
@@ -168,11 +221,238 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
   }
 
+  // Canvas isolation helper methods
+  
+  /// Get or create ink object for the current character
+  mlkit.Ink _getCurrentCharacterInk() {
+    if (!_characterInks.containsKey(_currentCharacterIndex)) {
+      _characterInks[_currentCharacterIndex] = mlkit.Ink();
+      _characterStrokeHistory[_currentCharacterIndex] = [];
+      _currentStrokes[_currentCharacterIndex] = null;
+      _characterHasStrokes[_currentCharacterIndex] = false;
+    }
+    return _characterInks[_currentCharacterIndex]!;
+  }
+  
+  /// Get current stroke for the current character
+  mlkit.Stroke? _getCurrentCharacterStroke() {
+    return _currentStrokes[_currentCharacterIndex];
+  }
+  
+  /// Set current stroke for the current character
+  void _setCurrentCharacterStroke(mlkit.Stroke? stroke) {
+    _currentStrokes[_currentCharacterIndex] = stroke;
+  }
+  
+  /// Get stroke history for the current character
+  List<mlkit.Stroke> _getCurrentCharacterStrokeHistory() {
+    if (!_characterStrokeHistory.containsKey(_currentCharacterIndex)) {
+      _characterStrokeHistory[_currentCharacterIndex] = [];
+    }
+    return _characterStrokeHistory[_currentCharacterIndex]!;
+  }
+  
+  /// Check if current character has strokes
+  bool _currentCharacterHasStrokes() {
+    return _characterHasStrokes[_currentCharacterIndex] ?? false;
+  }
+  
+  /// Mark current character as having strokes
+  void _markCurrentCharacterHasStrokes(bool hasStrokes) {
+    _characterHasStrokes[_currentCharacterIndex] = hasStrokes;
+  }
+
+  /// Build visual indicators showing which characters have strokes
+  Widget _buildCharacterStatusIndicators() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_currentCharacters.length, (index) {
+        final hasStrokes = _characterHasStrokes[index] ?? false;
+        final isCurrentCharacter = index == _currentCharacterIndex;
+        
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: isCurrentCharacter ? 12 : 8,
+          height: isCurrentCharacter ? 12 : 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: hasStrokes 
+                ? (isCurrentCharacter ? const Color(0xFF4ECCA3) : Colors.green[300])
+                : (isCurrentCharacter ? Colors.blue[300] : Colors.grey[300]),
+            border: isCurrentCharacter 
+                ? Border.all(color: Colors.white, width: 2)
+                : null,
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Show confirmation dialog before proceeding with assessment
+  Future<void> _showTracingConfirmationDialog() async {
+    // Prepare character names and stroke status
+    final characterNames = <int, String>{};
+    final charactersWithStrokes = <int, bool>{};
+    
+    for (int i = 0; i < _currentCharacters.length; i++) {
+      characterNames[i] = _currentCharacters[i];
+      charactersWithStrokes[i] = _characterHasStrokes[i] ?? false;
+    }
+    
+    // Show confirmation dialog
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return TracingConfirmationDialog(
+          characterNames: characterNames,
+          charactersWithStrokes: charactersWithStrokes,
+          onConfirm: () {
+            Navigator.of(context).pop();
+            _proceedWithAssessment();
+          },
+          onCancel: () {
+            Navigator.of(context).pop();
+          },
+        );
+      },
+    );
+  }
+
+  /// Proceed with ML Kit assessment and show results
+  Future<void> _proceedWithAssessment() async {
+    // Track writing assessment start
+    PostHogService.trackGameEvent(
+      event: 'writing_assessment_start',
+      additionalProperties: {
+        'character_count': _currentCharacters.length,
+        'has_strokes': _characterInks.isNotEmpty,
+      },
+    );
+
+    // Initialize character recognition service
+    try {
+      await characterRecognitionService.initialize();
+    } catch (e) {
+      print('Failed to initialize character recognition: $e');
+      
+      // Track assessment failure
+      PostHogService.trackGameEvent(
+        event: 'writing_assessment_failed',
+        additionalProperties: {
+          'error': 'Character recognition service failed to initialize',
+          'error_details': e.toString(),
+        },
+      );
+
+      // Fallback: just call completion without assessment
+      if (widget.onComplete != null) {
+        widget.onComplete!();
+      }
+      return;
+    }
+
+    // Show loading indicator
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    try {
+      // Perform assessment
+      final assessmentResult = await characterRecognitionService.assessAllCharacters(
+        _characterInks,
+        _currentCharacters,
+      );
+
+      // Dismiss loading indicator and show results
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Track writing assessment completion
+        PostHogService.trackGameEvent(
+          event: 'writing_assessment_complete',
+          additionalProperties: {
+            'assessment_score': assessmentResult?.overallAccuracy ?? 0.0,
+            'characters_assessed': _currentCharacters.length,
+            'success': true,
+          },
+        );
+        
+        // Show assessment results dialog
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return CharacterAssessmentDialog(
+              assessmentResult: assessmentResult,
+              characterNames: _currentCharacters,
+              originalVocabularyItem: widget.originalVocabularyItem,
+              npcId: widget.npcId,
+              npcName: widget.npcName,
+              onGiveItem: () {
+                // Close CharacterTracingWidget before forwarding callback
+                Navigator.of(context).pop();
+                if (widget.onGiveItem != null) {
+                  widget.onGiveItem!(); // Forward to DialogueOverlay
+                }
+              },
+              onDismiss: () {
+                Navigator.of(context).pop();
+                // Call backend processing immediately - no delay needed
+                if (widget.onComplete != null) {
+                  widget.onComplete!();
+                }
+              },
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print('Assessment failed: $e');
+      
+      // Track assessment failure
+      PostHogService.trackGameEvent(
+        event: 'writing_assessment_failed',
+        additionalProperties: {
+          'error': 'Assessment execution failed',
+          'error_details': e.toString(),
+          'characters_attempted': _currentCharacters.length,
+        },
+      );
+      
+      // Dismiss loading indicator
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Show error and fallback to completion
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Assessment failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        
+        if (widget.onComplete != null) {
+          widget.onComplete!();
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
     _characterScrollController.dispose();
     _stepPageController.dispose();
     _audioPlayer.dispose();
+    _justAudioPlayer.dispose();
+    // Clear TTS audio cache
+    _ttsAudioCache.clear();
     // Don't dispose the singleton _audioService as it's shared across widgets
     super.dispose();
   }
@@ -222,62 +502,134 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
   }
 
-  /// Get word segments using semantic word boundaries from word_mapping
+  /// Get word segments using syllable-based tokenization from backend
   Future<void> _getWordSegments() async {
-    // Since the dialogue overlay now passes semantic words directly,
-    // widget.wordMapping contains the semantic word breakdown
     _constituentWordData = [];
-    _currentCharacters = []; // This will store semantic words, not TCC clusters
+    _currentCharacters = []; // This will store syllables
     
-    // Process each semantic word from the passed wordMapping
+    // Process each word from the word mapping and get its syllables
     for (final mapping in widget.wordMapping) {
-      // Use 'target' field (which is mapped from 'thai' in NPC vocabulary)
       final semanticWord = mapping['target'] as String? ?? mapping['thai'] as String? ?? '';
       final transliteration = mapping['transliteration'] as String? ?? '';
       final translation = mapping['translation'] as String? ?? '';
-      final english = mapping['english'] as String? ?? ''; // Extract english field
+      final english = mapping['english'] as String? ?? '';
       
-      // Store semantic word for tracing (each semantic word gets its own canvas)
       if (semanticWord.isNotEmpty) {
-        _currentCharacters.add(semanticWord);
+        // Call backend to get proper syllable splitting
+        try {
+          final response = await http.post(
+            Uri.parse('http://localhost:8000/generate-writing-guide'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'word': semanticWord,
+              'target_language': 'th'
+            }),
+          ).timeout(const Duration(seconds: 10));
+          
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            
+            // Extract syllables from backend response
+            if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
+              final syllables = List<String>.from(data['traceable_canvases']);
+              final syllableData = data['syllables'] as List? ?? [];
+              
+              _currentCharacters.addAll(syllables);
+              
+              // Create constituent word data for each syllable with individual romanization and translations
+              for (int i = 0; i < syllables.length; i++) {
+                final syllable = syllables[i];
+                
+                // Get individual syllable romanization from backend if available
+                String syllableRomanization = transliteration; // fallback
+                if (i < syllableData.length) {
+                  final sylData = syllableData[i] as Map<String, dynamic>;
+                  syllableRomanization = sylData['romanization'] as String? ?? transliteration;
+                }
+                
+                // Check if syllable mappings are available from word mapping
+                String syllableTranslation = translation; // fallback to full word translation
+                String syllableEnglish = english; // fallback to full word english
+                
+                final syllableMappings = mapping['syllable_mappings'] as List<dynamic>?;
+                if (syllableMappings != null) {
+                  // Find the matching syllable in the mappings
+                  for (final sylMapping in syllableMappings) {
+                    if (sylMapping is Map<String, dynamic> && 
+                        sylMapping['syllable'] == syllable) {
+                      syllableTranslation = sylMapping['translation'] as String? ?? translation;
+                      syllableEnglish = sylMapping['translation'] as String? ?? english;
+                      // Also use the syllable-specific romanization if available
+                      syllableRomanization = sylMapping['romanization'] as String? ?? syllableRomanization;
+              
+                      break;
+                    }
+                  }
+                }
+                
+                _constituentWordData.add({
+                  'word': syllable,
+                  'romanized': syllableRomanization,
+                  'translation': syllableTranslation,
+                  'english': syllableEnglish,
+                });
+              }
+              
+              
+            } else {
+              // Fallback: treat as single unit
+              _currentCharacters.add(semanticWord);
+              _constituentWordData.add({
+                'word': semanticWord,
+                'romanized': transliteration,
+                'translation': translation,
+                'english': english,
+              });
+              // Backend response missing traceable_canvases data
+            }
+          } else {
+            // Backend failed, use original word as single unit
+            _currentCharacters.add(semanticWord);
+            _constituentWordData.add({
+              'word': semanticWord,
+              'romanized': transliteration,
+              'translation': translation,
+              'english': english,
+            });
+            // Backend request failed
+          }
+        } catch (e) {
+          // Error occurred, use original word as single unit
+          _currentCharacters.add(semanticWord);
+          _constituentWordData.add({
+            'word': semanticWord,
+            'romanized': transliteration,
+            'translation': translation,
+            'english': english,
+          });
+          print('Error getting syllables for $semanticWord: $e');
+        }
       }
-      
-      // Store constituent word data for display
-      _constituentWordData.add({
-        'word': semanticWord,
-        'romanized': transliteration,
-        'translation': translation,
-        'english': english, // Include english field
-      });
     }
     
-    // Set original word as concatenation of all semantic words
+    // Set original word as concatenation of all syllables
     _originalWord = _currentCharacters.join('');
     
-    print('Using semantic word boundaries: $_currentCharacters');
-    print('Constituent word data: $_constituentWordData');
+    
   }
 
   /// Pre-load comprehensive analysis for all semantic words to avoid API calls during word switching
   Future<void> _preloadAllWordAnalysis() async {
-    print('Starting word analysis pre-processing for ${_currentCharacters.length} words');
-    
-    // Skip backend analysis for performance and use Thai writing guide directly
+    // Load detailed syllable analysis for each character/syllable
     for (final semanticWord in _currentCharacters) {
       if (semanticWord.isNotEmpty && !_wordAnalysisCache.containsKey(semanticWord)) {
-        // Create a basic cache entry for Thai writing guide usage
-        _wordAnalysisCache[semanticWord] = {
-          'word': semanticWord,
-          'use_thai_guide': true,
-          'fallback': false, // Mark as NOT fallback since we have Thai guide data
-        };
+        await _preloadSingleWordAnalysis(semanticWord);
       }
     }
     
     _isPreprocessingComplete = true;
-    print('Word analysis pre-processing completed using Thai writing guide. Cached ${_wordAnalysisCache.length} words');
     
-    // Load initial writing tips (will use Thai writing guide data)
+    // Load initial writing tips (will use cached syllable analysis data)
     await _loadWritingTipsFromCache();
   }
 
@@ -288,8 +640,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     }
     
     try {
-      print('Pre-processing syllable analysis for: $semanticWord');
-      
       final response = await http.post(
         Uri.parse('http://localhost:8000/generate-writing-guide'),
         headers: {'Content-Type': 'application/json'},
@@ -302,13 +652,11 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       if (response.statusCode == 200) {
         final analysisData = json.decode(response.body);
         _wordAnalysisCache[semanticWord] = analysisData;
-        print('Successfully cached syllable analysis for: $semanticWord');
       } else {
-        print('Failed to get syllable analysis for $semanticWord: ${response.statusCode}');
+        // Failed to get syllable analysis from backend
         _storeFallbackAnalysis(semanticWord);
       }
     } catch (e) {
-      print('Error getting syllable analysis for $semanticWord: $e');
       _storeFallbackAnalysis(semanticWord);
     }
   }
@@ -345,6 +693,12 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
           if (response.statusCode == 200) {
             final data = json.decode(response.body);
             
+            // Cache the detailed syllable analysis for this word
+            _wordAnalysisCache[word] = data;
+            
+            // Also fetch complex vowel analysis if not already cached
+            _fetchComplexVowelAnalysis(word);
+            
             // Extract syllables from new response format
             if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
               final syllables = List<String>.from(data['traceable_canvases']);
@@ -374,8 +728,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         }
       }
       
-      print('Vocabulary word syllable tokenization result: $_currentCharacters');
-      print('Romanizations: $_romanizationByCluster');
+      
       
     } catch (e) {
       print('Error tokenizing vocabulary words: $e');
@@ -405,7 +758,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         // Use traceable_canvases for syllable boundaries
         if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
           _currentCharacters = List<String>.from(data['traceable_canvases']);
-          print('Using syllables from backend: $_currentCharacters');
+  
         } else {
           // Fallback to original word as single syllable
           _currentCharacters = [targetWord];
@@ -425,7 +778,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         }
         
       } else {
-        print('Backend semantic word tokenization failed with status: ${response.statusCode}');
+        // Backend semantic word tokenization failed
         _currentCharacters = [targetWord]; // Treat as single semantic word
       }
     } catch (e) {
@@ -472,20 +825,20 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         // Use the syllable-based tracing sequence
         if (data.containsKey('traceable_canvases') && data['traceable_canvases'] is List) {
           _currentCharacters = List<String>.from(data['traceable_canvases']);
-          print('Using syllable-based tracing sequence: $_currentCharacters');
+  
         } else {
           // Last resort: split into individual characters
           _currentCharacters = targetWord.split('');
-          print('Fallback to character splitting: $_currentCharacters');
+  
         }
         
-        print('Backend tokenization result with enhanced data: ${data.toString()}');
+
       } else {
-        print('Backend tokenization failed with status: ${response.statusCode}');
+        // Backend tokenization failed
         _currentCharacters = targetWord.split('');
       }
     } on TimeoutException catch (e) {
-      print('Backend tokenization timed out: $e');
+              // Backend tokenization timed out
       _currentCharacters = targetWord.split('');
     } catch (e) {
       print('Error tokenizing word using backend: $e');
@@ -599,9 +952,17 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Load writing tips from pre-processed cache (no API calls during word switching)
   Future<void> _loadWritingTipsFromCache() async {
-    print('_loadWritingTipsFromCache called, showWritingTips: ${widget.showWritingTips}');
-    print('_currentCharacters length: ${_currentCharacters.length}');
+
     if (_currentCharacters.isEmpty || !widget.showWritingTips) return;
+    
+    // Track writing tips viewed
+    PostHogService.trackGameEvent(
+      event: 'writing_tips_viewed',
+      additionalProperties: {
+        'characters': _currentCharacters.join(''),
+        'character_count': _currentCharacters.length,
+      },
+    );
     
     setState(() {
       _isLoadingTips = true;
@@ -613,8 +974,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
       if (_wordAnalysisCache.containsKey(semanticWord)) {
         // Use cached analysis (comprehensive or fallback)
         final analysisData = _wordAnalysisCache[semanticWord]!;
-        print('>>> CACHE HIT for word: $semanticWord, fallback: ${analysisData['fallback'] ?? false}');
-        print('Cache data keys: ${analysisData.keys}');
+
         
         setState(() {
           _writingGuidance = analysisData;
@@ -624,8 +984,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         });
       } else {
         // Cache miss - create enhanced fallback directly
-        print('>>> CACHE MISS for word: $semanticWord. Creating enhanced fallback.');
-        print('Available cache keys: ${_wordAnalysisCache.keys.toList()}');
+
         setState(() {
           _writingTips = _buildEnhancedFallbackTips(semanticWord);
           _isLoadingTips = false;
@@ -676,7 +1035,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
         });
       }
     } on TimeoutException catch (e) {
-      print('Fallback tips request timed out: $e');
+              // Fallback tips request timed out
       setState(() {
         _writingTips = 'Request timed out. Using basic tips for this character.';
         _isLoadingTips = false;
@@ -699,20 +1058,17 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
 
   /// Build comprehensive educational writing tips with tabbed structure
   String _buildComprehensiveEducationalTips(String semanticWord, Map<String, dynamic> analysisData) {
-    print('=== Building comprehensive tips for: $semanticWord ===');
-    print('Analysis data keys: ${analysisData.keys}');
-    print('Has fallback flag: ${analysisData.containsKey('fallback')} = ${analysisData['fallback']}');
-    print('Thai writing guide loaded: ${_thaiWritingGuideData != null}');
+
     
     // Check if this is fallback data (backend failed)
     if (analysisData.containsKey('fallback') && analysisData['fallback'] == true) {
-      print('>>> USING FALLBACK TIPS for: $semanticWord (backend failed)');
+      
       return _buildEnhancedFallbackTips(semanticWord);
     }
     
     // Check if we should use Thai writing guide (our preferred method)
     if (analysisData.containsKey('use_thai_guide') && analysisData['use_thai_guide'] == true) {
-      print('>>> USING THAI GUIDE TIPS for: $semanticWord');
+      
       return _buildEnhancedFallbackTips(semanticWord);
     }
     
@@ -1534,8 +1890,7 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Build enhanced fallback tips that include Thai guidelines plus character-specific guidance
   String _buildEnhancedFallbackTips(String semanticWord) {
-    print('Building enhanced fallback tips for: $semanticWord');
-    print('Thai writing guide data available: ${_thaiWritingGuideData != null}');
+
     final List<String> sections = [];
     
     // Start with Thai Writing Guidelines from JSON or fallback
@@ -1619,7 +1974,7 @@ Note: For detailed analysis, check your connection and try again.
     }
     
     final result = sections.join('\n');
-    print('Enhanced fallback tips result length: ${result.length} characters');
+
     
     // Ensure we always return something useful
     if (result.trim().isEmpty) {
@@ -1655,19 +2010,52 @@ Note: For detailed analysis, check your connection and try again.
     return false;
   }
 
+  /// Get standardized romanization for a character using consistent extraction logic
+  String _getStandardizedRomanization(Map<String, dynamic> characterDetails, String type, {String? syllable, bool isComplexVowel = false, bool isSilent = false}) {
+    String romanization = '';
+    
+    if (type == 'consonant') {
+      // Prioritize initial sound for consonants
+      final pronunciation = characterDetails['pronunciation'] as Map<String, dynamic>?;
+      final sounds = characterDetails['sounds'] as Map<String, dynamic>?;
+      
+      romanization = pronunciation?['initial'] as String? ?? 
+                    sounds?['initial'] as String? ?? 
+                    pronunciation?['romanization'] as String? ?? 
+                    characterDetails['romanization'] as String? ?? '';
+                    
+    } else if (type == 'vowel' || type == 'tone_mark' || type == 'tone') {
+      // For vowels and tone marks, prioritize romanization field
+      final pronunciation = characterDetails['pronunciation'] as Map<String, dynamic>?;
+      final sounds = characterDetails['sounds'] as Map<String, dynamic>?;
+      
+      romanization = characterDetails['romanization'] as String? ?? 
+                    pronunciation?['romanization'] as String? ?? 
+                    sounds?['sound'] as String? ?? 
+                    pronunciation?['sound'] as String? ?? '';
+    }
+    
+    // Handle complex vowel cases
+    if (isComplexVowel && isSilent && romanization.isNotEmpty) {
+      romanization = '$romanization(silent)';
+    }
+    
+    return romanization;
+  }
+
   /// Get detailed character information from JSON including cultural context and steps
   Map<String, dynamic>? _getDetailedCharacterInfo(String character) {
     if (_thaiWritingGuideData == null) return null;
     
     final cleanCharacter = character.trim();
-    print('_getDetailedCharacterInfo called for: "$cleanCharacter"');
+
     
     try {
       // Check consonants
       final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
       if (consonants?.containsKey(cleanCharacter) == true) {
         final charData = consonants![cleanCharacter] as Map<String, dynamic>;
-        print('Found consonant data for: $cleanCharacter');
+        
         
         // Extract pronunciation information
         final pronunciation = charData['pronunciation'] as Map<String, dynamic>?;
@@ -1726,7 +2114,7 @@ Note: For detailed analysis, check your connection and try again.
       }
       
       if (vowelData != null) {
-        print('Found vowel data for: $cleanCharacter (key: $foundVowelKey)');
+        
         
         // Extract pronunciation information
         final pronunciation = vowelData['pronunciation'] as Map<String, dynamic>?;
@@ -1749,32 +2137,53 @@ Note: For detailed analysis, check your connection and try again.
         };
       }
       
-      // Check tone marks using the correct path
-      final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
-      final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
-      if (toneMarkRules != null) {
-        for (final markData in toneMarkRules.values) {
-          final markInfo = markData as Map<String, dynamic>;
-          if (markInfo['character'] == cleanCharacter) {
-            print('Found tone mark data for: $cleanCharacter');
-            
-            // Extract writing steps for tone marks
-            final writingSteps = markInfo['writing_steps'] as String? ?? '';
-            final description = markInfo['description'] as String? ?? '';
-            final mainTip = writingSteps.isNotEmpty ? writingSteps : description;
-            
-            return {
-              'character': cleanCharacter,
-              'type': 'tone',
-              'romanization': '', // Tone marks don't have romanization
-              'main_tip': mainTip,
-              'english_guide': description,
-              'pronunciation_guide': description,
-              'writing_steps': writingSteps,
-              'name': markInfo['name'],
-            };
-          }
-        }
+      // Check tone marks in the top-level tone_marks section
+      final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+      if (toneMarks != null && toneMarks.containsKey(cleanCharacter)) {
+        final markInfo = toneMarks[cleanCharacter] as Map<String, dynamic>;
+        
+        
+        // Extract writing steps for tone marks
+        final writingSteps = markInfo['writing_steps'] as String? ?? '';
+        final name = markInfo['name'] as String? ?? '';
+        final pronunciationGuide = markInfo['pronunciation_guide'] as String? ?? '';
+        final mainTip = writingSteps.isNotEmpty ? writingSteps : pronunciationGuide;
+        
+        return {
+          'character': cleanCharacter,
+          'type': 'tone',
+          'romanization': '', // Tone marks don't have romanization
+          'main_tip': mainTip,
+          'english_guide': pronunciationGuide,
+          'pronunciation_guide': pronunciationGuide,
+          'writing_steps': writingSteps,
+          'name': name,
+        };
+      }
+      
+      // Check other marks (thanthakhat, mai yamok, etc.)
+      final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+      if (otherMarks != null && otherMarks.containsKey(cleanCharacter)) {
+        final markInfo = otherMarks[cleanCharacter] as Map<String, dynamic>;
+        
+        // Extract information for other marks
+        final writingSteps = markInfo['writing_steps'] as String? ?? '';
+        final name = markInfo['name'] as String? ?? '';
+        final pronunciationGuide = markInfo['pronunciation_guide'] as String? ?? '';
+        final function = markInfo['function'] as String? ?? '';
+        final mainTip = writingSteps.isNotEmpty ? writingSteps : pronunciationGuide;
+        
+        return {
+          'character': cleanCharacter,
+          'type': 'other_mark',
+          'romanization': 'Silent', // Other marks are silent
+          'main_tip': mainTip,
+          'english_guide': pronunciationGuide,
+          'pronunciation_guide': pronunciationGuide,
+          'writing_steps': writingSteps,
+          'name': name,
+          'function': function,
+        };
       }
       
       print('No detailed character info found for: "$cleanCharacter"');
@@ -1903,7 +2312,7 @@ Note: For detailed analysis, check your connection and try again.
       if (wordData.containsKey('english') && 
           wordData['english'] != null && 
           wordData['english'].toString().isNotEmpty) {
-        print('Using english field from NPC vocabulary: ${wordData['english']}');
+
         return wordData['english'].toString();
       }
       
@@ -1911,7 +2320,7 @@ Note: For detailed analysis, check your connection and try again.
       if (wordData.containsKey('translation') && 
           wordData['translation'] != null && 
           wordData['translation'].toString().isNotEmpty) {
-        print('Using translation field as fallback: ${wordData['translation']}');
+
         return wordData['translation'].toString();
       }
     }
@@ -1922,18 +2331,16 @@ Note: For detailed analysis, check your connection and try again.
   String _getCharacterTipsFromJSON(String character) {
     // Strip whitespace and normalize character
     final cleanCharacter = character.trim();
-    print('Getting JSON tips for character: "$character" (cleaned: "$cleanCharacter")');
     if (_thaiWritingGuideData == null) {
-      print('No Thai writing guide data available');
       return '';
     }
     
     try {
       final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
-      print('Looking for "$cleanCharacter" in consonants: ${consonants?.containsKey(cleanCharacter)}');
+
       if (consonants != null && consonants.containsKey(cleanCharacter)) {
         final charData = consonants[cleanCharacter] as Map<String, dynamic>;
-        print('Found character data keys: ${charData.keys}');
+
         
         // Use writing_steps and pronunciation fields
         final writingSteps = charData['writing_steps'] as String? ?? '';
@@ -1942,13 +2349,13 @@ Note: For detailed analysis, check your connection and try again.
         
         if (writingSteps.isNotEmpty && englishGuide.isNotEmpty) {
           final result = '$englishGuide\n\nHow to write: $writingSteps';
-          print('Using writing_steps + english_guide: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (englishGuide.isNotEmpty) {
-          print('Using english_guide: $englishGuide');
+          
           return englishGuide;
         }
         
@@ -1956,7 +2363,7 @@ Note: For detailed analysis, check your connection and try again.
         final romanization = pronunciation?['initial'] as String? ?? '';
         if (romanization.isNotEmpty) {
           final result = '$romanization sound';
-          print('Using romanization tip: $result');
+          
           return result;
         }
       }
@@ -1979,10 +2386,10 @@ Note: For detailed analysis, check your connection and try again.
         }
       }
       
-      print('Looking for "$cleanCharacter" in vowels (trying "$vowelKey"): $foundInVowels');
+      
       if (foundInVowels) {
         final vowelData = vowels![vowelKey] as Map<String, dynamic>;
-        print('Found vowel data keys: ${vowelData.keys}');
+        
         
         // Use writing_steps and pronunciation.english_guide fields for vowels
         final writingSteps = vowelData['writing_steps'] as String? ?? '';
@@ -1991,13 +2398,13 @@ Note: For detailed analysis, check your connection and try again.
         
         if (writingSteps.isNotEmpty && englishGuide.isNotEmpty) {
           final result = '$englishGuide\n\nHow to write: $writingSteps';
-          print('Using vowel writing_steps + english_guide: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found vowel writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (englishGuide.isNotEmpty) {
-          print('Using vowel english_guide: $englishGuide');
+          
           return englishGuide;
         }
         
@@ -2006,24 +2413,24 @@ Note: For detailed analysis, check your connection and try again.
         final position = vowelData['position'] as String? ?? '';
         if (romanization.isNotEmpty) {
           final result = '$romanization sound' + (position.isNotEmpty ? ' (placed $position consonant)' : '');
-          print('Using vowel romanization tip: $result');
+          
           return result;
         }
       } else {
         // Check if this character appears as a component in complex vowels
         final complexVowelTip = _findInComplexVowels(cleanCharacter);
         if (complexVowelTip.isNotEmpty) {
-          print('Found character in complex vowels: $complexVowelTip');
+
           return complexVowelTip;
         }
       }
       
       // Check tone marks section
       final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
-      print('Looking for "$cleanCharacter" in tone_marks: ${toneMarks?.containsKey(cleanCharacter)}');
+      
       if (toneMarks != null && toneMarks.containsKey(cleanCharacter)) {
         final toneData = toneMarks[cleanCharacter] as Map<String, dynamic>;
-        print('Found tone mark data keys: ${toneData.keys}');
+        
         
         // Use writing_steps and pronunciation_guide fields for tone marks (simplified for beginners)
         final writingSteps = toneData['writing_steps'] as String? ?? '';
@@ -2033,15 +2440,15 @@ Note: For detailed analysis, check your connection and try again.
           // Simplify tone description for beginners
           final simplifiedTone = pronunciationGuide.replaceAll('makes ', '').replaceAll(' tone', '');
           final result = 'Makes your voice $simplifiedTone\n\nHow to write: $writingSteps';
-          print('Using tone mark writing_steps + simplified description: $result');
+          
           return result;
         } else if (writingSteps.isNotEmpty) {
-          print('Found tone mark writing_steps: $writingSteps');
+          
           return writingSteps;
         } else if (pronunciationGuide.isNotEmpty) {
           final simplifiedTone = pronunciationGuide.replaceAll('makes ', '').replaceAll(' tone', '');
           final result = 'Makes your voice $simplifiedTone';
-          print('Using simplified tone description: $result');
+          
           return result;
         }
         
@@ -2052,12 +2459,12 @@ Note: For detailed analysis, check your connection and try again.
       print('Error getting character tips from JSON for "$character" (cleaned: "$cleanCharacter"): $e');
     }
     
-    print('No tips found for character: "$character" (cleaned: "$cleanCharacter")');
+    
     return '';
   }
 
   void _onPanStart(DragStartDetails details) {
-    _currentStroke = mlkit.Stroke();
+    _setCurrentCharacterStroke(mlkit.Stroke());
     _currentStrokePoints.clear();
     
     final point = mlkit.StrokePoint(
@@ -2066,7 +2473,7 @@ Note: For detailed analysis, check your connection and try again.
       t: DateTime.now().millisecondsSinceEpoch,
     );
     
-    _currentStroke!.points.add(point);
+    _getCurrentCharacterStroke()!.points.add(point);
     _currentStrokePoints.add(point);
     
     setState(() {});
@@ -2074,14 +2481,14 @@ Note: For detailed analysis, check your connection and try again.
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (_currentStroke != null) {
+    if (_getCurrentCharacterStroke() != null) {
       final point = mlkit.StrokePoint(
         x: details.localPosition.dx,
         y: details.localPosition.dy,
         t: DateTime.now().millisecondsSinceEpoch,
       );
       
-      _currentStroke!.points.add(point);
+      _getCurrentCharacterStroke()!.points.add(point);
       _currentStrokePoints.add(point);
       
       setState(() {});
@@ -2089,13 +2496,18 @@ Note: For detailed analysis, check your connection and try again.
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (_currentStroke != null) {
-      if (!_ink.strokes.contains(_currentStroke!)) {
-        _ink.strokes.add(_currentStroke!);
-        _strokeHistory.add(_currentStroke!);
+    final currentStroke = _getCurrentCharacterStroke();
+    if (currentStroke != null) {
+      final currentInk = _getCurrentCharacterInk();
+      final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+      
+      if (!currentInk.strokes.contains(currentStroke)) {
+        currentInk.strokes.add(currentStroke);
+        currentStrokeHistory.add(currentStroke);
+        _markCurrentCharacterHasStrokes(true);
       }
       
-      _currentStroke = null;
+      _setCurrentCharacterStroke(null);
       _currentStrokePoints.clear();
       
       setState(() {});
@@ -2104,19 +2516,26 @@ Note: For detailed analysis, check your connection and try again.
 
   void _clearCanvas() {
     setState(() {
-      _ink.strokes.clear();
-      _strokeHistory.clear();
+      final currentInk = _getCurrentCharacterInk();
+      final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+      
+      currentInk.strokes.clear();
+      currentStrokeHistory.clear();
       _currentStrokePoints.clear();
-      _currentStroke = null;
+      _setCurrentCharacterStroke(null);
+      _markCurrentCharacterHasStrokes(false);
     });
   }
 
   void _undoLastStroke() {
-    if (_ink.strokes.isNotEmpty) {
+    final currentInk = _getCurrentCharacterInk();
+    if (currentInk.strokes.isNotEmpty) {
       setState(() {
-        _ink.strokes.removeLast();
-        _strokeHistory.clear();
-        _strokeHistory.addAll(_ink.strokes);
+        currentInk.strokes.removeLast();
+        final currentStrokeHistory = _getCurrentCharacterStrokeHistory();
+        currentStrokeHistory.clear();
+        currentStrokeHistory.addAll(currentInk.strokes);
+        _markCurrentCharacterHasStrokes(currentInk.strokes.isNotEmpty);
       });
     }
   }
@@ -2133,17 +2552,47 @@ Note: For detailed analysis, check your connection and try again.
   Future<void> _playVocabularyAudio(Map<String, dynamic> wordData) async {
     try {
       if (_hasAudioPath(wordData)) {
-        // For NPC vocabulary with existing audio_path
         final audioPath = wordData['audio_path'] as String;
-        print('Playing vocabulary audio: $audioPath');
+
         
         // Play audio file using audioplayers
         await _audioPlayer.stop(); // Stop any currently playing audio
         
-        // Fix double assets/ prefix issue
-        final cleanPath = audioPath.startsWith('assets/') ? audioPath.substring(7) : audioPath;
-        await _audioPlayer.play(AssetSource(cleanPath));
-        print('Successfully started playing: $cleanPath');
+        // Check if this is base64 audio data (for custom words) or file path (for NPC words)
+        if (audioPath.startsWith('assets/')) {
+          // For NPC vocabulary with existing audio_path
+          final cleanPath = audioPath.substring(7); // Remove 'assets/' prefix
+          await _audioPlayer.play(AssetSource(cleanPath));
+
+        } else if (audioPath.startsWith('data:') || audioPath.length > 1000) {
+          // For custom words with base64 audio data
+          String base64Data = audioPath;
+          if (audioPath.startsWith('data:')) {
+            // Extract base64 part from data URL
+            base64Data = audioPath.split(',').last;
+          }
+          
+          try {
+            final audioBytes = base64Decode(base64Data);
+            // Use just_audio for base64 data (iOS compatible)
+            await _justAudioPlayer.stop();
+            final audioSource = Base64AudioSource(audioBytes);
+            await _justAudioPlayer.setAudioSource(audioSource);
+            await _justAudioPlayer.play();
+
+          } catch (e) {
+            // Failed to decode base64 audio, fallback to TTS
+            // Fallback to TTS
+            final targetText = wordData['target'] as String? ?? '';
+            if (targetText.isNotEmpty) {
+              await _generateAndPlayTTS(targetText);
+            }
+          }
+        } else {
+          // Assume it's a regular file path
+          await _audioPlayer.play(AssetSource(audioPath));
+
+        }
       } else {
         // For custom words, use TTS from backend
         final targetText = wordData['target'] as String? ?? '';
@@ -2158,9 +2607,26 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Generate TTS audio using backend service for custom words
   Future<void> _generateAndPlayTTS(String text) async {
+    // Check cache first
+    if (_ttsAudioCache.containsKey(text)) {
+      final cachedAudio = _ttsAudioCache[text]!;
+      final bytes = base64Decode(cachedAudio);
+      await _justAudioPlayer.stop();
+      final audioSource = Base64AudioSource(bytes);
+      await _justAudioPlayer.setAudioSource(audioSource);
+      await _justAudioPlayer.play();
+
+      return;
+    }
+
+    setState(() {
+      _isGeneratingTTS = true;
+      _ttsGenerationFailed = false;
+    });
+
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8000/gcloud-translate-tts/'),
+        Uri.parse('http://localhost:8000/synthesize-speech/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'text': text,
@@ -2173,19 +2639,78 @@ Note: For detailed analysis, check your connection and try again.
         final audioBase64 = data['audio_base64'] as String?;
         
         if (audioBase64 != null && audioBase64.isNotEmpty) {
-          print('Generated TTS audio for: $text');
+
+          
+          // Cache the audio for future use
+          _ttsAudioCache[text] = audioBase64;
           
           // Decode base64 and play the audio
           final bytes = base64Decode(audioBase64);
           
-          // Create a temporary file from bytes and play it
-          await _audioPlayer.stop();
-          await _audioPlayer.play(BytesSource(bytes));
-          print('Successfully started playing TTS audio');
+          // Use just_audio for base64 data (iOS compatible)
+          await _justAudioPlayer.stop();
+          final audioSource = Base64AudioSource(bytes);
+          await _justAudioPlayer.setAudioSource(audioSource);
+          await _justAudioPlayer.play();
+
         }
+      } else {
+        // TTS generation failed
+        setState(() {
+          _ttsGenerationFailed = true;
+        });
       }
     } catch (e) {
-      print('Error generating TTS: $e');
+      // Error generating TTS
+      setState(() {
+        _ttsGenerationFailed = true;
+      });
+    } finally {
+      setState(() {
+        _isGeneratingTTS = false;
+      });
+    }
+  }
+
+  /// Handle audio playback with retry logic for failed TTS
+  Future<void> _handleAudioPlayback(Map<String, dynamic> wordData, bool hasNPCAudio) async {
+    if (_ttsGenerationFailed && !hasNPCAudio) {
+      // Reset the failed state and retry TTS generation
+      setState(() {
+        _ttsGenerationFailed = false;
+      });
+    }
+    
+    // Call the original playback method
+    await _playVocabularyAudio(wordData);
+  }
+
+  /// Build dynamic audio icon based on TTS loading state
+  Widget _buildAudioIcon(bool hasNPCAudio) {
+    if (_isGeneratingTTS) {
+      // Show loading spinner for TTS generation
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4ECCA3)),
+        ),
+      );
+    } else if (_ttsGenerationFailed) {
+      // Show retry icon for failed TTS generation
+      return const Icon(
+        Icons.refresh,
+        color: Colors.red,
+        size: 20,
+      );
+    } else {
+      // Show volume icon for normal state (both NPC and custom words)
+      return const Icon(
+        Icons.volume_up,
+        color: Color(0xFF4ECCA3),
+        size: 20,
+      );
     }
   }
 
@@ -2377,11 +2902,15 @@ Note: For detailed analysis, check your connection and try again.
           
           const SizedBox(height: 12),
           
-          // Main tracing area (clean canvas) - restored to maximum space
+          // Main tracing area (clean canvas) - reduced to 35% as per design
           Expanded(
-            flex: 10, // Restored to original size for maximum drawing space
             child: _buildCleanTracingArea(currentSemanticWord),
           ),
+          
+          const SizedBox(height: 8),
+          
+          // NEW: Sound breakdown strip - fixed height
+          _buildSoundBreakdownStrip(),
           
           const SizedBox(height: 8),
           
@@ -2498,9 +3027,7 @@ Note: For detailed analysis, check your connection and try again.
         .join(' ');
     
     // Use main English translation from first word mapping instead of combined translations
-    print('DEBUG HEADER: widget.wordMapping[0] keys: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0].keys : "empty"}');
-    print('DEBUG HEADER: english field value: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0]['english'] : "N/A"}');
-    print('DEBUG HEADER: translation field value: ${widget.wordMapping.isNotEmpty ? widget.wordMapping[0]['translation'] : "N/A"}');
+
     
     final mainTranslation = widget.wordMapping.isNotEmpty && 
                            widget.wordMapping[0].containsKey('english') &&
@@ -2514,16 +3041,19 @@ Note: For detailed analysis, check your connection and try again.
           ? widget.wordMapping[0]['translation'].toString()
           : '';
     
-    print('DEBUG HEADER: Using translation: "$mainTranslation"');
+
     
-    // Check original vocabulary item for audio path first, then word mapping
-    final hasAudio = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
+    // Show audio icon for all words (NPC words with audio_path OR custom words for TTS)
+    final hasNPCAudio = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
         widget.originalVocabularyItem!['audio_path'] != null &&
         widget.originalVocabularyItem!['audio_path'].toString().isNotEmpty) ||
         widget.wordMapping.any((mapping) => 
             mapping.containsKey('audio_path') && 
             mapping['audio_path'] != null && 
             mapping['audio_path'].toString().isNotEmpty);
+    
+    // Show audio icon for ALL words (NPC vocabulary + custom words via TTS)
+    final hasAudio = hasNPCAudio || widget.wordMapping.isNotEmpty;
     
     // Use original vocabulary item for audio playback if available, otherwise fallback to word mapping
     final wordData = (widget.originalVocabularyItem?.containsKey('audio_path') == true &&
@@ -2569,7 +3099,7 @@ Note: For detailed analysis, check your connection and try again.
                     right: 0,
                     top: 0,
                     child: GestureDetector(
-                      onTap: () => _playVocabularyAudio(wordData),
+                      onTap: () => _handleAudioPlayback(wordData, hasNPCAudio),
                       child: Container(
                         width: 36,
                         height: 36,
@@ -2581,11 +3111,7 @@ Note: For detailed analysis, check your connection and try again.
                             width: 1,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.volume_up,
-                          color: Color(0xFF4ECCA3),
-                          size: 20,
-                        ),
+                        child: _buildAudioIcon(hasNPCAudio),
                       ),
                     ),
                   ),
@@ -2691,7 +3217,7 @@ Note: For detailed analysis, check your connection and try again.
           onPanUpdate: _onPanUpdate,
           onPanEnd: _onPanEnd,
           child: CustomPaint(
-            painter: _TracingPainter(_ink, currentStrokePoints: _currentStrokePoints),
+            painter: _TracingPainter(_getCurrentCharacterInk(), currentStrokePoints: _currentStrokePoints),
             size: Size.infinite,
           ),
         ),
@@ -2717,6 +3243,15 @@ Note: For detailed analysis, check your connection and try again.
   /// Get character name for display
   String _getCharacterName(String character) {
     final charType = _getCharacterType(character);
+    
+    // For other marks, get the correct name from the other mark info
+    if (charType == 'other_mark') {
+      final otherMarkInfo = _getOtherMarkInfo(character);
+      final name = otherMarkInfo['name'] as String?;
+      if (name != null && name.isNotEmpty) {
+        return name;
+      }
+    }
     
     // For tone marks, get the correct name from the tone mark info
     if (charType == 'tone') {
@@ -2756,7 +3291,7 @@ Note: For detailed analysis, check your connection and try again.
   /// Get complex vowel information for the current character and word
   Future<Map<String, dynamic>?> _getComplexVowelInfo(String character, String word) async {
     try {
-      print('DEBUG: _getComplexVowelInfo called for character "$character" in word "$word"');
+  
       final response = await http.post(
         Uri.parse('http://localhost:8000/analyze-complex-vowels/'),
         headers: {'Content-Type': 'application/json'},
@@ -2766,21 +3301,17 @@ Note: For detailed analysis, check your connection and try again.
         }),
       );
 
-      print('DEBUG: Complex vowel API response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('DEBUG: Complex vowel API response data: $data');
         
         // Find if current character is part of any complex vowel
         final characterAnalysis = data['character_analysis'] as List?;
         if (characterAnalysis != null) {
           final currentCharIndex = word.indexOf(character);
-          print('DEBUG: Character "$character" index in word "$word": $currentCharIndex');
           if (currentCharIndex >= 0 && currentCharIndex < characterAnalysis.length) {
             final charInfo = characterAnalysis[currentCharIndex];
-            print('DEBUG: Character analysis for index $currentCharIndex: $charInfo');
             if (charInfo['complex_vowel_info'] != null) {
-              print('DEBUG: Found complex vowel info for "$character"');
               return {
                 'is_complex_vowel': true,
                 'pattern': charInfo['complex_vowel_info']['pattern'],
@@ -2793,7 +3324,6 @@ Note: For detailed analysis, check your connection and try again.
           }
         }
       } else {
-        print('DEBUG: Complex vowel API failed with status: ${response.statusCode}, body: ${response.body}');
       }
     } catch (e) {
       print('Error getting complex vowel info: $e');
@@ -2836,19 +3366,18 @@ Note: For detailed analysis, check your connection and try again.
     
     // Only show complex vowel info for consonants that are actual vowel components (like อ in เ◌ือ)
     if (complexVowelGuide.isNotEmpty && character == 'อ') {
-      print('DEBUG CONSONANT: Character "$character" is part of complex vowel');
       
-      // For อ as part of เ◌ือ, show original consonant name but note it's part of complex vowel
-      final charInfo = _getDetailedCharacterInfo(character);
-      final originalName = charInfo?['name'] as String? ?? 'o ang';
-      final originalSound = charInfo?['romanization'] as String? ?? 'o';
+      // For อ as part of เ◌ือ, show the complex vowel sound it makes
+      final complexVowelData = _getComplexVowelData(currentSemanticWord);
+      final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+      final complexVowelSound = complexVowelData['romanization'] as String? ?? complexVowelGuide;
       
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            originalName,
+            complexVowelName,
             style: const TextStyle(
               color: Color(0xFF4ECCA3),
               fontSize: 14,
@@ -2856,7 +3385,7 @@ Note: For detailed analysis, check your connection and try again.
             ),
           ),
           Text(
-            "'$originalSound'",
+            "'$complexVowelSound'",
             style: const TextStyle(
               color: Color(0xFF4ECCA3),
               fontSize: 14,
@@ -2919,24 +3448,18 @@ Note: For detailed analysis, check your connection and try again.
       builder: (context, snapshot) {
         final complexVowelInfo = snapshot.data;
         
-        print('DEBUG VOWEL: Character "$character" in word "$word"');
-        print('DEBUG VOWEL: Snapshot data: $complexVowelInfo');
-        print('DEBUG VOWEL: has data: ${snapshot.hasData}, error: ${snapshot.error}');
         
         // Always show individual vowel information next to the icon
         // Complex vowel explanation will be in the Sound box via contextual tips
         
         // Otherwise show individual vowel information
-        print('DEBUG VOWEL: Using individual vowel info for "$character"');
         final charInfo = _getDetailedCharacterInfo(character);
         if (charInfo == null) {
-          print('DEBUG VOWEL: No charInfo found for "$character"');
           return const SizedBox.shrink();
         }
         
         final name = _getCharacterName(character);
         final romanization = charInfo['romanization'] as String? ?? '';
-        print('DEBUG VOWEL: Individual vowel - name: "$name", romanization: "$romanization"');
         
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -2968,11 +3491,9 @@ Note: For detailed analysis, check your connection and try again.
 
   /// Build tone mark display with tone calculation formula
   Widget _buildToneMarkDisplay(String character, String word) {
-    print('DEBUG TONE: Building tone mark display for "$character" in word "$word"');
     
     final toneInfo = _getToneMarkInfoFromJSON(character);
     if (toneInfo.isEmpty) {
-      print('DEBUG TONE: No tone info found for "$character"');
       return const SizedBox.shrink();
     }
     
@@ -2980,7 +3501,6 @@ Note: For detailed analysis, check your connection and try again.
     final toneData = _calculateToneEffectWithFormula(character, word);
     final toneEffect = toneData['tone'] ?? '';
     
-    print('DEBUG TONE: name: "$name", effect: "$toneEffect"');
     
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -3239,18 +3759,29 @@ Note: For detailed analysis, check your connection and try again.
     if (_constituentWordData.isNotEmpty && _currentCharacterIndex < _constituentWordData.length) {
       final wordData = _constituentWordData[_currentCharacterIndex];
       currentRomanization = wordData['romanized'] as String? ?? '';
-      currentTranslation = wordData['translation'] as String? ?? '';
+      
+      // Handle compound word syllables
+      final rawTranslation = wordData['translation'] as String?;
+      final isCompound = wordData['is_compound'] == true;
+      final wordTranslation = wordData['word_translation'] as String?;
+      
+      if (rawTranslation == null || rawTranslation.isEmpty || rawTranslation == 'null' || rawTranslation == 'None') {
+        if (isCompound && wordTranslation != null && wordTranslation.isNotEmpty) {
+          // For compound words, show contextual information
+          currentTranslation = '(part of $wordTranslation)';
+        } else {
+          // For non-compound words or missing word translation, show syllable romanization
+          currentTranslation = currentRomanization.isNotEmpty ? '($currentRomanization)' : '';
+        }
+      } else {
+        currentTranslation = rawTranslation;
+      }
     }
-    
-    // Calculate progress
-    final progress = _currentCharacters.isNotEmpty 
-        ? '${_currentCharacterIndex + 1}/${_currentCharacters.length}'
-        : '';
     
     return Container(
       width: double.infinity,
-      // Removed fixed height to allow expansion
       margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reduced padding
       decoration: BoxDecoration(
         color: const Color(0xFF1F1F1F),
         borderRadius: BorderRadius.circular(12),
@@ -3261,115 +3792,48 @@ Note: For detailed analysis, check your connection and try again.
       ),
       child: Column(
         children: [
-          // Scrollable content area (includes basic info + character tips)
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Basic info section (now scrollable)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      children: [
-                        // Current semantic word display
-                        if (currentSemanticWord.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(flex: 1, child: Container()),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  currentSemanticWord,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              Expanded(
-                                flex: 1,
-                                child: progress.isNotEmpty
-                                    ? Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            progress,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Color(0xFF4ECCA3),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : Container(),
-                              ),
-                            ],
-                          ),
-                          
-                          if (currentRomanization.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              currentRomanization,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF4ECCA3),
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                          
-                          if (currentTranslation.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              currentTranslation,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2, // Allow wrapping for better readability
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  // Divider
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: const Color(0xFF4ECCA3).withValues(alpha: 0.2),
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // Character tips section (now also scrollable)
-                  _buildCurrentCharacterTip(currentSemanticWord),
-                ],
+          // Current syllable display with three separate lines (centered)
+          if (currentSemanticWord.isNotEmpty) ...[
+            // Line 1: Thai syllable (centered, no progress indicator)
+            Text(
+              currentSemanticWord,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          
-          // Fixed navigation bar at bottom
-          _buildCharacterNavigationBar(),
+            
+            // Line 2: Transliteration 
+            if (currentRomanization.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                currentRomanization,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Color(0xFF4ECCA3),
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            
+            // Line 3: Translation
+            if (currentTranslation.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                currentTranslation,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -3391,11 +3855,6 @@ Note: For detailed analysis, check your connection and try again.
       currentTranslation = wordData['translation'] as String? ?? '';
     }
     
-    // Calculate progress
-    final progress = _currentCharacters.isNotEmpty 
-        ? '${_currentCharacterIndex + 1}/${_currentCharacters.length}'
-        : '';
-    
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -3407,42 +3866,13 @@ Note: For detailed analysis, check your connection and try again.
           width: 1,
         ),
       ),
-      child: Stack(
-        children: [
-          // Progress indicator positioned absolutely at top-right corner of the full container
-          if (progress.isNotEmpty)
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4ECCA3).withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFF4ECCA3).withValues(alpha: 0.5),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  progress,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4ECCA3),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          
-          // Main content with padding applied here instead of container level
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 36, 8, 24),
-            child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Left navigation arrow
-              Container(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 8, 16), // Reduced padding
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left navigation arrow
+            Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF4ECCA3).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -3520,11 +3950,1941 @@ Note: For detailed analysis, check your connection and try again.
                 ),
               ),
             ],
+        ),
+      ),
+    );
+  }
+
+  /// Build sound breakdown strip showing character components with pronunciation
+  Widget _buildSoundBreakdownStrip() {
+    // Get current syllable only (per traceable canvas)
+    final currentSyllable = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+        ? _currentCharacters[_currentCharacterIndex]
+        : '';
+    
+    if (currentSyllable.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    // If preprocessing is not complete, show a loading indicator
+    if (!_isPreprocessingComplete) {
+      return Container(
+        width: double.infinity,
+        height: 150,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F1F1F),
+          border: Border(
+            top: BorderSide(
+              color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
+              width: 1,
+            ),
+            bottom: BorderSide(
+              color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+        ),
+        child: const Center(
+          child: Text(
+            'Loading sound breakdown...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF4ECCA3),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      height: 150, // Increased height to accommodate larger text
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F1F1F),
+        border: Border(
+          top: BorderSide(
+            color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
+            width: 1,
+          ),
+          bottom: BorderSide(
+            color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Title
+          const Text(
+            'Sound Breakdown',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4ECCA3),
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Character cards row - centered when content is smaller than width
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: _buildCharacterSoundCards(currentSyllable),
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Build individual character sound cards for the breakdown strip using proper syllable analysis
+  List<Widget> _buildCharacterSoundCards(String syllable) {
+    final List<Widget> cards = [];
+    
+    // Use the same backend analysis that writing tips use
+    final components = _analyzeSyllableComponents(syllable);
+    
+    // Use standardized spacing for consistent appearance across all traceable canvases
+    const double spacing = 12.0; // Fixed spacing between cards for uniformity
+    
+    for (int i = 0; i < components.length; i++) {
+      final component = components[i];
+      
+      // Build the card
+      cards.add(_buildSingleSoundCard(
+        character: component['character'] as String,
+        romanization: component['romanization'] as String,
+        typeTag: component['typeTag'] as String,
+        fullTypeLabel: component['fullTypeLabel'] as String? ?? component['typeTag'] as String,
+        tagColor: component['tagColor'] as Color,
+        isHighlighted: false, // No highlighting needed since we only show current syllable
+        isSilent: component['isSilent'] as bool? ?? false,
+        isComplexVowel: component['isComplexVowel'] as bool? ?? false,
+        patternName: component['patternName'] as String?,
+        readingExplanation: component['readingExplanation'] as String?,
+      ));
+      
+      if (i < components.length - 1) {
+        cards.add(SizedBox(width: spacing));
+      }
+    }
+    
+    return cards;
+  }
+
+  /// Analyze syllable components using backend analysis data (same as writing tips)
+  List<Map<String, dynamic>> _analyzeSyllableComponents(String syllable) {
+    final List<Map<String, dynamic>> components = [];
+    
+    
+    // Step 1: Try to get backend analysis from cache (same as writing tips)
+    final backendAnalysis = _getBackendSyllableAnalysis(syllable);
+    
+    if (backendAnalysis != null) {
+      // Use backend analysis for complex vowel detection (same as writing tips)
+      components.addAll(_analyzeFromBackendData(syllable, backendAnalysis));
+    } else {
+      // Fallback to JSON-based analysis
+      components.addAll(_analyzeFromThaiGuideJson(syllable));
+    }
+    
+    return components;
+  }
+  
+  /// Get backend syllable analysis from cache (same source as writing tips)
+  Map<String, dynamic>? _getBackendSyllableAnalysis(String syllable) {
+    // Check if we have cached analysis for this syllable
+    if (_wordAnalysisCache.containsKey(syllable)) {
+      final wordData = _wordAnalysisCache[syllable]!;
+      
+      // If this is word-level data, extract the syllable data
+      if (wordData.containsKey('syllables')) {
+        final syllables = wordData['syllables'] as List? ?? [];
+        for (final syllableData in syllables) {
+          final syllableMap = syllableData as Map<String, dynamic>;
+          if (syllableMap['syllable'] == syllable) {
+            return syllableMap;
+          }
+        }
+      } else {
+        // This is already syllable-level data
+        return wordData;
+      }
+    }
+    
+    // Check if any cached analysis contains this syllable
+    for (final analysisData in _wordAnalysisCache.values) {
+      if (analysisData.containsKey('syllables')) {
+        final syllables = analysisData['syllables'] as List?;
+        if (syllables != null) {
+          for (final syllableData in syllables) {
+            final syllableMap = syllableData as Map<String, dynamic>;
+            if (syllableMap['syllable'] == syllable) {
+              return syllableMap;
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  /// Analyze syllable using backend data (same logic as writing tips)
+  List<Map<String, dynamic>> _analyzeFromBackendData(String syllable, Map<String, dynamic> backendData) {
+    final List<Map<String, dynamic>> components = [];
+    
+    // Extract character analysis from new backend structure
+    final characters = backendData['characters'] as List? ?? [];
+    
+    // Detect consonants silenced by thanthakhat
+    final silencedConsonants = _detectSilencedConsonants(syllable);
+    
+    // Process each character using backend analysis
+    for (int i = 0; i < characters.length; i++) {
+      final charData = characters[i] as Map<String, dynamic>;
+      final char = charData['character'] as String? ?? '';
+      
+      if (char.isNotEmpty) {
+        final componentData = _buildCharacterFromNewBackendAnalysis(charData);
+        
+        // Apply silencing if this consonant is affected by thanthakhat
+        if (silencedConsonants.containsKey(i)) {
+          componentData['isSilent'] = true;
+          final currentRomanization = componentData['romanization'] as String? ?? '';
+          if (!currentRomanization.contains('(silent)')) {
+            componentData['romanization'] = '$currentRomanization(silent)';
+          }
+        }
+        
+        components.add(componentData);
+      }
+    }
+    
+    return components;
+  }
+  
+  /// Build character data from new backend analysis structure
+  Map<String, dynamic> _buildCharacterFromNewBackendAnalysis(Map<String, dynamic> charData) {
+    final character = charData['character'] as String? ?? '';
+    var type = charData['type'] as String? ?? 'Unknown';
+    final romanization = charData['romanization'] as String? ?? '';
+    final complexVowelMember = charData['complex_vowel_member'] as bool? ?? false;
+    
+    // Fix backend "Unknown" types by checking against JSON data
+    if (type == 'Unknown' && character.isNotEmpty) {
+      final actualType = _getCharacterType(character);
+      if (actualType == 'other_mark') {
+        type = 'Other Mark';
+      } else if (actualType == 'tone') {
+        type = 'Tone Mark';
+      } else if (actualType == 'consonant') {
+        type = 'Consonant';
+      } else if (actualType == 'vowel') {
+        type = 'Vowel';
+      }
+    }
+    
+    // Determine if it's silent based on romanization or type
+    final isSilent = romanization.contains('(silent)') || type == 'Other Mark';
+    final isComplexVowel = complexVowelMember;
+    
+    // Clean romanization for display
+    String displayRomanization = romanization;
+    if (displayRomanization.isEmpty && type == 'Tone Mark') {
+      // Get tone mark name from JSON for display
+      final toneInfo = _getToneMarkInfoFromJSON(character);
+      displayRomanization = toneInfo['name'] as String? ?? 'Tone Mark';
+    } else if (displayRomanization.isEmpty && type == 'Other Mark') {
+      // For sound breakdown, just show "Silent" for other marks
+      displayRomanization = 'Silent';
+    }
+    
+    // Color coding and type tag mapping
+    Color tagColor;
+    String typeTag;
+    
+    if (isComplexVowel) {
+      tagColor = const Color(0xFFE74C3C); // Red for complex vowels
+      typeTag = 'CV'; // Abbreviation for complex vowel
+    } else {
+      switch (type) {
+        case 'Consonant':
+          tagColor = const Color(0xFF4ECCA3);
+          typeTag = 'C';
+          break;
+        case 'Vowel':
+          tagColor = const Color(0xFF3498DB);
+          typeTag = 'V';
+          break;
+        case 'Tone Mark':
+          tagColor = const Color(0xFFF39C12);
+          typeTag = 'T';
+          break;
+        case 'Other Mark':
+          tagColor = const Color(0xFF9B59B6);
+          typeTag = 'O';
+          break;
+        default:
+          tagColor = const Color(0xFF95A5A6);
+          typeTag = 'U'; // Unknown
+      }
+    }
+    
+    return {
+      'character': character,
+      'romanization': displayRomanization,
+      'typeTag': typeTag,
+      'fullTypeLabel': type,
+      'tagColor': tagColor,
+      'isSilent': isSilent,
+      'isComplexVowel': isComplexVowel,
+      'patternName': charData['complex_vowel_pattern'] as String?,
+      'readingExplanation': null, // Not provided in new backend structure
+    };
+  }
+  
+  /// Build character analysis from backend data
+  Map<String, dynamic> _buildCharacterFromBackendAnalysis(
+    String char, 
+    Map<String, dynamic> charAnalysis, 
+    List complexVowels
+  ) {
+    final characterDetails = _getDetailedCharacterInfo(char);
+    String romanization = '';
+    String typeTag = '';
+    String fullTypeLabel = '';
+    Color tagColor = const Color(0xFF4ECDC4);
+    bool isComplexVowel = false;
+    bool isSilent = false;
+    String? patternName;
+    String? readingExplanation;
+    
+    // Check if this character is part of a complex vowel (same as writing tips logic)
+    final complexVowelMember = charAnalysis['complex_vowel_member'];
+    
+    if (complexVowelMember != null) {
+      // ALL characters in complex vowel patterns are tagged as "Complex Vowel"
+      isComplexVowel = true;
+      typeTag = 'CV';
+      fullTypeLabel = 'Complex Vowel';
+      tagColor = const Color(0xFFF39C12); // Orange for complex vowels
+      
+      final complexVowelData = complexVowelMember as Map<String, dynamic>;
+      patternName = complexVowelData['pattern'] as String?;
+      final role = complexVowelData['role'] as String? ?? '';
+      
+      // Find the matching complex vowel pattern for additional info
+      for (final vowelPattern in complexVowels) {
+        final pattern = vowelPattern as Map<String, dynamic>;
+        if (pattern['pattern'] == patternName) {
+          readingExplanation = pattern['reading_explanation'] as String?;
+          
+          // Determine if this is the sound carrier or silent component
+          final components = pattern['components'] as List? ?? [];
+          final romanizationSound = pattern['romanization'] as String? ?? '';
+          
+          if (role == 'consonant') {
+            // This is the consonant that carries the complex vowel sound
+            final originalSound = characterDetails != null ? _getStandardizedRomanization(characterDetails, 'consonant') : char;
+            romanization = '$romanizationSound($originalSound)';
+            isSilent = false;
+          } else {
+            // This is a vowel component (เ, ื, etc.)
+            final originalSound = characterDetails != null ? _getStandardizedRomanization(characterDetails, 'vowel') : char;
+            romanization = '$originalSound(silent)';
+            isSilent = true;
+          }
+          break;
+        }
+      }
+    } else {
+      // Regular character processing (same as original logic)
+      final type = charAnalysis['type'] as String? ?? _getCharacterTypeFromJson(char);
+      romanization = characterDetails != null ? _getStandardizedRomanization(characterDetails, type) : char;
+      
+      if (type == 'consonant') {
+        typeTag = 'C';
+        fullTypeLabel = 'Consonant';
+        tagColor = const Color(0xFF4ECDC4);
+      } else if (type == 'vowel') {
+        typeTag = 'V'; 
+        fullTypeLabel = 'Vowel';
+        tagColor = const Color(0xFF9B59B6);
+      } else if (type == 'tone_mark' || type == 'tone') {
+        typeTag = 'T';
+        fullTypeLabel = 'Tone Mark';
+        tagColor = const Color(0xFF3498DB);
+      }
+    }
+    
+    return {
+      'character': char,
+      'romanization': romanization,
+      'typeTag': typeTag,
+      'fullTypeLabel': fullTypeLabel,
+      'tagColor': tagColor,
+      'isComplexVowel': isComplexVowel,
+      'isSilent': isSilent,
+      'patternName': patternName,
+      'readingExplanation': readingExplanation,
+    };
+  }
+  
+  /// Fallback analysis using thai_writing_guide.json  
+  List<Map<String, dynamic>> _analyzeFromThaiGuideJson(String syllable) {
+    final List<Map<String, dynamic>> components = [];
+    
+    // Detect complex vowel patterns from JSON (fallback approach)
+    final complexVowelPatterns = _detectComplexVowelPatternsFromJson(syllable);
+    
+    // Process each character
+    for (int i = 0; i < syllable.length; i++) {
+      final char = syllable[i];
+      final characterDetails = _getDetailedCharacterInfo(char);
+      
+      if (characterDetails != null) {
+        final type = characterDetails['type'] as String? ?? '';
+        final complexVowelInfo = complexVowelPatterns[char];
+        
+        if (complexVowelInfo != null) {
+          // This character is part of a complex vowel - tag as Complex Vowel
+          final isCarrier = complexVowelInfo['silent'] == false;
+          final complexSound = complexVowelInfo['sound'] as String? ?? '';
+          final originalSound = _getStandardizedRomanization(characterDetails, type);
+          
+          String romanization;
+          if (isCarrier) {
+            romanization = '$complexSound($originalSound)';
+          } else {
+            romanization = '$originalSound(silent)';
+          }
+          
+          components.add({
+            'character': char,
+            'romanization': romanization,
+            'typeTag': 'CV',
+            'fullTypeLabel': 'Complex Vowel',
+            'tagColor': const Color(0xFFF39C12),
+            'isComplexVowel': true,
+            'isSilent': !isCarrier,
+            'patternName': complexVowelInfo['pattern'],
+            'readingExplanation': complexVowelInfo['explanation'],
+          });
+        } else {
+          // Regular character
+          components.add(_buildRegularCharacterAnalysis(char, characterDetails));
+        }
+      } else {
+        // Fallback for unknown characters
+        components.add(_buildFallbackCharacterAnalysis(char));
+      }
+    }
+    
+    return components;
+  }
+  
+  /// Build regular character analysis (non-complex vowel)
+  Map<String, dynamic> _buildRegularCharacterAnalysis(String char, Map<String, dynamic> characterDetails) {
+    final type = characterDetails['type'] as String? ?? '';
+    final romanization = _getStandardizedRomanization(characterDetails, type);
+    
+    String typeTag;
+    String fullTypeLabel;
+    Color tagColor;
+    
+    if (type == 'consonant') {
+      typeTag = 'C';
+      fullTypeLabel = 'Consonant';
+      tagColor = const Color(0xFF4ECDC4);
+    } else if (type == 'vowel') {
+      typeTag = 'V'; 
+      fullTypeLabel = 'Vowel';
+      tagColor = const Color(0xFF9B59B6);
+    } else if (type == 'tone_mark' || type == 'tone') {
+      typeTag = 'T';
+      fullTypeLabel = 'Tone Mark';
+      tagColor = const Color(0xFF3498DB);
+    } else {
+      typeTag = '?';
+      fullTypeLabel = 'Unknown';
+      tagColor = const Color(0xFF95A5A6);
+    }
+    
+    return {
+      'character': char,
+      'romanization': romanization,
+      'typeTag': typeTag,
+      'fullTypeLabel': fullTypeLabel,
+      'tagColor': tagColor,
+      'isComplexVowel': false,
+      'isSilent': false,
+      'patternName': null,
+      'readingExplanation': null,
+    };
+  }
+  
+  /// Build fallback character analysis
+  Map<String, dynamic> _buildFallbackCharacterAnalysis(String char) {
+    final type = _getCharacterType(char);
+    
+    String typeTag;
+    String fullTypeLabel;
+    Color tagColor;
+    
+    switch (type) {
+      case 'consonant':
+        typeTag = 'C';
+        fullTypeLabel = 'Consonant';
+        tagColor = const Color(0xFF4ECDC4);
+        break;
+      case 'vowel':
+        typeTag = 'V';
+        fullTypeLabel = 'Vowel';
+        tagColor = const Color(0xFF9B59B6);
+        break;
+      case 'tone_mark':
+        typeTag = 'T';
+        fullTypeLabel = 'Tone Mark';
+        tagColor = const Color(0xFF3498DB);
+        break;
+      case 'other_mark':
+        typeTag = 'O';
+        fullTypeLabel = 'Other Mark';
+        tagColor = const Color(0xFF9B59B6);
+        break;
+      default:
+        typeTag = '?';
+        fullTypeLabel = 'Unknown';
+        tagColor = const Color(0xFF95A5A6);
+    }
+    
+    return {
+      'character': char,
+      'romanization': char,
+      'typeTag': typeTag,
+      'fullTypeLabel': fullTypeLabel,
+      'tagColor': tagColor,
+      'isComplexVowel': false,
+      'isSilent': false,
+      'patternName': null,
+      'readingExplanation': null,
+    };
+  }
+  
+  /// Detect complex vowel patterns from thai_writing_guide.json (fallback)
+  Map<String, Map<String, dynamic>> _detectComplexVowelPatternsFromJson(String syllable) {
+    final Map<String, Map<String, dynamic>> result = {};
+    
+    // Use the existing method as fallback
+    if (_thaiWritingGuideData != null) {
+      final vowels = _thaiWritingGuideData!['vowels'] as Map<String, dynamic>?;
+      if (vowels != null) {
+        // Check for เ◌ือ pattern specifically
+        if (syllable.contains('เ') && syllable.contains('ื') && syllable.contains('อ')) {
+          final pattern = vowels['เ◌ือ'] as Map<String, dynamic>?;
+          if (pattern != null) {
+            final pronunciation = pattern['pronunciation'] as Map<String, dynamic>?;
+            final romanization = pronunciation?['romanization'] as String? ?? 'uea';
+            
+            // Mark all components as part of complex vowel
+            result['เ'] = {
+              'pattern': 'เ◌ือ',
+              'sound': romanization,
+              'silent': true,
+              'explanation': 'Silent component of Sara Uea pattern'
+            };
+            result['ื'] = {
+              'pattern': 'เ◌ือ', 
+              'sound': romanization,
+              'silent': true,
+              'explanation': 'Silent component of Sara Uea pattern'
+            };
+            result['อ'] = {
+              'pattern': 'เ◌ือ',
+              'sound': romanization,
+              'silent': false,
+              'explanation': 'Sound carrier of Sara Uea pattern'
+            };
+          }
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /// Get character type from JSON fallback
+  String _getCharacterTypeFromJson(String char) {
+    if (_thaiWritingGuideData != null) {
+      final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
+      final vowels = _thaiWritingGuideData!['vowels'] as Map<String, dynamic>?;
+      final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+      final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+      
+      if (consonants?.containsKey(char) == true) return 'consonant';
+      if (vowels?.values.any((v) => (v as Map<String, dynamic>)['name']?.toString().contains(char) == true) == true) return 'vowel';
+      if (toneMarks?.containsKey(char) == true) return 'tone_mark';
+      if (otherMarks?.containsKey(char) == true) return 'other_mark';
+    }
+    
+    return _getCharacterType(char); // Ultimate fallback
+  }
+
+
+  /// Fetch detailed syllable analysis from backend
+  Future<void> _fetchSyllableAnalysis(String syllable) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8000/generate-writing-guide'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'word': syllable,
+          'target_language': 'th',
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        
+        // Cache the analysis data
+        _wordAnalysisCache[syllable] = data;
+        
+        // Trigger a rebuild to show the updated analysis
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      print('Error fetching syllable analysis: $e');
+    }
+  }
+
+  /// Extract components with positions using writing tips logic
+  List<Map<String, dynamic>> _extractSyllableComponentsWithPositions(String syllable, Map<String, dynamic> componentsData) {
+    final List<Map<String, dynamic>> result = [];
+    
+    // First, detect complex vowel patterns to get metadata
+    final complexVowelPattern = _detectComplexVowelPattern(syllable, componentsData);
+    
+    // Use the exact same logic as writing tips
+    final componentsWithPosition = <Map<String, dynamic>>[];
+    
+    // Process components in Thai writing order (same as _extractComponentsWithPositions)
+    // 1. Leading vowels (written before consonant)
+    final vowels = componentsData['vowels'] as List? ?? [];
+    for (final vowel in vowels) {
+      if (vowel is Map<String, dynamic>) {
+        final vowelMap = vowel;
+        if (vowelMap['position'] == 'before') {
+          componentsWithPosition.add({
+            'character': vowelMap['character'] ?? '',
+            'type': 'vowel',
+            'position': componentsWithPosition.length,
+            'details': vowelMap,
+          });
+        }
+      }
+    }
+    
+    // 2. Initial consonants
+    final initialConsonants = componentsData['initial_consonants'] as List? ?? [];
+    for (final consonant in initialConsonants) {
+      if (consonant is Map<String, dynamic>) {
+        final consMap = consonant;
+        componentsWithPosition.add({
+          'character': consMap['character'] ?? '',
+          'type': 'consonant',
+          'position': componentsWithPosition.length,
+          'details': consMap,
+        });
+      } else {
+        // Handle string components by splitting them
+        final chars = consonant.toString().characters.toList();
+        for (final char in chars) {
+          componentsWithPosition.add({
+            'character': char,
+            'type': 'consonant',
+            'position': componentsWithPosition.length,
+            'details': {'character': char},
+          });
+        }
+      }
+    }
+    
+    // 3. Above/below vowels (written after consonant)
+    for (final vowel in vowels) {
+      if (vowel is Map<String, dynamic>) {
+        final vowelMap = vowel;
+        if (vowelMap['position'] == 'above' || vowelMap['position'] == 'below') {
+          componentsWithPosition.add({
+            'character': vowelMap['character'] ?? '',
+            'type': 'vowel',
+            'position': componentsWithPosition.length,
+            'details': vowelMap,
+          });
+        }
+      }
+    }
+    
+    // 4. Following vowels (written after consonant)
+    for (final vowel in vowels) {
+      if (vowel is Map<String, dynamic>) {
+        final vowelMap = vowel;
+        if (vowelMap['position'] == 'after') {
+          componentsWithPosition.add({
+            'character': vowelMap['character'] ?? '',
+            'type': 'vowel',
+            'position': componentsWithPosition.length,
+            'details': vowelMap,
+          });
+        }
+      }
+    }
+    
+    // 5. Final consonants
+    final finalConsonants = componentsData['final_consonants'] as List? ?? [];
+    for (final consonant in finalConsonants) {
+      if (consonant is Map<String, dynamic>) {
+        final consMap = consonant;
+        componentsWithPosition.add({
+          'character': consMap['character'] ?? '',
+          'type': 'consonant',
+          'position': componentsWithPosition.length,
+          'details': consMap,
+        });
+      } else {
+        // Handle string components by splitting them
+        final chars = consonant.toString().characters.toList();
+        for (final char in chars) {
+          componentsWithPosition.add({
+            'character': char,
+            'type': 'consonant',
+            'position': componentsWithPosition.length,
+            'details': {'character': char},
+          });
+        }
+      }
+    }
+    
+    // 6. Tone marks (always last)
+    final toneMarks = componentsData['tone_marks'] as List? ?? [];
+    for (final tone in toneMarks) {
+      if (tone is Map<String, dynamic>) {
+        final toneMap = tone;
+        componentsWithPosition.add({
+          'character': toneMap['character'] ?? '',
+          'type': 'tone',
+          'position': componentsWithPosition.length,
+          'details': toneMap,
+        });
+      } else {
+        // Handle string tone marks
+        final chars = tone.toString().characters.toList();
+        for (final char in chars) {
+          componentsWithPosition.add({
+            'character': char,
+            'type': 'tone',
+            'position': componentsWithPosition.length,
+            'details': {'character': char},
+          });
+        }
+      }
+    }
+    
+    // Now convert to sound panel format
+    for (final component in componentsWithPosition) {
+      final char = component['character'] as String;
+      final type = component['type'] as String;
+      final details = component['details'] as Map<String, dynamic>?;
+      
+      // Determine the category for the character analysis
+      String category = '';
+      if (type == 'consonant') {
+        // Check if it's initial or final based on the details
+        if (initialConsonants.contains(details)) {
+          category = 'initial_consonants';
+        } else if (finalConsonants.contains(details)) {
+          category = 'final_consonants';
+        } else {
+          category = 'initial_consonants'; // Default
+        }
+      } else if (type == 'vowel') {
+        final position = details?['position'] as String? ?? '';
+        if (position == 'before') {
+          category = 'before_vowels';
+        } else if (position == 'above') {
+          category = 'above_vowels';
+        } else if (position == 'below') {
+          category = 'below_vowels';
+        } else if (position == 'after') {
+          category = 'after_vowels';
+        }
+      } else if (type == 'tone') {
+        category = 'tone_marks';
+      }
+      
+      // Analyze the character with complex vowel context
+      final analysis = _analyzeComponentCharacterWithComplexVowel(
+        char,
+        category,
+        syllable,
+        complexVowelPattern
+      );
+      result.add(analysis);
+    }
+    
+    return result;
+  }
+
+  /// Check if a consonant has a tone mark above it
+  bool _consonantHasToneMark(String consonant, String syllable, List toneMarks) {
+    if (toneMarks.isEmpty) return false;
+    
+    // For Thai, tone marks are placed on the first/controlling consonant of a cluster
+    // In "เครื่อง", the tone mark ่ should be on ค (the first consonant), not ร
+    
+    // Find the position of the consonant in the syllable
+    final consonantIndex = syllable.indexOf(consonant);
+    if (consonantIndex == -1) return false;
+    
+    // Extract all consonants in order
+    final consonants = syllable.replaceAll(RegExp(r'[^ก-ฮ]'), '');
+    if (consonants.isEmpty) return false;
+    
+    // For single consonants, the tone mark is on that consonant
+    if (consonants.length == 1) {
+      return consonant == consonants;
+    }
+    
+    // For consonant clusters, tone mark is placed on the first/controlling consonant
+    // This follows proper Thai linguistic rules where tone marks affect the entire cluster
+    if (consonants.length > 1) {
+      return consonant == consonants[0]; // First consonant gets the tone mark
+    }
+    
+    return false;
+  }
+
+  /// Detect complex vowel patterns in the syllable using backend analysis
+  Map<String, dynamic>? _detectComplexVowelPattern(String syllable, Map<String, dynamic> componentsData) {
+    // First, try to get complex vowel data from backend analysis
+    final fullWord = widget.wordMapping.isNotEmpty 
+        ? widget.wordMapping[0]['thai'] as String? ?? ''
+        : '';
+    
+    // Check if we have backend complex vowel analysis cached
+    if (_wordAnalysisCache.containsKey(fullWord)) {
+      final analysisData = _wordAnalysisCache[fullWord]!;
+      
+      // If this is a complex vowel analysis response, use it
+      if (analysisData.containsKey('complex_vowels_detected')) {
+        final complexVowels = analysisData['patterns'] as List?;
+        if (complexVowels != null && complexVowels.isNotEmpty) {
+          for (final pattern in complexVowels) {
+            final patternData = pattern as Map<String, dynamic>;
+            final components = patternData['components'] as List?;
+            
+            // Check if this complex vowel pattern matches our syllable
+            if (components != null && _syllableContainsAllComponents(syllable, components)) {
+              return {
+                'character': patternData['pattern_key'] ?? 'CV',
+                'romanization': patternData['romanization'] ?? 'complex',
+                'typeTag': '[CV]',
+                'tagColor': const Color(0xFFF39C12), // Orange for complex vowels
+                'isSilent': false,
+                'isComplexVowel': true,
+                'components': components,
+                'patternName': patternData['name'] ?? 'Complex Vowel',
+                'readingExplanation': patternData['reading_explanation'] ?? 'Complex vowel pattern',
+              };
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback to manual pattern detection
+    final beforeVowels = componentsData['before_vowels'] as List? ?? [];
+    final aboveVowels = componentsData['above_vowels'] as List? ?? [];
+    final afterVowels = componentsData['after_vowels'] as List? ?? [];
+    
+    // Check for เ◌ือ pattern (Sara Uea)
+    if (beforeVowels.contains('เ') && aboveVowels.contains('ื') && afterVowels.contains('อ')) {
+      return {
+        'character': 'เ◌ือ',
+        'romanization': 'uea',
+        'typeTag': '[CV]',
+        'tagColor': const Color(0xFFF39C12), // Orange for complex vowels
+        'isSilent': false,
+        'isComplexVowel': true,
+        'components': ['เ', 'ื', 'อ'],
+        'patternName': 'Sara Uea',
+        'readingExplanation': 'เ is written first but pronounced after consonants. The full vowel เ◌ือ makes "uea" sound.',
+      };
+    }
+    
+    // Check for เ◌า pattern (Sara Ao)
+    if (beforeVowels.contains('เ') && afterVowels.contains('า')) {
+      return {
+        'character': 'เ◌า',
+        'romanization': 'ao',
+        'typeTag': '[CV]',
+        'tagColor': const Color(0xFFF39C12), // Orange for complex vowels
+        'isSilent': false,
+        'isComplexVowel': true,
+        'components': ['เ', 'า'],
+        'patternName': 'Sara Ao',
+        'readingExplanation': 'เ is written first but pronounced after consonants. The full vowel เ◌า makes "ao" sound.',
+      };
+    }
+    
+    // Check for เ◌ะ pattern (Sara Eh)
+    if (beforeVowels.contains('เ') && afterVowels.contains('ะ')) {
+      return {
+        'character': 'เ◌ะ',
+        'romanization': 'e',
+        'typeTag': '[CV]',
+        'tagColor': const Color(0xFFF39C12), // Orange for complex vowels
+        'isSilent': false,
+        'isComplexVowel': true,
+        'components': ['เ', 'ะ'],
+        'patternName': 'Sara Eh',
+        'readingExplanation': 'เ is written first but pronounced after consonants. The full vowel เ◌ะ makes "e" sound.',
+      };
+    }
+    
+    // Check for เ◌ีย pattern (Sara Ia)
+    if (beforeVowels.contains('เ') && aboveVowels.contains('ี') && afterVowels.contains('ย')) {
+      return {
+        'character': 'เ◌ีย',
+        'romanization': 'ia',
+        'typeTag': '[CV]',
+        'tagColor': const Color(0xFFF39C12), // Orange for complex vowels
+        'isSilent': false,
+        'isComplexVowel': true,
+        'components': ['เ', 'ี', 'ย'],
+        'patternName': 'Sara Ia',
+        'readingExplanation': 'เ is written first but pronounced after consonants. The full vowel เ◌ีย makes "ia" sound.',
+      };
+    }
+    
+    return null;
+  }
+  
+  /// Check if syllable contains all components of a complex vowel
+  bool _syllableContainsAllComponents(String syllable, List<dynamic> components) {
+    for (final component in components) {
+      if (!syllable.contains(component.toString())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Fetch complex vowel analysis from backend
+  Future<void> _fetchComplexVowelAnalysis(String word) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8000/analyze-complex-vowels/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'word': word,
+          'target_language': 'th',
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        
+        // Merge complex vowel data with existing cached data
+        if (_wordAnalysisCache.containsKey(word)) {
+          _wordAnalysisCache[word]!.addAll(data);
+        } else {
+          _wordAnalysisCache[word] = data;
+        }
+      }
+    } catch (e) {
+      print('Error fetching complex vowel analysis: $e');
+    }
+  }
+
+  /// Analyze individual component character with complex vowel context
+  Map<String, dynamic> _analyzeComponentCharacterWithComplexVowel(
+    String char, 
+    String category, 
+    String syllable, 
+    Map<String, dynamic>? complexVowelPattern
+  ) {
+    final charInfo = _getDetailedCharacterInfo(char);
+    
+    String romanization = '';
+    String typeTag = '';
+    String fullTypeLabel = '';
+    Color tagColor = const Color(0xFF4ECDC4);
+    bool isSilent = false;
+    bool isComplexVowel = false;
+    
+    // Check if this character is part of a complex vowel
+    if (complexVowelPattern != null) {
+      final components = complexVowelPattern['components'] as List?;
+      if (components != null && components.contains(char)) {
+        isComplexVowel = true;
+        
+        // Determine if this character is "silent" (not pronounced in this position)
+        if (category == 'before_vowels' || category == 'above_vowels') {
+          // Characters like 'เ' and 'ื' are written first but pronounced later
+          isSilent = true;
+          
+          // Get the original sound of this character and add (silent)
+          String originalSound = '';
+          if (charInfo != null) {
+            final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+            final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+            originalSound = sounds?['sound'] as String? ?? 
+                           pronunciation?['romanization'] as String? ?? 
+                           pronunciation?['sound'] as String? ?? '';
+          }
+          
+          // If we have the original sound, show it with (silent)
+          if (originalSound.isNotEmpty) {
+            romanization = '$originalSound(silent)';
+          } else {
+            // Fallback for common characters
+            switch (char) {
+              case 'เ':
+                romanization = 'e(silent)';
+                break;
+              case 'ื':
+                romanization = 'ue(silent)';
+                break;
+              default:
+                romanization = '(silent)';
+            }
+          }
+          
+          typeTag = 'CV-S';
+          fullTypeLabel = 'Complex Vowel (Silent)';
+          tagColor = const Color(0xFF95A5A6); // Gray for silent
+        } else if (category == 'after_vowels') {
+          // This is where the complex vowel sound is actually pronounced
+          romanization = complexVowelPattern['romanization'] as String? ?? 'complex';
+          typeTag = 'CV';
+          fullTypeLabel = 'Complex Vowel';
+          tagColor = const Color(0xFFF39C12); // Orange for complex vowels
+        }
+      }
+    }
+    
+    // If not part of complex vowel, analyze normally
+    if (!isComplexVowel) {
+      switch (category) {
+        case 'initial_consonants':
+          typeTag = 'C';
+          fullTypeLabel = 'Consonant';
+          tagColor = const Color(0xFF4ECDC4); // Teal
+          if (charInfo != null) {
+            final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+            final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+            romanization = sounds?['initial'] as String? ?? 
+                          pronunciation?['initial'] as String? ?? 
+                          pronunciation?['romanization'] as String? ?? char;
+          }
+          break;
+          
+        case 'final_consonants':
+          typeTag = 'C';
+          fullTypeLabel = 'Consonant';
+          tagColor = const Color(0xFF4ECDC4); // Teal
+          if (charInfo != null) {
+            final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+            final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+            romanization = sounds?['final'] as String? ?? 
+                          pronunciation?['final'] as String? ?? 
+                          pronunciation?['romanization'] as String? ?? char;
+          }
+          break;
+          
+        case 'before_vowels':
+        case 'above_vowels':
+        case 'below_vowels':
+        case 'after_vowels':
+          typeTag = 'V';
+          fullTypeLabel = 'Vowel';
+          tagColor = const Color(0xFF9B59B6); // Purple
+          
+          // Check if this is a silent vowel (vowel carrier)
+          if (char == 'อ' && _isVowelCarrier(char, syllable)) {
+            romanization = '(silent)';
+            isSilent = true;
+            tagColor = const Color(0xFF95A5A6); // Gray
+            typeTag = 'S';
+            fullTypeLabel = 'Silent Vowel';
+          } else {
+            // Regular vowel
+            if (charInfo != null) {
+              final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+              final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+              romanization = sounds?['sound'] as String? ?? 
+                            pronunciation?['romanization'] as String? ?? 
+                            pronunciation?['sound'] as String? ?? char;
+            }
+          }
+          break;
+          
+        case 'tone_marks':
+          typeTag = 'T';
+          fullTypeLabel = 'Tone Mark';
+          tagColor = const Color(0xFF3498DB); // Blue
+          romanization = _getDetailedToneDescription(char);
+          break;
+          
+        default:
+          romanization = char;
+          typeTag = '?';
+          fullTypeLabel = 'Unknown';
+      }
+    }
+    
+    return {
+      'character': char,
+      'romanization': romanization,
+      'typeTag': typeTag,
+      'fullTypeLabel': fullTypeLabel,
+      'tagColor': tagColor,
+      'isSilent': isSilent,
+      'isComplexVowel': isComplexVowel,
+      'complexVowelPattern': complexVowelPattern?['patternName'] as String?,
+      'readingExplanation': complexVowelPattern?['readingExplanation'] as String?,
+    };
+  }
+
+  /// Legacy method for backward compatibility
+  Map<String, dynamic> _analyzeComponentCharacter(String char, String category, String syllable) {
+    final charInfo = _getDetailedCharacterInfo(char);
+    
+    String romanization = '';
+    String typeTag = '';
+    Color tagColor = const Color(0xFF4ECDC4);
+    bool isSilent = false;
+    bool isComplexVowel = false;
+    
+    // Determine properties based on category and character info
+    switch (category) {
+      case 'initial_consonants':
+        typeTag = '[C]';
+        tagColor = const Color(0xFF4ECDC4); // Teal
+        if (charInfo != null) {
+          final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+          final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+          romanization = sounds?['initial'] as String? ?? 
+                        pronunciation?['initial'] as String? ?? 
+                        pronunciation?['romanization'] as String? ?? char;
+        }
+        break;
+        
+      case 'final_consonants':
+        typeTag = '[C]';
+        tagColor = const Color(0xFF4ECDC4); // Teal
+        if (charInfo != null) {
+          final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+          final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+          romanization = sounds?['final'] as String? ?? 
+                        pronunciation?['final'] as String? ?? 
+                        pronunciation?['romanization'] as String? ?? char;
+        }
+        break;
+        
+      case 'before_vowels':
+      case 'above_vowels':
+      case 'below_vowels':
+      case 'after_vowels':
+        typeTag = '[V]';
+        tagColor = const Color(0xFF9B59B6); // Purple
+        
+        // Check if this is a silent vowel (vowel carrier)
+        if (char == 'อ' && _isVowelCarrier(char, syllable)) {
+          romanization = '(silent)';
+          isSilent = true;
+          tagColor = const Color(0xFF95A5A6); // Gray
+          typeTag = '[S]';
+        } else if (_isPartOfComplexVowelPattern(char, syllable)) {
+          // Part of complex vowel
+          typeTag = '[CV]';
+          tagColor = const Color(0xFFF39C12); // Orange
+          isComplexVowel = true;
+          romanization = _getComplexVowelSound(char, syllable);
+        } else {
+          // Regular vowel
+          if (charInfo != null) {
+            final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+            final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+            romanization = sounds?['sound'] as String? ?? 
+                          pronunciation?['romanization'] as String? ?? 
+                          pronunciation?['sound'] as String? ?? char;
+          }
+        }
+        break;
+        
+      case 'tone_marks':
+        typeTag = '[T]';
+        tagColor = const Color(0xFF3498DB); // Blue
+        romanization = _getDetailedToneDescription(char);
+        break;
+        
+      default:
+        romanization = char;
+        typeTag = '[?]';
+    }
+    
+    return {
+      'character': char,
+      'romanization': romanization,
+      'typeTag': typeTag,
+      'tagColor': tagColor,
+      'isSilent': isSilent,
+      'isComplexVowel': isComplexVowel,
+    };
+  }
+
+  /// Check if character is a vowel carrier (silent อ)
+  bool _isVowelCarrier(String char, String syllable) {
+    if (char != 'อ') return false;
+    
+    // อ is silent when used as a vowel carrier in patterns like เอา, เอะ, etc.
+    return syllable.contains('เ') || syllable.contains('แ') || syllable.contains('โ');
+  }
+
+  /// Check if character is part of a complex vowel pattern
+  bool _isPartOfComplexVowelPattern(String char, String syllable) {
+    // Common complex vowel patterns
+    final complexPatterns = [
+      'เ.*า',   // เอา, เขา, etc.
+      'เ.*ะ',   // เอะ, เขะ, etc.
+      'เ.*อ',   // เอีอ, เขออ, etc.
+      'เ.*ีย',  // เอีย, เขีย, etc.
+      '.*ัย',   // ไก่, ไข่, etc.
+      '.*ัว',   // เขัว, เกัว, etc.
+      'แ.*ะ',   // แกะ, แขะ, etc.
+      'โ.*ะ',   // โกะ, โขะ, etc.
+    ];
+    
+    for (final pattern in complexPatterns) {
+      if (RegExp(pattern).hasMatch(syllable)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /// Get sound for complex vowel component
+  String _getComplexVowelSound(String char, String syllable) {
+    // Return the sound contribution of this character in the complex vowel
+    final charInfo = _getDetailedCharacterInfo(char);
+    if (charInfo != null) {
+      final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+      final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+      return sounds?['sound'] as String? ?? 
+             pronunciation?['romanization'] as String? ?? 
+             pronunciation?['sound'] as String? ?? char;
+    }
+    return char;
+  }
+
+  /// Fallback character analysis when backend data is not available
+  /// Uses the EXACT same logic as writing tips to ensure consistency
+  List<Map<String, dynamic>> _fallbackCharacterAnalysis(String syllable) {
+    // Use EXACT same logic as backend parse_syllable_components
+    final parsedComponents = _parseSyllableComponents(syllable);
+    final List<Map<String, dynamic>> components = [];
+    
+    // Now process each character with the parsed component information
+    for (int i = 0; i < syllable.length; i++) {
+      final char = syllable[i];
+      final characterDetails = _getDetailedCharacterInfo(char);
+      
+      String romanization = '';
+      String typeTag = '';
+      String fullTypeLabel = '';
+      Color tagColor = const Color(0xFF4ECDC4);
+      bool isSilent = false;
+      bool isComplexVowel = false;
+      String? patternName;
+      
+      // Determine character role based on parsed components
+      String characterRole = _getCharacterRole(char, parsedComponents);
+      
+      if (characterDetails != null) {
+        final type = characterDetails['type'] as String? ?? '';
+        
+        if (type == 'consonant') {
+          typeTag = 'C';
+          fullTypeLabel = 'Consonant';
+          tagColor = const Color(0xFF4ECDC4);
+          
+          final sounds = characterDetails['sounds'] as Map<String, dynamic>?;
+          final pronunciation = characterDetails['pronunciation'] as Map<String, dynamic>?;
+          romanization = sounds?['initial'] as String? ?? 
+                        pronunciation?['initial'] as String? ?? 
+                        pronunciation?['romanization'] as String? ?? char;
+          
+          // Check if consonant is silent in cluster
+          isSilent = _isConsonantSilentInCluster(char, syllable, parsedComponents);
+          if (isSilent) {
+            romanization = '$romanization(silent)';
+            tagColor = const Color(0xFF95A5A6);
+          }
+        } else if (type == 'vowel') {
+          typeTag = 'V';
+          fullTypeLabel = 'Vowel';
+          tagColor = const Color(0xFF9B59B6);
+          
+          final sounds = characterDetails['sounds'] as Map<String, dynamic>?;
+          final pronunciation = characterDetails['pronunciation'] as Map<String, dynamic>?;
+          romanization = sounds?['sound'] as String? ?? 
+                        pronunciation?['romanization'] as String? ?? 
+                        pronunciation?['sound'] as String? ?? char;
+          
+          // Check if vowel is part of complex pattern or silent
+          final complexInfo = _getVowelComplexInfo(char, syllable, characterRole);
+          if (complexInfo['isComplex'] == true) {
+            fullTypeLabel = 'Complex Vowel';
+            tagColor = const Color(0xFFF39C12);
+            isComplexVowel = true;
+            patternName = complexInfo['patternName'];
+          }
+          
+          if (complexInfo['isSilent'] == true) {
+            romanization = '$romanization(silent)';
+            tagColor = const Color(0xFF95A5A6);
+            isSilent = true;
+          }
+        } else if (type == 'tone_mark' || type == 'tone') {
+          typeTag = 'T';
+          fullTypeLabel = 'Tone Mark';
+          tagColor = const Color(0xFF3498DB);
+          romanization = _getDetailedToneDescription(char);
+          if (romanization.isEmpty) {
+            final pronunciationGuide = characterDetails['pronunciation_guide'] as String? ?? '';
+            final name = characterDetails['name'] as String? ?? '';
+            romanization = pronunciationGuide.isNotEmpty ? pronunciationGuide : name;
+          }
+        } else if (type == 'special') {
+          typeTag = 'S';
+          fullTypeLabel = 'Special';
+          tagColor = const Color(0xFF95A5A6);
+          romanization = '(special)';
+        }
+      } else {
+        // Basic fallback classification
+        final charType = _getCharacterType(char);
+        switch (charType) {
+          case 'consonant':
+            typeTag = 'C';
+            fullTypeLabel = 'Consonant';
+            tagColor = const Color(0xFF4ECDC4);
+            romanization = char;
+            isSilent = _isConsonantSilentInCluster(char, syllable, parsedComponents);
+            if (isSilent) {
+              romanization = '$romanization(silent)';
+              tagColor = const Color(0xFF95A5A6);
+            }
+            break;
+          case 'vowel':
+            typeTag = 'V';
+            fullTypeLabel = 'Vowel';
+            tagColor = const Color(0xFF9B59B6);
+            romanization = char;
+            break;
+          case 'tone_mark':
+            typeTag = 'T';
+            fullTypeLabel = 'Tone Mark';
+            tagColor = const Color(0xFF3498DB);
+            romanization = _getToneMarkName(char);
+            if (romanization.isEmpty) {
+              romanization = _getDetailedToneDescription(char);
+            }
+            break;
+          default:
+            romanization = char;
+            typeTag = '?';
+            fullTypeLabel = 'Unknown';
+        }
+      }
+      
+      components.add({
+        'character': char,
+        'romanization': romanization,
+        'typeTag': typeTag,
+        'fullTypeLabel': fullTypeLabel,
+        'tagColor': tagColor,
+        'isSilent': isSilent,
+        'isComplexVowel': isComplexVowel,
+        'patternName': patternName,
+        'readingExplanation': null,
+      });
+    }
+    
+    return components;
+  }
+
+  /// Parse syllable components using EXACT backend logic
+  Map<String, List<String>> _parseSyllableComponents(String syllable) {
+    // EXACT same logic as backend parse_syllable_components
+    final beforeVowels = ["เ", "แ", "โ", "ใ", "ไ"];
+    final aboveVowels = ["◌ิ", "◌ี", "◌ึ", "◌ื", "◌ั", "◌ํ", "ิ", "ี", "ึ", "ื", "ั", "ํ"];
+    final belowVowels = ["◌ุ", "◌ู", "◌ฺ", "ุ", "ู", "ฺ"];
+    final afterVowels = ["◌ะ", "◌า", "◌ำ", "◌ๅ", "ะ", "า", "ำ", "ๅ", "อ", "ย", "ว"];
+    final toneMarks = ["◌่", "◌้", "◌๊", "◌๋", "่", "้", "๊", "๋"];
+    final consonants = "กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ";
+    final consonantClusters = ["กร", "กล", "คร", "คล", "ปร", "ปล", "ทร", "ผล", "พร", "พล", "สร", "หร", "หล", "หม", "หน", "หย", "หว"];
+    
+    final components = <String, List<String>>{
+      "before_vowels": [],
+      "initial_consonants": [],
+      "consonant_clusters": [],
+      "above_vowels": [],
+      "below_vowels": [],
+      "after_vowels": [],
+      "final_consonants": [],
+      "tone_marks": []
+    };
+    
+    int i = 0;
+    while (i < syllable.length) {
+      final char = syllable[i];
+      
+      // Check for consonant clusters first (2-character sequences)
+      if (i < syllable.length - 1) {
+        final cluster = syllable.substring(i, i + 2);
+        if (consonantClusters.contains(cluster)) {
+          components["consonant_clusters"]!.add(cluster);
+          components["initial_consonants"]!.addAll(cluster.split(''));
+          i += 2;
+          continue;
+        }
+      }
+      
+      // Individual character analysis
+      if (beforeVowels.contains(char)) {
+        components["before_vowels"]!.add(char);
+      } else if (aboveVowels.contains(char)) {
+        components["above_vowels"]!.add(char);
+      } else if (belowVowels.contains(char)) {
+        components["below_vowels"]!.add(char);
+      } else if (afterVowels.contains(char)) {
+        components["after_vowels"]!.add(char);
+      } else if (toneMarks.contains(char)) {
+        components["tone_marks"]!.add(char);
+      } else if (consonants.contains(char)) {
+        // Determine if initial or final consonant based on position
+        final remainingChars = syllable.substring(i + 1);
+        
+        // If there are more consonants or vowels after this, it's likely initial
+        final hasVowelsAfter = remainingChars.split('').any((c) => 
+          aboveVowels.contains(c) || belowVowels.contains(c) || afterVowels.contains(c));
+        final hasConsonantsAfter = remainingChars.split('').any((c) => consonants.contains(c));
+        
+        if (hasVowelsAfter || hasConsonantsAfter) {
+          components["initial_consonants"]!.add(char);
+        } else {
+          components["final_consonants"]!.add(char);
+        }
+      }
+      
+      i += 1;
+    }
+    
+    return components;
+  }
+  
+  /// Get character role based on parsed components
+  String _getCharacterRole(String char, Map<String, List<String>> components) {
+    for (final entry in components.entries) {
+      if (entry.value.contains(char)) {
+        return entry.key;
+      }
+    }
+    return 'unknown';
+  }
+  
+  /// Check if consonant is silent in cluster based on thai_writing_guide.json rules
+  bool _isConsonantSilentInCluster(String char, String syllable, Map<String, List<String>> components) {
+    final clusters = components["consonant_clusters"] ?? [];
+    
+    // Silent consonant rules from thai_writing_guide.json
+    final silentRules = {
+      'กร': 'ร',
+      'กล': 'ล',
+      'คร': 'ร',
+      'คล': 'ล',
+      'ปร': 'ร',
+      'ปล': 'ล',
+      'พร': 'ร',
+      'สร': 'ร',
+      'หร': 'ห',
+      'หล': 'ห',
+      'หม': 'ห',
+      'หน': 'ห',
+      'หย': 'ห',
+      'หว': 'ห',
+    };
+    
+    for (final cluster in clusters) {
+      if (silentRules.containsKey(cluster) && silentRules[cluster] == char) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /// Get vowel complex pattern info
+  Map<String, dynamic> _getVowelComplexInfo(String char, String syllable, String characterRole) {
+    // Complex vowel patterns from thai_writing_guide.json surrounding patterns
+    final complexPatterns = {
+      'เ_า': ['เ', 'า'],
+      'เ_ะ': ['เ', 'ะ'],
+      'แ_ะ': ['แ', 'ะ'],
+      'โ_ะ': ['โ', 'ะ'],
+      'เ_อ': ['เ', 'อ'],
+      'เ_ือ': ['เ', 'ื', 'อ'],
+      '_ัย': ['ั', 'ย'],
+      '_ัว': ['ั', 'ว'],
+    };
+    
+    final result = <String, dynamic>{
+      'isComplex': false,
+      'isSilent': false,
+      'patternName': null,
+    };
+    
+    // Check if character is part of any complex pattern
+    for (final pattern in complexPatterns.entries) {
+      final components = pattern.value;
+      if (components.contains(char)) {
+        // Check if all components of the pattern exist in syllable
+        final allComponentsPresent = components.every((c) => syllable.contains(c));
+        if (allComponentsPresent) {
+          result['isComplex'] = true;
+          result['patternName'] = pattern.key;
+          
+          // For surrounding patterns, some characters may be silent
+          // This would need more sophisticated logic based on actual usage
+          break;
+        }
+      }
+    }
+    
+    return result;
+  }
+
+  /// Simple detection of complex vowel patterns based on thai_writing_guide.json
+  Map<String, String> _detectComplexVowelPatternsSimple(String syllable) {
+    final Map<String, String> result = {};
+    
+    // Complex vowel patterns from thai_writing_guide.json
+    final patterns = {
+      // Surrounding vowels
+      'เ_า': 'sara ao',
+      'เ_ะ': 'sara e',
+      'แ_ะ': 'sara ae',
+      'โ_ะ': 'sara o',
+      'เ_อ': 'sara oe',
+      'เ_อะ': 'sara oe short',
+      'เ_ีย': 'sara ia',
+      'เ_ือ': 'sara uea',
+      '_ัย': 'sara ai',
+      '_ัว': 'sara ua',
+    };
+    
+    // Check each pattern
+    for (final pattern in patterns.entries) {
+      final patternKey = pattern.key;
+      final patternName = pattern.value;
+      
+      // Simple pattern matching
+      if (patternKey.contains('เ_า') && syllable.contains('เ') && syllable.contains('า')) {
+        final eIndex = syllable.indexOf('เ');
+        final aaIndex = syllable.indexOf('า');
+        if (eIndex < aaIndex && aaIndex - eIndex > 1) {
+          result['เ'] = patternName;
+          result['า'] = patternName;
+        }
+      } else if (patternKey.contains('เ_ือ') && syllable.contains('เ') && syllable.contains('ื') && syllable.contains('อ')) {
+        final eIndex = syllable.indexOf('เ');
+        final ueIndex = syllable.indexOf('ื');
+        final oIndex = syllable.indexOf('อ');
+        if (eIndex < ueIndex && ueIndex < oIndex) {
+          result['เ'] = patternName;
+          result['ื'] = patternName;
+          result['อ'] = patternName;
+        }
+      }
+      // Add more patterns as needed
+    }
+    
+    return result;
+  }
+  
+  /// Detect silent characters based on consonant clusters
+  Set<String> _detectSilentCharacters(String syllable) {
+    final Set<String> silentChars = {};
+    
+    // Silent consonant clusters from thai_writing_guide.json
+    final silentClusters = {
+      'กร': ['ร'],
+      'กล': ['ล'],
+      'คร': ['ร'],
+      'คล': ['ล'],
+      'ปร': ['ร'],
+      'ปล': ['ล'],
+      'พร': ['ร'],
+      'สร': ['ร'],
+      'หร': ['ห'],
+      'หล': ['ห'],
+      'หม': ['ห'],
+      'หน': ['ห'],
+      'หย': ['ห'],
+      'หว': ['ห'],
+    };
+    
+    // Check for silent clusters
+    for (final cluster in silentClusters.entries) {
+      if (syllable.contains(cluster.key)) {
+        for (final silentChar in cluster.value) {
+          if (syllable.contains(silentChar)) {
+            silentChars.add(silentChar);
+          }
+        }
+      }
+    }
+    
+    return silentChars;
+  }
+
+  /// Detect complex vowel patterns in syllable for sound breakdown
+  Map<String, Map<String, dynamic>> _detectComplexVowelPatterns(String syllable) {
+    final Map<String, Map<String, dynamic>> result = {};
+    
+    
+    // Common Thai complex vowel patterns
+    final patterns = [
+      // เ_ื_อ pattern (like in เครื่อง)
+      {
+        'regex': RegExp(r'เ(.+)ื(.*)อ'),
+        'name': 'sara uea pattern',
+        'sound': 'uea', 
+        'silentChars': ['เ', 'ื'],
+        'soundingChars': [],
+        'consonantCarriesSound': true // The consonant in between carries the full sound
+      },
+      // เ_า pattern
+      {
+        'regex': RegExp(r'เ(.*)า'),
+        'name': 'sara ao pattern', 
+        'sound': 'ao',
+        'silentChars': ['เ'],
+        'soundingChars': ['า']
+      },
+      // เ_ะ pattern
+      {
+        'regex': RegExp(r'เ(.*)ะ'),
+        'name': 'sara e pattern',
+        'sound': 'e',
+        'silentChars': ['เ'],
+        'soundingChars': ['ะ']
+      },
+      // แ_ะ pattern
+      {
+        'regex': RegExp(r'แ(.*)ะ'),
+        'name': 'sara ae pattern',
+        'sound': 'ae', 
+        'silentChars': ['แ'],
+        'soundingChars': ['ะ']
+      },
+      // โ_ะ pattern
+      {
+        'regex': RegExp(r'โ(.*)ะ'),
+        'name': 'sara o pattern',
+        'sound': 'o',
+        'silentChars': ['โ'],
+        'soundingChars': ['ะ']
+      }
+    ];
+    
+    for (final pattern in patterns) {
+      final regex = pattern['regex'] as RegExp;
+      final match = regex.firstMatch(syllable);
+      
+      if (match != null) {
+        final patternName = pattern['name'] as String;
+        final sound = pattern['sound'] as String;
+        final silentChars = (pattern['silentChars'] as List).cast<String>();
+        final soundingChars = (pattern['soundingChars'] as List).cast<String>();
+        
+        
+        // Mark silent characters
+        for (final char in silentChars) {
+          if (syllable.contains(char)) {
+            result[char] = {
+              'pattern': patternName,
+              'sound': sound,
+              'silent': true,
+              'explanation': 'Silent component of $patternName'
+            };
+          }
+        }
+        
+        // Mark sounding characters
+        for (final char in soundingChars) {
+          if (syllable.contains(char)) {
+            result[char] = {
+              'pattern': patternName,
+              'sound': sound,
+              'silent': false,
+              'explanation': 'Sound component of $patternName'
+            };
+          }
+        }
+        
+        // For patterns where consonant carries the sound
+        if (pattern['consonantCarriesSound'] == true && patternName == 'sara uea pattern') {
+          // For เ_ื_อ pattern (sara uea), mark the อ as the carrier
+          // The pattern already matched เ(.+)ื(.*)อ so we know อ is present
+          result['อ'] = {
+            'pattern': patternName,
+            'sound': sound,
+            'silent': false,
+            'explanation': 'Consonant carrier of $patternName'
+          };
+        }
+        
+        break; // Use first matching pattern
+      }
+    }
+    
+    return result;
+  }
+
+  /// Get the original sound of a character (for silent complex vowels)
+  String _getOriginalCharacterSound(String char) {
+    final charInfo = _getDetailedCharacterInfo(char);
+    if (charInfo != null) {
+      // For vowels, get the romanization or sound
+      if (charInfo['type'] == 'vowel') {
+        final sounds = charInfo['sounds'] as Map<String, dynamic>?;
+        final pronunciation = charInfo['pronunciation'] as Map<String, dynamic>?;
+        return sounds?['sound'] as String? ?? 
+               pronunciation?['romanization'] as String? ?? 
+               pronunciation?['sound'] as String? ?? char;
+      }
+    }
+    
+    // Fallback mappings for common silent vowels
+    switch (char) {
+      case 'เ':
+        return 'e';
+      case 'แ':
+        return 'ae';
+      case 'โ':
+        return 'o';
+      case 'ใ':
+        return 'ai';
+      case 'ไ':
+        return 'ai';
+      default:
+        return char;
+    }
+  }
+
+  /// Build a single sound card for the breakdown strip
+  Widget _buildSingleSoundCard({
+    required String character,
+    required String romanization,
+    required String typeTag,
+    required String fullTypeLabel,
+    required Color tagColor,
+    required bool isHighlighted,
+    required bool isSilent,
+    required bool isComplexVowel,
+    String? patternName,
+    String? readingExplanation,
+  }) {
+    // Determine background color based on character type
+    Color backgroundColor = const Color(0xFF2D2D2D);
+    if (!isHighlighted) {
+      if (typeTag == 'CV' || isComplexVowel) {
+        backgroundColor = const Color(0xFFF39C12).withValues(alpha: 0.3); // Orange for complex vowels - more visible
+      } else if (typeTag == 'C' && !isSilent) {
+        backgroundColor = const Color(0xFF4ECDC4).withValues(alpha: 0.15); // Teal for consonants
+      } else if (typeTag == 'V') {
+        backgroundColor = const Color(0xFF9B59B6).withValues(alpha: 0.15); // Purple for vowels
+      } else if (typeTag == 'T') {
+        backgroundColor = const Color(0xFF3498DB).withValues(alpha: 0.15); // Blue for tone marks
+      } else if (isSilent || typeTag == 'S' || typeTag == 'CV-S') {
+        backgroundColor = const Color(0xFF95A5A6).withValues(alpha: 0.10); // Gray for silent
+      }
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 85, // Reduced width to prevent overflow
+      height: 95, // Reduced height to prevent overflow
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6), // Reduced padding
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSilent
+              ? const Color(0xFF95A5A6).withValues(alpha: 0.3)
+              : tagColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        gradient: isComplexVowel && typeTag == 'CV'
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFF39C12).withValues(alpha: 0.4),
+                  const Color(0xFFF39C12).withValues(alpha: 0.2),
+                ],
+              )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Thai character - optimized size
+          Text(
+            character,
+            style: TextStyle(
+              fontSize: 28, // Increased for better readability
+              fontWeight: FontWeight.w600,
+              color: (isSilent && !isComplexVowel) 
+                  ? const Color(0xFF95A5A6)
+                  : Colors.white,
+              decoration: (isSilent && !isComplexVowel) ? TextDecoration.lineThrough : null,
+              decorationColor: const Color(0xFF95A5A6),
+              decorationThickness: 2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          
+          // Romanization - optimized size
+          Text(
+            romanization,
+            style: TextStyle(
+              fontSize: 12, // Increased for better readability
+              color: (isSilent && !isComplexVowel)
+                  ? const Color(0xFF95A5A6)
+                  : const Color(0xFF4ECCA3), // More prominent color
+              fontWeight: FontWeight.w600, // Bold for better visibility
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2, // Allow wrapping for longer descriptions
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          
+          // Full type label - educational and clear, removing "(Silent)" redundancy
+          Text(
+            isSilent && fullTypeLabel.contains('(Silent)') 
+                ? fullTypeLabel.replaceAll('(Silent)', '').trim()
+                : fullTypeLabel,
+            style: TextStyle(
+              fontSize: 8, // Reduced to prevent overflow
+              color: (isSilent && !isComplexVowel)
+                  ? const Color(0xFF95A5A6)
+                  : tagColor, // Use the same color as the tag
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2, // Allow wrapping for longer labels
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Check if a consonant is silent in a cluster
+  bool _isSilentInCluster(String consonant, String previousChar) {
+    // Common Thai consonant clusters where the second consonant is silent
+    final silentClusters = {
+      'กร': true, 'คร': true, 'ขร': true,
+      'กล': true, 'คล': true, 'ขล': true,
+      'กว': true, 'คว': true, 'ขว': true,
+      'ปร': true, 'พร': true, 'ผร': true,
+      'ปล': true, 'พล': true, 'ผล': true,
+      'ตร': true, 'ทร': true,
+    };
+    
+    final cluster = previousChar + consonant;
+    return silentClusters.containsKey(cluster);
+  }
+
+  /// Check if a character is part of a complex vowel
+  bool _isPartOfComplexVowel(String char, int index, List<String> allChars) {
+    // Complex vowel patterns in Thai
+    final complexVowelParts = ['ุ', 'ู', 'ิ', 'ี', 'ึ', 'ื', '็', '้', '่', '๊', '๋'];
+    
+    // Check if current char is a vowel that can combine with tone marks
+    if (complexVowelParts.contains(char)) {
+      // Check if next character is a tone mark
+      if (index < allChars.length - 1) {
+        final nextChar = allChars[index + 1];
+        if (['่', '้', '๊', '๋'].contains(nextChar)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /// Get tone description for display
+  String _getToneDescription(String toneChar) {
+    final toneDescriptions = {
+      '่': 'low',
+      '้': 'falling',
+      '๊': 'high',
+      '๋': 'rising',
+      '์': 'silent',
+    };
+    
+    return toneDescriptions[toneChar] ?? 'tone';
+  }
+  
+  /// Get detailed tone description for sound breakdown
+  String _getDetailedToneDescription(String toneChar) {
+    final toneDescriptions = {
+      '่': 'falling tone',
+      '้': 'falling tone',
+      '๊': 'high tone',
+      '๋': 'rising tone',
+      '์': 'silent',
+    };
+    
+    return toneDescriptions[toneChar] ?? 'tone';
   }
 
   /// Build current character tip (focused on just one character)
@@ -4099,21 +6459,10 @@ Note: For detailed analysis, check your connection and try again.
                   ),
                 ),
               
-              // Type badge at top right
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: typeColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _getFullTypeLabel(characterType, character),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
+              // Separate colored tag boxes at top right
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: _buildSeparateTypeTags(characterType, character),
               ),
             ],
           ),
@@ -4202,8 +6551,31 @@ Note: For detailed analysis, check your connection and try again.
   String _getFullTypeLabel(String type, [String? character]) {
     switch (type) {
       case 'consonant':
-        // Add consonant class to the label if character is provided
+        // Check if consonant is part of complex vowel first
         if (character != null) {
+          final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+              ? _currentCharacters[_currentCharacterIndex] 
+              : '';
+          final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+          
+          if (complexVowelGuide.isNotEmpty && character == 'อ') {
+            // This consonant is part of a complex vowel - create multi-line label
+            final complexVowelData = _getComplexVowelData(currentSemanticWord);
+            final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+            final charInfo = _getDetailedCharacterInfo(character);
+            final consonantClass = charInfo?['consonant_class'] as String? ?? '';
+            
+            // Create multi-line label: Consonant \n Class \n Complex Vowel
+            final lines = <String>[];
+            lines.add('Consonant');
+            if (consonantClass.isNotEmpty) {
+              lines.add('${_capitalize(consonantClass)} Class');
+            }
+            lines.add('Complex Vowel');
+            return lines.join('\n');
+          }
+          
+          // Regular consonant with class
           final charInfo = _getDetailedCharacterInfo(character);
           final consonantClass = charInfo?['consonant_class'] as String? ?? '';
           if (consonantClass.isNotEmpty) {
@@ -4212,6 +6584,21 @@ Note: For detailed analysis, check your connection and try again.
         }
         return 'Consonant';
       case 'vowel':
+        // Check if vowel is part of complex vowel first
+        if (character != null) {
+          final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+              ? _currentCharacters[_currentCharacterIndex] 
+              : '';
+          final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+          
+          if (complexVowelGuide.isNotEmpty) {
+            // This vowel is part of a complex vowel - create multi-line label
+            final lines = <String>[];
+            lines.add('Vowel');
+            lines.add('Complex Vowel');
+            return lines.join('\n');
+          }
+        }
         return 'Vowel';
       case 'tone':
         return 'Tone Mark';
@@ -4221,6 +6608,102 @@ Note: For detailed analysis, check your connection and try again.
         return 'Number';
       default:
         return 'Symbol'; // For any non-Thai script characters or unrecognized symbols
+    }
+  }
+  
+  /// Build separate colored tag boxes for type information
+  List<Widget> _buildSeparateTypeTags(String characterType, String character) {
+    final tags = <Widget>[];
+    
+    switch (characterType) {
+      case 'consonant':
+        // Add main consonant tag
+        tags.add(_buildSingleTag('Consonant', const Color(0xFF2196F3))); // Blue for consonants
+        
+        // Add consonant class tag (second)
+        final charInfo = _getDetailedCharacterInfo(character);
+        final consonantClass = charInfo?['consonant_class'] as String? ?? '';
+        if (consonantClass.isNotEmpty) {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('${_capitalize(consonantClass)} Class', _getConsonantClassColor(consonantClass)));
+        }
+        
+        // Check if consonant is part of complex vowel (last)
+        final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+            ? _currentCharacters[_currentCharacterIndex] 
+            : '';
+        final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+        
+        if (complexVowelGuide.isNotEmpty && character == 'อ') {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('Complex Vowel', const Color(0xFF9C27B0))); // Purple for complex vowels
+        }
+        break;
+        
+      case 'vowel':
+        // Add main vowel tag
+        tags.add(_buildSingleTag('Vowel', const Color(0xFF4CAF50))); // Green for vowels
+        
+        // Check if vowel is part of complex vowel
+        final currentSemanticWord = _currentCharacters.isNotEmpty && _currentCharacterIndex < _currentCharacters.length
+            ? _currentCharacters[_currentCharacterIndex] 
+            : '';
+        final complexVowelGuide = _getComplexVowelSoundGuide(character, currentSemanticWord);
+        
+        if (complexVowelGuide.isNotEmpty) {
+          tags.add(const SizedBox(height: 4));
+          tags.add(_buildSingleTag('Complex Vowel', const Color(0xFF9C27B0))); // Purple for complex vowels
+        }
+        break;
+        
+      case 'tone':
+        // Add tone mark tag
+        tags.add(_buildSingleTag('Tone Mark', const Color(0xFFFFC107))); // Amber for tone marks
+        break;
+        
+      case 'other_mark':
+        // Add other mark tag (thanthakhat, mai yamok)
+        tags.add(_buildSingleTag('Other Mark', const Color(0xFF795548))); // Brown for other marks
+        break;
+        
+      default:
+        tags.add(_buildSingleTag(_capitalize(characterType), const Color(0xFF607D8B))); // Gray for others
+        break;
+    }
+    
+    return tags;
+  }
+  
+  /// Build a single colored tag
+  Widget _buildSingleTag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+  
+  /// Get color for consonant class tags
+  Color _getConsonantClassColor(String consonantClass) {
+    switch (consonantClass.toLowerCase()) {
+      case 'high':
+        return const Color(0xFFE91E63); // Pink for high class
+      case 'mid':
+        return const Color(0xFF00BCD4); // Cyan for mid class  
+      case 'low':
+        return const Color(0xFF795548); // Brown for low class
+      default:
+        return const Color(0xFF607D8B); // Gray default
     }
   }
   
@@ -4819,7 +7302,23 @@ Note: For detailed analysis, check your connection and try again.
     if (_constituentWordData.isNotEmpty && _currentCharacterIndex < _constituentWordData.length) {
       final syllableData = _constituentWordData[_currentCharacterIndex];
       currentRomanization = syllableData['romanized'] as String? ?? '';
-      currentTranslation = syllableData['translation'] as String? ?? '';
+      
+      // Handle compound word syllables
+      final rawTranslation = syllableData['translation'] as String?;
+      final isCompound = syllableData['is_compound'] == true;
+      final wordTranslation = syllableData['word_translation'] as String?;
+      
+      if (rawTranslation == null || rawTranslation.isEmpty || rawTranslation == 'null' || rawTranslation == 'None') {
+        if (isCompound && wordTranslation != null && wordTranslation.isNotEmpty) {
+          // For compound words, show contextual information
+          currentTranslation = '(part of $wordTranslation)';
+        } else {
+          // For non-compound words or missing word translation, show syllable romanization
+          currentTranslation = currentRomanization.isNotEmpty ? '($currentRomanization)' : '';
+        }
+      } else {
+        currentTranslation = rawTranslation;
+      }
     }
     
     // Calculate progress
@@ -4929,7 +7428,7 @@ Note: For detailed analysis, check your connection and try again.
           _buildActionButton(
             icon: Icons.check,
             color: const Color(0xFF4ECCA3),
-            onPressed: widget.onComplete,
+            onPressed: _showTracingConfirmationDialog,
             tooltip: 'Complete',
             iconColor: Colors.black,
           ),
@@ -4957,11 +7456,11 @@ Note: For detailed analysis, check your connection and try again.
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: _ink.strokes.isNotEmpty ? _undoLastStroke : null,
+          onTap: _getCurrentCharacterInk().strokes.isNotEmpty ? _undoLastStroke : null,
           child: Icon(
             Icons.undo,
             size: 22,
-            color: _ink.strokes.isNotEmpty ? Colors.black87 : Colors.black54,
+            color: _getCurrentCharacterInk().strokes.isNotEmpty ? Colors.black87 : Colors.black54,
           ),
         ),
       ),
@@ -5260,18 +7759,29 @@ Note: For detailed analysis, check your connection and try again.
     return '';
   }
 
-  /// Get character type (consonant, vowel, tone mark)
+  /// Get character type (consonant, vowel, tone mark, other mark)
   String _getCharacterType(String character) {
     if (_thaiWritingGuideData == null) return 'character';
     
-    // Check tone marks FIRST to prevent misidentification
+    // Check other marks section FIRST (thanthakhat, mai yamok)
+    final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+    if (otherMarks?.containsKey(character) == true) {
+      return 'other_mark';
+    }
+    
+    // Check general tone marks section
+    final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
+    if (toneMarks?.containsKey(character) == true) {
+      return 'tone';
+    }
+    
+    // Check tone marks in pronunciation system rules
     final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
     final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
     if (toneMarkRules != null) {
       for (final markData in toneMarkRules.values) {
         final markInfo = markData as Map<String, dynamic>;
         if (markInfo['character'] == character) {
-          print('DEBUG TYPE: Character "$character" identified as tone mark');
           return 'tone';
         }
       }
@@ -5280,7 +7790,6 @@ Note: For detailed analysis, check your connection and try again.
     // Check consonants
     final consonants = _thaiWritingGuideData!['consonants'] as Map<String, dynamic>?;
     if (consonants?.containsKey(character) == true) {
-      print('DEBUG TYPE: Character "$character" identified as consonant');
       return 'consonant';
     }
     
@@ -5289,29 +7798,24 @@ Note: For detailed analysis, check your connection and try again.
     if (vowels != null) {
       // Direct match
       if (vowels.containsKey(character)) {
-        print('DEBUG TYPE: Character "$character" identified as vowel (direct match)');
         return 'vowel';
       }
       // Placeholder after character (เ◌ pattern)
       if (vowels.containsKey('$character◌')) {
-        print('DEBUG TYPE: Character "$character" identified as vowel (◌ pattern)');
         return 'vowel';
       }
       // Placeholder before character (◌ะ pattern)
       if (vowels.containsKey('◌$character')) {
-        print('DEBUG TYPE: Character "$character" identified as vowel (◌ pattern)');
         return 'vowel';
       }
       // Check if character is part of any complex vowel pattern
       for (final vowelKey in vowels.keys) {
         if (vowelKey.contains(character) && vowelKey.contains('◌')) {
-          print('DEBUG TYPE: Character "$character" identified as vowel (complex pattern: $vowelKey)');
           return 'vowel';
         }
       }
     }
     
-    print('DEBUG TYPE: Character "$character" identified as generic character');
     return 'character';
   }
   
@@ -5902,6 +8406,9 @@ Note: For detailed analysis, check your connection and try again.
       case 'tone':
         tips.add(_getToneContextualTip(character, charInfo, syllable));
         break;
+      case 'other_mark':
+        tips.add(_getOtherMarkContextualTip(character, charInfo, syllable));
+        break;
     }
 
     return tips.where((tip) => tip.isNotEmpty).join('\n');
@@ -5914,9 +8421,17 @@ Note: For detailed analysis, check your connection and try again.
     
     // Check if this consonant is part of a complex vowel using synchronous JSON lookup
     final complexVowelGuide = _getComplexVowelSoundGuide(character, syllable);
-    if (complexVowelGuide.isNotEmpty) {
-      tips.add('Sound: $complexVowelGuide');
-      print('Added complex vowel sound tip for consonant: "Sound: $complexVowelGuide"');
+    if (complexVowelGuide.isNotEmpty && character == 'อ') {
+      // This consonant is part of a complex vowel - explain the transformation
+      final originalSound = charInfo['romanization'] as String? ?? '';
+      final originalName = charInfo['name'] as String? ?? '';
+      final complexVowelData = _getComplexVowelData(syllable);
+      final complexVowelName = complexVowelData['name'] as String? ?? 'complex vowel';
+      final complexVowelSound = complexVowelData['romanization'] as String? ?? complexVowelGuide;
+      
+      final explanation = 'Sound: Originally "$originalSound" ($originalName), but as part of $complexVowelName complex vowel, it combines to make "$complexVowelSound" sound.';
+      tips.add(explanation);
+      print('Added complex vowel transformation explanation for consonant: "$character"');
     } else {
       // Regular consonant sound information
       final englishGuide = charInfo['english_guide'] as String? ?? '';
@@ -5943,15 +8458,21 @@ Note: For detailed analysis, check your connection and try again.
       final initialSound = pronunciation['initial'] as String? ?? '';
       final finalSound = pronunciation['final'] as String?;
       
+      // Determine syllable type for current word
+      final syllableType = _determineSyllableType(syllable);
+      final syllableExplanation = syllableType == 'live' 
+          ? 'This is a live syllable (ends with long vowel or sonorant consonant - sound flows).'
+          : 'This is a dead syllable (ends with short vowel or stop consonant - sound cuts off).';
+      
       if (initialSound.isNotEmpty && finalSound != null && finalSound.isNotEmpty && finalSound != initialSound) {
         // Can be both initial and final
-        tips.add('Role: This consonant can start syllables (initial - affects tone) or end them (final - affects syllable flow).');
+        tips.add('Role: This consonant can start syllables (initial "$initialSound" - affects tone) or end them (final "$finalSound" - affects syllable flow). $syllableExplanation');
       } else if (initialSound.isNotEmpty && (finalSound == null || finalSound.isEmpty)) {
         // Initial only
-        tips.add('Role: Initial consonant - starts syllables and carries the consonant class that affects tone.');
+        tips.add('Role: Initial consonant ("$initialSound") - starts syllables and carries the consonant class that affects tone. $syllableExplanation');
       } else if (finalSound != null && finalSound.isNotEmpty) {
         // Final only (rare)
-        tips.add('Role: Final consonant - ends syllables and affects whether the syllable is live or dead.');
+        tips.add('Role: Final consonant ("$finalSound") - ends syllables and affects whether the syllable is live or dead. $syllableExplanation');
       }
     }
 
@@ -6175,9 +8696,6 @@ Note: For detailed analysis, check your connection and try again.
     final toneFormulaData = _calculateToneEffectWithFormula(character, syllable);
     final formula = toneFormulaData['formula'] ?? '';
     
-    print('DEBUG TONE: character="$character", syllable="$syllable"');
-    print('DEBUG TONE: toneFormulaData=$toneFormulaData');
-    print('DEBUG TONE: formula="$formula"');
     
     // Get consonant information for enhanced explanation
     final consonantInWord = _findMainConsonantInWord(syllable);
@@ -6199,7 +8717,6 @@ Note: For detailed analysis, check your connection and try again.
       final toneMarkName = toneMarkInfo['name'] as String? ?? 'tone mark';
       
       if (consonantInWord.isNotEmpty && consonantClass.isNotEmpty && toneMarkName.isNotEmpty) {
-        print('DEBUG TONE FALLBACK: consonant="$consonantInWord", class="$consonantClass"');
         
         final syllableTypeManual = _determineSyllableType(syllable);
         String resultingTone = '';
@@ -6232,8 +8749,8 @@ Note: For detailed analysis, check your connection and try again.
       }
     }
     
-    // Don't add writing steps here - they'll be handled separately like consonant cards
-    // to match the white text format
+    // Writing instructions are handled in the main step card area as white text
+    // (not in contextual tips to match consonant card formatting)
 
     return tips.join('\n');
   }
@@ -6266,6 +8783,38 @@ Note: For detailed analysis, check your connection and try again.
     }
   }
 
+  /// Generate other mark contextual tips (thanthakhat, mai yamok, etc.)
+  String _getOtherMarkContextualTip(String character, Map<String, dynamic> charInfo, String syllable) {
+    final tips = <String>[];
+
+    // Get other mark information from JSON
+    final otherMarkInfo = _getOtherMarkInfo(character);
+    final name = otherMarkInfo['name'] as String? ?? '';
+    final function = otherMarkInfo['function'] as String? ?? '';
+    
+    if (name.isNotEmpty && function.isNotEmpty) {
+      // Consolidated sound explanation with specific effects
+      if (character == '์') { // Thanthakhat
+        final silencedConsonants = _detectSilencedConsonants(syllable);
+        if (silencedConsonants.isNotEmpty) {
+          final consonantList = silencedConsonants.values.join(', ');
+          tips.add('Sound: $name ($function). Silent mark that silences the consonant(s) it appears above: $consonantList');
+        } else {
+          tips.add('Sound: $name ($function). Silent mark that silences the consonant it is placed above');
+        }
+      } else if (character == 'ๆ') { // Mai Yamok
+        tips.add('Sound: $name ($function). Silent mark that signals repetition of the preceding word or phrase');
+      } else {
+        tips.add('Sound: $name ($function). This mark is silent and not pronounced');
+      }
+    } else {
+      // Fallback if JSON data not found
+      tips.add('Sound: Silent mark - not pronounced');
+    }
+
+    return tips.join('\n');
+  }
+
   /// Get pronunciation information for display next to character
   String _getPronunciationForDisplay(String character, [String? contextWord]) {
     final charType = _getCharacterType(character);
@@ -6293,6 +8842,10 @@ Note: For detailed analysis, check your connection and try again.
         } else {
           return '';
         }
+        
+      case 'other_mark':
+        // Other marks (thanthakhat, mai yamok) are silent
+        return 'Silent';
         
       default:
         return '';
@@ -6530,6 +9083,79 @@ Note: For detailed analysis, check your connection and try again.
     return {};
   }
 
+  /// Get other mark information from JSON (thanthakhat, mai yamok)
+  Map<String, dynamic> _getOtherMarkInfo(String otherMark) {
+    if (_thaiWritingGuideData == null) return {};
+    
+    final otherMarks = _thaiWritingGuideData!['other_marks'] as Map<String, dynamic>?;
+    if (otherMarks != null && otherMarks.containsKey(otherMark)) {
+      return otherMarks[otherMark] as Map<String, dynamic>;
+    }
+    
+    return {};
+  }
+
+  /// Detect consonants silenced by thanthakhat marks
+  Map<int, String> _detectSilencedConsonants(String syllable) {
+    final Map<int, String> silencedConsonants = {};
+    final characters = syllable.split('');
+    
+    for (int i = 0; i < characters.length; i++) {
+      final char = characters[i];
+      
+      // Check if this is a thanthakhat
+      if (char == '์') {
+        // Find the consonant it silences (usually the preceding consonant)
+        for (int j = i - 1; j >= 0; j--) {
+          final prevChar = characters[j];
+          if (_getCharacterType(prevChar) == 'consonant') {
+            silencedConsonants[j] = prevChar;
+            break;
+          }
+        }
+      }
+    }
+    
+    return silencedConsonants;
+  }
+
+  /// Generate silencing explanation for pronunciation guide
+  String _generateSilencingExplanation(String consonant, String syllable) {
+    final otherMarkInfo = _getOtherMarkInfo('์');
+    final function = otherMarkInfo['function'] as String? ?? 'Silencing Mark';
+    final effect = otherMarkInfo['pronunciation_guide'] as String? ?? 'This mark silences the consonant';
+    
+    return 'The consonant "$consonant" is silenced by thanthakhat (์). $effect';
+  }
+
+  /// Detect repetition marks (Mai Yamok) and generate explanations
+  Map<int, String> _detectRepetitionMarks(String syllable) {
+    final Map<int, String> repetitionMarks = {};
+    final characters = syllable.split('');
+    
+    for (int i = 0; i < characters.length; i++) {
+      final char = characters[i];
+      
+      // Check if this is a Mai Yamok
+      if (char == 'ๆ') {
+        // Find the word or phrase to be repeated (usually everything before this mark)
+        final precedingText = characters.take(i).join('');
+        repetitionMarks[i] = precedingText;
+      }
+    }
+    
+    return repetitionMarks;
+  }
+
+  /// Generate repetition explanation for pronunciation guide
+  String _generateRepetitionExplanation(String repeatedText) {
+    final otherMarkInfo = _getOtherMarkInfo('ๆ');
+    final function = otherMarkInfo['function'] as String? ?? 'Repetition Mark';
+    final effect = otherMarkInfo['pronunciation_guide'] as String? ?? 'This mark signals repetition';
+    
+    return 'Mai Yamok (ๆ) indicates that "$repeatedText" should be repeated. $effect';
+  }
+
   /// Get tone mark name from JSON
   String _getToneMarkName(String toneMark) {
     if (_thaiWritingGuideData == null) return '';
@@ -6596,24 +9222,6 @@ Note: For detailed analysis, check your connection and try again.
     final pitch = toneInfo['relative_pitch'] as String? ?? '';
     
     return '$description (Thai: $thaiName, Pitch: $pitch)';
-  }
-
-  /// Get comprehensive tone description
-  String _getToneDescription(String toneType) {
-    switch (toneType) {
-      case 'mid_tone':
-        return 'Mid tone: Natural speaking pitch, flat and steady';
-      case 'low_tone':
-        return 'Low tone: Lower than normal pitch, flat and steady';
-      case 'falling_tone':
-        return 'Falling tone: Start high, drop down sharply';
-      case 'high_tone':
-        return 'High tone: Higher than normal pitch, flat and steady';
-      case 'rising_tone':
-        return 'Rising tone: Start low, rise up like asking a question';
-      default:
-        return 'Unknown tone pattern';
-    }
   }
 
   /// Calculate complete syllable pronunciation for English speakers
@@ -6810,7 +9418,6 @@ Note: For detailed analysis, check your connection and try again.
     String syllable = _originalWord.isNotEmpty ? _originalWord : character;
     int positionInSyllable = characterIndex;
     
-    print('DEBUG CONTEXT: character="$character", syllable="$syllable", position=$positionInSyllable');
     
     final contextualTip = _getContextualPronunciationTip(character, syllable, positionInSyllable);
     

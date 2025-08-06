@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
+import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,8 @@ import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
-import 'package:babblelon/widgets/warm_babbleon_title.dart';
+import 'package:babblelon/services/posthog_service.dart';
+import 'package:babblelon/widgets/stt_translation_test_widget.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -18,6 +20,15 @@ class MainMenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final soundEffectsEnabled = ref.read(gameStateProvider).soundEffectsEnabled;
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'main_menu',
+      additionalProperties: {
+        'sound_effects_enabled': soundEffectsEnabled,
+      },
+    );
     
     return Scaffold(
       body: Container(
@@ -31,15 +42,40 @@ class MainMenuScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const WarmBabbleOnTitle(),
+              const Text(
+                'BabbleOn',
+                style: TextStyle(
+                  fontSize: 64,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 10.0,
+                      color: Colors.black,
+                      offset: Offset(5.0, 5.0),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 50),
               ElevatedButton(
                 onPressed: () {
                   ref.playButtonSound();
+                  
+                  // Track screen navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'game_screen',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'start_game',
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => const GameScreen(),
+                      pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return AnimatedBuilder(
                           animation: animation,
@@ -47,9 +83,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // First half: fade to black
                             if (animation.value < 0.5) {
                               return Container(
-                                color: Colors.black.withValues(alpha: animation.value * 2),
+                                color: Colors.black.withOpacity(animation.value * 2),
                                 child: Opacity(
-                                  opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
+                                  opacity: 1 - (animation.value * 2),
                                   child: const SizedBox.expand(),
                                 ),
                               );
@@ -57,9 +93,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
+                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
                                 child: Opacity(
-                                  opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
+                                  opacity: (animation.value - 0.5) * 2,
                                   child: child,
                                 ),
                               );
@@ -97,6 +133,18 @@ class MainMenuScreen extends ConsumerWidget {
                   );
                   
                   ref.playButtonSound();
+                  
+                  // Track boss fight navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'boss_fight',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_boss_fight',
+                      'boss_name': tuktukBoss.name,
+                    },
+                  );
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -104,7 +152,7 @@ class MainMenuScreen extends ConsumerWidget {
                         bossData: tuktukBoss,
                         attackItem: testAttackItem,
                         defenseItem: testDefenseItem,
-                        game: BabblelonGame(character: 'male'), // Add character parameter for test
+                        game: BabblelonGame(),
                       ),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return AnimatedBuilder(
@@ -113,9 +161,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // First half: fade to black
                             if (animation.value < 0.5) {
                               return Container(
-                                color: Colors.black.withValues(alpha: animation.value * 2),
+                                color: Colors.black.withOpacity(animation.value * 2),
                                 child: Opacity(
-                                  opacity: (1 - (animation.value * 2)).clamp(0.0, 1.0),
+                                  opacity: 1 - (animation.value * 2),
                                   child: const SizedBox.expand(),
                                 ),
                               );
@@ -123,9 +171,9 @@ class MainMenuScreen extends ConsumerWidget {
                             // Second half: fade in new screen
                             else {
                               return Container(
-                                color: Colors.black.withValues(alpha: (2 - (animation.value * 2)).clamp(0.0, 1.0)),
+                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
                                 child: Opacity(
-                                  opacity: ((animation.value - 0.5) * 2).clamp(0.0, 1.0),
+                                  opacity: (animation.value - 0.5) * 2,
                                   child: child,
                                 ),
                               );
@@ -164,6 +212,34 @@ class MainMenuScreen extends ConsumerWidget {
                   foregroundColor: Colors.black,
                 ),
                 child: const Text('Test Character Tracing'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  ref.playButtonSound();
+                  
+                  // Track navigation
+                  PostHogService.trackGameEvent(
+                    event: 'screen_navigation',
+                    screen: 'stt_translation_test',
+                    additionalProperties: {
+                      'from_screen': 'main_menu',
+                      'navigation_type': 'test_stt_translation',
+                    },
+                  );
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const STTTranslationTestWidget(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Test STT/Translation Services'),
               ),
             ],
           ),

@@ -7,19 +7,18 @@ import '../overlays/dialogue_overlay.dart';
 import '../widgets/info_popup_overlay.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import '../providers/game_providers.dart';
-import '../models/popup_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/tutorial_service.dart';
+import '../services/posthog_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  GameScreen({super.key});
+  final BabblelonGame _game = BabblelonGame();
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -28,7 +27,6 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late WidgetRef _ref;
   late final AppLifecycleListener _listener;
-  BabblelonGame? _game;
 
   @override
   void initState() {
@@ -36,45 +34,20 @@ class _GameScreenState extends State<GameScreen> {
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
-    _initializeGame();
+    
+    // Track screen view
+    PostHogService.trackGameEvent(
+      event: 'screen_view',
+      screen: 'game_screen',
+      additionalProperties: {
+        'game_initialized': false,
+      },
+    );
+    
     // Start background initialization (non-blocking)
     _initializeGameAssetsInBackground();
   }
-
-  Future<void> _initializeGame() async {
-    final prefs = await SharedPreferences.getInstance();
-    final character = prefs.getString('selected_character') ?? 'male';
-    setState(() {
-      _game = BabblelonGame(character: character);
-    });
-    
-    // Bangkok tutorial will be triggered when game loading completes (via provider listener)
-  }
   
-  void _triggerBangkokTutorial() {
-    // Trigger tutorial immediately after game loads
-    if (mounted && _game != null) {
-      try {
-        final tutorialManager = TutorialManager(context: context, ref: _ref);
-        tutorialManager.startTutorial(TutorialTrigger.npcInteraction);
-      } catch (e) {
-        // Context might be disposed, skip tutorial
-      }  
-    }
-  }
-  
-  void _showPortalTutorial() async {
-    if (mounted && _game != null) {
-      try {
-        // Show tutorial without pausing game or affecting background music
-        final tutorialManager = TutorialManager(context: context, ref: _ref);
-        await tutorialManager.startTutorial(TutorialTrigger.bossPortal);
-      } catch (e) {
-        // Context might be disposed, continue without error
-      }
-    }
-  }
-
   /// Initialize game assets in the background without blocking the game
   void _initializeGameAssetsInBackground() {
     final initService = GameInitializationService();
@@ -114,102 +87,64 @@ class _GameScreenState extends State<GameScreen> {
     return Consumer(
       builder: (context, ref, _) {
         _ref = ref;
-        
-        // Listen for portal tutorial triggers
-        final currentTutorialStep = ref.watch(currentTutorialStepProvider);
-        if (currentTutorialStep == 'portal_approach_trigger') {
-          // Reset the trigger and show tutorial
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(currentTutorialStepProvider.notifier).state = null;
-            _showPortalTutorial();
-          });
-        }
-        
-        // Listen for game loading completion to trigger Bangkok tutorial
-        final gameLoadingCompleted = ref.watch(gameLoadingCompletedProvider);
-        if (gameLoadingCompleted && _game != null) {
-          // Reset the loading flag and trigger tutorial
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(gameLoadingCompletedProvider.notifier).state = false;
-            _triggerBangkokTutorial();
-          });
-        }
-        
         return Scaffold(
           body: Stack(
             children: [
-              if (_game == null)
-                const Center(child: CircularProgressIndicator()),
-              if (_game != null)
-                RiverpodAwareGameWidget(
-                  key: gameWidgetKey,
-                  game: _game!,
-                  loadingBuilder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  errorBuilder: (context, error) => Center(
-                    child: Text(
-                      'Error loading game: $error',
-                      style: const TextStyle(color: Colors.red, fontSize: 20),
-                    ),
-                  ),
-                  overlayBuilderMap: {
-                    'main_menu': (context, game) => SafeArea(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return MainMenu(
-                            game: game as BabblelonGame,
-                            onClose: _closeMenuAndResume,
-                          );
-                        },
-                      ),
-                    ),
-                    'game_over': (context, game) {
-                      return SafeArea(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return GameOverMenu(
-                              game: game as BabblelonGame,
-                              onRestart: () => (game as BabblelonGame).reset(),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    'info_popup': (context, game) {
-                      final config = ref.watch(popupConfigProvider);
-                      if (config == null) {
-                        return const SizedBox.shrink();
-                      }
-                      return SafeArea(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return InfoPopupOverlay(
-                              title: config.title,
-                              message: config.message,
-                              confirmText: config.confirmText,
-                              onConfirm: config.onConfirm,
-                              cancelText: config.cancelText,
-                              onCancel: config.onCancel,
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  },
+              RiverpodAwareGameWidget(
+                key: gameWidgetKey,
+                game: widget._game,
+                loadingBuilder: (context) => const Center(
+                  child: CircularProgressIndicator(),
                 ),
-              // DialogueOverlay outside GameWidget for full-screen access
-              Consumer(
-                builder: (context, ref, child) {
-                  final isDialogueOpen = ref.watch(dialogueOverlayVisibilityProvider);
-                  final activeNpcId = ref.watch(activeNpcIdProvider);
-                  
-                  if (isDialogueOpen && activeNpcId != null && _game != null) {
-                    return Positioned.fill(
-                      child: DialogueOverlay(game: _game!, npcId: activeNpcId),
+                errorBuilder: (context, error) => Center(
+                  child: Text(
+                    'Error loading game: $error',
+                    style: const TextStyle(color: Colors.red, fontSize: 20),
+                  ),
+                ),
+                overlayBuilderMap: {
+                  'main_menu': (context, game) => MainMenu(
+                    game: game as BabblelonGame,
+                    onClose: _closeMenuAndResume,
+                  ),
+                  'dialogue': (context, game) {
+                    final babblelonGame = game as BabblelonGame;
+                    final npcId = babblelonGame.activeNpcIdForOverlay;
+
+                    if (npcId == null) {
+                      // This is a fallback, should not happen in normal flow
+                      return const Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Text(
+                            "Error: No NPC selected for dialogue.",
+                            style: TextStyle(color: Colors.red, fontSize: 24),
+                          ),
+                        ),
+                      );
+                    }
+                    return DialogueOverlay(game: babblelonGame, npcId: npcId);
+                  },
+                  'game_over': (context, game) {
+                    return GameOverMenu(
+                      game: game as BabblelonGame,
+                      onRestart: () => (game as BabblelonGame).reset(),
                     );
-                  }
-                  return const SizedBox.shrink();
+                  },
+                  'info_popup': (context, game) {
+                    final config = ref.watch(popupConfigProvider);
+                    if (config == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return InfoPopupOverlay(
+                      title: config.title,
+                      message: config.message,
+                      confirmText: config.confirmText,
+                      onConfirm: config.onConfirm,
+                      cancelText: config.cancelText,
+                      onCancel: config.onCancel,
+                    );
+                  },
                 },
               ),
               // Hamburger menu icon (always visible)
@@ -268,21 +203,19 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _openMenu() {
-    if (_game == null) return;
     final isPaused = _ref.read(gameStateProvider).isPaused;
     // Only add overlay if not already present
-    if (!_game!.overlays.isActive('main_menu')) {
+    if (!widget._game.overlays.isActive('main_menu')) {
       if (!isPaused) {
-        _game!.pauseGame(_ref);
+        widget._game.pauseGame(_ref);
       }
-      _game!.overlays.add('main_menu');
+      widget._game.overlays.add('main_menu');
     }
   }
 
   void _closeMenuAndResume() {
-    if (_game == null) return;
-    _game!.overlays.remove('main_menu');
-    _game!.resumeGame(_ref);
+    widget._game.overlays.remove('main_menu');
+    widget._game.resumeGame(_ref);
   }
 }
 
@@ -298,7 +231,7 @@ class GameOverMenu extends StatelessWidget {
         width: 300,
         height: 200,
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
+          color: Colors.black.withOpacity(0.7),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -328,7 +261,6 @@ class MainMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameStateProvider);
-    final dialogueSettings = ref.watch(dialogueSettingsProvider);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -340,7 +272,7 @@ class MainMenu extends ConsumerWidget {
             width: 320,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.85),
+              color: Colors.black.withOpacity(0.85),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
@@ -372,24 +304,10 @@ class MainMenu extends ConsumerWidget {
                   value: gameState.soundEffectsEnabled,
                   onChanged: (val) => ref.read(gameStateProvider.notifier).setSoundEffectsEnabled(val),
                 ),
-                const SizedBox(height: 12),
-                _MenuButton(
-                  icon: dialogueSettings.showEnglishTranslation ? Icons.visibility : Icons.visibility_off,
-                  label: 'English Translation',
-                  value: dialogueSettings.showEnglishTranslation,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
-                ),
-                const SizedBox(height: 12),
-                _MenuButton(
-                  icon: dialogueSettings.showWordByWordAnalysis ? Icons.segment : Icons.segment_outlined,
-                  label: 'Word Analysis',
-                  value: dialogueSettings.showWordByWordAnalysis,
-                  onChanged: (val) => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
-                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+                    backgroundColor: Colors.redAccent.withOpacity(0.8),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15.0),
@@ -411,7 +329,7 @@ class MainMenu extends ConsumerWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                    backgroundColor: Colors.grey.withOpacity(0.3),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15.0),
@@ -440,7 +358,7 @@ class MainMenu extends ConsumerWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15.0),
             side: BorderSide(
-              color: Colors.white.withValues(alpha: 0.3),
+              color: Colors.white.withOpacity(0.3),
               width: 1,
             ),
           ),
@@ -468,7 +386,7 @@ class MainMenu extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+                backgroundColor: Colors.redAccent.withOpacity(0.8),
               ),
               child: const Text(
                 'Exit Level',
@@ -504,7 +422,7 @@ class _InventoryCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade800.withValues(alpha: 0.9),
+        color: Colors.grey.shade800.withOpacity(0.9),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasNewItem ? Colors.amber.shade700 : Colors.black, 
@@ -566,7 +484,7 @@ class _InventorySlot extends StatelessWidget {
             boxShadow: isHighlighted
                 ? [
                     BoxShadow(
-                      color: Colors.yellowAccent.withValues(alpha: 0.7),
+                      color: Colors.yellowAccent.withOpacity(0.7),
                       blurRadius: 10,
                       spreadRadius: 2,
                     )
