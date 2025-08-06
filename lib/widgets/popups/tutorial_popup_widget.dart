@@ -308,7 +308,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(50),
                                 child: Image.asset(
-                                  'assets/images/capybara/blabbybara_portrait.png',
+                                  'assets/images/player/capybara_face.png',
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Container(

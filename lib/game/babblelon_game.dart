@@ -19,6 +19,7 @@ import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BabblelonGame extends FlameGame with
     RiverpodGameMixin,
@@ -114,7 +115,11 @@ class BabblelonGame extends FlameGame with
     );
     gameWorld.add(background..priority = -2); // Add background to the world
     
-    player = PlayerComponent(character: 'capybara');
+    // Get selected character from SharedPreferences or default to 'male'
+    final prefs = await SharedPreferences.getInstance();
+    final selectedCharacter = prefs.getString('selected_character') ?? 'male';
+    
+    player = PlayerComponent(character: selectedCharacter);
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
 
