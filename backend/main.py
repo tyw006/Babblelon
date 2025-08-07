@@ -1306,10 +1306,24 @@ async def pronunciation_assessment_endpoint(
         print(f"[{datetime.datetime.now()}] ERROR: in /pronunciation/assess/: {e.detail}")
         raise e
     except Exception as e:
-        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /pronunciation/assess/: {e}")
+        error_message = str(e)
+        print(f"[{datetime.datetime.now()}] CRITICAL: Unhandled exception in /pronunciation/assess/: {error_message}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during pronunciation assessment: {str(e)}")
+        
+        # Handle specific audio recognition errors with 400 status
+        if "Speech could not be recognized" in error_message:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error_type": "AUDIO_NOT_RECOGNIZED",
+                    "message": "Speech could not be recognized. Please try again with clearer audio.",
+                    "user_message": "We couldn't understand your pronunciation. This might be due to background noise or unclear audio. Please try speaking more clearly."
+                }
+            )
+        
+        # All other errors remain as 500
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during pronunciation assessment: {error_message}")
 
 # --- Thai Character Tracing Endpoints ---
 

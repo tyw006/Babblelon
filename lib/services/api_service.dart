@@ -10,6 +10,20 @@ import 'package:just_audio/just_audio.dart' as just_audio;
 import 'dart:async';
 import 'package:babblelon/services/posthog_service.dart';
 
+/// Custom exception for audio recognition failures
+class AudioNotRecognizedException implements Exception {
+  final String message;
+  final String userMessage;
+  
+  const AudioNotRecognizedException({
+    required this.message,
+    required this.userMessage,
+  });
+  
+  @override
+  String toString() => 'AudioNotRecognizedException: $message';
+}
+
 class ApiService {
   // Base URL is determined by the platform at runtime.
   // - For Android emulator, use 10.0.2.2.
@@ -192,6 +206,25 @@ class ApiService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
         return PronunciationAssessmentResponse.fromJson(responseData);
+      } else if (response.statusCode == 400) {
+        // Handle structured error responses
+        try {
+          final Map<String, dynamic> errorData = json.decode(response.body);
+          if (errorData['detail'] is Map && 
+              errorData['detail']['error_type'] == 'AUDIO_NOT_RECOGNIZED') {
+            final detail = errorData['detail'] as Map<String, dynamic>;
+            throw AudioNotRecognizedException(
+              message: detail['message'] ?? 'Audio not recognized',
+              userMessage: detail['user_message'] ?? 'Please try speaking more clearly',
+            );
+          }
+        } catch (e) {
+          if (e is AudioNotRecognizedException) rethrow;
+          // If JSON parsing fails, fall through to generic error
+        }
+        
+        debugPrint("Error from backend: ${response.body}");
+        throw Exception("Failed to get assessment: ${response.statusCode} - ${response.body}");
       } else {
         debugPrint("Error from backend: ${response.body}");
         throw Exception("Failed to get assessment: ${response.statusCode} - ${response.body}");

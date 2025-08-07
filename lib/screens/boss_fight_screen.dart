@@ -20,6 +20,7 @@ import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
+import 'package:babblelon/widgets/audio_recognition_error_dialog.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
@@ -849,16 +850,38 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       
     } catch (e) {
       print("Error during pronunciation assessment: $e");
-      _practiceRecordingState.value = RecordingState.reviewing;
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Assessment failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      if (e is AudioNotRecognizedException) {
+        // Handle audio recognition failure with custom dialog
+        _practiceRecordingState.value = RecordingState.idle;
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AudioRecognitionErrorDialog(
+              message: e.userMessage,
+              onTryAgain: () {
+                Navigator.of(context).pop();
+                // Reset to recording state to allow retry
+                _practiceRecordingState.value = RecordingState.idle;
+              },
+            ),
+          );
+        }
+      } else {
+        // Handle other errors with snackbar (keep existing behavior)
+        _practiceRecordingState.value = RecordingState.reviewing;
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Assessment failed: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
   }
