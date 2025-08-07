@@ -34,8 +34,8 @@ class GlassmorphicCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withAlpha((opacity * 1.5 > 1.0 ? 255 : (opacity * 1.5 * 255).round())),
-                  Colors.white.withAlpha((opacity * 255).round()),
+                  Colors.black.withOpacity(0.7),
+                  Colors.black.withOpacity(0.5),
                 ],
               ),
               borderRadius: BorderRadius.circular(borderRadius),

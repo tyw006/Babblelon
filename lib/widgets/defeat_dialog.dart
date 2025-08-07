@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 
 class DefeatDialog extends ConsumerStatefulWidget {
   final BattleMetrics metrics;
@@ -93,83 +94,88 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
       insetPadding: EdgeInsets.all(isSmallScreen ? 10.0 : 20.0),
       child: ScaleTransition(
         scale: _scaleAnimation,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: screenSize.height * 0.85,
-            maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
-          ),
-          decoration: AppStyles.cardDecoration,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              _buildHeader(),
-              
-              // Page Content
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (page) {
-                    setState(() {
-                      _currentPage = page;
-                    });
-                  },
-                  children: [
-                    _buildPage1_MotivationAndProgress(),
-                    _buildPage2_DiagnosticReport(),
-                    _buildPage3_StrategyAndActions(),
-                  ],
+        child: GlassmorphicCard(
+          padding: EdgeInsets.zero,
+          blur: 20,
+          opacity: 0.15,
+          margin: EdgeInsets.zero,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: screenSize.height * 0.85,
+              maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                _buildHeader(),
+                
+                // Page Content
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                    },
+                    children: [
+                      _buildPage1_MotivationAndProgress(),
+                      _buildPage2_DiagnosticReport(),
+                      _buildPage3_StrategyAndActions(),
+                    ],
+                  ),
                 ),
-              ),
-              
-              // Page Indicator
-              _buildPageIndicator(),
-              
-              // Action Buttons (Fixed Footer)
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: AppStyles.cardDecoration,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: AppStyles.secondaryButtonStyle,
-                        child: Text(
-                          'LEAVE BATTLE',
-                          style: AppStyles.bodyTextStyle.copyWith(
-                            color: AppStyles.textColor,
-                            fontWeight: FontWeight.bold,
+                
+                // Page Indicator
+                _buildPageIndicator(),
+                
+                // Action Buttons (Fixed Footer)
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: AppStyles.cardDecoration,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: AppStyles.secondaryButtonStyle,
+                          child: Text(
+                            'LEAVE BATTLE',
+                            style: AppStyles.bodyTextStyle.copyWith(
+                              color: AppStyles.textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          // TODO: Implement retry battle functionality
-                        },
-                        style: AppStyles.primaryButtonStyle.copyWith(
-                          backgroundColor: WidgetStateProperty.all(Colors.orange),
-                          foregroundColor: WidgetStateProperty.all(Colors.white),
-                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
-                        ),
-                        child: Text(
-                          'RETRY BATTLE',
-                          style: AppStyles.bodyTextStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            // TODO: Implement retry battle functionality
+                          },
+                          style: AppStyles.primaryButtonStyle.copyWith(
+                            backgroundColor: WidgetStateProperty.all(Colors.orange),
+                            foregroundColor: WidgetStateProperty.all(Colors.white),
+                            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                          ),
+                          child: Text(
+                            'RETRY BATTLE',
+                            style: AppStyles.bodyTextStyle.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

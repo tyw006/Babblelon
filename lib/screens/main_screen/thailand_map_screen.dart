@@ -6,6 +6,7 @@ import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 
 class ThailandMapScreen extends ConsumerStatefulWidget {
   const ThailandMapScreen({super.key});
@@ -138,49 +139,56 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
   }
 
   void _showComingSoonDialog(LocationData location) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: cartoon.CartoonDesignSystem.softPeach,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge)),
-        title: Row(
-          children: [
-            Icon(Icons.construction, color: cartoon.CartoonDesignSystem.cherryRed),
-            const SizedBox(width: 10),
-            Text(
-              location.name,
-              style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-                color: cartoon.CartoonDesignSystem.textPrimary,
+    BasePopup.showPopup(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.construction,
+                color: Colors.orange,
+                size: 24,
               ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'This adventure is coming soon!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  location.name,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'This adventure is coming soon!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 10),
-            Text(
-              location.description,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            location.description,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Colors.orange),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: BasePopup.primaryButtonStyle,
+              child: const Text('OK'),
             ),
           ),
         ],
@@ -189,68 +197,76 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
   }
 
   Future<bool> _showTravelConfirmationDialog(LocationData location) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: cartoon.CartoonDesignSystem.softPeach,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge)),
-        title: const Row(
-          children: [
-            Icon(Icons.flight_takeoff, color: Colors.orange),
-            SizedBox(width: 10),
-            Text(
-              'Travel Confirmation',
-              style: TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Travel to ${location.name}?',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+    return await BasePopup.showPopup<bool>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.flight_takeoff,
+                color: Colors.orange,
+                size: 24,
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              location.description,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
+              SizedBox(width: 12),
+              Text(
+                'Travel Confirmation',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Are you ready to begin your Thai language adventure?',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white70),
-            ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          const SizedBox(height: 20),
+          Text(
+            'Travel to ${location.name}?',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Let\'s Go!',
-              style: TextStyle(color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            location.description,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Are you ready to begin your Thai language adventure?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  style: BasePopup.secondaryButtonStyle,
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: BasePopup.primaryButtonStyle,
+                  child: const Text('Let\'s Go!'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'base_popup_widget.dart';
 
 /// A popup dialog that displays charm changes with animations
 class CharmChangePopup {
@@ -8,29 +9,13 @@ class CharmChangePopup {
     required int charmDelta,
     required String charmReason,
   }) {
-    return showDialog<void>(
-      context: context,
+    return BasePopup.showPopup<void>(
+      context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: _CharmChangeDialogContent(
-            charmDelta: charmDelta,
-            charmReason: charmReason,
-          ),
-        ),
+      blur: 20.0,
+      child: _CharmChangeDialogContent(
+        charmDelta: charmDelta,
+        charmReason: charmReason,
       ),
     );
   }
@@ -135,19 +120,15 @@ class _CharmChangeDialogContentState extends State<_CharmChangeDialogContent> wi
         Text(
           widget.charmReason,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18),
+          style: const TextStyle(
+            fontSize: 18,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: deltaColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
+          style: BasePopup.primaryButtonStyle,
           child: const Text('Continue'),
         ),
       ],

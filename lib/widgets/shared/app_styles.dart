@@ -101,7 +101,7 @@ class AppStyles {
     elevatedButtonTheme: ElevatedButtonThemeData(style: primaryButtonStyle),
     outlinedButtonTheme: OutlinedButtonThemeData(style: secondaryButtonStyle),
     dialogTheme: DialogThemeData(
-      backgroundColor: primaryColor,
+      backgroundColor: Colors.transparent, // Allow individual dialogs to control their styling
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),

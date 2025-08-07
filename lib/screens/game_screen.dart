@@ -15,6 +15,7 @@ import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
 import '../models/popup_models.dart';
 import '../services/tutorial_service.dart';
+import '../widgets/popups/base_popup_widget.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -356,56 +357,60 @@ class MainMenu extends ConsumerWidget {
   }
 
   static Future<void> _showExitLevelConfirmation(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.grey.shade900,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-            side: BorderSide(
-              color: Colors.white.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          title: const Text(
+    final confirmed = await BasePopup.showPopup<bool>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
             'Exit Level?',
             style: TextStyle(
-              color: Colors.white,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-          content: const Text(
+          const SizedBox(height: 16),
+          const Text(
             'Are you sure you want to exit the level? You will lose all progress and return to the main menu.',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: Colors.white, fontSize: 16),
+            textAlign: TextAlign.center,
           ),
-          actions: [
-            TextButton(
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white70),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    ref.playButtonSound();
+                    Navigator.of(context).pop(false);
+                  },
+                  style: BasePopup.secondaryButtonStyle,
+                  child: const Text('Cancel'),
+                ),
               ),
-              onPressed: () {
-                ref.playButtonSound();
-                Navigator.of(dialogContext).pop(false);
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.8),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref.playButtonSound();
+                    Navigator.of(context).pop(true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text('Exit Level'),
+                ),
               ),
-              child: const Text(
-                'Exit Level',
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () {
-                ref.playButtonSound();
-                Navigator.of(dialogContext).pop(true);
-              },
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {

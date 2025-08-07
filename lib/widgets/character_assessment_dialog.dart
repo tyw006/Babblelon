@@ -5,6 +5,7 @@ import 'dart:async';
 import '../models/character_assessment_model.dart';
 import '../providers/game_providers.dart';
 import 'shared/app_styles.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 
 /// Dialog that displays writing assessment results with prominent score and sound effects
 class CharacterAssessmentDialog extends ConsumerStatefulWidget {
@@ -197,30 +198,25 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         scale: _scaleAnimation,
         child: SlideTransition(
           position: _slideAnimation,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: screenSize.height * 0.85,
-              maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E), // Modern charcoal background
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: _buildSinglePageContent(),
-                ),
-                _buildNavigationControls(),
-              ],
+          child: GlassmorphicCard(
+            padding: EdgeInsets.zero,
+            blur: 20,
+            opacity: 0.15,
+            margin: EdgeInsets.zero,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: screenSize.height * 0.85,
+                maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Expanded(
+                    child: _buildSinglePageContent(),
+                  ),
+                  _buildNavigationControls(),
+                ],
+              ),
             ),
           ),
         ),
@@ -231,7 +227,15 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.15),
+            Colors.white.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Row(
         children: [
           Container(
@@ -1491,7 +1495,15 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
           // Progress Bar
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: AppStyles.flashcardDecoration,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Column(
               children: [
                 Row(
@@ -2054,75 +2066,67 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 280),
+          child: GlassmorphicCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.5), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.info_outline,
-                        color: color,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppStyles.bodyTextStyle.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+            blur: 20,
+            opacity: 0.15,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
                           color: color,
+                          size: 16,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  description,
-                  style: AppStyles.bodyTextStyle.copyWith(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppStyles.bodyTextStyle.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: const Text('Got it'),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    description,
+                    style: AppStyles.bodyTextStyle.copyWith(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Got it'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

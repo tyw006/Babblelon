@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
+import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 
 class LanguageSelectorOverlay extends StatelessWidget {
   final Function(String) onLanguageSelected;
@@ -15,7 +15,7 @@ class LanguageSelectorOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: GlassmorphicCard(
+      child: BasePopup.buildPopupContainer(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         blur: 20,
         child: Column(

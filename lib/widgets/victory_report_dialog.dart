@@ -4,6 +4,7 @@ import 'package:babblelon/providers/battle_providers.dart';
 import 'package:lottie/lottie.dart';
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 
 class VictoryReportDialog extends ConsumerStatefulWidget {
   final BattleMetrics metrics;
@@ -114,62 +115,67 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         scale: _scaleAnimation,
         child: SlideTransition(
           position: _slideAnimation,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: screenSize.height * 0.85,
-              maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
-            ),
-            decoration: AppStyles.cardDecoration,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                _buildHeader(),
-                
-                // Page Content
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (page) {
-                      setState(() {
-                        _currentPage = page;
-                      });
-                    },
-                    children: [
-                      _buildPage1_InstantResultAndCore(),
-                      _buildPage2_LanguageReport(),
-                      _buildPage3_ProgressAndRewards(),
-                    ],
+          child: GlassmorphicCard(
+            padding: EdgeInsets.zero,
+            blur: 20,
+            opacity: 0.15,
+            margin: EdgeInsets.zero,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: screenSize.height * 0.85,
+                maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  _buildHeader(),
+                  
+                  // Page Content
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      onPageChanged: (page) {
+                        setState(() {
+                          _currentPage = page;
+                        });
+                      },
+                      children: [
+                        _buildPage1_InstantResultAndCore(),
+                        _buildPage2_LanguageReport(),
+                        _buildPage3_ProgressAndRewards(),
+                      ],
+                    ),
                   ),
-                ),
-                
-                // Page Indicator
-                _buildPageIndicator(),
-                
-                // Continue Button (Fixed Footer)
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: AppStyles.cardDecoration,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: AppStyles.primaryButtonStyle.copyWith(
-                        backgroundColor: WidgetStateProperty.all(Colors.green),
-                        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'CONTINUE',
-                        style: AppStyles.bodyTextStyle.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  
+                  // Page Indicator
+                  _buildPageIndicator(),
+                  
+                  // Continue Button (Fixed Footer)
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: AppStyles.cardDecoration,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: AppStyles.primaryButtonStyle.copyWith(
+                          backgroundColor: WidgetStateProperty.all(Colors.green),
+                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'CONTINUE',
+                          style: AppStyles.bodyTextStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

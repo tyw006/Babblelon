@@ -96,35 +96,44 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
           width: 1.5,
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isMultiSlide)
-            SizedBox(
-              height: 300,
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (page) {
-                  setState(() {
-                    _currentPage = page;
-                  });
-                },
-                itemCount: _allSlides.length,
-                itemBuilder: (context, index) {
-                  final slide = _allSlides[index];
-                  return _buildSlideContent(slide);
-                },
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isMultiSlide)
+              SizedBox(
+                height: 300,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (page) {
+                    setState(() {
+                      _currentPage = page;
+                    });
+                  },
+                  itemCount: _allSlides.length,
+                  itemBuilder: (context, index) {
+                    final slide = _allSlides[index];
+                    return _buildSlideContent(slide);
+                  },
+                ),
+              )
+            else
+              Flexible(
+                child: SingleChildScrollView(
+                  child: _buildSlideContent(_allSlides[0]),
+                ),
               ),
-            )
-          else
-            _buildSlideContent(_allSlides[0]),
-          if (_isMultiSlide) ...[
-            const SizedBox(height: 16),
-            _buildPageIndicators(),
+            if (_isMultiSlide) ...[
+              const SizedBox(height: 16),
+              _buildPageIndicators(),
+            ],
+            const SizedBox(height: 24),
+            _buildNavigationButtons(),
           ],
-          const SizedBox(height: 24),
-          _buildNavigationButtons(),
-        ],
+        ),
       ),
     );
   }
