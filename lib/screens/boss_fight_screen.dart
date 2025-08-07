@@ -4,6 +4,7 @@ import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/widgets/flashcard.dart';
 import 'package:babblelon/widgets/top_info_bar.dart';
 import 'package:babblelon/screens/main_menu_screen.dart';
+import 'package:babblelon/screens/main_navigation_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
@@ -962,7 +963,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
           Navigator.of(context).pop();
           Navigator.of(context).pushAndRemoveUntil(
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const MainMenuScreen(),
+              pageBuilder: (context, animation, secondaryAnimation) => const MainNavigationScreen(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 return AnimatedBuilder(
                   animation: animation,
@@ -1628,7 +1629,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
     // After dialog is closed, navigate back to main menu
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
       (Route<dynamic> route) => false,
     );
   }
@@ -1671,7 +1672,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
     // After dialog is closed, navigate back to main menu
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
       (Route<dynamic> route) => false,
     );
   }

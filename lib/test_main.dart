@@ -8,7 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/theme/app_theme.dart';
-import 'package:babblelon/app_controller.dart';
+import 'package:babblelon/screens/main_menu_screen.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:io';
@@ -65,9 +65,9 @@ void main() async {
       preferredLanguage: 'th', // Thai is the primary language for the game
     );
     
-    print('✅ PostHog initialized successfully with user session and device properties (PRODUCTION VERSION)');
+    print('✅ PostHog initialized successfully with user session and device properties (TEST VERSION)');
   } else {
-    print('⚠️ PostHog API key not found, skipping initialization (PRODUCTION VERSION)');
+    print('⚠️ PostHog API key not found, skipping initialization (TEST VERSION)');
   }
 
   await SentryFlutter.init(
@@ -85,29 +85,31 @@ void main() async {
       // Configure Session Replay
       options.replay.sessionSampleRate = 0.1;
       options.replay.onErrorSampleRate = 1.0;
+      // Test version environment tag
+      options.environment = 'test';
     },
     appRunner: () => runApp(SentryWidget(
       child: provider.MultiProvider(
         providers: [
           provider.ChangeNotifierProvider(create: (context) => MotionPreferences()..init()),
         ],
-        child: const ProviderScope(child: MyApp()),
+        child: const ProviderScope(child: TestApp()),
       ),
     )),
   );
   // TODO: Remove this line after sending the first sample event to sentry.
-  await Sentry.captureException(StateError('This is a sample exception from production version.'));
+  await Sentry.captureException(StateError('This is a sample exception from test version.'));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class TestApp extends StatelessWidget {
+  const TestApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Babblelon',
+      title: 'Babblelon (Test)',
       theme: AppTheme.lightTheme, // Use cartoon unified theme
-      home: const AppController(), // Production app controller with onboarding flow
+      home: const MainMenuScreen(), // Direct to test menu
     );
   }
-} 
+}

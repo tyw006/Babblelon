@@ -10,6 +10,7 @@ import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'main_menu_screen.dart';
+import 'main_navigation_screen.dart';
 import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
@@ -415,7 +416,7 @@ class MainMenu extends ConsumerWidget {
 
     if (confirmed == true) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         (route) => false, // Remove all previous routes
       );
     }
