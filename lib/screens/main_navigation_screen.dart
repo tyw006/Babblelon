@@ -23,6 +23,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Note: Intro music is already handled by SpaceLoadingScreen/3D Earth globe
+    // No need to trigger it again here to avoid conflicts
+    
     // Check and show tutorial on first load with additional delay for stability
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 500), () {

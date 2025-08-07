@@ -219,11 +219,6 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
                   ),
                 ),
                 const SizedBox(height: 32),
-                CartoonButton(
-                  text: 'Back to Selection',
-                  onPressed: _handleBackNavigation,
-                  style: CartoonButtonStyle.secondary,
-                ),
               ],
             ),
           ),
@@ -232,22 +227,6 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
     );
   }
 
-  /// Handle back navigation - go back to Splash screen
-  void _handleBackNavigation() {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const CartoonSplashScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -377,33 +356,6 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          IconButton(
-            onPressed: _handleBackNavigation,
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: CartoonDesignSystem.creamWhite,
-                borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
-                border: Border.all(
-                  color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_rounded,
-                color: CartoonDesignSystem.textPrimary,
-                size: 18,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Choose Your Journey',

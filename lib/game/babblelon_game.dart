@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
 
 class BabblelonGame extends FlameGame with
     RiverpodGameMixin,
@@ -164,20 +165,28 @@ class BabblelonGame extends FlameGame with
     // Start camera at the left edge
     cameraComponent.viewfinder.position = Vector2(0, 0);
 
-    // Initialize and play background music
+    // Initialize background music
     FlameAudio.bgm.initialize();
-    // FlameAudio.bgm.play('bg/Chinatown in Summer.mp3', volume: 0.5);
-    // Check music enabled state before playing
-    final initialMusicEnabled = ref.read(gameStateProvider).musicEnabled;
-    if (initialMusicEnabled) {
-      FlameAudio.bgm.play('bg/background_yaowarat.wav', volume: 0.5);
-    }
+    
+    // Switch to game screen and start appropriate music
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Give settings more time to load from SharedPreferences
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (isMounted) {
+        // Use the new screen-based music system
+        ref.read(gameStateProvider.notifier).switchScreen(ScreenType.game);
+        debugPrint('🎵 BabblelonGame: Switched to game screen and started appropriate music');
+      }
+    });
 
     // --- Pre-load portal sound ---
     _portalSoundPlayer = just_audio.AudioPlayer();
     await _portalSoundPlayer?.setAsset('assets/audio/bg/soundeffect_portal_v2.mp3');
     await _portalSoundPlayer?.setLoopMode(just_audio.LoopMode.one);
     // --- End pre-load ---
+    
+    // Music state changes will be handled by the GameStateProvider directly
     
     // --- Pre-load ML Kit Thai model for character tracing ---
     try {
@@ -186,6 +195,26 @@ class BabblelonGame extends FlameGame with
       print("Failed to preload ML Kit Thai model: $e");
     }
     // --- End ML Kit preload ---
+    
+    // Mark game loading as completed
+    ref.read(gameLoadingCompletedProvider.notifier).state = true;
+    
+    // Show game loading tutorial if this is the first time entering a game
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      if (!tutorialProgressNotifier.isStepCompleted('game_loading_intro')) {
+        final context = buildContext;
+        if (context != null) {
+          final tutorialManager = TutorialManager(
+            context: context,
+            ref: ref,
+          );
+          
+          // Show the game loading/navigation tutorial
+          await tutorialManager.startTutorial(TutorialTrigger.firstGameEntry);
+        }
+      }
+    });
   }
   
   Future<void> _addNpcs() async {
@@ -331,6 +360,25 @@ class BabblelonGame extends FlameGame with
 
     // Show new bubble
     if (newActiveNpcId != null) {
+      // Show first NPC interaction tutorial if this is the first time approaching any NPC
+      // Only show if game has finished loading to prevent blocking asset loading
+      final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
+      if (gameLoadingCompleted) {
+        final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+        if (!tutorialProgressNotifier.isStepCompleted('first_npc_interaction')) {
+          final context = buildContext;
+          if (context != null) {
+            final tutorialManager = TutorialManager(
+              context: context,
+              ref: ref,
+            );
+            
+            // Show first NPC approach tutorial
+            tutorialManager.startTutorial(TutorialTrigger.firstNpcApproach);
+          }
+        }
+      }
+      
       final hasReceivedSpecialItem = ref.read(specialItemReceivedProvider(newActiveNpcId));
       if (!hasReceivedSpecialItem) {
         final bubble = _speechBubbles[newActiveNpcId]!;
@@ -363,9 +411,39 @@ class BabblelonGame extends FlameGame with
 
     final distance = player.position.distanceTo(_portal!.position);
     const maxDistance = 600.0;
+    const tutorialDistance = 400.0; // Trigger tutorial when closer than this
+    
+    // Show boss approach tutorial when player gets near portal for the first time
+    // Only show if game has finished loading to prevent blocking asset loading
+    bool shouldTriggerTutorial = false;
+    if (distance < tutorialDistance && _lastPortalDistance >= tutorialDistance) {
+      final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
+      if (gameLoadingCompleted) {
+        final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+        // Show portal approach tutorial if never shown
+        if (!tutorialProgressNotifier.isStepCompleted('portal_approach')) {
+          shouldTriggerTutorial = true;
+        }
+      }
+    }
+    
+    // Trigger tutorial AFTER updating distance but before audio logic
+    if (shouldTriggerTutorial) {
+      final context = buildContext;
+      if (context != null) {
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+        );
+        tutorialManager.startTutorial(TutorialTrigger.bossPortal);
+        debugPrint('🎓 BabblelonGame: Triggered boss portal tutorial');
+      }
+    }
 
     // Performance optimization: Only update audio if distance changed significantly
-    if ((distance - _lastPortalDistance).abs() > 10.0) {
+    // Use the previous distance value for comparison, not the already-updated one
+    final previousDistance = _lastPortalDistance;
+    if ((distance - previousDistance).abs() > 10.0) {
       if (distance < maxDistance) {
         if (_portalSoundPlayer?.playing == false) {
           _portalSoundPlayer?.play();
@@ -377,8 +455,10 @@ class BabblelonGame extends FlameGame with
           _portalSoundPlayer?.pause();
         }
       }
-      _lastPortalDistance = distance;
     }
+    
+    // Update the last distance at the very end for next frame comparison
+    _lastPortalDistance = distance;
   }
   
   void _startDialogue(String npcId) {
@@ -490,18 +570,19 @@ class BabblelonGame extends FlameGame with
     }
   }
 
-  // Method to resume background music
-  void resumeMusic(WidgetRef ref) {
-    final musicEnabled = ref.read(gameStateProvider).musicEnabled;
-    if (musicEnabled && !FlameAudio.bgm.isPlaying) {
-      FlameAudio.bgm.play('bg/background_yaowarat.wav', volume: 0.5);
+  // Unified method to handle music state changes from GameStateProvider
+  void handleMusicStateChange(bool musicEnabled, bool shouldBePlaying) {
+    if (musicEnabled && shouldBePlaying) {
+      // Start or resume music
+      if (!FlameAudio.bgm.isPlaying) {
+        FlameAudio.bgm.play('bg/background_yaowarat.wav', volume: 0.5);
+      }
+    } else {
+      // Stop or pause music
+      if (FlameAudio.bgm.isPlaying) {
+        FlameAudio.bgm.pause();
+      }
     }
-    ref.read(gameStateProvider.notifier).setBgmPlaying(true);
-  }
-
-  void pauseMusic(WidgetRef ref) {
-    FlameAudio.bgm.pause();
-    ref.read(gameStateProvider.notifier).setBgmPlaying(false);
   }
 
   Future<void> _preloadMLKitThaiModel() async {

@@ -35,6 +35,7 @@ import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/models/local_storage_models.dart' as isar_models;
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
+import 'package:babblelon/services/tutorial_service.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -162,6 +163,33 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _apiService = ApiService();
     _echoAudioService = EchoAudioService();
     _initializeRecorder();
+
+    // Show boss fight tutorial if this is the first time in boss battle
+    // Wait for tutorial progress to load from SharedPreferences to avoid race condition
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Add delay to ensure tutorial progress has loaded from SharedPreferences
+      await Future.delayed(const Duration(milliseconds: 200));
+      
+      if (!mounted) return;
+      
+      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final isCompleted = tutorialProgressNotifier.isStepCompleted('boss_fight_intro');
+      
+      debugPrint('🎓 BossFightScreen: Tutorial check - boss_fight_intro completed: $isCompleted');
+      
+      if (!isCompleted) {
+        debugPrint('🎓 BossFightScreen: Starting boss fight tutorial');
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+        );
+        
+        // Show comprehensive boss fight tutorial (multi-slide)
+        tutorialManager.startTutorial(TutorialTrigger.bossFight);
+      } else {
+        debugPrint('🎓 BossFightScreen: Boss fight tutorial already completed, skipping');
+      }
+    });
     
     // Track boss fight start
     PostHogService.trackBossFight(
@@ -174,10 +202,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       },
     );
     
-    // Initialize and start boss fight background music
+    // Initialize and start boss fight background music using screen-based system
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlameAudio.bgm.stop(); // Stop any previous music
-      FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
+      ref.read(gameStateProvider.notifier).switchScreen(ScreenType.bossFight);
 
       // Start tracking battle metrics
       ref.read(battleTrackingProvider.notifier).startBattle(
@@ -1685,12 +1712,6 @@ class _BossFightMenuDialog extends ConsumerWidget {
               onChanged: (val) {
                 final notifier = ref.read(gameStateProvider.notifier);
                 notifier.setMusicEnabled(val);
-
-                if (val) {
-                  FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
-                } else {
-                  FlameAudio.bgm.stop();
-                }
               },
             ),
             const SizedBox(height: 12),

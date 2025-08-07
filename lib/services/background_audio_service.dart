@@ -1,5 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/game_providers.dart';
 
 /// Service for managing background music and sound effects
 class BackgroundAudioService {
@@ -64,8 +66,18 @@ class BackgroundAudioService {
   }
 
   /// Play background music for the intro screen
-  Future<void> playIntroMusic() async {
-    if (!_isMusicEnabled) return;
+  Future<void> playIntroMusic([WidgetRef? ref]) async {
+    // Check global music setting from GameStateProvider if ref is provided
+    bool globalMusicEnabled = _isMusicEnabled;
+    if (ref != null) {
+      globalMusicEnabled = ref.read(gameStateProvider).musicEnabled;
+      debugPrint('BackgroundAudioService: Global music enabled: $globalMusicEnabled');
+    }
+    
+    if (!globalMusicEnabled) {
+      debugPrint('BackgroundAudioService: Intro music disabled by global setting');
+      return;
+    }
     
     const musicPath = 'audio/bg/background_introscreen.wav';
     

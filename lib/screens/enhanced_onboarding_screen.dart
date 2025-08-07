@@ -141,6 +141,9 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
         builder: (context) => const MainNavigationScreen(),
       ),
     );
+    
+    // Note: Game purpose tutorial will be triggered by MainNavigationScreen when game loading completes
+    // This ensures proper timing and context for the tutorial
   }
 
   void _nextPage() {

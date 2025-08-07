@@ -184,7 +184,7 @@ class _ProgressMetricsSection extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 2.0,
+              childAspectRatio: 1.8, // Adjusted from 2.0 to 1.8 for more height
               children: [
                 _MetricCard(
                   title: 'Words Learned',
@@ -248,7 +248,7 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8), // Reduced from 10 to 8
       decoration: BoxDecoration(
         color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
@@ -266,14 +266,15 @@ class _MetricCard extends StatelessWidget {
               Icon(
                 icon,
                 color: color,
-                size: 16,
+                size: 14, // Reduced from 16 to 14
               ),
-              const SizedBox(width: 3),
+              const SizedBox(width: 2), // Reduced from 3 to 2
               Expanded(
                 child: Text(
                   title,
                   style: AppTheme.textTheme.bodySmall?.copyWith(
                     color: CartoonDesignSystem.textSecondary,
+                    fontSize: 11, // Explicitly set font size
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -281,29 +282,36 @@ class _MetricCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTheme.textTheme.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 2), // Reduced from 4 to 2
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppTheme.textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 20, // Explicitly set font size
+              ),
             ),
           ),
-          const SizedBox(height: 0),
           Text(
             subtitle,
             style: AppTheme.textTheme.bodySmall?.copyWith(
               color: CartoonDesignSystem.textMuted,
-              fontSize: 10,
+              fontSize: 9, // Reduced from 10 to 9
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: color.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+          const SizedBox(height: 2), // Reduced from 4 to 2
+          SizedBox(
+            height: 3, // Fixed height for progress bar
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: color.withValues(alpha: 0.2),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
         ],
       ),

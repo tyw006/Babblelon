@@ -5,6 +5,7 @@ import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/services/background_audio_service.dart';
 
 /// Settings screen with instant toggles and simple layout
 /// Performance optimized with minimal animations
@@ -67,6 +68,21 @@ class _AudioSection extends ConsumerWidget {
                 ref.playButtonSound();
               }
               ref.read(gameStateProvider.notifier).setMusicEnabled(value);
+              
+              // Synchronize BackgroundAudioService with the new setting
+              final audioService = BackgroundAudioService();
+              audioService.updateSettings(
+                musicEnabled: value,
+                soundEffectsEnabled: gameState.soundEffectsEnabled,
+              );
+              
+              // If music was enabled and we're in the main menu, restart intro music
+              if (value) {
+                audioService.playIntroMusic(ref);
+                debugPrint('🎵 SettingsScreen: Restarted intro music after enabling');
+              }
+              
+              debugPrint('🎵 SettingsScreen: Synced BackgroundAudioService with music toggle: $value');
             },
             activeColor: CartoonDesignSystem.sunshineYellow,
           ),
@@ -86,6 +102,14 @@ class _AudioSection extends ConsumerWidget {
               if (value) {
                 ref.playButtonSound();
               }
+              
+              // Synchronize BackgroundAudioService with the new setting
+              final audioService = BackgroundAudioService();
+              audioService.updateSettings(
+                musicEnabled: gameState.musicEnabled,
+                soundEffectsEnabled: value,
+              );
+              debugPrint('🔊 SettingsScreen: Synced BackgroundAudioService with sound effects toggle: $value');
             },
             activeColor: CartoonDesignSystem.sunshineYellow,
           ),

@@ -24,6 +24,7 @@ import '../widgets/character_tracing_widget.dart';
 import '../widgets/npc_response_modal.dart';
 import 'dialogue_overlay/dialogue_models.dart';
 import '../services/posthog_service.dart';
+import '../services/tutorial_service.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -318,6 +319,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // Initialize conversation tracking
     _conversationStartTime = DateTime.now();
 
+    // Show first dialogue session tutorial only on the very first NPC dialogue encounter
+    // The greeting will be loaded separately by the existing addPostFrameCallback below
+
     // Track conversation start
     PostHogService.trackNPCConversation(
       npcName: widget.npcId,
@@ -345,6 +349,26 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Check if we should show the first dialogue tutorial
+      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final hasEncounteredNpc = ref.read(firstNpcDialogueEncounteredProvider);
+      
+      // Only show tutorial if this is the first NPC ever and tutorial hasn't been completed
+      if (!hasEncounteredNpc && !tutorialProgressNotifier.isStepCompleted('first_dialogue_session')) {
+        // Mark that we've now encountered our first NPC
+        ref.read(firstNpcDialogueEncounteredProvider.notifier).state = true;
+        
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+          npcId: widget.npcId,
+        );
+        
+        // Show first dialogue session tutorial and wait for it to complete
+        await tutorialManager.startTutorial(TutorialTrigger.firstDialogueSession);
+      }
+      
+      // Now load the initial greeting data (after tutorial if shown)
       await _loadInitialGreetingData();
 
       final history = ref.read(fullConversationHistoryProvider(widget.npcId));
@@ -505,6 +529,21 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       print("Microphone permission denied");
       // Optionally, show a dialog to the user explaining why you need the permission.
       return;
+    }
+
+    // Check if this is the first time using voice interaction and show tutorial
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+    if (!tutorialProgressNotifier.isStepCompleted('voice_setup_guide') && 
+        !tutorialProgressNotifier.isStepCompleted('pronunciation_confidence_guide')) {
+      // Show voice interaction tutorials for first-time users
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Start both voice-related tutorials
+      await tutorialManager.startTutorial(TutorialTrigger.firstVoiceInteraction);
     }
 
     // Track recording start
@@ -863,8 +902,43 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             final oldCharm = charmNotifier.state;
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
+            // Show tutorials for charm milestones
+            final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+            if (newCharm >= 60 && oldCharm < 60 && !tutorialProgressNotifier.isStepCompleted('charm_thresholds_explained')) {
+              // First time reaching 60 charm - show milestone tutorial
+              final tutorialManager = TutorialManager(
+                context: context,
+                ref: ref,
+                npcId: widget.npcId,
+              );
+              
+              tutorialManager.startTutorial(TutorialTrigger.firstCharmMilestone);
+            }
+
+            if (newCharm >= 60 && oldCharm < 60 && !tutorialProgressNotifier.isStepCompleted('item_giving_tutorial')) {
+              // First time eligible for an item - show item eligibility tutorial
+              final tutorialManager = TutorialManager(
+                context: context,
+                ref: ref,
+                npcId: widget.npcId,
+              );
+              
+              tutorialManager.startTutorial(TutorialTrigger.firstItemEligibility);
+            }
+
             if (newCharm == 100 && oldCharm < 100) {
               justReachedMaxCharm = true;
+              
+              // Show special item tutorial if they haven't seen it
+              if (!tutorialProgressNotifier.isStepCompleted('special_item_celebration')) {
+                final tutorialManager = TutorialManager(
+                  context: context,
+                  ref: ref,
+                  npcId: widget.npcId,
+                );
+                
+                tutorialManager.startTutorial(TutorialTrigger.firstSpecialItem);
+              }
             }
             
             charmNotifier.state = newCharm;
@@ -1116,6 +1190,47 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
   }
 
+  // Tutorial-aware toggle handlers
+  void _handleTransliterationToggle() {
+    final dialogueSettings = ref.read(dialogueSettingsProvider);
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+    
+    // If turning ON transliteration for the first time, show tutorial
+    if (!dialogueSettings.showTransliteration && !tutorialProgressNotifier.isStepCompleted('transliteration_system')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show transliteration tutorial
+      tutorialManager.startTutorial(TutorialTrigger.firstDialogueAnalysis);
+    }
+    
+    // Perform the actual toggle
+    ref.read(dialogueSettingsProvider.notifier).toggleShowTransliteration();
+  }
+  
+  void _handleWordAnalysisToggle() {
+    final dialogueSettings = ref.read(dialogueSettingsProvider);
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+    
+    // If turning ON word analysis for the first time, show tutorial
+    if (!dialogueSettings.showWordByWordAnalysis && !tutorialProgressNotifier.isStepCompleted('pos_color_system')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show POS color system tutorial
+      tutorialManager.startTutorial(TutorialTrigger.firstDialogueAnalysis);
+    }
+    
+    // Perform the actual toggle
+    ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -1213,7 +1328,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         widget.game.overlays.remove('dialogue');
         widget.game.resumeGame(ref);
       },
-      onShowTranslation: () => _showEnglishToTargetLanguageTranslationDialog(context),
+      onShowTranslation: () => _showLanguageToolsWithTutorial(context),
       micControls: _buildMicOrReviewControls(),
       isProcessingBackend: _isProcessingBackend,
       mainDialogueScrollController: _mainDialogueScrollController,
@@ -1222,8 +1337,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       showTransliteration: dialogueSettings.showTransliteration,
       showWordAnalysis: dialogueSettings.showWordByWordAnalysis,
       onToggleEnglish: () => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
-      onToggleTransliteration: () => ref.read(dialogueSettingsProvider.notifier).toggleShowTransliteration(),
-      onToggleWordAnalysis: () => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
+      onToggleTransliteration: () => _handleTransliterationToggle(),
+      onToggleWordAnalysis: () => _handleWordAnalysisToggle(),
       onReplayAudio: (currentNpcDisplayEntry?.isNpc ?? false) && (currentNpcDisplayEntry?.audioPath != null || currentNpcDisplayEntry?.audioBytes != null)
         ? () => _playDialogueAudio(currentNpcDisplayEntry!)
         : null,
@@ -1884,6 +1999,20 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     );
   }
 
+  // Language tools with tutorial support
+  Future<void> _showLanguageToolsWithTutorial(BuildContext context) async {
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+    
+    // Show language tools tutorial if this is the first time accessing it
+    if (!tutorialProgressNotifier.isStepCompleted('first_language_tools_tutorial')) {
+      final tutorialManager = TutorialManager(context: context, ref: ref, npcId: widget.npcId);
+      await tutorialManager.startTutorial(TutorialTrigger.firstLanguageTools);
+    }
+    
+    // Then show the language tools dialog
+    _showEnglishToTargetLanguageTranslationDialog(context);
+  }
+
   // --- New Dialog for English to Target Language Translation Input ---
   Future<void> _showEnglishToTargetLanguageTranslationDialog(BuildContext context, {String targetLanguage = "th", int initialTabIndex = 0}) async {
     // Reset state when opening the dialog
@@ -1927,45 +2056,111 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.1),
       builder: (BuildContext dialogContext) {
         return DefaultTabController(
           length: 2,
           initialIndex: initialTabIndex,
-          child: AlertDialog(
-            title: ValueListenableBuilder<String>(
-              valueListenable: _translationDialogTitleNotifier,
-              builder: (context, title, child) => Text(title),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 500,
+          child: Dialog(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(24),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.5),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24.0),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TabBar(
-                    tabs: [
-                      Tab(text: 'Translate'),
-                      Tab(text: 'Give Item'),
-                    ],
+                  // Title
+                  ValueListenableBuilder<String>(
+                    valueListenable: _translationDialogTitleNotifier,
+                    builder: (context, title, child) => Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 20),
+                  
+                  // Tab content
                   Expanded(
-                    child: TabBarView(
+                    child: Column(
                       children: [
-                        _buildTranslationTab(playTranslatedAudio, targetLanguage),
-                        _buildItemGivingTab(dialogContext, targetLanguage),
+                        Theme(
+                          data: Theme.of(context).copyWith(
+                            tabBarTheme: TabBarThemeData(
+                              labelColor: Colors.white,
+                              unselectedLabelColor: Colors.white.withOpacity(0.6),
+                              indicator: UnderlineTabIndicator(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ),
+                          child: TabBar(
+                            tabs: [
+                              Tab(text: 'Translate'),
+                              Tab(text: 'Give Item'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _buildTranslationTab(playTranslatedAudio, targetLanguage),
+                              _buildItemGivingTab(dialogContext, targetLanguage),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
+                  ),
+                  
+                  // Actions
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-            ],
           ),
         );
       },
@@ -3185,6 +3380,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   Future<void> _startCharacterTracing(Map<String, dynamic> itemData, BuildContext dialogContext, String targetLanguage) async {
     Navigator.of(dialogContext).pop(); // Close translation dialog
+    
+    // Show tutorial for first-time character tracing users
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+    if (!tutorialProgressNotifier.isStepCompleted('character_tracing_tutorial')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show character tracing tutorial
+      await tutorialManager.startTutorial(TutorialTrigger.firstCharacterTracing);
+    }
     
     // Clear any previous ink strokes
     _ink.strokes.clear();

@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/overlays/capybara_loading_overlay.dart';
 import 'package:babblelon/screens/cartoon_splash_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
+import 'package:babblelon/providers/game_providers.dart';
 
 /// Space loading screen wrapper that shows loading overlay over 3D earth background
-class SpaceLoadingScreen extends StatefulWidget {
+class SpaceLoadingScreen extends ConsumerStatefulWidget {
   const SpaceLoadingScreen({super.key});
 
   @override
-  State<SpaceLoadingScreen> createState() => _SpaceLoadingScreenState();
+  ConsumerState<SpaceLoadingScreen> createState() => _SpaceLoadingScreenState();
 }
 
-class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
+class _SpaceLoadingScreenState extends ConsumerState<SpaceLoadingScreen> {
   bool _isLoadingComplete = false;
   bool _earthRenderingComplete = false;
   final BackgroundAudioService _audioService = BackgroundAudioService();
@@ -24,7 +26,13 @@ class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
   }
   
   Future<void> _initializeAudioService() async {
-    await _audioService.initialize();
+    // Get current settings from GameStateProvider to sync with BackgroundAudioService
+    final gameState = ref.read(gameStateProvider);
+    await _audioService.initialize(
+      musicEnabled: gameState.musicEnabled,
+      soundEffectsEnabled: gameState.soundEffectsEnabled,
+    );
+    debugPrint('🎵 SpaceLoadingScreen: Initialized BackgroundAudioService with settings - music: ${gameState.musicEnabled}, effects: ${gameState.soundEffectsEnabled}');
   }
   
   Future<void> _checkEarthRenderingStatus() async {
@@ -41,8 +49,8 @@ class _SpaceLoadingScreenState extends State<SpaceLoadingScreen> {
       _isLoadingComplete = true;
     });
     
-    // Start playing intro music when main menu loads
-    _audioService.playIntroMusic();
+    // Start playing intro music when main menu loads (respects global music toggle)
+    _audioService.playIntroMusic(ref);
   }
   
   bool get _showOverlay => !_isLoadingComplete || !_earthRenderingComplete;

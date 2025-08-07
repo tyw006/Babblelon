@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/navigation_provider.dart';
@@ -6,6 +7,7 @@ import '../models/npc_data.dart';
 import '../widgets/popups/tutorial_popup_widget.dart';
 
 enum TutorialTrigger {
+  // Existing triggers (kept for backward compatibility)
   startAdventure,
   firstDialogue,
   bossPortal,
@@ -13,6 +15,24 @@ enum TutorialTrigger {
   mainMenu,
   npcInteraction,
   premiumFeatures,
+  
+  // New universal triggers (map-agnostic, first-time only)
+  firstGameEntry,           // Very first app launch
+  firstVoiceInteraction,    // First microphone use anywhere
+  firstMapNavigation,       // First time in any game map
+  firstDialogueAnalysis,    // First dialogue with advanced features (POS, transliteration)
+  firstCharacterTracing,    // First tracing attempt anywhere
+  firstBossApproach,        // First time approaching any boss portal without items
+  firstBossBattle,          // First battle with any boss
+  firstCharmMilestone,      // First time reaching charm thresholds (60, 100)
+  firstItemEligibility,     // First time eligible for any item
+  firstSpecialItem,         // First special item unlock anywhere
+  
+  // Additional missing triggers
+  firstNpcApproach,         // First time getting near any NPC
+  firstDialogueSession,     // First time opening dialogue overlay
+  firstNpcResponse,         // First time seeing NPC response modal
+  firstLanguageTools,       // First time accessing language tools dialog
 }
 
 class TutorialVisual {
@@ -47,6 +67,20 @@ class TutorialVisual {
   }
 }
 
+class TutorialSlide {
+  final String title;
+  final String content;
+  final List<TutorialVisual>? visualElements;
+  final IconData? headerIcon;
+
+  const TutorialSlide({
+    required this.title,
+    required this.content,
+    this.visualElements,
+    this.headerIcon,
+  });
+}
+
 class TutorialStep {
   final String id;
   final String title;
@@ -59,6 +93,7 @@ class TutorialStep {
   final List<TutorialVisual>? visualElements;
   final IconData? headerIcon;
   final bool isStandalone;
+  final List<TutorialSlide>? slides; // New field for multi-slide tutorials
 
   const TutorialStep({
     required this.id,
@@ -72,7 +107,14 @@ class TutorialStep {
     this.visualElements,
     this.headerIcon,
     this.isStandalone = false,
+    this.slides, // Multi-slide support
   });
+
+  // Helper to check if this tutorial has multiple slides
+  bool get isMultiSlide => slides != null && slides!.isNotEmpty;
+  
+  // Get total slides count (including the main step as first slide)
+  int get totalSlides => isMultiSlide ? slides!.length + 1 : 1;
 }
 
 class TutorialManager {
@@ -139,41 +181,103 @@ class TutorialManager {
       trigger: TutorialTrigger.npcInteraction,
       isStandalone: true,
     ),
-    // Dialogue system tutorials
+    // Dialogue system tutorials (split into slides)
     TutorialStep(
       id: 'charm_explanation',
       title: "Let me explain Charm!",
-      content: "See that colorful bar at the top? That's your charm level with each vendor! The better you speak Thai - with clear pronunciation and good word choice - the more impressed they'll be with you.\n\nI've learned that higher charm means better rewards! Think of it like making friends - the more they like you, the more they want to help you succeed in BabbleOn!",
+      content: "That colorful bar shows your charm with this vendor!",
       trigger: TutorialTrigger.firstDialogue,
+      slides: [
+        TutorialSlide(
+          title: "How Charm Works",
+          content: "Better Thai pronunciation = Higher charm!\nClear speech and good word choice impress vendors.",
+          headerIcon: Icons.favorite,
+        ),
+        TutorialSlide(
+          title: "Charm = Rewards!",
+          content: "Higher charm means better rewards!\nIt's like making friends - they want to help you succeed!",
+          headerIcon: Icons.card_giftcard,
+        ),
+      ],
     ),
     TutorialStep(
       id: 'item_types',
-      title: "Attack vs Defense - My Battle Wisdom!",
-      content: "Listen carefully, my friend! These kind vendors offer two types of magical items for the boss battles ahead in BabbleOn:\n\nAttack Items: Perfect for dealing damage to those challenging bosses!\nDefense Items: These will shield you from boss attacks!\n\nTrust me, you'll want both types when we face the level bosses together! I'll be right there cheering you on!",
+      title: "Battle Items Explained!",
+      content: "Vendors offer magical items for boss battles!",
       trigger: TutorialTrigger.firstDialogue,
+      slides: [
+        TutorialSlide(
+          title: "Attack Items ⚔️",
+          content: "These deal damage to bosses!\nEquip one to boost your offensive power.",
+          headerIcon: Icons.flash_on,
+        ),
+        TutorialSlide(
+          title: "Defense Items 🛡️",
+          content: "These protect you from boss attacks!\nEquip one to reduce incoming damage.",
+          headerIcon: Icons.shield,
+        ),
+        TutorialSlide(
+          title: "You Need Both!",
+          content: "Collect BOTH types before facing bosses.\nI'll be cheering you on!",
+          headerIcon: Icons.sports_martial_arts,
+        ),
+      ],
       visualElements: [], // Will be populated dynamically with NPC items
     ),
     TutorialStep(
       id: 'regular_vs_special',
-      title: "My Secret: Regular vs Special Items!",
-      content: "Here's something exciting I've discovered during my time in BabbleOn! Each vendor offers two item tiers:\n\nRegular Items: You can get these once you reach 60+ charm with a vendor\nSpecial Items: These golden beauties need maximum charm (100), but they are incredibly powerful!\n\nI get so excited when I see those golden effects! Special items are like finding treasure in BabbleOn - they pack a much bigger punch in battle!",
+      title: "Item Tiers Revealed!",
+      content: "Each vendor has TWO item tiers!",
       trigger: TutorialTrigger.firstDialogue,
+      slides: [
+        TutorialSlide(
+          title: "Regular Items",
+          content: "Available at 60+ charm.\nGood for starting boss battles!",
+          headerIcon: Icons.star_border,
+        ),
+        TutorialSlide(
+          title: "Special Items ✨",
+          content: "Unlocked at 100 charm!\nGolden effects = MUCH more powerful!",
+          headerIcon: Icons.star,
+        ),
+        TutorialSlide(
+          title: "Worth the Effort!",
+          content: "Special items pack a bigger punch!\nLike finding treasure in BabbleOn!",
+          headerIcon: Icons.emoji_events,
+        ),
+      ],
       visualElements: [], // Will be populated dynamically with NPC items
     ),
-    // Boss portal approach tutorial
+    // Boss portal approach tutorial (shortened with slides)
     TutorialStep(
       id: 'portal_approach',
       title: "Boss Portal Ahead!",
-      content: "Whoa there, friend! That swirling portal leads to a boss battle!\n\nBefore you can enter, you'll need both an attack item AND a defense item equipped. Talk to the friendly vendors around Yaowarat to collect these magical items:\n\nOnce you have both types equipped, come back and tap the portal to enter!",
+      content: "Whoa there! That swirling portal leads to a boss battle. Let me explain what you need!",
       trigger: TutorialTrigger.bossPortal,
       headerIcon: Icons.warning_amber_rounded,
-      visualElements: [
-        TutorialVisual.itemIcon('assets/images/items/steambun_regular.png', 'Attack Item'),
-        TutorialVisual.itemIcon('assets/images/items/porkbelly_regular.png', 'Defense Item'),
+      slides: [
+        TutorialSlide(
+          title: "Equipment Required!",
+          content: "To enter the portal, you need BOTH:\n⚔️ An Attack Item\n🛡️ A Defense Item\n\nThese protect you in boss battles!",
+          visualElements: [
+            TutorialVisual.itemIcon('assets/images/items/steambun_regular.png', 'Attack'),
+            TutorialVisual.itemIcon('assets/images/items/porkbelly_regular.png', 'Defense'),
+          ],
+        ),
+        TutorialSlide(
+          title: "How to Get Items",
+          content: "Talk to the friendly vendors around town! Build charm by speaking Thai well, and they'll give you items when you reach 60+ charm.",
+          headerIcon: Icons.chat_bubble,
+        ),
+        TutorialSlide(
+          title: "Ready to Enter!",
+          content: "Once you have both items equipped, tap the portal to face the boss. Good luck!",
+          headerIcon: Icons.sports_martial_arts,
+        ),
       ],
       isStandalone: true,
     ),
-    // Boss fight tutorial series
+    // Boss fight tutorial (now combined into multi-slide)
     TutorialStep(
       id: 'boss_fight_intro',
       title: "Your First Boss Battle!",
@@ -185,30 +289,277 @@ class TutorialManager {
         TutorialVisual.icon(Icons.flash_on, 'Strong Attacks'),
         TutorialVisual.icon(Icons.shield, 'Better Defense'),
       ],
+      slides: [
+        TutorialSlide(
+          title: "Pronunciation Assessment Magic!",
+          content: "Here's the secret to winning battles: Your pronunciation accuracy determines your battle power!\n\nWhen you speak Thai words clearly, the game assesses your pronunciation and converts it into attack/defense strength. Poor pronunciation = weaker moves, while excellent pronunciation = devastating attacks!",
+          headerIcon: Icons.record_voice_over,
+          visualElements: [
+            TutorialVisual.icon(Icons.volume_up, 'Clear Speech'),
+            TutorialVisual.icon(Icons.trending_up, 'Higher Accuracy'),
+            TutorialVisual.icon(Icons.bolt, 'More Damage'),
+          ],
+        ),
+        TutorialSlide(
+          title: "Flashcard Battle Strategy!",
+          content: "You'll see Thai vocabulary flashcards during battle. Here's how to use them effectively:\n\n1. Read the Thai text carefully\n2. Speak it clearly into your microphone\n3. The pronunciation assessment powers your attack/defense\n4. Take your time - quality over speed wins battles!\n\nRemember: Good pronunciation = victory in BabbleOn!",
+          headerIcon: Icons.style,
+          visualElements: [
+            TutorialVisual.icon(Icons.visibility, 'Read Thai'),
+            TutorialVisual.icon(Icons.mic, 'Speak Clearly'),
+            TutorialVisual.icon(Icons.timer, 'Take Your Time'),
+          ],
+        ),
+      ],
     ),
+    
+    // === NEW UNIVERSAL TUTORIALS (Map-Agnostic, First-Time Only) ===
+    
+    // Game initialization tutorial (shortened and split into slides)
     TutorialStep(
-      id: 'pronunciation_system',
-      title: "Pronunciation Assessment Magic!",
-      content: "Here's the secret to winning battles: Your pronunciation accuracy determines your battle power!\n\nWhen you speak Thai words clearly, the game assesses your pronunciation and converts it into attack/defense strength. Poor pronunciation = weaker moves, while excellent pronunciation = devastating attacks!",
-      trigger: TutorialTrigger.bossFight,
+      id: 'game_loading_intro',
+      title: "Welcome to BabbleOn!",
+      content: "Let's learn Thai through adventure! I'll show you how to play.",
+      trigger: TutorialTrigger.firstGameEntry,
+      headerIcon: Icons.explore,
+      slides: [
+        TutorialSlide(
+          title: "How to Move",
+          content: "Tap LEFT side to move left ←\nTap RIGHT side to move right →\n\nSimple as that!",
+          headerIcon: Icons.touch_app,
+          visualElements: [
+            TutorialVisual.icon(Icons.arrow_back, 'Left'),
+            TutorialVisual.icon(Icons.arrow_forward, 'Right'),
+          ],
+        ),
+        TutorialSlide(
+          title: "Find NPCs to Chat!",
+          content: "Look for glowing speech bubbles above characters. Tap them to practice Thai conversation!",
+          headerIcon: Icons.chat_bubble,
+          visualElements: [
+            TutorialVisual.icon(Icons.people, 'NPCs'),
+            TutorialVisual.icon(Icons.record_voice_over, 'Voice'),
+          ],
+        ),
+        TutorialSlide(
+          title: "Build Charm & Get Items",
+          content: "Speaking Thai well builds charm with NPCs. At 60+ charm, they'll give you items for boss battles!",
+          headerIcon: Icons.favorite,
+          visualElements: [
+            TutorialVisual.icon(Icons.trending_up, 'Charm'),
+            TutorialVisual.icon(Icons.card_giftcard, 'Items'),
+          ],
+        ),
+      ],
+      isStandalone: true,
+    ),
+    
+    // Voice interaction tutorials
+    TutorialStep(
+      id: 'voice_setup_guide',
+      title: "Let's Set Up Your Voice!",
+      content: "BabbleOn uses advanced speech recognition to assess your Thai pronunciation. For the best experience:\n\n• Find a quiet environment\n• Hold your device 6-12 inches from your mouth\n• Speak clearly and naturally\n• Don't worry about perfection - the AI is here to help you improve!\n\nYour microphone permission helps us provide real-time pronunciation feedback.",
+      trigger: TutorialTrigger.firstVoiceInteraction,
+      headerIcon: Icons.settings_voice,
+      visualElements: [
+        TutorialVisual.icon(Icons.mic, 'Clear Audio'),
+        TutorialVisual.icon(Icons.volume_up, 'Good Distance'),
+        TutorialVisual.icon(Icons.trending_up, 'Practice Makes Perfect'),
+      ],
+      isStandalone: true,
+    ),
+    
+    
+    // Advanced dialogue system tutorials
+    TutorialStep(
+      id: 'pos_color_system',
+      title: "Word Colors Explained!",
+      content: "Notice the colorful words in Thai sentences? Each color represents a different part of speech to help you understand Thai grammar:\n\n🔴 Red: Nouns (people, places, things)\n🟢 Green: Verbs (actions)\n🟠 Orange: Adjectives (descriptions)\n🔵 Blue: Other parts of speech\n\nThis color coding helps you see Thai sentence patterns and improve your grammar understanding!",
+      trigger: TutorialTrigger.firstDialogueAnalysis,
+      headerIcon: Icons.palette,
+      visualElements: [
+        TutorialVisual.icon(Icons.circle, 'Nouns', ),
+        TutorialVisual.icon(Icons.circle, 'Verbs'),
+        TutorialVisual.icon(Icons.circle, 'Adjectives'),
+      ],
+      isStandalone: true,
+    ),
+    
+    TutorialStep(
+      id: 'transliteration_system',
+      title: "Thai Romanization Helper!",
+      content: "Struggling with Thai script? The romanization (English letters) below Thai text shows you how to pronounce each word!\n\nThis isn't just any romanization - it's specially designed for English speakers learning Thai. The system helps you bridge from familiar English sounds to authentic Thai pronunciation.\n\nUse it as training wheels, but try to focus more on the Thai script as you improve!",
+      trigger: TutorialTrigger.firstDialogueAnalysis,
+      headerIcon: Icons.translate,
+      visualElements: [
+        TutorialVisual.icon(Icons.abc, 'Pronunciation Guide'),
+        TutorialVisual.icon(Icons.school, 'Learning Bridge'),
+        TutorialVisual.icon(Icons.visibility, 'Script Focus'),
+      ],
+      isStandalone: true,
+    ),
+    
+    TutorialStep(
+      id: 'pronunciation_confidence_guide',
+      title: "Your Pronunciation Score!",
+      content: "After you speak, you'll see a confidence score showing how accurately you pronounced the Thai words. This isn't about perfection - it's about progress!\n\n• 0-50%: Keep practicing, you're learning!\n• 50-75%: Good progress, minor tweaks needed\n• 75-90%: Great pronunciation!\n• 90%+: Native-level accuracy!\n\nDon't worry about low scores at first - every Thai learner starts here!",
+      trigger: TutorialTrigger.firstVoiceInteraction,
+      headerIcon: Icons.assessment,
+      visualElements: [
+        TutorialVisual.icon(Icons.trending_up, 'Progress Tracking'),
+        TutorialVisual.icon(Icons.star, 'Accuracy Goals'),
+        TutorialVisual.icon(Icons.psychology, 'Learning Process'),
+      ],
+      isStandalone: true,
+    ),
+    
+    // Character tracing tutorial (consolidated)
+    TutorialStep(
+      id: 'character_tracing_tutorial',
+      title: "Thai Character Tracing Master! ✍️",
+      content: "Welcome to BabbleOn's advanced character tracing system! Here's what makes it special:\n\n🤖 AI-Powered Recognition: Machine learning analyzes your stroke patterns in real-time\n✍️ Proper Technique: Stroke order and proportions matter for readable Thai handwriting\n📚 Smart Assessment: The system checks stroke sequence, character proportions, and recognition accuracy\n\nThe AI has learned from thousands of Thai writing samples and provides instant feedback. Take your time, follow the guides, and remember - Thai writing is an art that improves with practice!",
+      trigger: TutorialTrigger.firstCharacterTracing,
+      headerIcon: Icons.auto_awesome,
+      visualElements: [
+        TutorialVisual.icon(Icons.psychology, 'AI Learning'),
+        TutorialVisual.icon(Icons.format_list_numbered, 'Stroke Order'),
+        TutorialVisual.icon(Icons.check_circle, 'Smart Assessment'),
+      ],
+      isStandalone: true,
+    ),
+    
+    // Boss battle enhancements
+    TutorialStep(
+      id: 'boss_prerequisites_warning',
+      title: "Boss Battle Requirements!",
+      content: "Hold on there, brave adventurer! To enter a boss battle, you need to be properly equipped with BOTH types of items:\n\n⚔️ Attack Item: For dealing damage to the boss\n🛡️ Defense Item: For protecting yourself from boss attacks\n\nExplore the area and chat with local NPCs to collect both item types before approaching any boss portal!",
+      trigger: TutorialTrigger.firstBossApproach,
+      headerIcon: Icons.warning_amber,
+      visualElements: [
+        TutorialVisual.itemIcon('assets/images/items/steambun_regular.png', 'Attack Required'),
+        TutorialVisual.itemIcon('assets/images/items/porkbelly_regular.png', 'Defense Required'),
+      ],
+      isStandalone: true,
+    ),
+    
+    TutorialStep(
+      id: 'battle_mechanics_deep_dive',
+      title: "Battle Mathematics Revealed!",
+      content: "Here's exactly how boss battles work:\n\n• Your pronunciation accuracy (0-100%) directly affects damage/defense\n• Attack items multiply your damage potential\n• Defense items reduce incoming boss damage\n• Better items = bigger multipliers\n• Consistent pronunciation > perfect pronunciation\n\nStrategy tip: Focus on clear, steady pronunciation rather than rushing through words!",
+      trigger: TutorialTrigger.firstBossBattle,
+      headerIcon: Icons.calculate,
+      visualElements: [
+        TutorialVisual.icon(Icons.functions, 'Damage Formula'),
+        TutorialVisual.icon(Icons.shield, 'Defense Math'),
+        TutorialVisual.icon(Icons.speed, 'Consistency Wins'),
+      ],
+      isStandalone: true,
+    ),
+    
+    // Item system tutorials
+    TutorialStep(
+      id: 'charm_thresholds_explained',
+      title: "Charm Milestone Reached!",
+      content: "Congratulations! You've reached an important charm milestone! Here's what charm levels mean:\n\n• 60+ Charm: You can request the regular item from this NPC\n• 100 Charm: You unlock the special (golden) item - much more powerful!\n\nCharm represents how impressed the NPC is with your Thai skills. Higher pronunciation accuracy and engaging conversation build charm faster!",
+      trigger: TutorialTrigger.firstCharmMilestone,
+      headerIcon: Icons.favorite,
+      visualElements: [
+        TutorialVisual.icon(Icons.star_border, '60+ Regular'),
+        TutorialVisual.icon(Icons.star, '100 Special'),
+        TutorialVisual.icon(Icons.trending_up, 'Skill Progress'),
+      ],
+      isStandalone: true,
+    ),
+    
+    TutorialStep(
+      id: 'item_giving_tutorial',
+      title: "Ready to Receive Your First Item!",
+      content: "Great job building charm! You can now request an item from this NPC. Here's how it works:\n\n• Look for the gift icon in the conversation interface\n• Tap it to make your request\n• The NPC will give you their item and end the conversation\n• Items equip automatically and help in boss battles\n\nDecision time: Take the regular item now, or keep chatting to reach 100 charm for the special item?",
+      trigger: TutorialTrigger.firstItemEligibility,
+      headerIcon: Icons.card_giftcard,
+      visualElements: [
+        TutorialVisual.icon(Icons.touch_app, 'Tap Gift Icon'),
+        TutorialVisual.icon(Icons.inventory, 'Auto-Equip'),
+        TutorialVisual.icon(Icons.psychology, 'Strategic Choice'),
+      ],
+      isStandalone: true,
+    ),
+    
+    TutorialStep(
+      id: 'special_item_celebration',
+      title: "Special Item Unlocked! 🌟",
+      content: "AMAZING! You've unlocked your first special (golden) item! These are the most powerful items in BabbleOn, reserved for players who demonstrate excellent Thai language skills.\n\nSpecial items provide significantly stronger battle bonuses than regular items. This achievement shows your dedication to learning Thai - you should be proud of reaching maximum charm!\n\nKeep up this level of excellence as you continue your adventure!",
+      trigger: TutorialTrigger.firstSpecialItem,
+      headerIcon: Icons.emoji_events,
+      visualElements: [
+        TutorialVisual.icon(Icons.star, 'Special Power'),
+        TutorialVisual.icon(Icons.trending_up, 'Elite Status'),
+        TutorialVisual.icon(Icons.celebration, 'Achievement'),
+      ],
+      isStandalone: true,
+    ),
+
+    // === NEW MISSING TUTORIAL STEPS ===
+    
+    // First NPC Approach Tutorial
+    TutorialStep(
+      id: 'first_npc_interaction',
+      title: "Meet the Locals! 👋",
+      content: "You've discovered your first NPC (Non-Player Character)! These friendly locals are scattered throughout Bangkok and are eager to chat with you in Thai.\n\nLook for NPCs with speech bubbles above their heads - this means they're ready to talk. Simply tap on them to start a conversation.\n\nEach NPC has unique stories, vocabulary, and can give you special items to help in boss battles. Get ready to make some Thai-speaking friends!",
+      trigger: TutorialTrigger.firstNpcApproach,
+      headerIcon: Icons.person_pin_circle,
+      visualElements: [
+        TutorialVisual.icon(Icons.people, 'Friendly Locals'),
+        TutorialVisual.icon(Icons.chat_bubble, 'Speech Bubbles'),
+        TutorialVisual.icon(Icons.touch_app, 'Tap to Chat'),
+      ],
+      isStandalone: true,
+    ),
+
+    // First Dialogue Session Tutorial  
+    TutorialStep(
+      id: 'first_dialogue_session',
+      title: "Your Thai Conversation Begins! 💬",
+      content: "Welcome to BabbleOn's dialogue system! This is where the magic happens - you'll have real conversations in Thai with voice interaction.\n\nHere's what you can do:\n• Press the microphone to speak Thai\n• See English translations and romanization\n• Get pronunciation feedback\n• Practice character tracing\n\nDon't worry about making mistakes - that's how you learn! The NPC will be patient and helpful.",
+      trigger: TutorialTrigger.firstDialogueSession,
       headerIcon: Icons.record_voice_over,
       visualElements: [
-        TutorialVisual.icon(Icons.volume_up, 'Clear Speech'),
-        TutorialVisual.icon(Icons.trending_up, 'Higher Accuracy'),
-        TutorialVisual.icon(Icons.bolt, 'More Damage'),
+        TutorialVisual.icon(Icons.mic, 'Voice Input'),
+        TutorialVisual.icon(Icons.translate, 'Translations'),
+        TutorialVisual.icon(Icons.feedback, 'Feedback'),
       ],
+      isStandalone: true,
     ),
+
+    // First NPC Response Modal Tutorial
     TutorialStep(
-      id: 'flashcard_battle_system',
-      title: "Flashcard Battle Strategy!",
-      content: "You'll see Thai vocabulary flashcards during battle. Here's how to use them effectively:\n\n1. Read the Thai text carefully\n2. Speak it clearly into your microphone\n3. The pronunciation assessment powers your attack/defense\n4. Take your time - quality over speed wins battles!\n\nRemember: Good pronunciation = victory in BabbleOn!",
-      trigger: TutorialTrigger.bossFight,
-      headerIcon: Icons.style,
+      id: 'first_npc_response_tutorial',
+      title: "NPC Response & Practice! 🎯",
+      content: "Great job speaking Thai! This response modal shows you how well you did and gives you chances to improve.\n\nFeatures you'll see:\n• Pronunciation confidence scores\n• Word-by-word feedback with colors\n• Practice mode for difficult words\n• Romanization to help with pronunciation\n\nDon't worry if you don't get it perfect the first time - every attempt makes you better at Thai!",
+      trigger: TutorialTrigger.firstNpcResponse,
+      headerIcon: Icons.assessment,
       visualElements: [
-        TutorialVisual.icon(Icons.visibility, 'Read Thai'),
-        TutorialVisual.icon(Icons.mic, 'Speak Clearly'),
-        TutorialVisual.icon(Icons.timer, 'Take Your Time'),
+        TutorialVisual.icon(Icons.score, 'Confidence Scores'),
+        TutorialVisual.icon(Icons.palette, 'Color Feedback'),
+        TutorialVisual.icon(Icons.repeat, 'Practice Mode'),
       ],
+      isStandalone: true,
+    ),
+
+
+    // Language Tools Tutorial
+    TutorialStep(
+      id: 'first_language_tools_tutorial',
+      title: "Language Tools Unlocked! 🛠️",
+      content: "Welcome to BabbleOn's powerful Language Tools! This special feature gives you advanced learning capabilities:\n\n📝 TRANSLATION: Type English phrases and get Thai translations with pronunciation\n✍️ CHARACTER TRACING: Practice writing Thai characters with AI-powered feedback\n🎁 CUSTOM ITEMS: Create personalized vocabulary items for NPCs\n\nThese tools help you go beyond conversation - you can explore Thai writing, create custom content, and get detailed translations. Perfect for when you want to dive deeper into the language!",
+      trigger: TutorialTrigger.firstLanguageTools,
+      headerIcon: Icons.build,
+      visualElements: [
+        TutorialVisual.icon(Icons.translate, 'Translation Tools'),
+        TutorialVisual.icon(Icons.edit, 'Character Tracing'),
+        TutorialVisual.icon(Icons.inventory, 'Custom Content'),
+      ],
+      isStandalone: true,
     ),
   ];
 
@@ -296,17 +647,31 @@ class TutorialManager {
   }
 
   Future<void> _showTutorialPopup(TutorialStep step, bool isLastStep) async {
-    return showDialog<void>(
+    final completer = Completer<void>();
+
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.1),
       builder: (BuildContext context) {
         return TutorialPopup(
           step: step,
           isLastStep: isLastStep,
-          onSkipEntireTutorial: () => _skipTutorial(),
+          onNext: () {
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
+          onSkipEntireTutorial: () {
+            _skipTutorial();
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
         );
       },
     );
+    return completer.future;
   }
   
   void _skipTutorial() {
@@ -338,9 +703,27 @@ class TutorialManager {
   
   // Enhance tutorial steps with real NPC item data
   TutorialStep _enhanceStepWithNpcContext(TutorialStep step) {
-    // Skip NPC item enhancement for boss fight tutorials
-    if (step.trigger == TutorialTrigger.bossFight) {
-      return step; // Boss fight tutorials don't need NPC items
+    // Skip NPC item enhancement for certain tutorial types that don't need NPC context
+    final skipEnhancementTriggers = {
+      TutorialTrigger.bossFight,
+      TutorialTrigger.firstGameEntry,
+      TutorialTrigger.firstVoiceInteraction,
+      TutorialTrigger.firstMapNavigation,
+      TutorialTrigger.firstDialogueAnalysis,
+      TutorialTrigger.firstCharacterTracing,
+      TutorialTrigger.firstBossApproach,
+      TutorialTrigger.firstBossBattle,
+      TutorialTrigger.firstCharmMilestone,
+      TutorialTrigger.firstItemEligibility,
+      TutorialTrigger.firstSpecialItem,
+      TutorialTrigger.firstNpcApproach,
+      TutorialTrigger.firstDialogueSession,
+      TutorialTrigger.firstNpcResponse,
+      TutorialTrigger.firstLanguageTools,
+    };
+    
+    if (skipEnhancementTriggers.contains(step.trigger)) {
+      return step; // These tutorials don't need NPC-specific enhancement
     }
     
     if (npcId == null || step.visualElements == null) {

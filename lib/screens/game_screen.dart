@@ -14,6 +14,7 @@ import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
 import '../models/popup_models.dart';
+import '../services/tutorial_service.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
@@ -88,6 +89,10 @@ class _GameScreenState extends State<GameScreen> {
     return Consumer(
       builder: (context, ref, _) {
         _ref = ref;
+        
+        // Game loading completion tutorial is now handled by main_navigation_screen.dart
+        // with consolidated multi-slide tutorial - no separate tutorial needed here
+        
         return Scaffold(
           body: Stack(
             children: [

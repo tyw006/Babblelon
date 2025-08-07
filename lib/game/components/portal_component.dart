@@ -9,6 +9,7 @@ import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:babblelon/services/tutorial_service.dart';
 
 class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGame>, TapCallbacks, RiverpodComponentMixin {
   // 🔧 COMPONENT IMPLEMENTATION: This handles HOW the portal looks and behaves
@@ -71,6 +72,8 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
     final hasBothItems = hasAttackItem && hasDefenseItem;
 
     if (hasBothItems) {
+      // Tutorial will be shown when boss fight screen loads instead
+      
       // Player has items in both slots, show confirmation
       final popupConfig = PopupConfig(
         title: 'Enter the Portal?',
@@ -137,6 +140,21 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
       ref.read(popupConfigProvider.notifier).state = popupConfig;
       game.overlays.add('info_popup');
     } else {
+      // Show boss prerequisites tutorial if this is first time approaching without items
+      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      if (!tutorialProgressNotifier.isStepCompleted('boss_prerequisites_warning')) {
+        final context = game.buildContext;
+        if (context != null) {
+          final tutorialManager = TutorialManager(
+            context: context,
+            ref: ref,
+          );
+          
+          // Show boss prerequisites tutorial
+          tutorialManager.startTutorial(TutorialTrigger.firstBossApproach);
+        }
+      }
+      
       // Player is missing items in one or both slots
       String message;
       if (!hasAttackItem && !hasDefenseItem) {
