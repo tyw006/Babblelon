@@ -119,7 +119,7 @@ class SyncService {
             'score': 0, // Use existing score logic
             'coins': profile.gold,
             'level': profile.playerLevel,
-            'total_playtime': profile.totalPlaytime,
+            // 'total_playtime': profile.totalPlaytime, // Field doesn't exist in current model
             'current_streak': profile.currentStreak,
             'max_streak': profile.maxStreak,
             'experience_points': profile.experiencePoints,
@@ -174,7 +174,7 @@ class SyncService {
             'word_english': word.wordEnglish,
             'transliteration': word.transliteration,
             'pos_tag': word.posTag,
-            'npc_context': word.npcContext,
+            'npc_context': word.discoveredFromNpc,
             'times_used': word.timesUsed,
             'first_discovered_at': word.firstDiscoveredAt.toIso8601String(),
             'last_used_at': word.lastUsedAt.toIso8601String(),
@@ -276,7 +276,7 @@ class SyncService {
       local.username = remote['username'] ?? local.username;
       local.gold = remote['coins'] ?? local.gold;
       local.playerLevel = remote['level'] ?? local.playerLevel;
-      local.totalPlaytime = remote['total_playtime'] ?? local.totalPlaytime;
+      // local.totalPlaytime = remote['total_playtime'] ?? local.totalPlaytime; // Field doesn't exist in current model
       local.currentStreak = remote['current_streak'] ?? local.currentStreak;
       local.maxStreak = remote['max_streak'] ?? local.maxStreak;
       local.experiencePoints = remote['experience_points'] ?? local.experiencePoints;
@@ -316,7 +316,7 @@ class SyncService {
       local.wordEnglish = remote['word_english'] ?? local.wordEnglish;
       local.transliteration = remote['transliteration'] ?? local.transliteration;
       local.posTag = remote['pos_tag'] ?? local.posTag;
-      local.npcContext = remote['npc_context'] ?? local.npcContext;
+      local.discoveredFromNpc = remote['npc_context'] ?? local.discoveredFromNpc;
       local.timesUsed = remote['times_used'] ?? local.timesUsed;
       if (remote['pronunciation_score'] != null) {
         local.pronunciationScores = [remote['pronunciation_score'].toDouble()];
@@ -352,7 +352,7 @@ class SyncService {
       ..wordEnglish = remote['word_english']
       ..transliteration = remote['transliteration']
       ..posTag = remote['pos_tag']
-      ..npcContext = remote['npc_context']
+      ..discoveredFromNpc = remote['npc_context']
       ..timesUsed = remote['times_used'] ?? 1
       ..firstDiscoveredAt = DateTime.parse(remote['first_discovered_at'])
       ..lastUsedAt = DateTime.parse(remote['last_used_at'])

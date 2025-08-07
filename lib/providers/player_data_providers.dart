@@ -113,8 +113,8 @@ class PlayerDataHelpers {
     
     // Invalidate providers to trigger refresh
     ref.invalidate(customVocabularyProvider);
-    if (word.npcContext.isNotEmpty) {
-      ref.invalidate(npcCustomVocabularyProvider(word.npcContext.first));
+    if (word.discoveredFromNpc != null) {
+      ref.invalidate(npcCustomVocabularyProvider(word.discoveredFromNpc!));
     }
     ref.invalidate(vocabularyStatsProvider);
   }
@@ -129,8 +129,8 @@ class PlayerDataHelpers {
     
     // Invalidate providers to trigger refresh
     ref.invalidate(customVocabularyProvider);
-    if (word.npcContext.isNotEmpty) {
-      ref.invalidate(npcCustomVocabularyProvider(word.npcContext.first));
+    if (word.discoveredFromNpc != null) {
+      ref.invalidate(npcCustomVocabularyProvider(word.discoveredFromNpc!));
     }
     ref.invalidate(vocabularyStatsProvider);
   }

@@ -206,7 +206,7 @@ class CustomVocabularySync extends _$CustomVocabularySync {
   // Get custom words for a specific NPC
   List<CustomVocabularyEntry> getWordsForNpc(String npcId) {
     final words = state.valueOrNull ?? [];
-    return words.where((w) => w.npcContext?.contains(npcId) == true).toList();
+    return words.where((w) => w.discoveredFromNpc == npcId).toList();
   }
   
   // Get vocabulary statistics

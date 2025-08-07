@@ -80,7 +80,7 @@ class VocabularyDetectionService {
             wordEnglish: wordEnglish.isNotEmpty ? wordEnglish : null,
             transliteration: transliteration.isNotEmpty ? transliteration : null,
             posTag: posTag.isNotEmpty ? posTag : null,
-            npcContext: npcId,
+            discoveredFromNpc: npcId,
           );
           customWords.add(customWord);
         }
@@ -109,8 +109,8 @@ class VocabularyDetectionService {
     existingWord.needsSync = true;
     
     // Update NPC context if different
-    if (!existingWord.npcContext.contains(npcId)) {
-      existingWord.npcContext.add(npcId);
+    if (existingWord.discoveredFromNpc != npcId) {
+      existingWord.discoveredFromNpc = npcId;
     }
     
     await _isarService.saveCustomVocabulary(existingWord);
@@ -127,14 +127,14 @@ class VocabularyDetectionService {
     String? wordEnglish,
     String? transliteration,
     String? posTag,
-    required String npcContext,
+    required String discoveredFromNpc,
   }) async {
     final customWord = CustomVocabularyEntry()
       ..wordThai = wordThai
       ..wordEnglish = wordEnglish
       ..transliteration = transliteration
       ..posTag = posTag
-      ..npcContext = [npcContext]
+      ..discoveredFromNpc = discoveredFromNpc
       ..timesUsed = 1
       ..firstDiscoveredAt = DateTime.now()
       ..lastUsedAt = DateTime.now()
@@ -154,7 +154,7 @@ class VocabularyDetectionService {
   Future<List<CustomVocabularyEntry>> getCustomVocabularyForNpc(String npcId) async {
     final allCustomWords = await _isarService.getAllCustomVocabulary();
     return allCustomWords
-        .where((word) => word.npcContext?.contains(npcId) == true)
+        .where((word) => word.discoveredFromNpc == npcId)
         .toList();
   }
 
