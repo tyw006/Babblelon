@@ -4,6 +4,7 @@ import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
+import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 
 class DefeatDialog extends ConsumerStatefulWidget {
   final BattleMetrics metrics;
@@ -17,9 +18,11 @@ class DefeatDialog extends ConsumerStatefulWidget {
 class _DefeatDialogState extends ConsumerState<DefeatDialog>
     with TickerProviderStateMixin {
   late AnimationController _scaleController;
+  late AnimationController _slideController;
   late AnimationController _numberController;
   late AnimationController _progressController;
   late Animation<double> _scaleAnimation;
+  late Animation<Offset> _slideAnimation;
   late Animation<double> _numberAnimation;
   late Animation<double> _progressAnimation;
   
@@ -31,6 +34,10 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
     super.initState();
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _numberController = AnimationController(
@@ -50,6 +57,14 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
       curve: Curves.elasticOut,
     ));
 
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
     _numberAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -66,11 +81,16 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
       curve: Curves.easeOutCubic,
     ));
 
+    // Start staggered animations with assessment dialog timing
     _scaleController.forward();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _numberController.forward();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _slideController.forward();
     });
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 800), () {
+      _numberController.forward();
+      // TODO: Add sound effects during number animation
+    });
+    Future.delayed(const Duration(milliseconds: 1000), () {
       _progressController.forward();
     });
   }
@@ -78,6 +98,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
   @override
   void dispose() {
     _scaleController.dispose();
+    _slideController.dispose();
     _numberController.dispose();
     _progressController.dispose();
     _pageController.dispose();
@@ -94,12 +115,14 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
       insetPadding: EdgeInsets.all(isSmallScreen ? 10.0 : 20.0),
       child: ScaleTransition(
         scale: _scaleAnimation,
-        child: GlassmorphicCard(
-          padding: EdgeInsets.zero,
-          blur: 20,
-          opacity: 0.15,
-          margin: EdgeInsets.zero,
-          child: Container(
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: GlassmorphicCard(
+            padding: EdgeInsets.zero,
+            blur: 20,
+            opacity: 0.15,
+            margin: EdgeInsets.zero,
+            child: Container(
             constraints: BoxConstraints(
               maxHeight: screenSize.height * 0.85,
               maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
@@ -133,18 +156,32 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                 // Action Buttons (Fixed Footer)
                 Container(
                   padding: const EdgeInsets.all(16.0),
-                  decoration: AppStyles.cardDecoration,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: TextButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          style: AppStyles.secondaryButtonStyle,
-                          child: Text(
+                          style: BasePopup.secondaryButtonStyle,
+                          child: const Text(
                             'LEAVE BATTLE',
-                            style: AppStyles.bodyTextStyle.copyWith(
-                              color: AppStyles.textColor,
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
                         ),
@@ -156,17 +193,42 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                             Navigator.of(context).pop();
                             // TODO: Implement retry battle functionality
                           },
-                          style: AppStyles.primaryButtonStyle.copyWith(
-                            backgroundColor: WidgetStateProperty.all(Colors.orange),
-                            foregroundColor: WidgetStateProperty.all(Colors.white),
-                            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
-                          child: Text(
-                            'RETRY BATTLE',
-                            style: AppStyles.bodyTextStyle.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFF4CAF50), // Bright green like assessment
+                                  Color(0xFF45A049), // Darker green
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4CAF50).withOpacity(0.3),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: const Text(
+                              'RETRY BATTLE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         ),
@@ -177,6 +239,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
               ],
             ),
           ),
+          ),
         ),
       ),
     );
@@ -185,26 +248,50 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           const Icon(
             Icons.sentiment_neutral,
             size: 50,
-            color: Colors.orange,
+            color: Color(0xFF00BCD4), // Bright cyan like assessment
           ),
           const SizedBox(height: 8),
           Text(
             'TRY AGAIN!',
-            style: AppStyles.titleTextStyle.copyWith(
-              color: Colors.orange,
+            style: TextStyle(
+              color: const Color(0xFF00BCD4), // Bright cyan like assessment
               fontSize: 28,
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: const Color(0xFF00BCD4).withOpacity(0.8),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
           ),
           Text(
             'You were so close! Don\'t give up!',
-            style: AppStyles.bodyTextStyle.copyWith(
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
               fontStyle: FontStyle.italic,
+              fontSize: 16,
             ),
             textAlign: TextAlign.center,
           ),
@@ -223,57 +310,128 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
         children: [
           // Boss HP Remaining Section
           Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Boss HP Remaining:',
-                      style: AppStyles.subtitleTextStyle,
-                    ),
-                    AnimatedBuilder(
-                      animation: _numberAnimation,
-                      builder: (context, child) {
-                        final animatedDamage = (widget.metrics.totalDamageDealt * _numberAnimation.value).toInt();
-                        final animatedRemaining = (widget.metrics.bossMaxHealth - animatedDamage).clamp(0, widget.metrics.bossMaxHealth);
-                        return Text(
-                          '$animatedRemaining/${widget.metrics.bossMaxHealth}',
-                          style: AppStyles.bodyTextStyle.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(height: 8),
+              ],
+            ),
+            child: Column(
+              children: [
+                // MASSIVE Boss HP Circle - Like Assessment's 98/100
+                AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: Container(
+                        width: 120, // Same size as victory grade circle
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF00BCD4).withOpacity(0.9), // Bright cyan like assessment
+                              const Color(0xFF0097A7).withOpacity(0.9), // Darker cyan
+                            ],
+                          ),
+                          border: Border.all(color: const Color(0xFF00BCD4), width: 4), // Bright cyan border
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00BCD4).withOpacity(0.4),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: AnimatedBuilder(
+                            animation: _numberAnimation,
+                            builder: (context, child) {
+                              final animatedDamage = (widget.metrics.totalDamageDealt * _numberAnimation.value).toInt();
+                              final animatedRemaining = (widget.metrics.bossMaxHealth - animatedDamage).clamp(0, widget.metrics.bossMaxHealth);
+                              return Text(
+                                '$animatedRemaining\\n/${widget.metrics.bossMaxHealth}',
+                                style: TextStyle(
+                                  fontSize: 36, // HUGE like assessment - split across 2 lines
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  height: 1.1, // Tight line spacing
+                                  shadows: [
+                                    Shadow(
+                                      color: const Color(0xFF00BCD4).withOpacity(0.8),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Progress message like assessment's \"Excellent!\" 
+                Text(
+                  bossHealthPercentage >= 0.7 
+                      ? 'So Close!'
+                      : bossHealthPercentage >= 0.3
+                          ? 'Getting There!'
+                          : 'Keep Fighting!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFFFC107), // Golden yellow like assessment
+                    shadows: [
+                      Shadow(
+                        color: const Color(0xFFFFC107).withOpacity(0.6),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // High contrast progress bar
                 AnimatedBuilder(
                   animation: _progressAnimation,
                   builder: (context, child) {
-                    return LinearProgressIndicator(
-                      value: (bossHealthPercentage * _progressAnimation.value).clamp(0.0, 1.0),
-                      backgroundColor: Colors.grey.shade800,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        bossHealthPercentage >= 0.7 ? Colors.green :
-                        bossHealthPercentage >= 0.3 ? Colors.orange : Colors.red,
+                    return Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.grey.shade800,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (bossHealthPercentage * _progressAnimation.value).clamp(0.0, 1.0),
+                          backgroundColor: Colors.transparent,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)), // Bright green like assessment
+                        ),
                       ),
                     ).animate().scaleX(alignment: Alignment.centerLeft, duration: 1200.ms, curve: Curves.easeOutCubic);
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 Text(
-                  bossHealthPercentage >= 0.7 
-                      ? 'Amazing! You almost had them!'
-                      : bossHealthPercentage >= 0.3
-                          ? 'Good progress! You\'re getting there!'
-                          : 'Every attempt gets you closer!',
-                  style: AppStyles.smallTextStyle.copyWith(
-                    color: Colors.green.shade300,
-                    fontStyle: FontStyle.italic,
+                  'Boss HP Remaining',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 16,
                   ),
                 ),
               ],
@@ -285,24 +443,39 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           // Quick Battle Overview
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Quick Overview',
-                  style: AppStyles.subtitleTextStyle,
+                  'BATTLE PROGRESS',
+                  style: TextStyle(
+                    color: const Color(0xFF00BCD4), // Bright cyan like assessment
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                                             child: _buildAnimatedStatCard(
-                         'Damage Dealt', 
-                         '${widget.metrics.totalDamageDealt.toInt()}',
-                         Icons.flash_on,
-                         Colors.red,
-                       ),
+                      child: _buildAnimatedStatCard(
+                        'Damage Dealt', 
+                        '${widget.metrics.totalDamageDealt.toInt()}',
+                        Icons.flash_on,
+                        const Color(0xFFEF4444), // Red for damage
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -310,7 +483,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                         'Battle Time', 
                         _formatDuration(widget.metrics.battleDuration),
                         Icons.timer,
-                        Colors.blue,
+                        const Color(0xFF6366F1), // Ethereal blue
                       ),
                     ),
                   ],
@@ -323,7 +496,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                         'Words Tried', 
                         '${widget.metrics.wordsUsed.length}',
                         Icons.chat_bubble,
-                        Colors.purple,
+                        const Color(0xFF8B5CF6), // Purple
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -332,7 +505,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                         'Best Streak', 
                         '${widget.metrics.maxStreak}',
                         Icons.local_fire_department,
-                        Colors.orange,
+                        const Color(0xFF10B981), // Green
                       ),
                     ),
                   ],
@@ -627,22 +800,25 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: AppStyles.bodyTextStyle.copyWith(
-                    color: color,
+                  style: TextStyle(
+                    color: const Color(0xFF00BCD4), // Bright cyan like assessment
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 28, // HUGE like victory dialog
                     shadows: [
                       Shadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
+                        color: const Color(0xFF00BCD4).withValues(alpha: 0.8),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   label,
-                  style: AppStyles.smallTextStyle.copyWith(fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 11,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
