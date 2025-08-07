@@ -1,6 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/models/turn.dart';
-import 'package:babblelon/models/game_models.dart';
+import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/widgets/flashcard.dart';
 import 'package:babblelon/widgets/top_info_bar.dart';
 import 'package:babblelon/screens/main_menu_screen.dart';

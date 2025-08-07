@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/game_models.dart';
+import '../models/supabase_models.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:babblelon/models/game_models.dart';
+import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flame_audio/flame_audio.dart';

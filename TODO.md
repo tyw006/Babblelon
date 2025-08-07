@@ -1,147 +1,185 @@
+# BabbleOn: Comprehensive Development Roadmap
 
-# Babblelon: Road to App Store
+This document combines the overall project roadmap with UI-specific development tasks for BabbleOn MVP launch.
 
-This document outlines the current state of the Babblelon application, including implemented features, library usage, and a comprehensive roadmap for deployment to the App Store.
+## 🚨 MVP CRITICAL PATH - Must Have for Launch
 
-## 1. Implemented Features
+### 1. Core Navigation Structure ✅ (3-4 days)
+**Status:** Ready to implement - No dependencies
+- [ ] Create bottom tab navigation (Home, Learn, Progress, Settings)
+- [ ] Implement navigation state management 
+- [ ] Connect to existing game flow
+- [ ] Handle deep linking for game screens
+- [ ] Add navigation animations
 
-### 1.1. Onboarding & Main Menu
-- **[x] 3D Earth Globe:** Interactive globe for language selection.
-- **[x] 2D Thailand Map:** Map with selectable locations (Yaowarat, Chiang Mai, Phuket).
-- **[x] Character Selection:** Choose between male and female player sprites.
-- **[x] First-Time Playthrough Logic:** Skips character selection on subsequent plays.
+### 2. Onboarding Flow ✅ (2-3 days) 
+**Status:** Ready to implement - Uses local storage
+- [ ] First-time user detection (check IsarService)
+- [ ] 3-4 onboarding screens:
+  - [ ] Welcome & app purpose
+  - [ ] Voice interaction tutorial
+  - [ ] Character selection explanation
+  - [ ] Get started CTA
+- [ ] Store onboarding completion locally
+- [ ] Skip option for returning users
 
-### 1.2. Core Gameplay Loop
-- **[x] 2D Side-Scrolling World:** Players can navigate a 2D world with a background and player character.
-- **[x] NPC Interaction:** Players can interact with non-player characters (NPCs) to initiate dialogue.
-- **[x] Dialogue System:** A dynamic dialogue system with the following features:
-    - **[x] Speech-to-Text:** Player's speech is transcribed and sent to the backend.
-    - **[x] AI-Powered NPC Responses:** NPCs provide dynamic responses based on the conversation history.
-    - **[x] Text-to-Speech:** NPC responses are converted to audio and played.
-    - **[x] Word-by-Word Analysis:** Dialogue can be broken down into individual words with translations and parts of speech.
-    - **[x] Charm System:** Player's charm level with each NPC increases based on interactions.
-- **[x] Item System:** Players can receive items from NPCs.
-- **[x] Boss Fights:** A turn-based boss fight system with the following features:
-    - **[x] Vocabulary-Based Attacks:** Players use vocabulary to attack and defend.
-    - **[x] Pronunciation Assessment:** Player's pronunciation is assessed to determine attack/defense effectiveness.
-    - **[x] Turn-Based Combat:** Player and boss take turns attacking and defending.
-    - **[x] Victory/Defeat Conditions:** The battle ends when the player or boss runs out of health.
+### 3. Home Dashboard Screen ✅ (2 days)
+**Status:** Ready to implement - Uses local PlayerProfile
+- [ ] User stats display (Level, XP, Gold)
+- [ ] Continue learning button
+- [ ] Daily streak indicator
+- [ ] Recent achievements (last 3)
+- [ ] Quick access to current lesson
 
-### 1.3. Language Learning Features
-- **[x] Thai Language Focus:** The initial language is Thai, with a focus on vocabulary and pronunciation.
-- **[x] Character Tracing:** Players can practice writing Thai characters.
-- **[x] Translation Tools:** In-dialogue tools for translating English to Thai.
+### 4. Settings Screen ✅ (1-2 days)
+**Status:** Ready to implement - Uses existing providers
+- [ ] Sound effects toggle (gameStateProvider)
+- [ ] Background music toggle (gameStateProvider)
+- [ ] Motion preferences (motionPreferencesProvider)
+- [ ] Language selection
+- [ ] About section
+- [ ] Privacy policy link
+- [ ] Terms of service link
 
-## 2. Library Usage
+### 5. Basic Progress Screen ✅ (2 days)
+**Status:** Ready to implement - Uses MasteredPhrase model
+- [ ] Words learned counter
+- [ ] Characters mastered counter
+- [ ] Total practice time
+- [ ] Accuracy trends
+- [ ] Simple progress charts
 
-### 2.1. Core Frameworks
-- **`flutter`:** The UI toolkit for building the application.
-- **`flame`:** A 2D game engine for Flutter, used for the main game screen and boss fights.
+## 🎯 CURRENT STATE: IMPLEMENTED FEATURES
 
-### 2.2. State Management
-- **`flutter_riverpod` / `hooks_riverpod` / `flame_riverpod`:** A state management library for managing application state in a declarative and reactive way.
-- **`provider`:** A dependency injection and state management library.
+### ✅ Core Gameplay Loop
+- **2D Side-Scrolling World:** Players navigate 2D world with background and player character
+- **NPC Interaction:** Players can interact with NPCs to initiate dialogue
+- **Dialogue System:** Dynamic dialogue with Speech-to-Text, AI responses, TTS, word analysis
+- **Charm System:** Player charm level increases based on interactions
+- **Item System:** Players can receive items from NPCs
+- **Boss Fights:** Turn-based combat using vocabulary and pronunciation assessment
 
-### 2.3. UI & Animations
-- **`flutter_earth_globe`:** A Flutter widget for displaying a 3D interactive globe.
-- **`flutter_map`:** A versatile Flutter map widget.
-- **`flutter_svg`:** An SVG rendering library for Flutter.
-- **`flutter_animate`:** A library for creating beautiful and complex animations.
-- **`lottie`:** A library for parsing Adobe After Effects animations exported as json.
-- **`animated_text_kit`:** A library for creating animated text effects.
-- **`newton_particles`:** A particle system for creating special effects.
-- **`animated_flip_counter`:** A library for creating animated flip counters.
-- **`google_fonts`:** A package to use fonts from fonts.google.com.
+### ✅ Language Learning Features
+- **Thai Language Focus:** Vocabulary and pronunciation focused on Thai
+- **Character Tracing:** Practice writing Thai characters
+- **Translation Tools:** In-dialogue tools for English to Thai translation
 
-### 2.4. Audio
-- **`flame_audio`:** Audio support for the Flame game engine.
-- **`just_audio`:** A feature-rich audio player for Flutter.
-- **`flutter_sound`:** A complete audio recorder and player for Flutter.
-- **`audioplayers`:** A Flutter plugin to play multiple audio files simultaneously.
-- **`record`:** A Flutter audio recording plugin.
+### ✅ Technical Infrastructure
+- **Database Integration:** ✅ Both Isar (local-first) and Supabase (cloud sync) properly integrated
+- **Audio System:** FlameAudio for background music, just_audio for sound effects
+- **State Management:** Riverpod with code generation
+- **Analytics:** PostHog integration for user tracking
+- **Error Reporting:** Sentry integration
 
-### 2.5. Data & Storage
-- **`shared_preferences`:** A plugin for storing simple data in persistent storage.
-- **`isar` / `isar_flutter_libs` / `isar_generator`:** A fast, cross-platform, and easy-to-use database for Flutter.
-- **`supabase_flutter`:** A Flutter client for Supabase, used for backend services like authentication and database.
-- **`flutter_dotenv`:** A package for loading environment variables from a `.env` file.
+## 📊 LIBRARY USAGE & ARCHITECTURE
 
-### 2.6. Machine Learning
-- **`google_mlkit_digital_ink_recognition`:** A Flutter plugin for using Google's ML Kit Digital Ink Recognition API.
+### Core Frameworks
+- **Flutter:** UI toolkit
+- **Flame:** 2D game engine for gameplay and boss fights
+- **Riverpod/Provider:** State management with code generation
 
-### 2.7. Networking
-- **`http`:** A package for making HTTP requests.
-- **`http_parser`:** A package for parsing HTTP messages.
+### Data & Storage
+- **Isar:** Fast local database (offline-first)
+- **Supabase:** Backend services (authentication, cloud sync)
+- **SharedPreferences:** Simple persistent storage
 
-### 2.8. Utilities
-- **`path_provider`:** A Flutter plugin for finding commonly used locations on the filesystem.
-- **`permission_handler`:** A Flutter plugin for requesting and checking permissions.
-- **`vector_math`:** A library for vector and matrix math.
+### Audio & Media
+- **FlameAudio:** Background music (optimized for large files)
+- **just_audio:** Sound effects and precise audio control
+- **flutter_sound:** Audio recording
+- **audioplayers:** Multiple simultaneous audio playback
 
-## 3. Roadmap to App Store
+### UI & Animations
+- **Google Fonts, Flutter Animate, Lottie:** Rich UI experience
+- **Newton Particles, Animated Text Kit:** Special effects
+- **Flutter Earth Globe, Flutter Map:** Interactive geographical elements
 
-### 3.1. Core Features & Enhancements
-- **[ ] User Authentication & Profiles:**
-    - **[ ] Implement Supabase Authentication:** Allow users to sign up, log in, and log out.
-    - **[ ] Create User Profiles:** Store user data (username, avatar, progress) in Supabase.
-    - **[ ] Connect Local & Remote Data:** Sync Isar data with Supabase to persist user progress across devices.
-- **[ ] Onboarding & Tutorial:**
-    - **[ ] Create a Tutorial:** Guide new users through the core mechanics of the game.
-    - **[ ] Introduce the Story:** Set the scene and introduce the player to the world of Babblelon.
-- **[ ] Expand Content:**
-    - **[ ] Add More Languages:** Implement the "Coming Soon" languages.
-    - **[ ] Add More Locations:** Make the Chiang Mai and Phuket locations playable.
-    - **[ ] Add More NPCs & Bosses:** Create new characters and challenges for the new locations.
-- **[ ] Refine Gameplay:**
-    - **[ ] Balance Boss Fights:** Adjust boss health, attack power, and vocabulary difficulty.
-    - **[ ] Improve Character Tracing:** Provide more detailed feedback and scoring.
-    - **[ ] Enhance Dialogue System:** Add more variety to NPC responses and conversations.
+### Machine Learning
+- **Google ML Kit Digital Ink Recognition:** Character tracing assessment
 
-### 3.2. App Store Readiness
-- **[ ] App Icons & Splash Screens:**
-    - **[ ] Design App Icons:** Create icons for both iOS and Android.
-    - **[ ] Create Splash Screens:** Design and implement splash screens for both platforms.
-- **[ ] Monetization (Optional):**
-    - **[ ] Implement In-App Purchases:** Allow users to purchase cosmetic items or unlock new content.
-    - **[ ] Implement Ads:** Integrate ads for non-paying users.
-- **[ ] Analytics & Crash Reporting:**
-    - **[ ] Integrate Analytics:** Track user engagement and identify areas for improvement.
-    - **[ ] Set Up Crash Reporting:** Monitor and fix crashes to ensure a stable user experience.
-- **[ ] Legal & Compliance:**
-    - **[ ] Create a Privacy Policy:** Inform users how their data is collected and used.
-    - **[ ] Create Terms of Service:** Outline the rules and regulations for using the app.
-- **[ ] Testing & QA:**
-    - **[ ] Conduct Thorough Testing:** Test the app on a variety of devices to identify and fix bugs.
-    - **[ ] Beta Testing:** Invite a group of users to test the app and provide feedback.
+## 🔧 CLEANUP COMPLETED
 
-### 3.3. Deployment
-- **[ ] Prepare App Store Listings:**
-    - **[ ] Write App Descriptions:** Create compelling descriptions for the App Store and Google Play.
-    - **[ ] Take Screenshots & Videos:** Showcase the app's features with high-quality visuals.
-- **[ ] Build & Submit:**
-    - **[ ] Generate Release Builds:** Create signed builds for both iOS and Android.
-    - **[ ] Submit to App Stores:** Follow the submission guidelines for the App Store and Google Play.
+### ✅ Database Merge Issues Resolved
+- **Fixed duplicate `lastActiveAt` field** in PlayerProfile model
+- **Fixed `npcContext` to `discoveredFromNpc`** in vocabulary analytics
+- **Removed unused imports** in app_tutorial_step.dart
+- **Regenerated code** via build_runner for Riverpod providers and Isar models
+- **Added missing assets** (capybara_face.png) to git tracking
 
-## 4. Current Issues & Debug Notes
+### ✅ Model Architecture Clarified
+- **`local_storage_models.dart`:** Comprehensive Isar-based models (offline-first)
+- **`game_models.dart`:** Simple models for Supabase integration (cloud sync)
+- **Proper separation** between local and remote data structures
 
-### 4.1 Audio Loading Issue (2025-07-14) - RESOLVED ✅
-- **Issue:** Background music fails to load with error (-11800) when starting the game
-- **Root Cause:** Switched from FlameAudio.bgm to just_audio for background music, but just_audio couldn't handle the large 35MB WAV file on iOS
-- **Solution:** Reverted to hybrid approach - FlameAudio.bgm for background music, just_audio for sound effects
+## 🚀 NEXT DEVELOPMENT PRIORITIES
 
-#### Final Implementation:
-- ✅ **FlameAudio.bgm** for background music (35MB WAV file loads successfully)
-- ✅ **just_audio** for portal sound effects (160KB MP3, works perfectly)
-- ✅ Restored all music control methods (pause, resume, stop) using FlameAudio.bgm
-- ✅ Background music now starts properly without iOS audio session errors
+### Phase 1: Core UI Implementation (Week 1)
+1. **Main navigation structure** - Bottom tabs connecting existing game screens
+2. **Home dashboard** - User stats, progress, quick actions
+3. **Settings screen** - Audio, preferences, about info
+4. **Basic progress screen** - Learning statistics and charts
+5. **Onboarding flow** - First-time user experience
 
-#### Performance Benefits:
-- FlameAudio is optimized for game background music and handles large files better
-- just_audio provides precise control for sound effects and proximity audio
-- Hybrid approach gives best performance characteristics for each use case
+### Phase 2: Enhanced Features (Week 2)
+1. **Achievement system** - Define and track user accomplishments
+2. **Enhanced analytics** - Detailed learning progress insights
+3. **Guest profile management** - Seamless offline-to-online transition
+4. **Premium feature gates** - Monetization preparation
 
-#### Other Fixes Applied:
-1. ✅ Fixed Thailand card styling - all unselected cards now have same background
-2. ✅ Added character selection saving to SharedPreferences  
-3. ✅ Added comprehensive debugging to track loading sequence
-4. ✅ Fixed all print statements to use debugPrint
+### Phase 3: Authentication & Cloud Features (Week 3)
+1. **User authentication UI** - Login, signup, password reset flows
+2. **Profile management** - Edit profile, avatar, preferences
+3. **Cloud sync indicators** - Show sync status and conflicts
+4. **Account upgrade prompts** - Guide users to create accounts
+
+### Phase 4: Monetization (Week 4)
+1. **Paywall screens** - Premium subscription offers
+2. **In-app purchase integration** - Payment processing
+3. **Subscription management** - Handle active subscriptions
+4. **Receipt validation** - Secure purchase verification
+
+## 📱 APP STORE READINESS CHECKLIST
+
+### Technical Requirements
+- [ ] **App Icons & Splash Screens:** Design and implement for iOS/Android
+- [ ] **Privacy Policy:** Required URL for App Store submission
+- [ ] **Terms of Service:** Legal document for app usage
+- [ ] **Age Rating:** Complete questionnaire for appropriate rating
+- [ ] **Screenshots & Videos:** High-quality app store assets
+- [ ] **App Descriptions:** Compelling store listings
+
+### Code Quality
+- [x] **No Compilation Errors:** ✅ All critical issues resolved
+- [x] **Database Integration:** ✅ Local and cloud storage working
+- [x] **Code Generation:** ✅ Riverpod and Isar models up to date
+- [ ] **Error Handling:** Comprehensive error states and recovery
+- [ ] **Performance:** Optimize loading times and memory usage
+
+### Content Requirements
+- [ ] **No Placeholder Content:** Remove "coming soon" features
+- [ ] **Demo Account:** Working app demonstration for review
+- [ ] **Stability Testing:** No crashes or critical bugs
+
+## 🐛 KNOWN ISSUES & NOTES
+
+### Recently Resolved ✅
+- **Audio Loading (2025-07-14):** Resolved background music loading with hybrid approach
+- **Database Conflicts:** Fixed merge conflicts between UI and database branches
+- **Model Duplication:** Clarified separation between local and remote models
+
+### Current Status
+- **Build Status:** ✅ App compiles successfully with minor style warnings
+- **Dependencies:** All major libraries properly integrated
+- **Database:** Both local (Isar) and cloud (Supabase) services functional
+
+### Development Notes
+- **Time estimates** assume single developer
+- **UI can be built** with mock data first, then connected to real services
+- **Focus on iPhone** UI first, iPad optimization later
+- **Test on actual devices**, not just simulator
+- **Accessibility support** - VoiceOver compatibility
+
+---
+
+**Last Updated:** Post-database merge cleanup - Ready for UI development phase
+**Next Action:** Begin Phase 1 core UI implementation with navigation structure

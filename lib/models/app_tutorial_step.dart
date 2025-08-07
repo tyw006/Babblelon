@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class TutorialStep {
   final String title;
   final String content;
