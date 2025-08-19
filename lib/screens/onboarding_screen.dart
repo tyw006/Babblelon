@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/providers/onboarding_provider.dart';
 import 'package:babblelon/screens/main_navigation_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 
@@ -20,7 +19,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final List<OnboardingPage> _pages = [
     OnboardingPage(
       title: 'Welcome to BabbleOn',
-      description: 'Learn Thai through fun conversations with friendly characters in Bangkok\'s colorful Yaowarat district!',
+      description: 'Learn languages through fun conversations with friendly AI characters in immersive cultural environments!',
       icon: Icons.waving_hand,
       color: cartoon.CartoonDesignSystem.sunshineYellow,
     ),
@@ -57,12 +56,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _skipOnboarding() {
-    ref.read(onboardingCompletedProvider.notifier).skipOnboarding();
+    // Onboarding completion will be tracked through profile system
     _navigateToMain();
   }
 
   void _completeOnboarding() {
-    ref.read(onboardingCompletedProvider.notifier).completeOnboarding();
+    // Onboarding completion will be tracked through profile system
     _navigateToMain();
   }
 

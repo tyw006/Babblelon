@@ -143,8 +143,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   // Track last processed semantic word to prevent unnecessary page resets
   String? _lastProcessedSemanticWord;
   
-  // New UI state for enhanced writing tips
-  bool _tipsExpanded = false; // Will be removed - tips will be always visible
+  // UI state for enhanced writing tips
   bool _highlightingActive = true; // Controls when highlighting is shown vs neutral
   List<String> _generalWritingTips = [
     "Write from left to right across the page.",
@@ -157,7 +156,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   void initState() {
     super.initState();
     _initializeAsync();
-    _loadUIPreferences();
   }
 
   /// Initialize widget with proper async sequencing
@@ -456,28 +454,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     _ttsAudioCache.clear();
     // Don't dispose the singleton _audioService as it's shared across widgets
     super.dispose();
-  }
-  
-  /// Load UI preferences for tips display
-  Future<void> _loadUIPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _tipsExpanded = prefs.getBool('character_tips_expanded') ?? false; // Will be removed
-      });
-    } catch (e) {
-      print('Error loading UI preferences: $e');
-    }
-  }
-  
-  /// Save UI preferences
-  Future<void> _saveUIPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('character_tips_expanded', _tipsExpanded);
-    } catch (e) {
-      print('Error saving UI preferences: $e');
-    }
   }
 
   Future<void> _initializeCharacters() async {
@@ -8622,7 +8598,6 @@ Note: For detailed analysis, check your connection and try again.
         if (pronunciationOrder.isNotEmpty) {
           explanation += '. $pronunciationOrder';
         }
-        
         tips.add(explanation);
         print('Added complex vowel sound tip for vowel: "Sound: $complexVowelGuide"');
       }
@@ -9042,13 +9017,15 @@ Note: For detailed analysis, check your connection and try again.
   Map<String, dynamic> _getToneMarkInfoFromJSON(String toneMark) {
     if (_thaiWritingGuideData == null) return {};
     
-    // Look in the tone_marks section for name and other info
+    // First check tone_marks section for name
     final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
     if (toneMarks != null && toneMarks.containsKey(toneMark)) {
-      return toneMarks[toneMark] as Map<String, dynamic>;
+      final markData = toneMarks[toneMark] as Map<String, dynamic>;
+      final name = markData['name'] as String? ?? '';
+      if (name.isNotEmpty) return markData;
     }
     
-    // Fallback to pronunciation_system.tone_mark_rules for effect info
+    // Fallback to pronunciation_system.tone_mark_rules
     final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
     final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
     

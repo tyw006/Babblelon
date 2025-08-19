@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'dart:async';
 import 'package:babblelon/services/posthog_service.dart';
+import 'package:babblelon/services/api_auth_service.dart';
 
 /// Custom exception for audio recognition failures
 class AudioNotRecognizedException implements Exception {
@@ -87,6 +88,9 @@ class ApiService {
       ..fields['item_type'] = itemType
       ..fields['turn_type'] = turnType
       ..fields['language'] = 'th-TH';
+    
+    // Add authentication headers
+    apiAuthService.addAuthToRequest(request);
 
     request.files.add(
       await http.MultipartFile.fromPath(
@@ -186,6 +190,9 @@ class ApiService {
       ..fields['was_revealed'] = wasRevealed.toString()
       ..fields['azure_pron_mapping_json'] = jsonEncode(azurePronMapping)
       ..fields['language'] = language;
+    
+    // Add authentication headers
+    apiAuthService.addAuthToRequest(request);
 
     // Add the audio bytes as a multipart file
     request.files.add(
@@ -206,6 +213,13 @@ class ApiService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
         return PronunciationAssessmentResponse.fromJson(responseData);
+      } else if (response.statusCode == 401) {
+        // Handle authentication errors
+        apiAuthService.handleAuthError(response.statusCode);
+        throw Exception("Authentication failed - please log in again");
+      } else if (response.statusCode == 429) {
+        // Handle rate limiting
+        throw Exception("Rate limit exceeded - please try again later");
       } else if (response.statusCode == 400) {
         // Handle structured error responses
         try {
@@ -460,6 +474,9 @@ class ApiService {
         ..fields['use_enhanced_stt'] = useEnhancedSTT.toString()
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -498,6 +515,15 @@ class ApiService {
         );
         
         return responseData;
+      } else if (response.statusCode == 401) {
+        // Handle authentication errors
+        apiAuthService.handleAuthError(response.statusCode);
+        debugPrint("Authentication failed for NPC response request");
+        return null;
+      } else if (response.statusCode == 429) {
+        // Handle rate limiting
+        debugPrint("Rate limit exceeded for NPC response request");
+        return null;
       } else {
         debugPrint("Enhanced NPC response request failed with status: ${response.statusCode}");
         debugPrint("Response body: ${response.body}");

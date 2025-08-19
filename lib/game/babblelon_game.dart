@@ -16,10 +16,12 @@ import 'package:flame_riverpod/flame_riverpod.dart';
 import '../models/boss_data.dart';
 import '../models/npc_data.dart'; // Import the new NPC data model
 import '../providers/game_providers.dart';
+import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/isar_service.dart';
+import '../services/supabase_service.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tutorial_service.dart';
 
 class BabblelonGame extends FlameGame with
@@ -116,9 +118,15 @@ class BabblelonGame extends FlameGame with
     );
     gameWorld.add(background..priority = -2); // Add background to the world
     
-    // Get selected character from SharedPreferences or default to 'male'
-    final prefs = await SharedPreferences.getInstance();
-    final selectedCharacter = prefs.getString('selected_character') ?? 'male';
+    // Get selected character from Isar database or default to 'male'
+    final isarService = IsarService();
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    String selectedCharacter = 'male'; // Default character
+    
+    if (userId != null) {
+      final profile = await isarService.getPlayerProfile(userId);
+      selectedCharacter = profile?.selectedCharacter ?? 'male';
+    }
     
     player = PlayerComponent(character: selectedCharacter);
     player.backgroundWidth = backgroundWidth; // Pass background width to player
@@ -201,7 +209,7 @@ class BabblelonGame extends FlameGame with
     
     // Show game loading tutorial if this is the first time entering a game
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       if (!tutorialProgressNotifier.isStepCompleted('game_loading_intro')) {
         final context = buildContext;
         if (context != null) {
@@ -364,7 +372,7 @@ class BabblelonGame extends FlameGame with
       // Only show if game has finished loading to prevent blocking asset loading
       final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
       if (gameLoadingCompleted) {
-        final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+        final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
         if (!tutorialProgressNotifier.isStepCompleted('first_npc_interaction')) {
           final context = buildContext;
           if (context != null) {
@@ -419,7 +427,7 @@ class BabblelonGame extends FlameGame with
     if (distance < tutorialDistance && _lastPortalDistance >= tutorialDistance) {
       final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
       if (gameLoadingCompleted) {
-        final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+        final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
         // Show portal approach tutorial if never shown
         if (!tutorialProgressNotifier.isStepCompleted('portal_approach')) {
           shouldTriggerTutorial = true;

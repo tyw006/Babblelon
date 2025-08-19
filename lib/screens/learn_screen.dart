@@ -73,14 +73,14 @@ class _GameModeSection extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Bangkok Adventure',
+            'Cultural Adventure',
             style: AppTheme.textTheme.headlineSmall?.copyWith(
               color: CartoonDesignSystem.cherryRed,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Explore Yaowarat and practice Thai with AI-powered NPCs',
+            'Explore cultural environments and practice languages with AI-powered NPCs',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
               color: CartoonDesignSystem.textSecondary,
             ),

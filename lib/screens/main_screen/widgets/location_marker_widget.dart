@@ -104,7 +104,7 @@ class _LocationMarkerWidgetState extends State<LocationMarkerWidget>
                 animation: _bounceController,
                 builder: (context, child) {
                   // Enhanced bounce effect - even larger bounce for Bangkok
-                  final bounceMultiplier = widget.location.id == 'yaowarat' ? 0.8 : 0.3; // Much bigger bounce for Bangkok
+                  final bounceMultiplier = widget.location.id == 'cultural_district' ? 0.8 : 0.3; // Much bigger bounce for main adventure
                   final scale = 1.0 + (_bounceController.value * bounceMultiplier);
                   return Transform.scale(
                     scale: scale,

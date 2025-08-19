@@ -24,11 +24,11 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
   
   final List<LocationData> _locations = [
     const LocationData(
-      name: 'Bangkok (Yaowarat)',
-      id: 'yaowarat',
-      position: Offset(0.50, 0.55), // Moved up from 0.65 to 0.58
+      name: 'Cultural District',
+      id: 'cultural_district',
+      position: Offset(0.50, 0.55), // Central position for main adventure
       isAvailable: true,
-      description: 'Explore the vibrant Chinatown district',
+      description: 'Explore vibrant cultural environments',
     ),
     const LocationData(
       name: 'Chiang Mai',

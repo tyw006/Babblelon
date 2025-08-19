@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:isar/isar.dart';
 
 part 'local_storage_models.g.dart';
@@ -10,10 +11,13 @@ class PlayerProfile {
   late String userId;
   
   // Basic profile info
-  String? username;
-  String? displayName;
+  String? firstName;
+  String? lastName;
   String? avatarUrl;
   int? age;
+  
+  // Computed display name from first and last name
+  String get displayName => '${firstName ?? ""} ${lastName ?? ""}'.trim();
   DateTime? createdAt;
   DateTime? lastActiveAt;
   
@@ -37,12 +41,27 @@ class PlayerProfile {
   
   // Onboarding and learning preferences  
   bool onboardingCompleted = false;
+  DateTime? onboardingCompletedAt;
+  String? onboardingVersion = '1.0';
+  
+  // Language settings
+  String? targetLanguage = 'thai'; // 'thai', 'japanese', 'korean', 'mandarin', 'vietnamese'
+  String? targetLanguageLevel = 'beginner'; // 'beginner', 'elementary', 'intermediate', 'advanced'
+  bool hasPriorLearning = false;
+  String? priorLearningDetails;
   String? nativeLanguage; // ISO language code (e.g., 'en', 'zh', 'es')
-  String? learningMotivation; // 'travel', 'culture', 'business', 'family', 'personal'
+  
+  // Character customization
+  String? selectedCharacter; // Character ID/type
+  String? characterCustomizationJson; // JSON string of customization options
+  
+  // Learning preferences
+  String? learningMotivation; // 'travel', 'culture', 'business', 'family', 'personal', 'education'
   String? learningPace; // 'casual', 'moderate', 'intensive'
   String? learningStyle; // 'visual', 'auditory', 'kinesthetic', 'mixed'
+  String? learningContext; // 'living_abroad', 'travel_prep', 'academic', 'business', 'cultural_interest'
   int dailyGoalMinutes = 15; // Daily practice goal in minutes
-  String? thaiSkillLevel; // 'beginner', 'elementary', 'intermediate', 'advanced'
+  String? learningPreferencesJson; // JSON string of flexible preferences storage
   
   // Notification preferences
   bool practiceRemindersEnabled = true;
@@ -52,12 +71,61 @@ class PlayerProfile {
   // Privacy and consent
   bool privacyPolicyAccepted = false;
   bool dataCollectionConsented = false;
+  bool voiceRecordingConsent = false;
+  bool personalizedContentConsent = true;
   DateTime? consentDate;
   
-  // Tutorial progress
-  bool gameplayTutorialCompleted = false;
-  bool speechTutorialCompleted = false;
-  bool tracingTutorialCompleted = false;
+  // Authentication metadata (email-first signup only)
+  // Note: All users now have email-based accounts
+  
+  // Tutorial progress (per language)
+  String? tutorialsCompletedJson; // JSON string: {"thai_gameplay": true, "korean_writing": false}
+  bool gameplayTutorialCompleted = false; // Legacy - kept for backwards compatibility
+  bool speechTutorialCompleted = false; // Legacy - kept for backwards compatibility
+  bool tracingTutorialCompleted = false; // Legacy - kept for backwards compatibility
+  
+  // Helper methods for JSON fields
+  @ignore
+  Map<String, dynamic> get characterCustomization {
+    if (characterCustomizationJson?.isEmpty ?? true) return {};
+    try {
+      return json.decode(characterCustomizationJson!) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+  
+  set characterCustomization(Map<String, dynamic> value) {
+    characterCustomizationJson = json.encode(value);
+  }
+  
+  @ignore
+  Map<String, dynamic> get learningPreferences {
+    if (learningPreferencesJson?.isEmpty ?? true) return {};
+    try {
+      return json.decode(learningPreferencesJson!) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+  
+  set learningPreferences(Map<String, dynamic> value) {
+    learningPreferencesJson = json.encode(value);
+  }
+  
+  @ignore
+  Map<String, dynamic> get tutorialsCompleted {
+    if (tutorialsCompletedJson?.isEmpty ?? true) return {};
+    try {
+      return json.decode(tutorialsCompletedJson!) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+  
+  set tutorialsCompleted(Map<String, dynamic> value) {
+    tutorialsCompletedJson = json.encode(value);
+  }
 }
 
 @collection

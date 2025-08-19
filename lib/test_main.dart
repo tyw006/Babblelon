@@ -8,7 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/theme/app_theme.dart';
-import 'package:babblelon/screens/main_menu_screen.dart';
+import 'package:babblelon/screens/test_navigation_screen.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:io';
@@ -43,6 +43,11 @@ void main() async {
 
   // Initialize Isar DB
   await IsarService.init();
+  
+  // Note: Test user functionality has been removed for production-ready authentication
+  // Tutorial service now requires real authenticated users
+  // Individual components can still be tested through the test navigation interface
+  print('✅ Test environment initialized (production authentication required)');
 
   // Initialize PostHog
   final postHogApiKey = EnvLoader.getString('POSTHOG_API_KEY');
@@ -109,7 +114,7 @@ class TestApp extends StatelessWidget {
     return MaterialApp(
       title: 'Babblelon (Test)',
       theme: AppTheme.lightTheme, // Use cartoon unified theme
-      home: const MainMenuScreen(), // Direct to test menu
+      home: const TestNavigationScreen(), // Testing menu with component tests and game flow
     );
   }
 }

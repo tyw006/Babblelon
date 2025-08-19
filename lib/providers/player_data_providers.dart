@@ -1,46 +1,106 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../models/local_storage_models.dart';
-import '../services/player_data_service.dart';
+import '../services/isar_service.dart';
+import '../services/sync_service.dart';
+import '../services/supabase_service.dart';
 
-// Provider for the PlayerDataService instance
-final playerDataServiceProvider = Provider<PlayerDataService>((ref) {
-  return PlayerDataService();
+// Provider for the IsarService instance
+final isarServiceProvider = Provider<IsarService>((ref) {
+  return IsarService();
+});
+
+// Provider for the SyncService instance
+final syncServiceProvider = Provider<SyncService>((ref) {
+  return SyncService();
 });
 
 // Provider for sync-aware player profile
 final playerProfileProvider = FutureProvider.family<PlayerProfile?, String>((ref, userId) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.getPlayerProfile(userId);
+  final isarService = ref.read(isarServiceProvider);
+  final syncService = ref.read(syncServiceProvider);
+  
+  final profile = await isarService.getPlayerProfile(userId);
+  
+  // Trigger background sync if online
+  if (await syncService.hasConnectivity) {
+    syncService.syncPlayerProfile().catchError((error) {
+      debugPrint('Background profile sync error: $error');
+    });
+  }
+  
+  return profile;
 });
 
 // Provider for sync-aware vocabulary progress
 final vocabularyProgressProvider = FutureProvider<List<MasteredPhrase>>((ref) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.getAllVocabularyProgress();
+  final isarService = ref.read(isarServiceProvider);
+  final syncService = ref.read(syncServiceProvider);
+  
+  final phrases = await isarService.getAllMasteredPhrases();
+  
+  // Trigger background sync if online
+  if (await syncService.hasConnectivity) {
+    syncService.syncVocabularyProgress().catchError((error) {
+      debugPrint('Background vocabulary sync error: $error');
+    });
+  }
+  
+  return phrases;
 });
 
 // Provider for sync-aware custom vocabulary
 final customVocabularyProvider = FutureProvider<List<CustomVocabularyEntry>>((ref) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.getAllCustomVocabulary();
+  final isarService = ref.read(isarServiceProvider);
+  final syncService = ref.read(syncServiceProvider);
+  
+  final customWords = await isarService.getAllCustomVocabulary();
+  
+  // Trigger background sync if online
+  if (await syncService.hasConnectivity) {
+    syncService.syncCustomVocabulary().catchError((error) {
+      debugPrint('Background custom vocabulary sync error: $error');
+    });
+  }
+  
+  return customWords;
 });
 
 // Provider for custom vocabulary for a specific NPC
 final npcCustomVocabularyProvider = FutureProvider.family<List<CustomVocabularyEntry>, String>((ref, npcId) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.getCustomWordsForNpc(npcId);
+  final isarService = ref.read(isarServiceProvider);
+  final allWords = await isarService.getAllCustomVocabulary();
+  return allWords.where((w) => w.discoveredFromNpc == npcId).toList();
 });
 
 // Provider for vocabulary statistics
 final vocabularyStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.getVocabularyStats();
+  final isarService = ref.read(isarServiceProvider);
+  final customWords = await isarService.getAllCustomVocabulary();
+  final masteredWords = customWords.where((w) => w.isMastered).length;
+  final totalWords = customWords.length;
+  final recentWords = customWords
+      .where((w) => DateTime.now().difference(w.firstDiscoveredAt).inDays <= 7)
+      .length;
+
+  return {
+    'totalCustomWords': totalWords,
+    'masteredWords': masteredWords,
+    'masteryPercentage': totalWords > 0 ? (masteredWords / totalWords * 100) : 0,
+    'recentlyDiscovered': recentWords,
+    'mostUsedWords': customWords
+        .toList()
+        ..sort((a, b) => b.timesUsed.compareTo(a.timesUsed))
+        ..take(5)
+        .map((w) => {'word': w.wordThai, 'timesUsed': w.timesUsed})
+        .toList(),
+  };
 });
 
 // Provider for connectivity status
 final connectivityStatusProvider = FutureProvider<bool>((ref) async {
-  final service = ref.read(playerDataServiceProvider);
-  return await service.isOnline;
+  final syncService = ref.read(syncServiceProvider);
+  return await syncService.hasConnectivity;
 });
 
 // Provider for sync status (using StateProvider for real-time updates)
@@ -84,8 +144,18 @@ class PlayerDataHelpers {
     WidgetRef ref, 
     PlayerProfile profile
   ) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.updatePlayerProfile(profile);
+    final isarService = ref.read(isarServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
+    
+    profile.needsSync = true;
+    await isarService.savePlayerProfile(profile);
+    
+    // Trigger sync if online
+    if (await syncService.hasConnectivity) {
+      syncService.syncPlayerProfile().catchError((error) {
+        debugPrint('Profile sync error: $error');
+      });
+    }
     
     // Invalidate provider to trigger refresh
     ref.invalidate(playerProfileProvider(profile.userId));
@@ -96,8 +166,18 @@ class PlayerDataHelpers {
     WidgetRef ref, 
     MasteredPhrase phrase
   ) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.updatePhraseProgress(phrase);
+    final isarService = ref.read(isarServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
+    
+    phrase.needsSync = true;
+    await isarService.saveMasteredPhrase(phrase);
+    
+    // Trigger sync if online
+    if (await syncService.hasConnectivity) {
+      syncService.syncVocabularyProgress().catchError((error) {
+        debugPrint('Phrase sync error: $error');
+      });
+    }
     
     // Invalidate provider to trigger refresh
     ref.invalidate(vocabularyProgressProvider);
@@ -108,8 +188,18 @@ class PlayerDataHelpers {
     WidgetRef ref, 
     CustomVocabularyEntry word
   ) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.addCustomWord(word);
+    final isarService = ref.read(isarServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
+    
+    word.needsSync = true;
+    await isarService.saveCustomVocabulary(word);
+    
+    // Trigger sync if online
+    if (await syncService.hasConnectivity) {
+      syncService.syncCustomVocabulary().catchError((error) {
+        debugPrint('Custom word sync error: $error');
+      });
+    }
     
     // Invalidate providers to trigger refresh
     ref.invalidate(customVocabularyProvider);
@@ -124,8 +214,18 @@ class PlayerDataHelpers {
     WidgetRef ref, 
     CustomVocabularyEntry word
   ) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.updateCustomWord(word);
+    final isarService = ref.read(isarServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
+    
+    word.needsSync = true;
+    await isarService.saveCustomVocabulary(word);
+    
+    // Trigger sync if online
+    if (await syncService.hasConnectivity) {
+      syncService.syncCustomVocabulary().catchError((error) {
+        debugPrint('Custom word update sync error: $error');
+      });
+    }
     
     // Invalidate providers to trigger refresh
     ref.invalidate(customVocabularyProvider);
@@ -152,8 +252,10 @@ class PlayerDataHelpers {
     required int goldEarned,
     required List<String> newlyMasteredWords,
   }) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.recordBattleSession(
+    final syncService = ref.read(syncServiceProvider);
+    
+    // Upload battle session directly to Supabase
+    await syncService.uploadBattleSession(
       bossId: bossId,
       durationSeconds: durationSeconds,
       avgPronunciationScore: avgPronunciationScore,
@@ -176,14 +278,16 @@ class PlayerDataHelpers {
   
   // Perform manual sync
   static Future<void> performManualSync(WidgetRef ref) async {
-    final service = ref.read(playerDataServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
     
     // Update sync status
     ref.read(syncStatusProvider.notifier).state = 
         ref.read(syncStatusProvider).copyWith(isSyncing: true);
     
     try {
-      await service.performFullSync();
+      if (await syncService.hasConnectivity) {
+        await syncService.syncAll();
+      }
       
       // Update sync status with success
       ref.read(syncStatusProvider.notifier).state = 
@@ -210,8 +314,8 @@ class PlayerDataHelpers {
   
   // Update connectivity status
   static Future<void> updateConnectivityStatus(WidgetRef ref) async {
-    final service = ref.read(playerDataServiceProvider);
-    final isOnline = await service.isOnline;
+    final syncService = ref.read(syncServiceProvider);
+    final isOnline = await syncService.hasConnectivity;
     
     ref.read(syncStatusProvider.notifier).state = 
         ref.read(syncStatusProvider).copyWith(isOnline: isOnline);
@@ -230,17 +334,27 @@ class PlayerDataHelpers {
     required String sessionContext,
     String? sessionId,
   }) async {
-    final service = ref.read(playerDataServiceProvider);
-    await service.recordPronunciationAttempt(
-      phraseId: phraseId,
-      customWordId: customWordId,
-      pronunciationScore: pronunciationScore,
-      accuracyScore: accuracyScore,
-      fluencyScore: fluencyScore,
-      completenessScore: completenessScore,
-      wordErrors: wordErrors,
-      sessionContext: sessionContext,
-      sessionId: sessionId,
-    );
+    final syncService = ref.read(syncServiceProvider);
+    
+    if (!await syncService.hasConnectivity) return;
+
+    try {
+      await SupabaseService.client
+          .from('pronunciation_history')
+          .insert({
+            'user_id': syncService.currentUserId,
+            'phrase_id': phraseId,
+            'custom_word_id': customWordId,
+            'pronunciation_score': pronunciationScore,
+            'accuracy_score': accuracyScore,
+            'fluency_score': fluencyScore,
+            'completeness_score': completenessScore,
+            'word_errors': wordErrors,
+            'session_context': sessionContext,
+            'session_id': sessionId,
+          });
+    } catch (e) {
+      debugPrint('Error recording pronunciation attempt: $e');
+    }
   }
 }

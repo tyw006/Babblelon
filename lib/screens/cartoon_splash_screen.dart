@@ -4,13 +4,15 @@ import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/widgets/modern_design_system.dart';
 import 'package:babblelon/screens/main_screen/widgets/earth_globe_widget.dart';
 import 'package:babblelon/screens/main_screen/widgets/twinkling_stars.dart';
-import 'package:babblelon/screens/onboarding_screen.dart';
+import 'package:babblelon/screens/enhanced_onboarding_screen.dart';
 import 'package:babblelon/screens/main_navigation_screen.dart';
-import 'package:babblelon/providers/onboarding_provider.dart';
+import 'package:babblelon/providers/profile_providers.dart';
 import 'package:babblelon/widgets/modern_logo.dart';
 import 'package:babblelon/widgets/bouncing_entrance.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
 import 'package:babblelon/services/background_audio_service.dart';
+import 'package:babblelon/services/auth_service_interface.dart';
+import 'package:babblelon/screens/authentication_screen.dart';
 
 /// Cartoon splash screen following BabbleOn UI Design Guide v2.0 (July 2025)
 /// Implements cartoon-themed design with playful animations and warm colors
@@ -102,19 +104,32 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
     await Future.delayed(const Duration(milliseconds: 1000));
     
     if (mounted) {
-      // Check if this is the user's first time
-      final isOnboardingCompleted = ref.read(onboardingCompletedProvider);
+      // Check authentication status first
+      final authService = AuthServiceFactory.getInstance();
       
       Widget destination;
-      if (isOnboardingCompleted) {
-        // Returning user - go to main navigation
-        destination = const MainNavigationScreen();
+      if (!authService.isAuthenticated) {
+        // User not authenticated - show authentication screen
+        destination = const AuthenticationScreen();
       } else {
-        // First-time user - show onboarding
-        destination = const OnboardingScreen();
+        // Check profile completion asynchronously
+        try {
+          final profileState = await ref.read(profileCompletionProvider.future);
+          if (profileState.isCompleted) {
+            // Returning user - go to main navigation
+            destination = const MainNavigationScreen();
+          } else {
+            // First-time user - show enhanced onboarding
+            destination = const EnhancedOnboardingScreen();
+          }
+        } catch (e) {
+          // On error, show onboarding to be safe
+          destination = const EnhancedOnboardingScreen();
+        }
       }
       
-      Navigator.pushReplacement(
+      if (mounted) {
+        Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => destination,
@@ -127,6 +142,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
           transitionDuration: const Duration(milliseconds: 300),
         ),
       );
+      }
     }
   }
 

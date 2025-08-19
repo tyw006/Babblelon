@@ -13,6 +13,7 @@ import 'package:flame_audio/flame_audio.dart';
 import '../services/background_audio_service.dart';
 import '../models/popup_models.dart';
 import 'package:babblelon/services/posthog_service.dart';
+import '../services/tutorial_database_service.dart';
 
 part 'game_providers.g.dart';
 
@@ -467,7 +468,7 @@ class DeveloperSettings extends _$DeveloperSettings {
 
 // --- Tutorial System Providers ---
 
-// Provider to track if the main tutorial has been completed
+// Provider to track if the main tutorial has been completed (database-backed)
 @Riverpod(keepAlive: true)
 class TutorialCompleted extends _$TutorialCompleted {
   @override
@@ -487,14 +488,28 @@ class TutorialCompleted extends _$TutorialCompleted {
   }
 
   Future<void> _loadTutorialStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final completed = prefs.getBool('tutorial_completed') ?? false;
-    state = completed;
+    try {
+      // Use database service instead of SharedPreferences
+      final tutorialService = TutorialDatabaseService();
+      final completed = await tutorialService.isTutorialCompleted('startAdventure');
+      state = completed;
+    } catch (e) {
+      debugPrint('TutorialCompleted: Error loading tutorial status: $e');
+      state = false; // Default to not completed
+    }
   }
 
   Future<void> _saveTutorialStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tutorial_completed', state);
+    try {
+      final tutorialService = TutorialDatabaseService();
+      if (state) {
+        await tutorialService.markTutorialCompleted('startAdventure');
+      } else {
+        await tutorialService.resetTutorial('startAdventure');
+      }
+    } catch (e) {
+      debugPrint('TutorialCompleted: Error saving tutorial status: $e');
+    }
   }
 }
 
@@ -512,13 +527,15 @@ class TutorialProgress extends _$TutorialProgress {
   void markStepCompleted(String stepId) {
     debugPrint('🎓 TutorialProgress: Marking step completed: $stepId');
     state = {...state, stepId};
-    _saveTutorialProgress();
     debugPrint('🎓 TutorialProgress: Step marked as completed. Total completed steps: ${state.length}');
+    
+    // Save to database service for persistence
+    _saveStepToDatabase(stepId);
   }
 
   void resetProgress() {
     state = <String>{};
-    _saveTutorialProgress();
+    _resetDatabaseTutorials();
   }
 
   bool isStepCompleted(String stepId) {
@@ -527,35 +544,64 @@ class TutorialProgress extends _$TutorialProgress {
 
   Future<void> _loadTutorialProgress() async {
     try {
-      debugPrint('🎓 TutorialProgress: Starting to load tutorial progress from SharedPreferences');
-      final prefs = await SharedPreferences.getInstance();
-      final progressJson = prefs.getString('tutorial_progress');
-      if (progressJson != null) {
-        final List<dynamic> progressList = json.decode(progressJson);
-        state = Set<String>.from(progressList);
-        debugPrint('🎓 TutorialProgress: Loaded tutorial progress - completed steps: ${progressList.length}');
-        debugPrint('🎓 TutorialProgress: Completed steps: $progressList');
-      } else {
-        debugPrint('🎓 TutorialProgress: No tutorial progress found in SharedPreferences (first time)');
-      }
+      debugPrint('🎓 TutorialProgress: Starting to load tutorial progress from database');
+      final tutorialService = TutorialDatabaseService();
+      final completedTutorials = await tutorialService.getCompletedTutorials();
+      
+      // Convert completed tutorials map to set of step IDs (the keys where value is true)
+      final completedSteps = completedTutorials.entries
+          .where((entry) => entry.value == true)
+          .map((entry) => entry.key)
+          .toSet();
+      
+      state = completedSteps;
+      debugPrint('🎓 TutorialProgress: Loaded tutorial progress - completed steps: ${completedSteps.length}');
+      debugPrint('🎓 TutorialProgress: Completed steps: $completedSteps');
     } catch (e) {
       debugPrint('🎓 TutorialProgress: Failed to load tutorial progress: $e');
       // If loading fails, continue with empty progress
+      state = <String>{};
     }
   }
   
   // Debug method to reset dialogue tutorials for testing
   void resetDialogueTutorials() {
     state = state.difference({'charm_explanation', 'item_types', 'regular_vs_special'});
-    _saveTutorialProgress();
+    // Reset these specific tutorials in database
+    _resetSpecificTutorials(['charm_explanation', 'item_types', 'regular_vs_special']);
     // Dialogue tutorials reset for testing
   }
 
-  Future<void> _saveTutorialProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final progressList = state.toList();
-    await prefs.setString('tutorial_progress', json.encode(progressList));
-    debugPrint('🎓 TutorialProgress: Saved tutorial progress to SharedPreferences: $progressList');
+  Future<void> _resetSpecificTutorials(List<String> tutorialIds) async {
+    try {
+      final tutorialService = TutorialDatabaseService();
+      for (final tutorialId in tutorialIds) {
+        await tutorialService.resetTutorial(tutorialId);
+      }
+      debugPrint('🎓 TutorialProgress: Reset specific tutorials in database: $tutorialIds');
+    } catch (e) {
+      debugPrint('🎓 TutorialProgress: Error resetting specific tutorials in database: $e');
+    }
+  }
+  
+  Future<void> _saveStepToDatabase(String stepId) async {
+    try {
+      final tutorialService = TutorialDatabaseService();
+      await tutorialService.markTutorialCompleted(stepId);
+      debugPrint('🎓 TutorialProgress: Step $stepId saved to database');
+    } catch (e) {
+      debugPrint('🎓 TutorialProgress: Error saving step to database: $e');
+    }
+  }
+  
+  Future<void> _resetDatabaseTutorials() async {
+    try {
+      final tutorialService = TutorialDatabaseService();
+      await tutorialService.resetAllTutorials();
+      debugPrint('🎓 TutorialProgress: All tutorials reset in database');
+    } catch (e) {
+      debugPrint('🎓 TutorialProgress: Error resetting tutorials in database: $e');
+    }
   }
 }
 

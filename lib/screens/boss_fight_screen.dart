@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart' as tutorial_db;
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
 import 'package:babblelon/widgets/audio_recognition_error_dialog.dart';
@@ -167,14 +168,14 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     _initializeRecorder();
 
     // Show boss fight tutorial if this is the first time in boss battle
-    // Wait for tutorial progress to load from SharedPreferences to avoid race condition
+    // Wait for tutorial progress to load from database
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Add delay to ensure tutorial progress has loaded from SharedPreferences
-      await Future.delayed(const Duration(milliseconds: 200));
+      // Small delay to ensure tutorial database service has loaded
+      await Future.delayed(const Duration(milliseconds: 100));
       
       if (!mounted) return;
       
-      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       final isCompleted = tutorialProgressNotifier.isStepCompleted('boss_fight_intro');
       
       debugPrint('🎓 BossFightScreen: Tutorial check - boss_fight_intro completed: $isCompleted');

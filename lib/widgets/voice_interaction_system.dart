@@ -105,7 +105,7 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
     // Simulate voice processing delay
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted && _isListening) {
-        _processVoiceCommand('navigate_to_bangkok');
+        _processVoiceCommand('navigate_to_adventure');
         _stopListening();
       }
     });
@@ -251,7 +251,7 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
                 const SizedBox(height: CartoonDesignSystem.spaceSM),
                 
                 Text(
-                  'Try saying: "Go to Bangkok" or "Select Thai"',
+                  'Try saying: "Start adventure" or "Select language"',
                   style: CartoonDesignSystem.bodyMedium.copyWith(
                     color: CartoonDesignSystem.textSecondary,
                   ),
@@ -355,8 +355,8 @@ class VoiceCommandConfirmation extends StatelessWidget {
 
   String _getCommandDisplayText(String command) {
     switch (command) {
-      case 'navigate_to_bangkok':
-        return '✓ Navigating to Bangkok';
+      case 'navigate_to_adventure':
+        return '✓ Starting your adventure';
       case 'select_thai':
         return '✓ Thai language selected';
       case 'go_back':
@@ -552,10 +552,10 @@ class LanguageLearningVoiceSystem extends StatelessWidget {
             action: () => onLanguageChange?.call('thai'),
           ),
           VoiceCommand(
-            id: 'navigate_bangkok',
-            phrases: ['go to bangkok', 'bangkok', 'travel bangkok'],
-            description: 'Navigate to Bangkok',
-            action: () => onNavigationCommand?.call('bangkok'),
+            id: 'navigate_adventure',
+            phrases: ['start adventure', 'begin journey', 'play game'],
+            description: 'Start adventure',
+            action: () => onNavigationCommand?.call('adventure'),
           ),
           VoiceCommand(
             id: 'start_lesson',
@@ -569,8 +569,8 @@ class LanguageLearningVoiceSystem extends StatelessWidget {
         // Process voice commands for language learning
         if (command.contains('thai') || command.contains('ไทย')) {
           onLanguageChange?.call('thai');
-        } else if (command.contains('bangkok') || command.contains('กรุงเทพ')) {
-          onNavigationCommand?.call('bangkok');
+        } else if (command.contains('adventure') || command.contains('journey')) {
+          onNavigationCommand?.call('adventure');
         } else if (command.contains('lesson') || command.contains('learn')) {
           onNavigationCommand?.call('start_lesson');
         }

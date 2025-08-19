@@ -102,4 +102,15 @@ class IsarService {
   Future<List<NpcInteractionState>> getAllNpcInteractionStates() async {
     return await isar.npcInteractionStates.where().findAll();
   }
+  
+  // Clear all data from the local database
+  Future<void> clearAllData() async {
+    await isar.writeTxn(() async {
+      await isar.playerProfiles.clear();
+      await isar.masteredPhrases.clear();
+      await isar.customVocabularyEntrys.clear();
+      await isar.currentSessions.clear();
+      await isar.npcInteractionStates.clear();
+    });
+  }
 } 

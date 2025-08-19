@@ -14,6 +14,7 @@ import '../models/npc_data.dart';
 import '../services/api_service.dart';
 import '../overlays/dialogue_overlay/dialogue_models.dart';
 import '../providers/game_providers.dart';
+import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import '../services/tutorial_service.dart';
 
 // POS Color Mapping (same as dialogue_overlay.dart)
@@ -227,7 +228,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     
     // Show first NPC response tutorial if this is the first time seeing response modal
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       if (!tutorialProgressNotifier.isStepCompleted('first_npc_response_tutorial')) {
         final tutorialManager = TutorialManager(
           context: context,

@@ -35,39 +35,197 @@ class GameLevel {
   }
 }
 
-// Player profile model
+// Player profile model with comprehensive onboarding data
 class PlayerProfile {
   final String id;
-  String name;
+  String? firstName;
+  String? lastName;
+  String? avatarUrl;
+  int? age;
+  
+  // Computed display name from first and last name
+  String get displayName => '${firstName ?? ""} ${lastName ?? ""}'.trim();
+  
+  // Game progression
+  int playerLevel;
+  int experiencePoints;
+  int gold;
+  int currentStreak;
+  int maxStreak;
   int highScore;
   int totalGames;
   Map<String, int> levelScores;
   
+  // Language settings
+  String targetLanguage;
+  String targetLanguageLevel;
+  bool hasPriorLearning;
+  String? priorLearningDetails;
+  String? nativeLanguage;
+  
+  // Character customization
+  String? selectedCharacter;
+  Map<String, dynamic> characterCustomization;
+  
+  // Learning preferences
+  String? learningMotivation;
+  String? learningPace;
+  String? learningStyle;
+  String? learningContext;
+  int dailyGoalMinutes;
+  String? preferredPracticeTime;
+  Map<String, dynamic> learningPreferences;
+  
+  // Consent & metadata
+  bool voiceRecordingConsent;
+  bool personalizedContentConsent;
+  bool privacyPolicyAccepted;
+  bool dataCollectionConsented;
+  DateTime? consentDate;
+  String? onboardingVersion;
+  
+  // Authentication (email-first signup only)
+  // Note: All users now have email-verified accounts
+  
+  // Tutorial tracking
+  Map<String, dynamic> tutorialsCompleted;
+  
+  // Timestamps
+  DateTime? createdAt;
+  DateTime? lastActiveAt;
+  bool onboardingCompleted;
+  DateTime? onboardingCompletedAt;
+  
   PlayerProfile({
     required this.id,
-    required this.name,
+    this.firstName,
+    this.lastName,
+    this.avatarUrl,
+    this.age,
+    this.playerLevel = 1,
+    this.experiencePoints = 0,
+    this.gold = 0,
+    this.currentStreak = 0,
+    this.maxStreak = 0,
     this.highScore = 0,
     this.totalGames = 0,
     Map<String, int>? levelScores,
-  }) : levelScores = levelScores ?? {};
+    this.targetLanguage = 'thai',
+    this.targetLanguageLevel = 'beginner',
+    this.hasPriorLearning = false,
+    this.priorLearningDetails,
+    this.nativeLanguage,
+    this.selectedCharacter,
+    Map<String, dynamic>? characterCustomization,
+    this.learningMotivation,
+    this.learningPace,
+    this.learningStyle,
+    this.learningContext,
+    this.dailyGoalMinutes = 15,
+    this.preferredPracticeTime,
+    Map<String, dynamic>? learningPreferences,
+    this.voiceRecordingConsent = false,
+    this.personalizedContentConsent = true,
+    this.privacyPolicyAccepted = false,
+    this.dataCollectionConsented = false,
+    this.consentDate,
+    this.onboardingVersion = '1.0',
+    // Note: isAnonymous and accountUpgradedAt fields removed - email-first signup only
+    Map<String, dynamic>? tutorialsCompleted,
+    this.createdAt,
+    this.lastActiveAt,
+    this.onboardingCompleted = false,
+    this.onboardingCompletedAt,
+  }) : levelScores = levelScores ?? {},
+       characterCustomization = characterCustomization ?? {},
+       learningPreferences = learningPreferences ?? {},
+       tutorialsCompleted = tutorialsCompleted ?? {};
   
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name': name,
-      'highScore': highScore,
-      'totalGames': totalGames,
-      'levelScores': levelScores,
+      'user_id': id, // Note: Supabase uses user_id not id
+      'first_name': firstName,
+      'last_name': lastName,
+      'avatar_url': avatarUrl,
+      'age': age,
+      'level': playerLevel,
+      'experience_points': experiencePoints,
+      'coins': gold,
+      'current_streak': currentStreak,
+      'max_streak': maxStreak,
+      'score': highScore,
+      'total_games': totalGames,
+      'level_scores': levelScores,
+      'target_language': targetLanguage,
+      'target_language_level': targetLanguageLevel,
+      'has_prior_learning': hasPriorLearning,
+      'prior_learning_details': priorLearningDetails,
+      'native_language': nativeLanguage,
+      'selected_character': selectedCharacter,
+      'character_customization': characterCustomization,
+      'learning_motivation': learningMotivation,
+      'learning_pace': learningPace,
+      'learning_style': learningStyle,
+      'learning_context': learningContext,
+      'daily_goal_minutes': dailyGoalMinutes,
+      'preferred_practice_time': preferredPracticeTime,
+      'learning_preferences': learningPreferences,
+      'voice_recording_consent': voiceRecordingConsent,
+      'personalized_content_consent': personalizedContentConsent,
+      'privacy_policy_accepted': privacyPolicyAccepted,
+      'data_collection_consented': dataCollectionConsented,
+      'consent_date': consentDate?.toIso8601String(),
+      'onboarding_version': onboardingVersion,
+      // Note: isAnonymous and accountUpgradedAt fields removed - email-first signup only
+      'tutorials_completed': tutorialsCompleted,
+      'created_at': createdAt?.toIso8601String(),
+      'last_active_at': lastActiveAt?.toIso8601String(),
+      'onboarding_completed': onboardingCompleted,
+      'onboarding_completed_at': onboardingCompletedAt?.toIso8601String(),
     };
   }
   
   factory PlayerProfile.fromJson(Map<String, dynamic> json) {
     return PlayerProfile(
-      id: json['id'],
-      name: json['name'],
-      highScore: json['highScore'],
-      totalGames: json['totalGames'],
-      levelScores: Map<String, int>.from(json['levelScores'] ?? {}),
+      id: json['user_id'] ?? json['id'], // Handle both formats
+      firstName: json['first_name'],
+      lastName: json['last_name'],
+      avatarUrl: json['avatar_url'],
+      age: json['age'],
+      playerLevel: json['level'] ?? 1,
+      experiencePoints: json['experience_points'] ?? 0,
+      gold: json['coins'] ?? 0,
+      currentStreak: json['current_streak'] ?? 0,
+      maxStreak: json['max_streak'] ?? 0,
+      highScore: json['score'] ?? json['highScore'] ?? 0,
+      totalGames: json['total_games'] ?? json['totalGames'] ?? 0,
+      levelScores: Map<String, int>.from(json['level_scores'] ?? json['levelScores'] ?? {}),
+      targetLanguage: json['target_language'] ?? 'thai',
+      targetLanguageLevel: json['target_language_level'] ?? 'beginner',
+      hasPriorLearning: json['has_prior_learning'] ?? false,
+      priorLearningDetails: json['prior_learning_details'],
+      nativeLanguage: json['native_language'],
+      selectedCharacter: json['selected_character'],
+      characterCustomization: Map<String, dynamic>.from(json['character_customization'] ?? {}),
+      learningMotivation: json['learning_motivation'],
+      learningPace: json['learning_pace'],
+      learningStyle: json['learning_style'],
+      learningContext: json['learning_context'],
+      dailyGoalMinutes: json['daily_goal_minutes'] ?? 15,
+      preferredPracticeTime: json['preferred_practice_time'],
+      learningPreferences: Map<String, dynamic>.from(json['learning_preferences'] ?? {}),
+      voiceRecordingConsent: json['voice_recording_consent'] ?? false,
+      personalizedContentConsent: json['personalized_content_consent'] ?? true,
+      privacyPolicyAccepted: json['privacy_policy_accepted'] ?? false,
+      dataCollectionConsented: json['data_collection_consented'] ?? false,
+      consentDate: json['consent_date'] != null ? DateTime.parse(json['consent_date']) : null,
+      onboardingVersion: json['onboarding_version'] ?? '1.0',
+      // Note: isAnonymous and accountUpgradedAt fields removed - email-first signup only
+      tutorialsCompleted: Map<String, dynamic>.from(json['tutorials_completed'] ?? {}),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      lastActiveAt: json['last_active_at'] != null ? DateTime.parse(json['last_active_at']) : null,
+      onboardingCompleted: json['onboarding_completed'] ?? false,
+      onboardingCompletedAt: json['onboarding_completed_at'] != null ? DateTime.parse(json['onboarding_completed_at']) : null,
     );
   }
   

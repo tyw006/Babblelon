@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/game_providers.dart';
+import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import '../models/npc_data.dart';
 import '../widgets/popups/tutorial_popup_widget.dart';
+import 'tutorial_database_service.dart';
 
 enum TutorialTrigger {
   // Existing triggers (kept for backward compatibility)
@@ -152,7 +154,7 @@ class TutorialManager {
     TutorialStep(
       id: 'premium_tour',
       title: "Discover Premium Adventures!",
-      content: "The Premium section unlocks additional levels, exclusive content, and advanced learning features beyond our Bangkok adventure.\n\nIf you want to explore more locations and dive deeper into Thai culture, this is where you'll find those exciting opportunities!",
+      content: "The Premium section unlocks additional levels, exclusive content, and advanced learning features beyond your current adventure.\n\nIf you want to explore more locations and dive deeper into language and culture, this is where you'll find those exciting opportunities!",
       trigger: TutorialTrigger.startAdventure,
       targetTab: AppTab.premium,
       delay: Duration(milliseconds: 500),
@@ -173,11 +175,11 @@ class TutorialManager {
       targetTab: AppTab.learn,
       delay: Duration(milliseconds: 500),
     ),
-    // Bangkok level specific tutorials (triggers when game loads)
+    // Cultural level specific tutorials (triggers when game loads)
     TutorialStep(
-      id: 'bangkok_intro',
-      title: "Welcome to Bangkok's Yaowarat!",
-      content: "Now we're in the exciting Bangkok level! This vibrant Yaowarat night market district is where you'll practice Thai with friendly vendors.\n\nTap the left side of your screen to move left, right side to move right. Look for those glowing speech bubbles - that's where we'll meet the locals and practice your Thai!",
+      id: 'cultural_intro',
+      title: "Welcome to Your Cultural Adventure!",
+      content: "Now we're in an exciting cultural level! This vibrant environment is where you'll practice your target language with friendly locals.\n\nTap the left side of your screen to move left, right side to move right. Look for those glowing speech bubbles - that's where we'll meet the locals and practice your language skills!",
       trigger: TutorialTrigger.npcInteraction,
       isStandalone: true,
     ),
@@ -505,7 +507,7 @@ class TutorialManager {
     TutorialStep(
       id: 'first_npc_interaction',
       title: "Meet the Locals! 👋",
-      content: "You've discovered your first NPC (Non-Player Character)! These friendly locals are scattered throughout Bangkok and are eager to chat with you in Thai.\n\nLook for NPCs with speech bubbles above their heads - this means they're ready to talk. Simply tap on them to start a conversation.\n\nEach NPC has unique stories, vocabulary, and can give you special items to help in boss battles. Get ready to make some Thai-speaking friends!",
+      content: "You've discovered your first NPC (Non-Player Character)! These friendly locals are scattered throughout the area and are eager to chat with you in your target language.\n\nLook for NPCs with speech bubbles above their heads - this means they're ready to talk. Simply tap on them to start a conversation.\n\nEach NPC has unique stories, vocabulary, and can give you special items to help in boss battles. Get ready to make some language-learning friends!",
       trigger: TutorialTrigger.firstNpcApproach,
       headerIcon: Icons.person_pin_circle,
       visualElements: [
@@ -571,8 +573,33 @@ class TutorialManager {
     debugPrint('Tutorial: Starting tutorial for trigger: $trigger');
     debugPrint('Tutorial: Found ${steps.length} steps for this trigger');
     
-    for (int i = 0; i < steps.length; i++) {
-      final step = _enhanceStepWithNpcContext(steps[i]);
+    // Check if any steps for this trigger are already completed
+    final tutorialService = TutorialDatabaseService();
+    final completedSteps = <String>[];
+    
+    for (final step in steps) {
+      try {
+        final isCompleted = await tutorialService.isTutorialCompleted(step.id);
+        if (isCompleted) {
+          completedSteps.add(step.id);
+        }
+      } catch (e) {
+        debugPrint('Tutorial: Error checking completion for step ${step.id}: $e');
+      }
+    }
+    
+    // Filter out completed steps
+    final remainingSteps = steps.where((step) => !completedSteps.contains(step.id)).toList();
+    
+    if (remainingSteps.isEmpty) {
+      debugPrint('Tutorial: All steps for trigger $trigger are already completed, skipping tutorial');
+      return;
+    }
+    
+    debugPrint('Tutorial: ${completedSteps.length} steps already completed, showing ${remainingSteps.length} remaining steps');
+    
+    for (int i = 0; i < remainingSteps.length; i++) {
+      final step = _enhanceStepWithNpcContext(remainingSteps[i]);
       
       // Check if user requested to skip entire tutorial
       if (_skipEntireTutorial) {
@@ -616,7 +643,7 @@ class TutorialManager {
       // Show tutorial popup and wait for user interaction
       if (context.mounted) {
         try {
-          await _showTutorialPopup(step, i == steps.length - 1);
+          await _showTutorialPopup(step, i == remainingSteps.length - 1);
           
           // Check again if user skipped during popup
           if (_skipEntireTutorial) {
@@ -625,7 +652,7 @@ class TutorialManager {
           
           // Mark step as completed
           if (context.mounted) {
-            ref.read(tutorialProgressProvider.notifier).markStepCompleted(step.id);
+            ref.read(tutorial_db.tutorialProgressProvider.notifier).markStepCompleted(step.id);
           }
         } catch (e) {
           // Context disposed during popup, exit tutorial
@@ -691,7 +718,7 @@ class TutorialManager {
         
         // Mark only the steps from the current tutorial as completed
         for (final step in currentTutorialSteps) {
-          ref.read(tutorialProgressProvider.notifier).markStepCompleted(step.id);
+          ref.read(tutorial_db.tutorialProgressProvider.notifier).markStepCompleted(step.id);
         }
         
         debugPrint('Tutorial: Marked ${currentTutorialSteps.length} steps for trigger $_currentTutorialTrigger as completed due to skip');

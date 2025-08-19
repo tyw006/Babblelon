@@ -1,5 +1,6 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart' as tutorial_db;
 import 'package:babblelon/models/popup_models.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/models/npc_data.dart';
@@ -141,7 +142,7 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
       game.overlays.add('info_popup');
     } else {
       // Show boss prerequisites tutorial if this is first time approaching without items
-      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       if (!tutorialProgressNotifier.isStepCompleted('boss_prerequisites_warning')) {
         final context = game.buildContext;
         if (context != null) {
@@ -150,32 +151,32 @@ class PortalComponent extends SpriteComponent with HasGameReference<BabblelonGam
             ref: ref,
           );
           
-          // Show boss prerequisites tutorial
+          // Show boss prerequisites tutorial (includes all necessary information)
           tutorialManager.startTutorial(TutorialTrigger.firstBossApproach);
         }
-      }
-      
-      // Player is missing items in one or both slots
-      String message;
-      if (!hasAttackItem && !hasDefenseItem) {
-        message = 'You need to collect items for both your attack and defense slots before entering the portal.\n\nTalk to NPCs around the town to collect items!';
-      } else if (!hasAttackItem) {
-        message = 'You need an attack item before entering the portal.\n\nTalk to NPCs around the town to collect an attack item!';
       } else {
-        message = 'You need a defense item before entering the portal.\n\nTalk to NPCs around the town to collect a defense item!';
+        // For returning users who've seen the tutorial, show brief reminder
+        String message;
+        if (!hasAttackItem && !hasDefenseItem) {
+          message = 'Collect attack and defense items from NPCs before entering!';
+        } else if (!hasAttackItem) {
+          message = 'You need an attack item from NPCs!';
+        } else {
+          message = 'You need a defense item from NPCs!';
+        }
+        
+        final popupConfig = PopupConfig(
+          title: 'Equipment Required',
+          message: message,
+          confirmText: 'OK',
+          onConfirm: (context) {
+            ref.read(popupConfigProvider.notifier).state = null;
+            game.overlays.remove('info_popup');
+          },
+        );
+        ref.read(popupConfigProvider.notifier).state = popupConfig;
+        game.overlays.add('info_popup');
       }
-      
-      final popupConfig = PopupConfig(
-        title: 'Equipment Required',
-        message: message,
-        confirmText: 'OK',
-        onConfirm: (context) {
-          ref.read(popupConfigProvider.notifier).state = null;
-          game.overlays.remove('info_popup');
-        },
-      );
-      ref.read(popupConfigProvider.notifier).state = popupConfig;
-      game.overlays.add('info_popup');
     }
   }
   

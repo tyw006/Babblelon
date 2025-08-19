@@ -1,5 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Query, Request, Depends
 from fastapi.responses import StreamingResponse, JSONResponse, Response
+from fastapi.security import HTTPBearer
 import uvicorn
 import os
 import io
@@ -54,6 +55,11 @@ else:
     print("⚠️ Sentry DSN not found, skipping Sentry initialization")
 # --- End Sentry initialization ---
 
+# Security and validation imports
+from services.auth_service import auth_service, require_auth, optional_auth, check_rate_limit, UserInfo
+from services.validation_service import validation_service, validate_audio_upload, validate_text_input
+from services.security_service import SecurityMiddleware, CORSConfig, request_logger, security_exceptions
+
 from services.tts_service import text_to_speech_full
 from services.llm_service import get_llm_response, NPCResponse, regenerate_npc_vocabulary, process_item_giving
 from services.stt_service import transcribe_audio_simple as transcribe_audio, transcribe_audio as transcribe_audio_advanced, STTResult, parallel_transcribe_audio, transcribe_audio_elevenlabs
@@ -64,7 +70,14 @@ from services.openai_whisper_service import transcribe_audio_openai, translate_a
 from services.latency_tracker import LatencyTracker, timing_context, DEFAULT_HIGH_LATENCY_THRESHOLD
 from utils.device_detection import detect_device, get_platform_string, get_mobile_optimized_headers
 
-app = FastAPI()
+app = FastAPI(
+    title="BabbleOn API",
+    description="Voice-driven Thai language learning game backend",
+    version="1.0.0"
+)
+
+# Add security middleware
+app.add_middleware(SecurityMiddleware)
 
 # Log server startup time
 startup_time = datetime.datetime.now()
@@ -87,17 +100,20 @@ if not GEMINI_API_KEY:
 if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
     print(f"[{datetime.datetime.now()}] WARNING: AZURE_SPEECH_KEY or AZURE_SPEECH_REGION not set in environment for main.py (used by Pronunciation Assessment service).")
 
-# Define the origins allowed to access the backend.
-# Using a wildcard for development, but should be restricted in production.
-origins = ["*"]
+# Enhanced CORS configuration
+origins = CORSConfig.get_allowed_origins()
+print(f"🔒 CORS configured for origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# HTTP Bearer token scheme for OpenAPI documentation
+security = HTTPBearer(auto_error=False)
 
 # --- Pydantic Models for Endpoints ---
 class TranslationRequest(BaseModel):
@@ -207,6 +223,8 @@ async def startup_event():
         'Helicone': bool(os.getenv('HELICONE_API_KEY')),
         'PostHog': bool(os.getenv('POSTHOG_API_KEY')),
         'Sentry': bool(os.getenv('SENTRY_DSN')),
+        # Supabase readiness should only depend on URL and ANON KEY for client flows.
+        # Service role/JWT secret (if used) is backend-only and optional for startup.
         'Supabase': bool(os.getenv('SUPABASE_URL')) and bool(os.getenv('SUPABASE_ANON_KEY'))
     }
     
@@ -280,6 +298,7 @@ async def root():
 @app.post("/generate-npc-response/")
 async def generate_npc_response_endpoint(
     request: Request,
+    user_info: UserInfo = Depends(require_auth),
     audio_file: UploadFile = File(None),  # Made optional for item giving
     npc_id: str = Form(...),
     npc_name: str = Form(...),
@@ -295,6 +314,18 @@ async def generate_npc_response_endpoint(
     session_id: Optional[str] = Form(None)        # NEW: For Helicone session tracking
 ):
     print(f"[{datetime.datetime.now()}] INFO: /generate-npc-response/ received request for NPC: {npc_id}, Name: {npc_name}, Charm: {charm_level}, Language: {target_language}. Custom message: {custom_message is not None}, Action: {action_type}")
+    
+    # Check rate limits
+    check_rate_limit(user_info)
+    
+    # Validate inputs
+    npc_id = validation_service.validate_npc_id(npc_id)
+    npc_name = validation_service.sanitize_text(npc_name, 100)
+    target_language = validation_service.validate_language_code(target_language or "th")
+    
+    # Validate audio file if provided
+    if audio_file and audio_file.filename:
+        validation_service.validate_audio_file(audio_file)
     
     # Initialize latency tracking and device detection
     tracker = LatencyTracker(
@@ -556,7 +587,24 @@ async def generate_npc_response_endpoint(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Enhanced health check with security status"""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "security": {
+            "auth_enabled": auth_service.enabled,
+            "cors_configured": len(origins) > 0,
+            "https_required": os.getenv("ENVIRONMENT") == "production"
+        },
+        "services": {
+            "sentry": SENTRY_DSN is not None,
+            "elevenlabs": ELEVENLABS_API_KEY is not None,
+            "openai": OPENAI_API_KEY is not None,
+            "gemini": GEMINI_API_KEY is not None,
+            "azure_speech": AZURE_SPEECH_KEY is not None and AZURE_SPEECH_REGION is not None
+        }
+    }
 
 
 
@@ -1257,6 +1305,7 @@ async def get_homograph_statistics():
 # --- Pronunciation Assessment Endpoint ---
 @app.post("/pronunciation/assess/", response_model=PronunciationAssessmentResponse)
 async def pronunciation_assessment_endpoint(
+    user_info: UserInfo = Depends(require_auth),
     audio_file: UploadFile = File(...),
     reference_text: str = Form(...),
     transliteration: str = Form(...),
@@ -1271,6 +1320,16 @@ async def pronunciation_assessment_endpoint(
 ):
     request_time = datetime.datetime.now()
     print(f"[{request_time}] INFO: /pronunciation/assess/ received request for text: '{reference_text}' in {language}, revealed: {was_revealed}")
+    
+    # Check rate limits
+    check_rate_limit(user_info)
+    
+    # Validate inputs
+    validation_service.validate_audio_file(audio_file)
+    reference_text = validation_service.sanitize_text(reference_text, 1000)
+    transliteration = validation_service.sanitize_text(transliteration, 1000)
+    complexity = validation_service.validate_complexity_level(complexity)
+    language = validation_service.validate_language_code(language)
     
     try:
         # Parse the azure_pron_mapping from the JSON string

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/models/local_storage_models.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 import 'package:babblelon/providers/navigation_provider.dart';
+import 'package:babblelon/providers/player_data_providers.dart';
+import 'package:babblelon/services/auth_service_interface.dart';
 
 /// Home screen dashboard with fast-loading stats
 /// Performance optimized with minimal animations
@@ -96,26 +98,91 @@ class _WelcomeSection extends StatelessWidget {
 class _StatsGrid extends ConsumerWidget {
   const _StatsGrid();
 
-  /// Get default profile or create guest profile
-  Future<PlayerProfile?> _getDefaultProfile() async {
-    // Return a default profile structure for display
-    // In a real app, this would check for existing user authentication
-    return PlayerProfile()
-      ..userId = 'guest'
-      ..username = 'Guest Player'
-      ..playerLevel = 1
-      ..experiencePoints = 0
-      ..gold = 0;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<PlayerProfile?>(
-      future: _getDefaultProfile(),
-      builder: (context, snapshot) {
-        final profile = snapshot.data;
-        
-        return GridView.count(
+    // Get current authenticated user ID
+    final authService = AuthServiceFactory.getInstance();
+    final currentUserId = authService.currentUserId;
+    
+    // If no authenticated user, show sign-in prompt
+    if (currentUserId == null) {
+      return _buildSignInPrompt();
+    }
+    
+    // Use the playerProfileProvider with the authenticated user ID
+    final profileAsyncValue = ref.watch(playerProfileProvider(currentUserId));
+    
+    return profileAsyncValue.when(
+      data: (profile) => _buildStatsGrid(profile),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => _buildErrorState(error),
+    );
+  }
+  
+  Widget _buildSignInPrompt() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.person_outline,
+            size: 64,
+            color: cartoon.CartoonDesignSystem.textMuted,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Please sign in to view your progress',
+            style: cartoon.CartoonDesignSystem.headlineMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your game progress is saved to your account',
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textMuted,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: cartoon.CartoonDesignSystem.cherryRed,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Unable to load profile',
+            style: cartoon.CartoonDesignSystem.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please check your connection and try again',
+            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+              color: cartoon.CartoonDesignSystem.textMuted,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatsGrid(PlayerProfile? profile) {
+    // If profile is null, show placeholder
+    if (profile == null) {
+      return _buildSignInPrompt();
+    }
+    
+    return GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -125,19 +192,19 @@ class _StatsGrid extends ConsumerWidget {
           children: [
             _StatCard(
               title: 'Level',
-              value: '${profile?.playerLevel ?? 1}',
+              value: '${profile.playerLevel}',
               icon: Icons.star_outlined,
               color: cartoon.CartoonDesignSystem.sunshineYellow,
             ),
             _StatCard(
               title: 'XP',
-              value: '${profile?.experiencePoints ?? 0}',
+              value: '${profile.experiencePoints}',
               icon: Icons.psychology_outlined,
               color: cartoon.CartoonDesignSystem.skyBlue,
             ),
             _StatCard(
               title: 'Gold',
-              value: '${profile?.gold ?? 0}',
+              value: '${profile.gold}',
               icon: Icons.monetization_on_outlined,
               color: cartoon.CartoonDesignSystem.warmOrange,
             ),
@@ -149,8 +216,6 @@ class _StatsGrid extends ConsumerWidget {
             ),
           ],
         );
-      },
-    );
   }
 }
 

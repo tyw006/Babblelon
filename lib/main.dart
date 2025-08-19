@@ -33,12 +33,22 @@ void main() async {
   final supabaseUrl = EnvLoader.getString('SUPABASE_URL');
   final supabaseAnonKey = EnvLoader.getString('SUPABASE_ANON_KEY');
   
+  debugPrint('🔐 Supabase URL: ${supabaseUrl.isNotEmpty ? '✅ Present' : '❌ Missing'}');
+  debugPrint('🔐 Supabase Anon Key: ${supabaseAnonKey.isNotEmpty ? '✅ Present' : '❌ Missing'}');
+  
   // Only initialize Supabase if credentials are provided
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
-    await SupabaseService.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
+    try {
+      await SupabaseService.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+      debugPrint('✅ Supabase initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Supabase initialization failed: $e');
+    }
+  } else {
+    debugPrint('❌ Supabase initialization skipped - missing credentials');
   }
 
   // Initialize Isar DB

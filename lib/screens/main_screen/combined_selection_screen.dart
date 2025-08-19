@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:babblelon/services/supabase_service.dart';
+import 'package:babblelon/services/sync_service.dart';
+import 'package:babblelon/models/local_storage_models.dart' as isar_models;
 import 'package:babblelon/screens/cartoon_splash_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/services/background_audio_service.dart';
@@ -149,12 +152,32 @@ class _CombinedSelectionScreenState extends ConsumerState<CombinedSelectionScree
     await Future.delayed(const Duration(milliseconds: 500));
     _fadeController.forward();
 
-    // Save selections
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_language', _selectedLanguage!);
-    await prefs.setString('selected_character', _selectedCharacter!);
-    // Clear the flag to ensure map screen is always shown when coming from combined selection
-    await prefs.setBool('has_selected_character', false);
+    // Save selections to Isar database
+    final isarService = IsarService();
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    
+    if (userId != null) {
+      // Get or create player profile
+      var profile = await isarService.getPlayerProfile(userId);
+      if (profile == null) {
+        // Create new profile if it doesn't exist
+        profile = isar_models.PlayerProfile()
+          ..userId = userId
+          ..createdAt = DateTime.now();
+      }
+      
+      // Update character and language selections
+      profile.selectedCharacter = _selectedCharacter;
+      profile.targetLanguage = _selectedLanguage;
+      profile.needsSync = true;
+      
+      // Save to Isar database
+      await isarService.savePlayerProfile(profile);
+      
+      // Trigger sync to Supabase
+      final syncService = SyncService();
+      syncService.syncPlayerProfile();
+    }
 
     // Wait for animations to complete
     await Future.delayed(const Duration(milliseconds: 1000));

@@ -11,7 +11,7 @@ class PostHogService {
   /// Initialize user session for tracking
   static void initializeUser({
     String? userId,
-    String? username,
+    String? displayName,
     int? playerLevel,
     DateTime? accountCreatedAt,
   }) {
@@ -31,7 +31,7 @@ class PostHogService {
     };
     
     // Add optional user properties
-    if (username != null) userProps['\$name'] = username;
+    if (displayName != null) userProps['\$name'] = displayName;
     if (playerLevel != null) userProps['player_level'] = playerLevel;
     
     // Store properties for later use
@@ -42,7 +42,7 @@ class PostHogService {
       userId: _userId!,
       userProperties: userProps.cast<String, Object>(),
     );
-    developer.log('✅ PostHog: User identified with properties - userId: $_userId, username: $username', name: 'PostHogService');
+    developer.log('✅ PostHog: User identified with properties - userId: $_userId, displayName: $displayName', name: 'PostHogService');
     
     // Track daily active user event
     _trackDailyActiveUser();
@@ -63,7 +63,7 @@ class PostHogService {
 
   /// Update user profile properties
   static void updateUserProfile({
-    String? username,
+    String? displayName,
     int? playerLevel,
     int? experiencePoints,
     int? gold,
@@ -75,9 +75,9 @@ class PostHogService {
     // Build updated properties
     final updatedProps = <String, dynamic>{};
     
-    if (username != null) {
-      updatedProps['\$name'] = username;
-      _userProperties['\$name'] = username;
+    if (displayName != null) {
+      updatedProps['\$name'] = displayName;
+      _userProperties['\$name'] = displayName;
     }
     if (playerLevel != null) {
       updatedProps['player_level'] = playerLevel;
@@ -229,8 +229,16 @@ class PostHogService {
       if (_sessionId != null) 'session_id': _sessionId!,
       if (screen != null) 'screen': screen,
       'timestamp': DateTime.now().toIso8601String(),
-      if (additionalProperties != null) ...additionalProperties.cast<String, Object>(),
     };
+    
+    // Add additional properties, filtering out null values
+    if (additionalProperties != null) {
+      for (final entry in additionalProperties.entries) {
+        if (entry.value != null) {
+          properties[entry.key] = entry.value as Object;
+        }
+      }
+    }
 
     Posthog().capture(
       eventName: 'game_$event',

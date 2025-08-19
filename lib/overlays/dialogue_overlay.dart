@@ -27,6 +27,7 @@ import '../widgets/npc_response_modal.dart';
 import 'dialogue_overlay/dialogue_models.dart';
 import '../services/posthog_service.dart';
 import '../services/tutorial_service.dart';
+import '../services/api_auth_service.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -720,6 +721,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path))
         ..fields['source_language'] = 'th'
         ..fields['target_language'] = 'en';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -837,6 +841,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['previous_conversation_history'] = previousHistoryPayload
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
       
       print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
@@ -1575,6 +1582,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['custom_message'] = transcription // Send transcription as custom message
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       print('Sending request to backend: ${uri.toString()}');
       var response = await request.send();
@@ -4184,6 +4194,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['quest_state_json'] = '{}' // TODO: Implement quest state tracking
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       print('Sending GIVE_ITEM request to backend for item: $thaiName ($itemName)');
       var response = await request.send();
@@ -5370,6 +5383,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       var uri = Uri.parse('http://127.0.0.1:8000/gcloud-transcribe/');
       var request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path));
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);

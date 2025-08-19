@@ -115,14 +115,41 @@ class SyncService {
           .from('players')
           .upsert({
             'user_id': currentUserId,
-            'username': profile.username,
-            'score': 0, // Use existing score logic
-            'coins': profile.gold,
+            'first_name': profile.firstName,
+            'last_name': profile.lastName,
+            'avatar_url': profile.avatarUrl,
+            'age': profile.age,
             'level': profile.playerLevel,
-            // 'total_playtime': profile.totalPlaytime, // Field doesn't exist in current model
+            'experience_points': profile.experiencePoints,
             'current_streak': profile.currentStreak,
             'max_streak': profile.maxStreak,
-            'experience_points': profile.experiencePoints,
+            'score': 0, // Legacy field
+            'total_games': 0, // Legacy field
+            'target_language': profile.targetLanguage,
+            'target_language_level': profile.targetLanguageLevel,
+            'has_prior_learning': profile.hasPriorLearning,
+            'prior_learning_details': profile.priorLearningDetails,
+            'native_language': profile.nativeLanguage,
+            'selected_character': profile.selectedCharacter,
+            'character_customization': profile.characterCustomization,
+            'learning_motivation': profile.learningMotivation,
+            'learning_pace': profile.learningPace,
+            'learning_style': profile.learningStyle,
+            'learning_context': profile.learningContext,
+            'daily_goal_minutes': profile.dailyGoalMinutes,
+            'preferred_practice_time': profile.preferredPracticeTime,
+            'learning_preferences': profile.learningPreferences,
+            'voice_recording_consent': profile.voiceRecordingConsent,
+            'personalized_content_consent': profile.personalizedContentConsent,
+            'privacy_policy_accepted': profile.privacyPolicyAccepted,
+            'data_collection_consented': profile.dataCollectionConsented,
+            'consent_date': profile.consentDate?.toIso8601String(),
+            'onboarding_version': profile.onboardingVersion,
+            // Note: All users now have email-verified accounts
+            'tutorials_completed': profile.tutorialsCompleted,
+            'onboarding_completed': profile.onboardingCompleted,
+            'onboarding_completed_at': profile.onboardingCompletedAt?.toIso8601String(),
+            'created_at': profile.createdAt?.toIso8601String(),
             'last_active_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
@@ -273,8 +300,8 @@ class SyncService {
     
     // If remote is newer, update local with remote data
     if (remoteUpdatedAt.isAfter(localUpdatedAt)) {
-      local.username = remote['username'] ?? local.username;
-      local.gold = remote['coins'] ?? local.gold;
+      local.firstName = remote['first_name'] ?? local.firstName;
+      local.lastName = remote['last_name'] ?? local.lastName;
       local.playerLevel = remote['level'] ?? local.playerLevel;
       // local.totalPlaytime = remote['total_playtime'] ?? local.totalPlaytime; // Field doesn't exist in current model
       local.currentStreak = remote['current_streak'] ?? local.currentStreak;
