@@ -153,8 +153,7 @@ class PlayerProfile {
       'coins': gold,
       'current_streak': currentStreak,
       'max_streak': maxStreak,
-      'score': highScore,
-      'total_games': totalGames,
+      // Removed 'score' and 'total_games' - these fields don't exist in Supabase schema
       'level_scores': levelScores,
       'target_language': targetLanguage,
       'target_language_level': targetLanguageLevel,
@@ -197,8 +196,9 @@ class PlayerProfile {
       gold: json['coins'] ?? 0,
       currentStreak: json['current_streak'] ?? 0,
       maxStreak: json['max_streak'] ?? 0,
-      highScore: json['score'] ?? json['highScore'] ?? 0,
-      totalGames: json['total_games'] ?? json['totalGames'] ?? 0,
+      // Handle legacy fields that may not exist in Supabase
+      highScore: json['highScore'] ?? 0,  // No 'score' field in Supabase
+      totalGames: json['totalGames'] ?? 0,  // No 'total_games' field in Supabase
       levelScores: Map<String, int>.from(json['level_scores'] ?? json['levelScores'] ?? {}),
       targetLanguage: json['target_language'] ?? 'thai',
       targetLanguageLevel: json['target_language_level'] ?? 'beginner',

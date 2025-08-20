@@ -111,48 +111,55 @@ class SyncService {
   // Private helper methods for uploading data
   Future<void> _uploadPlayerProfile(PlayerProfile profile) async {
     try {
+      // Build sync data map with conditional fields to avoid constraint violations
+      final syncData = <String, dynamic>{
+        'user_id': currentUserId,
+        'first_name': profile.firstName,
+        'last_name': profile.lastName,
+        'avatar_url': profile.avatarUrl,
+        'age': profile.age,
+        'level': profile.playerLevel,
+        'experience_points': profile.experiencePoints,
+        'current_streak': profile.currentStreak,
+        'max_streak': profile.maxStreak,
+        // Removed legacy 'score' and 'total_games' fields - not in Supabase schema
+        'target_language': profile.targetLanguage,
+        'target_language_level': profile.targetLanguageLevel,
+        'has_prior_learning': profile.hasPriorLearning,
+        'prior_learning_details': profile.priorLearningDetails,
+        'native_language': profile.nativeLanguage,
+        'selected_character': profile.selectedCharacter,
+        'character_customization': profile.characterCustomization,
+        'learning_pace': profile.learningPace,
+        'learning_style': profile.learningStyle,
+        'learning_context': profile.learningContext,
+        'daily_goal_minutes': profile.dailyGoalMinutes,
+        'preferred_practice_time': profile.preferredPracticeTime,
+        'learning_preferences': profile.learningPreferences,
+        'voice_recording_consent': profile.voiceRecordingConsent,
+        'personalized_content_consent': profile.personalizedContentConsent,
+        'privacy_policy_accepted': profile.privacyPolicyAccepted,
+        'data_collection_consented': profile.dataCollectionConsented,
+        'consent_date': profile.consentDate?.toIso8601String(),
+        'onboarding_version': profile.onboardingVersion,
+        // Note: All users now have email-verified accounts
+        'tutorials_completed': profile.tutorialsCompleted,
+        'onboarding_completed': profile.onboardingCompleted,
+        'onboarding_completed_at': profile.onboardingCompletedAt?.toIso8601String(),
+        'created_at': profile.createdAt?.toIso8601String(),
+        'last_active_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      
+      // Only include learning_motivation if it has a valid value
+      // This prevents constraint violations since this field is set during onboarding only
+      if (profile.learningMotivation != null && profile.learningMotivation!.isNotEmpty) {
+        syncData['learning_motivation'] = profile.learningMotivation;
+      }
+      
       final response = await SupabaseService.client
           .from('players')
-          .upsert({
-            'user_id': currentUserId,
-            'first_name': profile.firstName,
-            'last_name': profile.lastName,
-            'avatar_url': profile.avatarUrl,
-            'age': profile.age,
-            'level': profile.playerLevel,
-            'experience_points': profile.experiencePoints,
-            'current_streak': profile.currentStreak,
-            'max_streak': profile.maxStreak,
-            'score': 0, // Legacy field
-            'total_games': 0, // Legacy field
-            'target_language': profile.targetLanguage,
-            'target_language_level': profile.targetLanguageLevel,
-            'has_prior_learning': profile.hasPriorLearning,
-            'prior_learning_details': profile.priorLearningDetails,
-            'native_language': profile.nativeLanguage,
-            'selected_character': profile.selectedCharacter,
-            'character_customization': profile.characterCustomization,
-            'learning_motivation': profile.learningMotivation,
-            'learning_pace': profile.learningPace,
-            'learning_style': profile.learningStyle,
-            'learning_context': profile.learningContext,
-            'daily_goal_minutes': profile.dailyGoalMinutes,
-            'preferred_practice_time': profile.preferredPracticeTime,
-            'learning_preferences': profile.learningPreferences,
-            'voice_recording_consent': profile.voiceRecordingConsent,
-            'personalized_content_consent': profile.personalizedContentConsent,
-            'privacy_policy_accepted': profile.privacyPolicyAccepted,
-            'data_collection_consented': profile.dataCollectionConsented,
-            'consent_date': profile.consentDate?.toIso8601String(),
-            'onboarding_version': profile.onboardingVersion,
-            // Note: All users now have email-verified accounts
-            'tutorials_completed': profile.tutorialsCompleted,
-            'onboarding_completed': profile.onboardingCompleted,
-            'onboarding_completed_at': profile.onboardingCompletedAt?.toIso8601String(),
-            'created_at': profile.createdAt?.toIso8601String(),
-            'last_active_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .upsert(syncData)
           .select()
           .single();
       

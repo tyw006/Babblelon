@@ -601,6 +601,19 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           _modalState = NPCResponseModalState.results;
         });
 
+        // Show pronunciation confidence guide tutorial if this is the first time seeing confidence scores
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
+          if (!tutorialProgressNotifier.isStepCompleted('pronunciation_confidence_guide')) {
+            final tutorialManager = TutorialManager(
+              context: context,
+              ref: ref,
+              npcId: widget.npcData.name.toLowerCase(),
+            );
+            await tutorialManager.startTutorial(TutorialTrigger.firstVoiceInteraction);
+          }
+        });
+
         // Auto-scroll to bottom to show results
         _scrollToBottom();
 

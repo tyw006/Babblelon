@@ -40,8 +40,31 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Future<void> _checkAndShowMainTutorial() async {
     if (!mounted) return;
     
-    // Check if main tutorial has been completed
+    // Wait for tutorial progress to fully load before checking completion status
+    // This prevents the race condition where tutorial check happens before sync completes
+    
+    // Give tutorial sync time to complete (up to 3 seconds)
+    int attempts = 0;
+    const maxAttempts = 30; // 30 * 100ms = 3 seconds max wait
+    
+    while (attempts < maxAttempts && mounted) {
+      final tutorialProgress = ref.read(tutorialProgressProvider);
+      // If we have any tutorial progress loaded, sync has likely completed
+      if (tutorialProgress.isNotEmpty) {
+        debugPrint('Tutorial: Tutorial progress loaded, checking completion status');
+        break;
+      }
+      
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+    
+    if (!mounted) return;
+    
+    // Now check if main tutorial has been completed using the race-condition-safe provider
     final tutorialCompleted = ref.read(tutorialCompletedProvider);
+    
+    debugPrint('Tutorial: Tutorial completion status: $tutorialCompleted');
     
     if (!tutorialCompleted && mounted) {
       // Additional delay to ensure navigation is stable

@@ -473,8 +473,13 @@ class DeveloperSettings extends _$DeveloperSettings {
 class TutorialCompleted extends _$TutorialCompleted {
   @override
   bool build() {
-    _loadTutorialStatus();
-    return false;
+    // Load status asynchronously and update state when ready
+    Future.microtask(() => _loadTutorialStatus());
+    // Check cache first for immediate response
+    final tutorialProgress = ref.read(tutorialProgressProvider);
+    final isCached = tutorialProgress.contains('startAdventure');
+    debugPrint('TutorialCompleted: Checking cache for startAdventure: $isCached');
+    return isCached;
   }
 
   void markCompleted() {
@@ -492,7 +497,9 @@ class TutorialCompleted extends _$TutorialCompleted {
       // Use database service instead of SharedPreferences
       final tutorialService = TutorialDatabaseService();
       final completed = await tutorialService.isTutorialCompleted('startAdventure');
+      // Update state after loading from database
       state = completed;
+      debugPrint('TutorialCompleted: Loaded status from database: $completed');
     } catch (e) {
       debugPrint('TutorialCompleted: Error loading tutorial status: $e');
       state = false; // Default to not completed

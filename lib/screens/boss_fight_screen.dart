@@ -189,6 +189,11 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
         
         // Show comprehensive boss fight tutorial (multi-slide)
         tutorialManager.startTutorial(TutorialTrigger.bossFight);
+        
+        // Show detailed battle mechanics tutorial if this is the first time
+        if (!tutorialProgressNotifier.isStepCompleted('battle_mechanics_deep_dive')) {
+          await tutorialManager.startTutorial(TutorialTrigger.firstBossBattle);
+        }
       } else {
         debugPrint('🎓 BossFightScreen: Boss fight tutorial already completed, skipping');
       }

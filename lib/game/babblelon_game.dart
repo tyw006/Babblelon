@@ -210,16 +210,21 @@ class BabblelonGame extends FlameGame with
     // Show game loading tutorial if this is the first time entering a game
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
-      if (!tutorialProgressNotifier.isStepCompleted('game_loading_intro')) {
-        final context = buildContext;
-        if (context != null) {
-          final tutorialManager = TutorialManager(
-            context: context,
-            ref: ref,
-          );
-          
+      final context = buildContext;
+      if (context != null) {
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+        );
+        
+        if (!tutorialProgressNotifier.isStepCompleted('game_loading_intro')) {
           // Show the game loading/navigation tutorial
           await tutorialManager.startTutorial(TutorialTrigger.firstGameEntry);
+        }
+        
+        // Show cultural intro tutorial if this is the first time in a cultural level
+        if (!tutorialProgressNotifier.isStepCompleted('cultural_intro')) {
+          await tutorialManager.startTutorial(TutorialTrigger.npcInteraction);
         }
       }
     });

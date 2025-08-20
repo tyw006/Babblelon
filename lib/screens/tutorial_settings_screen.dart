@@ -16,29 +16,41 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
   bool _showCompletedOnly = false;
 
   // Define all available tutorials with user-friendly names and descriptions
+  // Aligned with actual tutorial system IDs from tutorial_service.dart
   static const Map<String, TutorialInfo> _availableTutorials = {
-    'main_navigation_intro': TutorialInfo(
+    // Navigation & Interface (Multi-step navigation tutorial)
+    'navigation_tutorial_group': TutorialInfo(
       'Main Navigation Tutorial',
       'Learn how to navigate the main menu and app structure',
       Icons.navigation,
       TutorialCategory.navigation,
     ),
+    
+    // Gameplay Basics
     'game_loading_intro': TutorialInfo(
       'Game Introduction',
       'First-time game setup and basic controls',
       Icons.games,
       TutorialCategory.gameplay,
     ),
-    'first_dialogue_session': TutorialInfo(
-      'Dialogue System',
-      'How to interact with NPCs and use voice features',
-      Icons.record_voice_over,
+    'cultural_intro': TutorialInfo(
+      'Cultural Level Introduction',
+      'Introduction to exploring cultural environments',
+      Icons.explore,
+      TutorialCategory.gameplay,
+    ),
+    
+    // Dialogue & NPCs
+    'first_npc_interaction': TutorialInfo(
+      'First NPC Meeting',
+      'Meeting and approaching non-player characters',
+      Icons.person,
       TutorialCategory.dialogue,
     ),
-    'first_npc_interaction': TutorialInfo(
-      'NPC Interaction',
-      'Meeting and talking with non-player characters',
-      Icons.person,
+    'first_dialogue_session': TutorialInfo(
+      'Dialogue System',
+      'How to interact with NPCs and start conversations',
+      Icons.record_voice_over,
       TutorialCategory.dialogue,
     ),
     'first_npc_response_tutorial': TutorialInfo(
@@ -47,11 +59,25 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       Icons.feedback,
       TutorialCategory.dialogue,
     ),
+    'voice_setup_guide': TutorialInfo(
+      'Voice Setup Guide',
+      'Setting up microphone and speech recognition',
+      Icons.settings_voice,
+      TutorialCategory.dialogue,
+    ),
+    'pronunciation_confidence_guide': TutorialInfo(
+      'Pronunciation Scoring',
+      'Understanding your pronunciation confidence scores',
+      Icons.assessment,
+      TutorialCategory.dialogue,
+    ),
+    
+    // Combat & Battles  
     'charm_explanation': TutorialInfo(
       'Charm System',
       'How charm works and affects rewards',
       Icons.favorite,
-      TutorialCategory.gameplay,
+      TutorialCategory.combat,
     ),
     'item_types': TutorialInfo(
       'Battle Items',
@@ -63,6 +89,12 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       'Item Tiers',
       'Regular vs special item differences and unlocking',
       Icons.star,
+      TutorialCategory.combat,
+    ),
+    'boss_prerequisites_warning': TutorialInfo(
+      'Boss Battle Requirements',
+      'What you need before entering boss battles',
+      Icons.warning_amber,
       TutorialCategory.combat,
     ),
     'boss_fight_intro': TutorialInfo(
@@ -77,6 +109,14 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       Icons.calculate,
       TutorialCategory.combat,
     ),
+    'portal_approach': TutorialInfo(
+      'Boss Portal Approach',
+      'Tutorial when approaching boss battle portals',
+      Icons.location_on,
+      TutorialCategory.combat,
+    ),
+    
+    // Language Learning
     'character_tracing_tutorial': TutorialInfo(
       'Character Tracing',
       'Writing Thai characters with AI feedback',
@@ -101,6 +141,20 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       Icons.build,
       TutorialCategory.learning,
     ),
+    
+    // Achievements & Rewards
+    'charm_thresholds_explained': TutorialInfo(
+      'Charm Milestones',
+      'Understanding charm thresholds and rewards',
+      Icons.military_tech,
+      TutorialCategory.achievements,
+    ),
+    'item_giving_tutorial': TutorialInfo(
+      'Item Request System',
+      'How to request items from NPCs',
+      Icons.card_giftcard,
+      TutorialCategory.achievements,
+    ),
     'special_item_celebration': TutorialInfo(
       'Special Item Achievement',
       'Celebrating special item unlocks and mastery',
@@ -109,9 +163,40 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
     ),
   };
 
+  // Navigation tutorial step IDs that comprise the grouped navigation tutorial
+  static const List<String> _navigationTutorialSteps = [
+    'blabbybara_intro',
+    'home_tour', 
+    'progress_tour',
+    'premium_tour',
+    'settings_tour',
+    'learn_return',
+  ];
+
+  /// Check if a tutorial is completed, with special handling for navigation group
+  bool _isTutorialCompleted(String tutorialId, Map<String, bool> completions) {
+    if (tutorialId == 'navigation_tutorial_group') {
+      // Navigation tutorial is complete if ALL navigation steps are completed
+      return _navigationTutorialSteps.every((stepId) => completions[stepId] == true);
+    }
+    return completions[tutorialId] == true;
+  }
+  
+  /// Get completion status for display purposes
+  Map<String, bool> _getEffectiveCompletions(Map<String, bool> rawCompletions) {
+    final effective = Map<String, bool>.from(rawCompletions);
+    
+    // Add the navigation tutorial group completion status
+    effective['navigation_tutorial_group'] = _isTutorialCompleted('navigation_tutorial_group', rawCompletions);
+    
+    return effective;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tutorialCompletions = ref.watch(tutorialCompletionProvider);
+    final rawTutorialCompletions = ref.watch(tutorialCompletionProvider);
+    // Get effective completions with navigation group handled
+    final tutorialCompletions = _getEffectiveCompletions(rawTutorialCompletions);
     final tutorialStats = ref.watch(tutorialStatsProvider);
 
     return Scaffold(
@@ -330,7 +415,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
 
     // Filter based on completion status if needed
     final filteredTutorials = _showCompletedOnly
-        ? categoryTutorials.where((entry) => completions[entry.key] == true).toList()
+        ? categoryTutorials.where((entry) => _isTutorialCompleted(entry.key, completions)).toList()
         : categoryTutorials;
 
     if (filteredTutorials.isEmpty && _showCompletedOnly) {
@@ -338,7 +423,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
     }
 
     final completedCount = categoryTutorials
-        .where((entry) => completions[entry.key] == true)
+        .where((entry) => _isTutorialCompleted(entry.key, completions))
         .length;
 
     return Column(
@@ -392,7 +477,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
 
         // Tutorial Items
         ...filteredTutorials.map((entry) =>
-          _buildTutorialItem(entry.key, entry.value, completions[entry.key] ?? false)),
+          _buildTutorialItem(entry.key, entry.value, _isTutorialCompleted(entry.key, completions))),
 
         const SizedBox(height: 24),
       ],
@@ -507,25 +592,57 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
 
   // Action methods
   void _toggleTutorial(String tutorialId, bool completed) async {
-    if (completed) {
-      await ref.read(tutorialCompletionProvider.notifier).markTutorialCompleted(tutorialId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" marked as completed'),
-            backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
-          ),
-        );
+    if (tutorialId == 'navigation_tutorial_group') {
+      // Handle navigation tutorial group specially
+      if (completed) {
+        // Mark all navigation steps as completed
+        for (final stepId in _navigationTutorialSteps) {
+          await ref.read(tutorialCompletionProvider.notifier).markTutorialCompleted(stepId);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('All navigation tutorial steps marked as completed'),
+              backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+            ),
+          );
+        }
+      } else {
+        // Reset all navigation steps
+        for (final stepId in _navigationTutorialSteps) {
+          await ref.read(tutorialCompletionProvider.notifier).resetTutorial(stepId);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('All navigation tutorial steps reset'),
+              backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+            ),
+          );
+        }
       }
     } else {
-      await ref.read(tutorialCompletionProvider.notifier).resetTutorial(tutorialId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" reset'),
-            backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
-          ),
-        );
+      // Handle regular tutorials
+      if (completed) {
+        await ref.read(tutorialCompletionProvider.notifier).markTutorialCompleted(tutorialId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" marked as completed'),
+              backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+            ),
+          );
+        }
+      } else {
+        await ref.read(tutorialCompletionProvider.notifier).resetTutorial(tutorialId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" reset'),
+              backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+            ),
+          );
+        }
       }
     }
   }

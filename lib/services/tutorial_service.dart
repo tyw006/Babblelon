@@ -6,7 +6,6 @@ import '../providers/game_providers.dart';
 import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import '../models/npc_data.dart';
 import '../widgets/popups/tutorial_popup_widget.dart';
-import 'tutorial_database_service.dart';
 
 enum TutorialTrigger {
   // Existing triggers (kept for backward compatibility)
@@ -129,6 +128,7 @@ class TutorialManager {
   TutorialManager({required this.context, required this.ref, this.npcId});
 
   static final List<TutorialStep> tutorialSteps = [
+    // Home navigation tutorial - kept as individual steps to preserve navigation functionality
     TutorialStep(
       id: 'blabbybara_intro',
       title: "Hi there! I'm Blabbybara!",
@@ -573,18 +573,14 @@ class TutorialManager {
     debugPrint('Tutorial: Starting tutorial for trigger: $trigger');
     debugPrint('Tutorial: Found ${steps.length} steps for this trigger');
     
-    // Check if any steps for this trigger are already completed
-    final tutorialService = TutorialDatabaseService();
+    // Check if any steps for this trigger are already completed (using fast cache lookup)
+    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
     final completedSteps = <String>[];
     
     for (final step in steps) {
-      try {
-        final isCompleted = await tutorialService.isTutorialCompleted(step.id);
-        if (isCompleted) {
-          completedSteps.add(step.id);
-        }
-      } catch (e) {
-        debugPrint('Tutorial: Error checking completion for step ${step.id}: $e');
+      final isCompleted = tutorialProgressNotifier.isStepCompleted(step.id);
+      if (isCompleted) {
+        completedSteps.add(step.id);
       }
     }
     
