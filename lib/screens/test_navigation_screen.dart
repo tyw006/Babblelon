@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/screens/main_navigation_screen.dart';
 import 'package:babblelon/screens/enhanced_onboarding_screen.dart';
-import 'package:babblelon/screens/cartoon_splash_screen.dart';
+import 'package:babblelon/screens/intro_splash_screen.dart';
 import 'package:babblelon/screens/authentication_screen.dart';
 import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/providers/tutorial_database_providers.dart';
@@ -446,7 +446,7 @@ class _TestNavigationScreenState extends ConsumerState<TestNavigationScreen> wit
   void _startProductionFlow() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CartoonSplashScreen()),
+      MaterialPageRoute(builder: (context) => const IntroSplashScreen()),
     );
   }
   
@@ -499,7 +499,7 @@ class _TestNavigationScreenState extends ConsumerState<TestNavigationScreen> wit
   void _testNewUserFlow() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CartoonSplashScreen()),
+      MaterialPageRoute(builder: (context) => const IntroSplashScreen()),
     );
   }
 

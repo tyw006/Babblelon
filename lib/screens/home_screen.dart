@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/providers/navigation_provider.dart';
 import 'package:babblelon/widgets/universal_stats_row.dart';
 import 'package:babblelon/models/local_storage_models.dart';
@@ -17,12 +17,12 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
+      backgroundColor: modern.ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'BabbleOn',
-          style: cartoon.CartoonDesignSystem.headlineLarge.copyWith(
-            color: cartoon.CartoonDesignSystem.textPrimary,
+          style: modern.ModernDesignSystem.headlineLarge.copyWith(
+            color: modern.ModernDesignSystem.textPrimary,
             fontSize: 24,
             fontWeight: FontWeight.w800,
           ),
@@ -64,10 +64,10 @@ class _DailyGoalCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cartoon.CartoonDesignSystem.lightBlue.withValues(alpha: 0.3),
+        color: modern.ModernDesignSystem.info.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         border: Border.all(
-          color: cartoon.CartoonDesignSystem.skyBlue.withValues(alpha: 0.4),
+          color: modern.ModernDesignSystem.info.withValues(alpha: 0.4),
           width: 1.5,
         ),
       ),
@@ -75,7 +75,7 @@ class _DailyGoalCard extends StatelessWidget {
         children: [
           const Icon(
             Icons.track_changes,
-            color: cartoon.CartoonDesignSystem.skyBlue,
+            color: modern.ModernDesignSystem.info,
             size: 24,
           ),
           const SizedBox(width: 12),
@@ -85,16 +85,16 @@ class _DailyGoalCard extends StatelessWidget {
               children: [
                 Text(
                   'Daily Goal',
-                  style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+                  style: modern.ModernDesignSystem.bodyLarge.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: cartoon.CartoonDesignSystem.textPrimary,
+                    color: modern.ModernDesignSystem.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Practice for 15 minutes',
-                  style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                    color: cartoon.CartoonDesignSystem.textSecondary,
+                  style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                    color: modern.ModernDesignSystem.textSecondary,
                   ),
                 ),
               ],
@@ -125,19 +125,19 @@ class _FloatingHeroButton extends ConsumerWidget {
             center: Alignment.topLeft,
             radius: 1.2,
             colors: [
-              cartoon.CartoonDesignSystem.sunshineYellow,
-              cartoon.CartoonDesignSystem.warmOrange,
+              modern.ModernDesignSystem.sunshineYellow,
+              modern.ModernDesignSystem.warmOrange,
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: cartoon.CartoonDesignSystem.warmOrange.withValues(alpha: 0.4),
+              color: modern.ModernDesignSystem.warmOrange.withValues(alpha: 0.4),
               blurRadius: 20,
               offset: const Offset(0, 8),
               spreadRadius: 2,
             ),
             BoxShadow(
-              color: cartoon.CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+              color: modern.ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
               blurRadius: 40,
               offset: const Offset(0, 0),
               spreadRadius: 5,
@@ -185,13 +185,13 @@ class _WelcomeSection extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            cartoon.CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.15),
-            cartoon.CartoonDesignSystem.warmOrange.withValues(alpha: 0.1),
+            modern.ModernDesignSystem.sunshineYellow.withValues(alpha: 0.15),
+            modern.ModernDesignSystem.warmOrange.withValues(alpha: 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: cartoon.CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+          color: modern.ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -202,7 +202,7 @@ class _WelcomeSection extends ConsumerWidget {
             children: [
               Icon(
                 Icons.waving_hand,
-                color: cartoon.CartoonDesignSystem.warmOrange,
+                color: modern.ModernDesignSystem.warmOrange,
                 size: 24,
               ),
               const SizedBox(width: 8),
@@ -213,7 +213,7 @@ class _WelcomeSection extends ConsumerWidget {
                   return Text(
                     'Welcome back, $displayName!',
                     style: AppTheme.textTheme.headlineSmall?.copyWith(
-                      color: cartoon.CartoonDesignSystem.textPrimary,
+                      color: modern.ModernDesignSystem.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   );
@@ -221,14 +221,14 @@ class _WelcomeSection extends ConsumerWidget {
                 loading: () => Text(
                   'Welcome back!',
                   style: AppTheme.textTheme.headlineSmall?.copyWith(
-                    color: cartoon.CartoonDesignSystem.textPrimary,
+                    color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 error: (error, stack) => Text(
                   'Welcome back!',
                   style: AppTheme.textTheme.headlineSmall?.copyWith(
-                    color: cartoon.CartoonDesignSystem.textPrimary,
+                    color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -241,21 +241,21 @@ class _WelcomeSection extends ConsumerWidget {
               final languageName = LanguageUtils.getLanguageName(profile?.targetLanguage);
               return Text(
                 'Ready to continue your $languageName learning journey?',
-                style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                  color: cartoon.CartoonDesignSystem.textSecondary,
+                style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                  color: modern.ModernDesignSystem.textSecondary,
                 ),
               );
             },
             loading: () => Text(
               'Ready to continue your learning journey?',
-              style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                color: cartoon.CartoonDesignSystem.textSecondary,
+              style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                color: modern.ModernDesignSystem.textSecondary,
               ),
             ),
             error: (error, stack) => Text(
               'Ready to continue your learning journey?',
-              style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                color: cartoon.CartoonDesignSystem.textSecondary,
+              style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                color: modern.ModernDesignSystem.textSecondary,
               ),
             ),
           ),
@@ -284,7 +284,7 @@ class _DetailedMetrics extends ConsumerWidget {
           'Learning Progress',
           style: AppTheme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            color: cartoon.CartoonDesignSystem.textPrimary,
+            color: modern.ModernDesignSystem.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -309,7 +309,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '$masteredWords',
                         subtitle: 'learned',
                         icon: Icons.text_fields,
-                        color: cartoon.CartoonDesignSystem.sunshineYellow,
+                        color: modern.ModernDesignSystem.sunshineYellow,
                         progress: totalWords > 0 ? masteredWords / totalWords : 0.0,
                       ),
                     ),
@@ -320,7 +320,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '${(averageScore * 100).toInt()}%',
                         subtitle: 'average',
                         icon: Icons.trending_up,
-                        color: cartoon.CartoonDesignSystem.forestGreen,
+                        color: modern.ModernDesignSystem.forestGreen,
                         progress: averageScore,
                       ),
                     ),
@@ -335,7 +335,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '$masteredCharacters',
                         subtitle: 'mastered',
                         icon: Icons.text_format,
-                        color: cartoon.CartoonDesignSystem.cherryRed,
+                        color: modern.ModernDesignSystem.cherryRed,
                         progress: totalWords > 0 ? masteredCharacters / totalWords : 0.0,
                       ),
                     ),
@@ -346,7 +346,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '${phrases.fold(0, (sum, p) => sum + p.timesPracticed)}',
                         subtitle: 'total',
                         icon: Icons.timer,
-                        color: cartoon.CartoonDesignSystem.skyBlue,
+                        color: modern.ModernDesignSystem.info,
                         progress: 0.7,
                       ),
                     ),
@@ -406,7 +406,7 @@ class _MetricCard extends StatelessWidget {
               Text(
                 title,
                 style: AppTheme.textTheme.bodySmall?.copyWith(
-                  color: cartoon.CartoonDesignSystem.textSecondary,
+                  color: modern.ModernDesignSystem.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -424,7 +424,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             subtitle,
             style: AppTheme.textTheme.bodySmall?.copyWith(
-              color: cartoon.CartoonDesignSystem.textMuted,
+              color: modern.ModernDesignSystem.textMuted,
               fontSize: 10,
             ),
           ),

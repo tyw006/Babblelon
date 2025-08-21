@@ -8,7 +8,7 @@ import 'package:babblelon/models/local_storage_models.dart';
 // Removed unused imports per linter warning
 import 'package:babblelon/services/supabase_service.dart';
 import 'package:babblelon/services/posthog_service.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/services/auth_service_interface.dart';
 
 /// Profile setup screen for authenticated users (authentication-first flow)
@@ -385,11 +385,11 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
               ),
             ],
           ),
-          backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+          backgroundColor: modern.ModernDesignSystem.warmOrange,
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+            borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
           ),
         ),
       );
@@ -401,7 +401,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
+      backgroundColor: modern.ModernDesignSystem.creamWhite,
       body: SafeArea(
         child: Column(
           children: [
@@ -419,15 +419,15 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                           icon: const Icon(Icons.arrow_back),
                           label: const Text('Back'),
                           style: TextButton.styleFrom(
-                            foregroundColor: cartoon.CartoonDesignSystem.textSecondary,
+                            foregroundColor: modern.ModernDesignSystem.textSecondary,
                           ),
                         )
                       else
                         const SizedBox(),
                       Text(
                         '${_currentPage + 1} of ${_getPageCount()}',
-                        style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                          color: cartoon.CartoonDesignSystem.textSecondary,
+                        style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                          color: modern.ModernDesignSystem.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -436,8 +436,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: (_currentPage + 1) / _getPageCount(),
-                    backgroundColor: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(cartoon.CartoonDesignSystem.skyBlue),
+                    backgroundColor: modern.ModernDesignSystem.textMuted.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(modern.ModernDesignSystem.skyBlue),
                   ),
                 ],
               ),
@@ -468,21 +468,21 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   child: ElevatedButton(
                     onPressed: _canProceedFromCurrentPage() ? _nextPage : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: cartoon.CartoonDesignSystem.skyBlue,
-                      foregroundColor: cartoon.CartoonDesignSystem.textOnBright,
+                      backgroundColor: modern.ModernDesignSystem.skyBlue,
+                      foregroundColor: modern.ModernDesignSystem.textOnBright,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                       ),
                       elevation: _canProceedFromCurrentPage() ? 8 : 0,
-                      shadowColor: cartoon.CartoonDesignSystem.skyBlue.withValues(alpha: 0.4),
+                      shadowColor: modern.ModernDesignSystem.skyBlue.withValues(alpha: 0.4),
                     ),
                     child: Text(
                       _getButtonText(),
-                      style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+                      style: modern.ModernDesignSystem.bodyLarge.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: cartoon.CartoonDesignSystem.textOnBright,
+                        color: modern.ModernDesignSystem.textOnBright,
                       ),
                     ),
                   ),
@@ -507,7 +507,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Complete Your Profile!',
       description: 'You\'re signed in! Now let\'s set up your learning profile to personalize your language adventure.',
       icon: Icons.waving_hand,
-      color: cartoon.CartoonDesignSystem.sunshineYellow,
+      color: modern.ModernDesignSystem.sunshineYellow,
     );
   }
 
@@ -516,7 +516,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Tell us about yourself',
       description: 'Help us personalize your learning experience with some basic information.',
       icon: Icons.person,
-      color: cartoon.CartoonDesignSystem.cherryRed,
+      color: modern.ModernDesignSystem.cherryRed,
       child: Column(
         children: [
           // First name field
@@ -527,16 +527,18 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
               hintText: 'Enter your first name',
               prefixIcon: const Icon(Icons.person_outline),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
               ),
               filled: true,
               fillColor: Colors.white,
               helperText: 'Your first name',
-              helperStyle: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                color: cartoon.CartoonDesignSystem.textSecondary,
+              helperStyle: modern.ModernDesignSystem.bodySmall.copyWith(
+                color: modern.ModernDesignSystem.textOnLightSecondary,
               ),
             ),
-            style: cartoon.CartoonDesignSystem.bodyLarge,
+            style: modern.ModernDesignSystem.bodyLarge.copyWith(
+              color: modern.ModernDesignSystem.textOnLight,
+            ),
             onChanged: (value) {
               setState(() {});
             },
@@ -551,16 +553,18 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
               hintText: 'Enter your last name',
               prefixIcon: const Icon(Icons.badge_outlined),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
               ),
               filled: true,
               fillColor: Colors.white,
               helperText: 'Your last name',
-              helperStyle: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                color: cartoon.CartoonDesignSystem.textSecondary,
+              helperStyle: modern.ModernDesignSystem.bodySmall.copyWith(
+                color: modern.ModernDesignSystem.textOnLightSecondary,
               ),
             ),
-            style: cartoon.CartoonDesignSystem.bodyLarge,
+            style: modern.ModernDesignSystem.bodyLarge.copyWith(
+              color: modern.ModernDesignSystem.textOnLight,
+            ),
             onChanged: (value) {
               setState(() {});
             },
@@ -581,24 +585,24 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     prefixIcon: Icon(
                       Icons.cake_outlined,
                       color: _enteredAge != null 
-                          ? cartoon.CartoonDesignSystem.skyBlue 
-                          : cartoon.CartoonDesignSystem.textSecondary,
+                          ? modern.ModernDesignSystem.skyBlue 
+                          : modern.ModernDesignSystem.textSecondary,
                     ),
                     suffixIcon: _enteredAge != null && _enteredAge! >= 13
                         ? Icon(
                             Icons.check_circle,
-                            color: cartoon.CartoonDesignSystem.forestGreen,
+                            color: modern.ModernDesignSystem.forestGreen,
                           )
                         : null,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                      borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: cartoon.CartoonDesignSystem.skyBlue,
+                        color: modern.ModernDesignSystem.skyBlue,
                         width: 2,
                       ),
-                      borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                      borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                     ),
                     errorText: _ageController.text.isNotEmpty && _enteredAge == null 
                         ? 'Please enter a valid age (13-100)' 
@@ -606,11 +610,13 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     filled: true,
                     fillColor: Colors.white,
                     helperText: 'Helps tailor conversations to your level',
-                    helperStyle: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                      color: cartoon.CartoonDesignSystem.textSecondary,
+                    helperStyle: modern.ModernDesignSystem.bodySmall.copyWith(
+                      color: modern.ModernDesignSystem.textOnLightSecondary,
                     ),
                   ),
-                  style: cartoon.CartoonDesignSystem.bodyLarge,
+                  style: modern.ModernDesignSystem.bodyLarge.copyWith(
+                    color: modern.ModernDesignSystem.textOnLight,
+                  ),
                 ),
               ),
             ],
@@ -622,22 +628,22 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             children: [
               Expanded(
                 child: Divider(
-                  color: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                  color: modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
                   'Profile Setup',
-                  style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                    color: cartoon.CartoonDesignSystem.textSecondary,
+                  style: modern.ModernDesignSystem.bodySmall.copyWith(
+                    color: modern.ModernDesignSystem.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Expanded(
                 child: Divider(
-                  color: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                  color: modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                 ),
               ),
             ],
@@ -650,7 +656,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+              borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
               border: Border.all(color: Colors.green.withOpacity(0.3)),
             ),
             child: Row(
@@ -660,7 +666,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                 Expanded(
                   child: Text(
                     'You\'re already signed in! Let\'s set up your learning profile.',
-                    style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                    style: modern.ModernDesignSystem.bodyMedium.copyWith(
                       color: Colors.green.shade700,
                     ),
                   ),
@@ -674,10 +680,10 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: cartoon.CartoonDesignSystem.lightBlue.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+              color: modern.ModernDesignSystem.skyBlue.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
               border: Border.all(
-                color: cartoon.CartoonDesignSystem.skyBlue.withValues(alpha: 0.3),
+                color: modern.ModernDesignSystem.skyBlue.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -688,14 +694,14 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     Icon(
                       Icons.lightbulb_outline,
                       size: 18,
-                      color: cartoon.CartoonDesignSystem.skyBlue,
+                      color: modern.ModernDesignSystem.skyBlue,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Quick Tips',
-                      style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                      style: modern.ModernDesignSystem.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: cartoon.CartoonDesignSystem.textPrimary,
+                        color: modern.ModernDesignSystem.textPrimary,
                       ),
                     ),
                   ],
@@ -705,8 +711,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   '• Your real name is used by NPCs in conversations\n'
                   '• Username is your unique login ID\n'
                   '• Age helps us adjust content appropriately',
-                  style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                    color: cartoon.CartoonDesignSystem.textSecondary,
+                  style: modern.ModernDesignSystem.bodySmall.copyWith(
+                    color: modern.ModernDesignSystem.textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -724,7 +730,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Choose Your Adventure',
       description: 'Select the language you want to learn through immersive gameplay.',
       icon: Icons.language,
-      color: cartoon.CartoonDesignSystem.forestGreen,
+      color: modern.ModernDesignSystem.forestGreen,
       child: Column(
         children: _targetLanguageOptions.map((lang) {
           final isAvailable = lang == 'thai'; // Only Thai is available
@@ -742,26 +748,26 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                         : null, // Disabled for coming soon languages
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isSelected
-                          ? cartoon.CartoonDesignSystem.forestGreen
+                          ? modern.ModernDesignSystem.forestGreen
                           : isAvailable 
                               ? Colors.white
                               : Colors.grey.shade100,
                       foregroundColor: isSelected
                           ? Colors.white
                           : isAvailable
-                              ? cartoon.CartoonDesignSystem.textPrimary
+                              ? modern.ModernDesignSystem.textOnLight
                               : Colors.grey.shade400,
                       side: BorderSide(
                         color: isSelected
-                            ? cartoon.CartoonDesignSystem.forestGreen
+                            ? modern.ModernDesignSystem.forestGreen
                             : isAvailable
-                                ? cartoon.CartoonDesignSystem.textMuted
+                                ? modern.ModernDesignSystem.textMuted
                                 : Colors.grey.shade300,
                         width: isSelected ? 2 : 1,
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                       ),
                       elevation: isSelected ? 4 : 0,
                     ),
@@ -773,19 +779,19 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                             children: [
                               Text(
                                 _targetLanguageLabels[lang]?.split(' - ').first ?? lang,
-                                style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+                                style: modern.ModernDesignSystem.bodyLarge.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: isAvailable 
-                                      ? (isSelected ? Colors.white : cartoon.CartoonDesignSystem.textPrimary)
+                                      ? (isSelected ? Colors.white : modern.ModernDesignSystem.textOnLight)
                                       : Colors.grey.shade400,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _targetLanguageLabels[lang]?.split(' - ').last ?? '',
-                                style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                                style: modern.ModernDesignSystem.bodySmall.copyWith(
                                   color: isAvailable
-                                      ? (isSelected ? Colors.white.withValues(alpha: 0.9) : cartoon.CartoonDesignSystem.textSecondary)
+                                      ? (isSelected ? Colors.white.withValues(alpha: 0.9) : modern.ModernDesignSystem.textOnLightSecondary)
                                       : Colors.grey.shade400,
                                 ),
                               ),
@@ -809,12 +815,12 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: cartoon.CartoonDesignSystem.warmOrange,
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusSmall),
+                        color: modern.ModernDesignSystem.warmOrange,
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusSmall),
                       ),
                       child: Text(
                         'COMING SOON',
-                        style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                        style: modern.ModernDesignSystem.bodySmall.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 10,
@@ -835,7 +841,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Choose Your Adventure Companion',
       description: 'Select your character to represent you in the Thai cultural adventure.',
       icon: Icons.person_outline,
-      color: cartoon.CartoonDesignSystem.lavenderPurple,
+      color: modern.ModernDesignSystem.lavenderPurple,
       child: Column(
         children: [
           // Character grid - 2 characters side by side
@@ -852,19 +858,19 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   height: 180,
                   decoration: BoxDecoration(
                     color: isSelected 
-                      ? cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.1)
+                      ? modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.1)
                       : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                    borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                     border: Border.all(
                       color: isSelected 
-                        ? cartoon.CartoonDesignSystem.lavenderPurple
-                        : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                        ? modern.ModernDesignSystem.lavenderPurple
+                        : modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                       width: isSelected ? 3 : 1,
                     ),
                     boxShadow: [
                       if (isSelected)
                         BoxShadow(
-                          color: cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.3),
+                          color: modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -885,8 +891,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                                 character.id == 'male' ? Icons.person : Icons.person_4,
                                 size: 64,
                                 color: isSelected 
-                                    ? cartoon.CartoonDesignSystem.lavenderPurple
-                                    : cartoon.CartoonDesignSystem.textSecondary,
+                                    ? modern.ModernDesignSystem.lavenderPurple
+                                    : modern.ModernDesignSystem.textOnLightSecondary,
                               );
                             },
                           ),
@@ -894,21 +900,21 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                         const SizedBox(height: 12),
                         Text(
                           character.name,
-                          style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                          style: modern.ModernDesignSystem.bodyMedium.copyWith(
                             fontSize: 14,
                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                             color: isSelected 
-                                ? cartoon.CartoonDesignSystem.lavenderPurple
-                                : cartoon.CartoonDesignSystem.textPrimary,
+                                ? modern.ModernDesignSystem.lavenderPurple
+                                : modern.ModernDesignSystem.textOnLight,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           character.description,
-                          style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                          style: modern.ModernDesignSystem.bodySmall.copyWith(
                             fontSize: 11,
-                            color: cartoon.CartoonDesignSystem.textSecondary,
+                            color: modern.ModernDesignSystem.textOnLightSecondary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -926,10 +932,10 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                color: modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                 border: Border.all(
-                  color: cartoon.CartoonDesignSystem.lavenderPurple,
+                  color: modern.ModernDesignSystem.lavenderPurple,
                   width: 2,
                 ),
               ),
@@ -938,14 +944,14 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                 children: [
                   Icon(
                     Icons.check_circle,
-                    color: cartoon.CartoonDesignSystem.lavenderPurple,
+                    color: modern.ModernDesignSystem.lavenderPurple,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Selected: ${_characters.firstWhere((c) => c.id == _selectedCharacter).name}',
-                    style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                      color: cartoon.CartoonDesignSystem.lavenderPurple,
+                    style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                      color: modern.ModernDesignSystem.lavenderPurple,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -960,22 +966,22 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: cartoon.CartoonDesignSystem.lightBlue.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+              color: modern.ModernDesignSystem.skyBlue.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline,
-                  color: cartoon.CartoonDesignSystem.skyBlue,
+                  color: modern.ModernDesignSystem.skyBlue,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Your character will represent you in conversations with Thai NPCs and can be changed later in Settings.',
-                    style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                      color: cartoon.CartoonDesignSystem.textSecondary,
+                    style: modern.ModernDesignSystem.bodySmall.copyWith(
+                      color: modern.ModernDesignSystem.textOnLight,
                     ),
                   ),
                 ),
@@ -992,7 +998,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Why are you learning Thai?',
       description: 'Select all that apply - understanding your motivations helps us personalize your experience.',
       icon: Icons.rocket_launch,
-      color: cartoon.CartoonDesignSystem.cherryRed,
+      color: modern.ModernDesignSystem.cherryRed,
       child: Column(
         children: _motivationOptions.map((motivation) {
           final isSelected = _selectedMotivations.contains(motivation);
@@ -1012,20 +1018,20 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isSelected
-                      ? cartoon.CartoonDesignSystem.cherryRed
+                      ? modern.ModernDesignSystem.cherryRed
                       : Colors.white,
                   foregroundColor: isSelected
                       ? Colors.white
-                      : cartoon.CartoonDesignSystem.textPrimary,
+                      : modern.ModernDesignSystem.textOnLight,
                   side: BorderSide(
                     color: isSelected
-                        ? cartoon.CartoonDesignSystem.cherryRed
-                        : cartoon.CartoonDesignSystem.textMuted,
+                        ? modern.ModernDesignSystem.cherryRed
+                        : modern.ModernDesignSystem.textMuted,
                     width: isSelected ? 2 : 1,
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                    borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                   ),
                   elevation: isSelected ? 4 : 0,
                 ),
@@ -1035,15 +1041,16 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                       isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
                       color: isSelected 
                           ? Colors.white 
-                          : cartoon.CartoonDesignSystem.textSecondary,
+                          : modern.ModernDesignSystem.textOnLightSecondary,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         _motivationLabels[motivation] ?? motivation,
-                        style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                        style: modern.ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected ? Colors.white : modern.ModernDesignSystem.textOnLight,
                         ),
                       ),
                     ),
@@ -1064,16 +1071,16 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'Experience & Learning Goals',
       description: 'Help us customize your learning path and pace.',
       icon: Icons.school,
-      color: cartoon.CartoonDesignSystem.lavenderPurple,
+      color: modern.ModernDesignSystem.lavenderPurple,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Language Level Section (no longer conditional)
           Text(
             'What\'s your current level with ${_targetLanguageLabels[_selectedTargetLanguage]?.split(' ').first ?? _selectedTargetLanguage}?',
-            style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+            style: modern.ModernDesignSystem.bodyLarge.copyWith(
               fontWeight: FontWeight.w600,
-              color: cartoon.CartoonDesignSystem.textPrimary,
+              color: modern.ModernDesignSystem.textPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -1087,24 +1094,26 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   onPressed: () => setState(() => _selectedLanguageLevel = level),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _selectedLanguageLevel == level
-                        ? cartoon.CartoonDesignSystem.lavenderPurple
+                        ? modern.ModernDesignSystem.lavenderPurple
                         : Colors.white,
                     foregroundColor: _selectedLanguageLevel == level
                         ? Colors.white
-                        : cartoon.CartoonDesignSystem.textPrimary,
+                        : modern.ModernDesignSystem.textOnLight,
                     side: BorderSide(
                       color: _selectedLanguageLevel == level
-                          ? cartoon.CartoonDesignSystem.lavenderPurple
-                          : cartoon.CartoonDesignSystem.textMuted,
+                          ? modern.ModernDesignSystem.lavenderPurple
+                          : modern.ModernDesignSystem.textMuted,
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                      borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                     ),
                   ),
                   child: Text(
                     _languageLevelLabels[level]?.split(' - ').first ?? level,
-                    style: cartoon.CartoonDesignSystem.bodySmall,
+                    style: modern.ModernDesignSystem.bodySmall.copyWith(
+                      color: _selectedLanguageLevel == level ? Colors.white : modern.ModernDesignSystem.textOnLight,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1117,9 +1126,9 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           // Learning Pace Section
           Text(
             'What\'s your preferred learning pace?',
-            style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+            style: modern.ModernDesignSystem.bodyLarge.copyWith(
               fontWeight: FontWeight.w600,
-              color: cartoon.CartoonDesignSystem.textPrimary,
+              color: modern.ModernDesignSystem.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -1138,24 +1147,26 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _selectedPace == pace
-                          ? cartoon.CartoonDesignSystem.warmOrange
+                          ? modern.ModernDesignSystem.warmOrange
                           : Colors.white,
                       foregroundColor: _selectedPace == pace
                           ? Colors.white
-                          : cartoon.CartoonDesignSystem.textPrimary,
+                          : modern.ModernDesignSystem.textOnLight,
                       side: BorderSide(
                         color: _selectedPace == pace
-                            ? cartoon.CartoonDesignSystem.warmOrange
-                            : cartoon.CartoonDesignSystem.textMuted,
+                            ? modern.ModernDesignSystem.warmOrange
+                            : modern.ModernDesignSystem.textMuted,
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                       ),
                     ),
                     child: Text(
                       _paceLabels[pace] ?? pace,
-                      style: cartoon.CartoonDesignSystem.bodyMedium,
+                      style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                        color: _selectedPace == pace ? Colors.white : modern.ModernDesignSystem.textOnLight,
+                      ),
                     ),
                   ),
                 ),
@@ -1168,20 +1179,20 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: cartoon.CartoonDesignSystem.lightBlue,
-                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                color: modern.ModernDesignSystem.skyBlue,
+                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.timer,
-                    color: cartoon.CartoonDesignSystem.warmOrange,
+                    color: modern.ModernDesignSystem.warmOrange,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Daily goal: $_dailyGoalMinutes minutes',
-                    style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-                      color: cartoon.CartoonDesignSystem.textSecondary,
+                    style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                      color: modern.ModernDesignSystem.textOnLight,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1200,16 +1211,16 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       title: 'You\'re almost ready!',
       description: 'Just accept our privacy terms to start your ${_targetLanguageLabels[_selectedTargetLanguage]?.split(' ').first ?? 'language'} adventure.',
       icon: Icons.celebration,
-      color: cartoon.CartoonDesignSystem.sunshineYellow,
+      color: modern.ModernDesignSystem.sunshineYellow,
       child: Column(
         children: [
           // Character and Language Summary
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: cartoon.CartoonDesignSystem.lightBlue,
-              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
-              border: Border.all(color: cartoon.CartoonDesignSystem.skyBlue.withValues(alpha: 0.3)),
+              color: modern.ModernDesignSystem.skyBlue,
+              borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
+              border: Border.all(color: modern.ModernDesignSystem.skyBlue.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -1217,14 +1228,14 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: cartoon.CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.2),
+                    color: modern.ModernDesignSystem.sunshineYellow.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
-                    border: Border.all(color: cartoon.CartoonDesignSystem.sunshineYellow, width: 2),
+                    border: Border.all(color: modern.ModernDesignSystem.sunshineYellow, width: 2),
                   ),
                   child: Icon(
                     Icons.person,
                     size: 32,
-                    color: cartoon.CartoonDesignSystem.sunshineYellow,
+                    color: modern.ModernDesignSystem.sunshineYellow,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1234,15 +1245,16 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                     children: [
                       Text(
                         'Ready to start your language adventure!',
-                        style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                        style: modern.ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: modern.ModernDesignSystem.textOnLight,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${_targetLanguageLabels[_selectedTargetLanguage]?.split(' - ').last ?? 'Adventure awaits'}',
-                        style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                          color: cartoon.CartoonDesignSystem.textSecondary,
+                        style: modern.ModernDesignSystem.bodySmall.copyWith(
+                          color: modern.ModernDesignSystem.textOnLightSecondary,
                         ),
                       ),
                     ],
@@ -1258,7 +1270,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           CheckboxListTile(
             title: Text(
               'I accept the Privacy Policy and Terms of Service',
-              style: cartoon.CartoonDesignSystem.bodyMedium,
+              style: modern.ModernDesignSystem.bodyMedium,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1276,14 +1288,14 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                         },
                         child: Text(
                           'Privacy Policy',
-                          style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                            color: cartoon.CartoonDesignSystem.skyBlue,
+                          style: modern.ModernDesignSystem.bodySmall.copyWith(
+                            color: modern.ModernDesignSystem.skyBlue,
                             decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
                     ),
-                    Text(' • ', style: cartoon.CartoonDesignSystem.bodySmall),
+                    Text(' • ', style: modern.ModernDesignSystem.bodySmall),
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
@@ -1294,8 +1306,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                         },
                         child: Text(
                           'Terms of Service',
-                          style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                            color: cartoon.CartoonDesignSystem.skyBlue,
+                          style: modern.ModernDesignSystem.bodySmall.copyWith(
+                            color: modern.ModernDesignSystem.skyBlue,
                             decoration: TextDecoration.underline,
                           ),
                         ),
@@ -1310,7 +1322,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
               _personalizedContentConsent = value ?? false;
               _voiceRecordingConsent = value ?? false;
             }),
-            activeColor: cartoon.CartoonDesignSystem.skyBlue,
+            activeColor: modern.ModernDesignSystem.skyBlue,
           ),
           
           const SizedBox(height: 16),
@@ -1319,8 +1331,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: cartoon.CartoonDesignSystem.lightBlue,
-              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+              color: modern.ModernDesignSystem.skyBlue,
+              borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1329,14 +1341,15 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   children: [
                     Icon(
                       Icons.info_outline,
-                      color: cartoon.CartoonDesignSystem.skyBlue,
+                      color: modern.ModernDesignSystem.skyBlue,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'What we collect for personalization:',
-                        style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                        style: modern.ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: modern.ModernDesignSystem.textOnLight,
                         ),
                       ),
                     ),
@@ -1348,8 +1361,8 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   '• Learning progress to track improvement\n'
                   '• Voice recordings for pronunciation (processed securely)\n'
                   '• Anonymous usage data to improve the app',
-                  style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                    color: cartoon.CartoonDesignSystem.textSecondary,
+                  style: modern.ModernDesignSystem.bodySmall.copyWith(
+                    color: modern.ModernDesignSystem.textOnLight,
                   ),
                 ),
               ],
@@ -1417,8 +1430,8 @@ class _OnboardingPageWidget extends StatelessWidget {
           const SizedBox(height: 40),
           Text(
             title,
-            style: cartoon.CartoonDesignSystem.headlineLarge.copyWith(
-              color: cartoon.CartoonDesignSystem.textPrimary,
+            style: modern.ModernDesignSystem.headlineLarge.copyWith(
+              color: modern.ModernDesignSystem.textPrimary,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -1426,8 +1439,8 @@ class _OnboardingPageWidget extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             description,
-            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-              color: cartoon.CartoonDesignSystem.textSecondary,
+            style: modern.ModernDesignSystem.bodyMedium.copyWith(
+              color: modern.ModernDesignSystem.textSecondary,
               height: 1.6,
               fontSize: 16,
             ),
@@ -1474,8 +1487,8 @@ class _FormPageWidget extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             title,
-            style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-              color: cartoon.CartoonDesignSystem.textPrimary,
+            style: modern.ModernDesignSystem.headlineMedium.copyWith(
+              color: modern.ModernDesignSystem.textPrimary,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -1483,8 +1496,8 @@ class _FormPageWidget extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             description,
-            style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
-              color: cartoon.CartoonDesignSystem.textSecondary,
+            style: modern.ModernDesignSystem.bodyMedium.copyWith(
+              color: modern.ModernDesignSystem.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,

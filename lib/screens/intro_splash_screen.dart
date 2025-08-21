@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/screens/main_screen/widgets/earth_globe_widget.dart';
 import 'package:babblelon/screens/main_screen/widgets/twinkling_stars.dart';
 import 'package:babblelon/screens/enhanced_onboarding_screen.dart';
@@ -15,18 +14,18 @@ import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/screens/authentication_screen.dart';
 import 'package:babblelon/providers/tutorial_database_providers.dart';
 
-/// Cartoon splash screen following BabbleOn UI Design Guide v2.0 (July 2025)
-/// Implements cartoon-themed design with playful animations and warm colors
-class CartoonSplashScreen extends ConsumerStatefulWidget {
+/// Intro splash screen following BabbleOn UI Design Guide v2.0 (August 2025)
+/// Implements modern dark theme with sophisticated animations and space visuals
+class IntroSplashScreen extends ConsumerStatefulWidget {
   final BackgroundAudioService? audioService;
   
-  const CartoonSplashScreen({super.key, this.audioService});
+  const IntroSplashScreen({super.key, this.audioService});
 
   @override
-  ConsumerState<CartoonSplashScreen> createState() => _CartoonSplashScreenState();
+  ConsumerState<IntroSplashScreen> createState() => _IntroSplashScreenState();
 }
 
-class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen> 
+class _IntroSplashScreenState extends ConsumerState<IntroSplashScreen> 
     with TickerProviderStateMixin {
   late AnimationController _globeRotationController;
   late AnimationController _capybaraController;
@@ -49,12 +48,12 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
     )..repeat();
     
     _titleController = AnimationController(
-      duration: CartoonDesignSystem.slowTransition,
+      duration: ModernDesignSystem.slowTransition,
       vsync: this,
     );
     
     _buttonController = AnimationController(
-      duration: CartoonDesignSystem.standardTransition,
+      duration: ModernDesignSystem.standardTransition,
       vsync: this,
     );
     
@@ -105,7 +104,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
   }
 
   void _onStartJourney() async {
-    CartoonDesignSystem.triggerSuccessFeedback();
+    ModernDesignSystem.triggerSuccessFeedback();
     
     // Start zoom animation first
     _zoomController.forward();
@@ -168,7 +167,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: ModernDesignSystem.spaceGradient,
+          gradient: ModernDesignSystem.backgroundGradient,
         ),
         child: SafeArea(
           child: Stack(
@@ -196,7 +195,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
                       child: Transform.scale(
                         scale: zoomScale,
                         child: Padding(
-                        padding: const EdgeInsets.all(CartoonDesignSystem.spaceXL),
+                        padding: const EdgeInsets.all(ModernDesignSystem.spaceXL),
                         child: Column(
                           children: [
                       // Logo and tagline section with bouncing entrance
@@ -220,7 +219,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
                               ),
                             ),
                             
-                            const SizedBox(height: CartoonDesignSystem.spaceXL),
+                            const SizedBox(height: ModernDesignSystem.spaceXL),
                             
                             // Modern tagline with staggered animations and clean typography
                             ConditionalAnimation(
@@ -276,10 +275,10 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
                                       label: 'Start Your Journey button',
                                       hint: 'Tap to begin your language learning adventure',
                                       button: true,
-                                      child: CartoonButton(
+                                      child: ModernButton(
                                         text: 'Start Your Journey!',
                                         onPressed: _onStartJourney,
-                                        style: CartoonButtonStyle.accent,
+                                        style: ModernButtonStyle.accent,
                                         width: double.infinity,
                                         icon: Icons.explore,
                                       ),
@@ -289,7 +288,7 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
                               },
                             ),
                             
-                            const SizedBox(height: CartoonDesignSystem.spaceXL),
+                            const SizedBox(height: ModernDesignSystem.spaceXL),
                           ],
                         ),
                       ),

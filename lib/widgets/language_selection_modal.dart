@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 
 /// Language data model for language selection
 class LanguageData {
@@ -87,7 +87,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
         children: [
           Icon(
             Icons.language_outlined,
-            color: cartoon.CartoonDesignSystem.forestGreen,
+            color: modern.ModernDesignSystem.forestGreen,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -120,16 +120,16 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isSelected 
-                          ? cartoon.CartoonDesignSystem.forestGreen.withValues(alpha: 0.1)
+                          ? modern.ModernDesignSystem.forestGreen.withValues(alpha: 0.1)
                           : language.isAvailable
                             ? Colors.grey[50]
                             : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                         border: Border.all(
                           color: isSelected 
-                            ? cartoon.CartoonDesignSystem.forestGreen
+                            ? modern.ModernDesignSystem.forestGreen
                             : language.isAvailable
-                              ? cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3)
+                              ? modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3)
                               : Colors.grey.shade300,
                           width: isSelected ? 2 : 1,
                         ),
@@ -150,18 +150,18 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                               children: [
                                 Text(
                                   language.name,
-                                  style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                                  style: modern.ModernDesignSystem.bodyMedium.copyWith(
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                     color: language.isAvailable
-                                      ? (isSelected ? cartoon.CartoonDesignSystem.forestGreen : cartoon.CartoonDesignSystem.textPrimary)
+                                      ? (isSelected ? modern.ModernDesignSystem.forestGreen : modern.ModernDesignSystem.textPrimary)
                                       : Colors.grey.shade500,
                                   ),
                                 ),
                                 Text(
                                   language.nativeName,
-                                  style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                                  style: modern.ModernDesignSystem.bodySmall.copyWith(
                                     color: language.isAvailable
-                                      ? cartoon.CartoonDesignSystem.textSecondary
+                                      ? modern.ModernDesignSystem.textSecondary
                                       : Colors.grey.shade400,
                                   ),
                                 ),
@@ -172,12 +172,12 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: cartoon.CartoonDesignSystem.warmOrange,
-                                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusSmall),
+                                color: modern.ModernDesignSystem.warmOrange,
+                                borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusSmall),
                               ),
                               child: Text(
                                 'Coming Soon',
-                                style: cartoon.CartoonDesignSystem.caption.copyWith(
+                                style: modern.ModernDesignSystem.caption.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 10,
@@ -187,7 +187,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                           else if (isSelected)
                             Icon(
                               Icons.check_circle,
-                              color: cartoon.CartoonDesignSystem.forestGreen,
+                              color: modern.ModernDesignSystem.forestGreen,
                               size: 20,
                             ),
                         ],
@@ -205,7 +205,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
             'Cancel',
-            style: TextStyle(color: cartoon.CartoonDesignSystem.textSecondary),
+            style: TextStyle(color: modern.ModernDesignSystem.textSecondary),
           ),
         ),
         ElevatedButton(
@@ -216,7 +216,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
               }
             : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+            backgroundColor: modern.ModernDesignSystem.forestGreen,
             foregroundColor: Colors.white,
           ),
           child: const Text('Select'),
@@ -229,7 +229,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$languageName learning is coming soon!'),
-        backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+        backgroundColor: modern.ModernDesignSystem.warmOrange,
       ),
     );
   }

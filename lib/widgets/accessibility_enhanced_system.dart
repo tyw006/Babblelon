@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/widgets/performance_optimization_helpers.dart';
 
 /// Comprehensive accessibility and error handling system for BabbleOn
@@ -231,11 +231,11 @@ class ErrorDisplay extends StatelessWidget {
     
     return Scaffold(
       backgroundColor: accessibilityTheme?.getContrastAdjustedColor(
-        CartoonDesignSystem.creamWhite,
-      ) ?? CartoonDesignSystem.creamWhite,
+        ModernDesignSystem.creamWhite,
+      ) ?? ModernDesignSystem.creamWhite,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(CartoonDesignSystem.spaceLG),
+          padding: const EdgeInsets.all(ModernDesignSystem.spaceLG),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -246,48 +246,48 @@ class ErrorDisplay extends StatelessWidget {
                   Icons.error_outline,
                   size: 64,
                   color: accessibilityTheme?.getContrastAdjustedColor(
-                    CartoonDesignSystem.warmOrange,
-                  ) ?? CartoonDesignSystem.warmOrange,
+                    ModernDesignSystem.warmOrange,
+                  ) ?? ModernDesignSystem.warmOrange,
                 ),
               ),
               
-              const SizedBox(height: CartoonDesignSystem.spaceLG),
+              const SizedBox(height: ModernDesignSystem.spaceLG),
               
               // Error title
               Semantics(
                 header: true,
                 child: Text(
                   'Oops! Something went wrong',
-                  style: CartoonDesignSystem.headlineLarge.copyWith(
+                  style: ModernDesignSystem.headlineLarge.copyWith(
                     color: accessibilityTheme?.getContrastAdjustedColor(
-                      CartoonDesignSystem.textPrimary,
-                    ) ?? CartoonDesignSystem.textPrimary,
-                    fontSize: CartoonDesignSystem.headlineLarge.fontSize! *
+                      ModernDesignSystem.textPrimary,
+                    ) ?? ModernDesignSystem.textPrimary,
+                    fontSize: ModernDesignSystem.headlineLarge.fontSize! *
                         (accessibilityTheme?.getTextScale() ?? 1.0),
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
               
-              const SizedBox(height: CartoonDesignSystem.spaceMD),
+              const SizedBox(height: ModernDesignSystem.spaceMD),
               
               // Error message
               Semantics(
                 liveRegion: true,
                 child: Text(
                   errorInfo.userFriendlyMessage,
-                  style: CartoonDesignSystem.bodyLarge.copyWith(
+                  style: ModernDesignSystem.bodyLarge.copyWith(
                     color: accessibilityTheme?.getContrastAdjustedColor(
-                      CartoonDesignSystem.textSecondary,
-                    ) ?? CartoonDesignSystem.textSecondary,
-                    fontSize: CartoonDesignSystem.bodyLarge.fontSize! * 
+                      ModernDesignSystem.textSecondary,
+                    ) ?? ModernDesignSystem.textSecondary,
+                    fontSize: ModernDesignSystem.bodyLarge.fontSize! * 
                         (accessibilityTheme?.getTextScale() ?? 1.0),
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
               
-              const SizedBox(height: CartoonDesignSystem.spaceXL),
+              const SizedBox(height: ModernDesignSystem.spaceXL),
               
               // Action buttons
               Row(
@@ -298,19 +298,19 @@ class ErrorDisplay extends StatelessWidget {
                       child: AccessibilityEnhancedButton(
                         text: 'Try Again',
                         onPressed: onDismissed,
-                        style: CartoonButtonStyle.primary,
+                        style: ModernButtonStyle.primary,
                         semanticLabel: 'Try again button',
                         icon: Icons.refresh,
                       ),
                     ),
                   
-                  const SizedBox(width: CartoonDesignSystem.spaceMD),
+                  const SizedBox(width: ModernDesignSystem.spaceMD),
                   
                   Expanded(
                     child: AccessibilityEnhancedButton(
                       text: 'Report Issue',
                       onPressed: () => _reportError(context, errorInfo),
-                      style: CartoonButtonStyle.outline,
+                      style: ModernButtonStyle.outline,
                       semanticLabel: 'Report this issue',
                       icon: Icons.bug_report,
                     ),
@@ -329,7 +329,7 @@ class ErrorDisplay extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Error report sent. Thank you for your feedback!'),
-        backgroundColor: CartoonDesignSystem.forestGreen,
+        backgroundColor: ModernDesignSystem.forestGreen,
       ),
     );
   }
@@ -339,7 +339,7 @@ class ErrorDisplay extends StatelessWidget {
 class AccessibilityEnhancedButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
-  final CartoonButtonStyle style;
+  final ModernButtonStyle style;
   final String? semanticLabel;
   final String? semanticHint;
   final IconData? icon;
@@ -349,7 +349,7 @@ class AccessibilityEnhancedButton extends StatelessWidget {
     super.key,
     required this.text,
     this.onPressed,
-    this.style = CartoonButtonStyle.primary,
+    this.style = ModernButtonStyle.primary,
     this.semanticLabel,
     this.semanticHint,
     this.icon,
@@ -371,7 +371,7 @@ class AccessibilityEnhancedButton extends StatelessWidget {
         }
         onPressed!();
       } : null,
-      child: CartoonButton(
+      child: ModernButton(
         text: text,
         onPressed: onPressed,
         style: style,
@@ -406,7 +406,7 @@ class AccessibilityEnhancedText extends StatelessWidget {
     final adjustedStyle = style?.copyWith(
       fontSize: (style?.fontSize ?? 16) * (accessibilityTheme?.getTextScale() ?? 1.0),
       color: accessibilityTheme?.getContrastAdjustedColor(
-        style?.color ?? CartoonDesignSystem.textPrimary,
+        style?.color ?? ModernDesignSystem.textPrimary,
       ) ?? style?.color,
     );
 
@@ -514,14 +514,14 @@ class AccessibleLoadingIndicator extends StatelessWidget {
           children: [
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
-                color ?? CartoonDesignSystem.cherryRed,
+                color ?? ModernDesignSystem.cherryRed,
               ),
             ),
             if (loadingText != null) ...[
-              const SizedBox(height: CartoonDesignSystem.spaceMD),
+              const SizedBox(height: ModernDesignSystem.spaceMD),
               AccessibilityEnhancedText(
                 text: loadingText!,
-                style: CartoonDesignSystem.bodyMedium,
+                style: ModernDesignSystem.bodyMedium,
                 isLiveRegion: true,
               ),
             ],

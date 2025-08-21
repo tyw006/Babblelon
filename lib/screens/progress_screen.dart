@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/models/local_storage_models.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/widgets/universal_stats_row.dart';
 
@@ -14,7 +14,7 @@ class ProgressScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Your Progress',
@@ -63,7 +63,7 @@ class _DetailedMetrics extends ConsumerWidget {
           'Learning Metrics',
           style: AppTheme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            color: CartoonDesignSystem.textPrimary,
+            color: ModernDesignSystem.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -88,7 +88,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '$masteredWords',
                         subtitle: 'learned',
                         icon: Icons.text_fields,
-                        color: CartoonDesignSystem.sunshineYellow,
+                        color: ModernDesignSystem.sunshineYellow,
                         progress: totalWords > 0 ? masteredWords / totalWords : 0.0,
                       ),
                     ),
@@ -99,7 +99,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '${(averageScore * 100).toInt()}%',
                         subtitle: 'average',
                         icon: Icons.trending_up,
-                        color: CartoonDesignSystem.forestGreen,
+                        color: ModernDesignSystem.forestGreen,
                         progress: averageScore,
                       ),
                     ),
@@ -114,7 +114,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '$masteredCharacters',
                         subtitle: 'mastered',
                         icon: Icons.text_format,
-                        color: CartoonDesignSystem.cherryRed,
+                        color: ModernDesignSystem.cherryRed,
                         progress: totalWords > 0 ? masteredCharacters / totalWords : 0.0,
                       ),
                     ),
@@ -125,7 +125,7 @@ class _DetailedMetrics extends ConsumerWidget {
                         value: '${phrases.fold(0, (sum, p) => sum + p.timesPracticed)}',
                         subtitle: 'total',
                         icon: Icons.timer,
-                        color: CartoonDesignSystem.skyBlue,
+                        color: ModernDesignSystem.skyBlue,
                         progress: 0.7,
                       ),
                     ),
@@ -185,7 +185,7 @@ class _MetricCard extends StatelessWidget {
               Text(
                 title,
                 style: AppTheme.textTheme.bodySmall?.copyWith(
-                  color: CartoonDesignSystem.textSecondary,
+                  color: ModernDesignSystem.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -203,7 +203,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             subtitle,
             style: AppTheme.textTheme.bodySmall?.copyWith(
-              color: CartoonDesignSystem.textMuted,
+              color: ModernDesignSystem.textMuted,
               fontSize: 10,
             ),
           ),

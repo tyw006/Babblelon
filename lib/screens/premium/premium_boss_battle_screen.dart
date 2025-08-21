@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 
 /// Premium boss battle training screen for practicing pronunciation outside of game context
@@ -54,7 +54,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Boss Battle Training',
@@ -93,7 +93,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                   Color(0xFFFFA500),
                 ],
               ),
-              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
             ),
             child: Row(
               children: [
@@ -168,8 +168,8 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+              color: ModernDesignSystem.softPeach.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
               border: Border.all(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.3),
                 width: 1,
@@ -197,7 +197,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                 Text(
                   selectedBoss.description,
                   style: AppTheme.textTheme.bodyMedium?.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
+                    color: ModernDesignSystem.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -211,10 +211,10 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+              color: ModernDesignSystem.softPeach.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
               border: Border.all(
-                color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+                color: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -234,7 +234,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                     subtitle: Text(
                       difficulty.description,
                       style: AppTheme.textTheme.bodySmall?.copyWith(
-                        color: CartoonDesignSystem.textSecondary,
+                        color: ModernDesignSystem.textSecondary,
                       ),
                     ),
                     value: difficulty,
@@ -259,8 +259,8 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                 child: ElevatedButton(
                   onPressed: () => setState(() => selectedBossId = null),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
-                    foregroundColor: CartoonDesignSystem.textOnBright,
+                    backgroundColor: ModernDesignSystem.textSecondary.withValues(alpha: 0.3),
+                    foregroundColor: ModernDesignSystem.textOnBright,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: const Text('Back'),
@@ -296,7 +296,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.9),
+            color: ModernDesignSystem.softPeach.withValues(alpha: 0.9),
             border: Border(
               bottom: BorderSide(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.3),
@@ -354,7 +354,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFD700).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+                    borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
                     border: Border.all(
                       color: const Color(0xFFFFD700).withValues(alpha: 0.3),
                     ),
@@ -371,7 +371,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                       Text(
                         selectedDifficulty.displayName,
                         style: AppTheme.textTheme.bodyMedium?.copyWith(
-                          color: CartoonDesignSystem.textSecondary,
+                          color: ModernDesignSystem.textSecondary,
                         ),
                       ),
                     ],
@@ -384,10 +384,10 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+                    color: ModernDesignSystem.softPeach.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
                     border: Border.all(
-                      color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+                      color: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -408,14 +408,14 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                       Text(
                         'sawatdi',
                         style: AppTheme.textTheme.titleMedium?.copyWith(
-                          color: CartoonDesignSystem.textSecondary,
+                          color: ModernDesignSystem.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Hello',
                         style: AppTheme.textTheme.bodyMedium?.copyWith(
-                          color: CartoonDesignSystem.textSecondary,
+                          color: ModernDesignSystem.textSecondary,
                         ),
                       ),
                     ],
@@ -432,7 +432,7 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.9),
+            color: ModernDesignSystem.softPeach.withValues(alpha: 0.9),
             border: Border(
               top: BorderSide(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.3),
@@ -493,8 +493,8 @@ class _PremiumBossBattleScreenState extends ConsumerState<PremiumBossBattleScree
                     onPressed: () {
                       // Show battle statistics
                     },
-                    icon: const Icon(Icons.analytics, color: CartoonDesignSystem.sunshineYellow),
-                    label: const Text('Stats', style: TextStyle(color: CartoonDesignSystem.sunshineYellow)),
+                    icon: const Icon(Icons.analytics, color: ModernDesignSystem.sunshineYellow),
+                    label: const Text('Stats', style: TextStyle(color: ModernDesignSystem.sunshineYellow)),
                   ),
                 ],
               ),
@@ -618,13 +618,13 @@ class _BossCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: boss.isUnlocked 
-            ? CartoonDesignSystem.softPeach.withValues(alpha: 0.6)
-            : CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+            ? ModernDesignSystem.softPeach.withValues(alpha: 0.6)
+            : ModernDesignSystem.textSecondary.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
           border: Border.all(
             color: boss.isUnlocked 
               ? const Color(0xFFFFD700).withValues(alpha: 0.3)
-              : CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
+              : ModernDesignSystem.textSecondary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -634,10 +634,10 @@ class _BossCard extends StatelessWidget {
               radius: 35,
               backgroundColor: boss.isUnlocked 
                 ? _getBossElementColor(boss.element).withValues(alpha: 0.2)
-                : CartoonDesignSystem.textSecondary.withValues(alpha: 0.2),
+                : ModernDesignSystem.textSecondary.withValues(alpha: 0.2),
               child: Icon(
                 _getBossIcon(boss.id),
-                color: boss.isUnlocked ? _getBossElementColor(boss.element) : CartoonDesignSystem.textSecondary,
+                color: boss.isUnlocked ? _getBossElementColor(boss.element) : ModernDesignSystem.textSecondary,
                 size: 35,
               ),
             ),
@@ -649,14 +649,14 @@ class _BossCard extends StatelessWidget {
                   Text(
                     boss.name,
                     style: AppTheme.textTheme.titleLarge?.copyWith(
-                      color: boss.isUnlocked ? const Color(0xFFFFD700) : CartoonDesignSystem.textSecondary,
+                      color: boss.isUnlocked ? const Color(0xFFFFD700) : ModernDesignSystem.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     boss.description,
                     style: AppTheme.textTheme.bodyMedium?.copyWith(
-                      color: CartoonDesignSystem.textSecondary,
+                      color: ModernDesignSystem.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -667,13 +667,13 @@ class _BossCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: boss.isUnlocked 
                             ? _getBossElementColor(boss.element).withValues(alpha: 0.2)
-                            : CartoonDesignSystem.textSecondary.withValues(alpha: 0.2),
+                            : ModernDesignSystem.textSecondary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           boss.element,
                           style: AppTheme.textTheme.bodySmall?.copyWith(
-                            color: boss.isUnlocked ? _getBossElementColor(boss.element) : CartoonDesignSystem.textSecondary,
+                            color: boss.isUnlocked ? _getBossElementColor(boss.element) : ModernDesignSystem.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -688,7 +688,7 @@ class _BossCard extends StatelessWidget {
                         child: Text(
                           boss.difficulty.displayName,
                           style: AppTheme.textTheme.bodySmall?.copyWith(
-                            color: boss.isUnlocked ? boss.difficulty.color : CartoonDesignSystem.textSecondary,
+                            color: boss.isUnlocked ? boss.difficulty.color : ModernDesignSystem.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -702,13 +702,13 @@ class _BossCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: CartoonDesignSystem.textSecondary.withValues(alpha: 0.3),
+                  color: ModernDesignSystem.textSecondary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'Locked',
                   style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
+                    color: ModernDesignSystem.textSecondary,
                     fontSize: 12,
                   ),
                 ),

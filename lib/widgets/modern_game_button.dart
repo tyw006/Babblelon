@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/providers/game_providers.dart';
 
-class CartoonGameButton extends ConsumerStatefulWidget {
+class ModernGameButton extends ConsumerStatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isEnabled;
@@ -13,7 +13,7 @@ class CartoonGameButton extends ConsumerStatefulWidget {
   final double? width;
   final double height;
 
-  const CartoonGameButton({
+  const ModernGameButton({
     super.key,
     required this.text,
     this.onPressed,
@@ -25,10 +25,10 @@ class CartoonGameButton extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CartoonGameButton> createState() => _CartoonGameButtonState();
+  ConsumerState<ModernGameButton> createState() => _ModernGameButtonState();
 }
 
-class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
+class _ModernGameButtonState extends ConsumerState<ModernGameButton>
     with TickerProviderStateMixin {
   late AnimationController _hoverController;
   late AnimationController _pressController;
@@ -78,7 +78,7 @@ class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
   }
 
   @override
-  void didUpdateWidget(CartoonGameButton oldWidget) {
+  void didUpdateWidget(ModernGameButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     
     if (widget.isEnabled && !widget.isLoading && !_glowController.isAnimating) {
@@ -153,40 +153,40 @@ class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
                 height: widget.height,
                 decoration: BoxDecoration(
                   gradient: isInteractive
-                      ? CartoonDesignSystem.primaryGradient
+                      ? ModernDesignSystem.primaryGradient
                       : LinearGradient(
                           colors: [
-                            CartoonDesignSystem.textMuted.withValues(alpha: 0.5),
-                            CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                            ModernDesignSystem.textMuted.withValues(alpha: 0.5),
+                            ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                           ],
                         ),
-                  borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+                  borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
                   border: Border.all(
                     color: isInteractive
-                        ? CartoonDesignSystem.sunshineYellow.withValues(
+                        ? ModernDesignSystem.sunshineYellow.withValues(
                             alpha: 0.3 + (_glowAnimation.value * 0.4),
                           )
-                        : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                        : ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                   boxShadow: isInteractive
                       ? [
                           BoxShadow(
-                            color: CartoonDesignSystem.sunshineYellow.withValues(
+                            color: ModernDesignSystem.sunshineYellow.withValues(
                               alpha: 0.2 + (_glowAnimation.value * 0.3),
                             ),
                             blurRadius: 20 + (_glowAnimation.value * 10),
                             spreadRadius: 2 + (_glowAnimation.value * 3),
                           ),
                           BoxShadow(
-                            color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.8),
+                            color: ModernDesignSystem.textPrimary.withValues(alpha: 0.8),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
                         ]
                       : [
                           BoxShadow(
-                            color: CartoonDesignSystem.textPrimary.withValues(alpha: 0.5),
+                            color: ModernDesignSystem.textPrimary.withValues(alpha: 0.5),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -200,7 +200,7 @@ class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              CartoonDesignSystem.textOnBright,
+                              ModernDesignSystem.textOnBright,
                             ),
                           ),
                         )
@@ -211,23 +211,23 @@ class _CartoonGameButtonState extends ConsumerState<CartoonGameButton>
                               Icon(
                                 widget.icon,
                                 color: isInteractive
-                                    ? CartoonDesignSystem.textPrimary
-                                    : CartoonDesignSystem.textMuted,
+                                    ? ModernDesignSystem.textPrimary
+                                    : ModernDesignSystem.textMuted,
                                 size: 20,
                               ),
-                              const SizedBox(width: CartoonDesignSystem.spaceSM),
+                              const SizedBox(width: ModernDesignSystem.spaceSM),
                             ],
                             Text(
                               widget.text,
                               style: AppTheme.textTheme.titleMedium?.copyWith(
                                 color: isInteractive
-                                    ? CartoonDesignSystem.textPrimary
-                                    : CartoonDesignSystem.textMuted,
+                                    ? ModernDesignSystem.textPrimary
+                                    : ModernDesignSystem.textMuted,
                                 fontWeight: FontWeight.w600,
                                 shadows: isInteractive
                                     ? [
                                         Shadow(
-                                          color: CartoonDesignSystem.textOnBright.withValues(alpha: 0.8),
+                                          color: ModernDesignSystem.textOnBright.withValues(alpha: 0.8),
                                           blurRadius: 2,
                                         ),
                                       ]

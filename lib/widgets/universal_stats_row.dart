@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/models/local_storage_models.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/providers/player_data_providers.dart';
 import 'package:babblelon/services/auth_service_interface.dart';
 
@@ -41,10 +41,10 @@ class UniversalStatsRow extends ConsumerWidget {
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: cartoon.CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
+        color: modern.ModernDesignSystem.softPeach.withValues(alpha: 0.6),
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         border: Border.all(
-          color: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+          color: modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -54,17 +54,17 @@ class UniversalStatsRow extends ConsumerWidget {
           _buildInlineStatItem(
             icon: Icons.star,
             value: level,
-            color: cartoon.CartoonDesignSystem.sunshineYellow,
+            color: modern.ModernDesignSystem.sunshineYellow,
           ),
           _buildInlineStatItem(
             icon: Icons.psychology,
             value: xp,
-            color: cartoon.CartoonDesignSystem.skyBlue,
+            color: modern.ModernDesignSystem.skyBlue,
           ),
           _buildInlineStatItem(
             icon: Icons.monetization_on,
             value: gold,
-            color: cartoon.CartoonDesignSystem.warmOrange,
+            color: modern.ModernDesignSystem.warmOrange,
           ),
         ],
       ),

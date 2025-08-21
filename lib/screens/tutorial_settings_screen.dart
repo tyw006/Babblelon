@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/tutorial_database_providers.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 
 /// Tutorial settings screen for managing tutorial preferences
 /// Allows users to re-enable completed tutorials and view tutorial history
@@ -200,25 +200,25 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
     final tutorialStats = ref.watch(tutorialStatsProvider);
 
     return Scaffold(
-      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
+      backgroundColor: modern.ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: const Text(
           'Tutorial Settings',
           style: TextStyle(
-            color: cartoon.CartoonDesignSystem.textPrimary,
+            color: modern.ModernDesignSystem.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
+        backgroundColor: modern.ModernDesignSystem.creamWhite,
         elevation: 0,
         iconTheme: const IconThemeData(
-          color: cartoon.CartoonDesignSystem.textPrimary,
+          color: modern.ModernDesignSystem.textPrimary,
         ),
         actions: [
           IconButton(
             icon: Icon(
               _showCompletedOnly ? Icons.check_box : Icons.check_box_outline_blank,
-              color: cartoon.CartoonDesignSystem.cherryRed,
+              color: modern.ModernDesignSystem.cherryRed,
             ),
             onPressed: () => setState(() => _showCompletedOnly = !_showCompletedOnly),
             tooltip: 'Show completed only',
@@ -252,8 +252,8 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       elevation: 4,
       color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
-        side: BorderSide(color: cartoon.CartoonDesignSystem.skyBlue, width: 2),
+        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
+        side: BorderSide(color: modern.ModernDesignSystem.skyBlue, width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -264,14 +264,14 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
               children: [
                 Icon(
                   Icons.analytics,
-                  color: cartoon.CartoonDesignSystem.skyBlue,
+                  color: modern.ModernDesignSystem.skyBlue,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Tutorial Progress',
-                  style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-                    color: cartoon.CartoonDesignSystem.textPrimary,
+                  style: modern.ModernDesignSystem.headlineMedium.copyWith(
+                    color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -293,13 +293,13 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                       children: [
                         Text(
                           'Completed Tutorials',
-                          style: cartoon.CartoonDesignSystem.bodyMedium,
+                          style: modern.ModernDesignSystem.bodyMedium,
                         ),
                         Text(
                           '$totalCompleted / $totalAvailable',
-                          style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                          style: modern.ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: cartoon.CartoonDesignSystem.cherryRed,
+                            color: modern.ModernDesignSystem.cherryRed,
                           ),
                         ),
                       ],
@@ -307,16 +307,16 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                     const SizedBox(height: 8),
                     LinearProgressIndicator(
                       value: totalCompleted / totalAvailable,
-                      backgroundColor: cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                      backgroundColor: modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        cartoon.CartoonDesignSystem.cherryRed,
+                        modern.ModernDesignSystem.cherryRed,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '$progressPercentage% Complete',
-                      style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-                        color: cartoon.CartoonDesignSystem.textSecondary,
+                      style: modern.ModernDesignSystem.bodySmall.copyWith(
+                        color: modern.ModernDesignSystem.textSecondary,
                       ),
                     ),
                   ],
@@ -325,7 +325,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
               loading: () => const CircularProgressIndicator(),
               error: (error, stack) => Text(
                 'Error loading stats: $error',
-                style: TextStyle(color: cartoon.CartoonDesignSystem.cherryRed),
+                style: TextStyle(color: modern.ModernDesignSystem.cherryRed),
               ),
             ),
           ],
@@ -339,8 +339,8 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       elevation: 4,
       color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
-        side: BorderSide(color: cartoon.CartoonDesignSystem.warmOrange, width: 2),
+        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
+        side: BorderSide(color: modern.ModernDesignSystem.warmOrange, width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -351,14 +351,14 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
               children: [
                 Icon(
                   Icons.flash_on,
-                  color: cartoon.CartoonDesignSystem.warmOrange,
+                  color: modern.ModernDesignSystem.warmOrange,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Quick Actions',
-                  style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-                    color: cartoon.CartoonDesignSystem.textPrimary,
+                  style: modern.ModernDesignSystem.headlineMedium.copyWith(
+                    color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -373,11 +373,11 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                     icon: const Icon(Icons.restart_alt),
                     label: const Text('Reset All'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: cartoon.CartoonDesignSystem.cherryRed,
+                      backgroundColor: modern.ModernDesignSystem.cherryRed,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                       ),
                     ),
                   ),
@@ -389,11 +389,11 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                     icon: const Icon(Icons.done_all),
                     label: const Text('Mark All Done'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+                      backgroundColor: modern.ModernDesignSystem.forestGreen,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+                        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                       ),
                     ),
                   ),
@@ -436,7 +436,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: _getCategoryColor(category).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+            borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
             border: Border.all(color: _getCategoryColor(category), width: 1),
           ),
           child: Row(
@@ -449,8 +449,8 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
               const SizedBox(width: 12),
               Text(
                 _getCategoryName(category),
-                style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-                  color: cartoon.CartoonDesignSystem.textPrimary,
+                style: modern.ModernDesignSystem.headlineMedium.copyWith(
+                  color: modern.ModernDesignSystem.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
@@ -490,11 +490,11 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+        borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
         side: BorderSide(
           color: isCompleted 
-              ? cartoon.CartoonDesignSystem.forestGreen 
-              : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+              ? modern.ModernDesignSystem.forestGreen 
+              : modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -504,35 +504,35 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           height: 40,
           decoration: BoxDecoration(
             color: isCompleted 
-                ? cartoon.CartoonDesignSystem.forestGreen.withValues(alpha: 0.1)
-                : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.1),
+                ? modern.ModernDesignSystem.forestGreen.withValues(alpha: 0.1)
+                : modern.ModernDesignSystem.textMuted.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Icon(
             isCompleted ? Icons.check_circle : info.icon,
             color: isCompleted 
-                ? cartoon.CartoonDesignSystem.forestGreen
-                : cartoon.CartoonDesignSystem.textSecondary,
+                ? modern.ModernDesignSystem.forestGreen
+                : modern.ModernDesignSystem.textSecondary,
             size: 20,
           ),
         ),
         title: Text(
           info.name,
-          style: cartoon.CartoonDesignSystem.bodyLarge.copyWith(
+          style: modern.ModernDesignSystem.bodyLarge.copyWith(
             fontWeight: FontWeight.w600,
-            color: cartoon.CartoonDesignSystem.textPrimary,
+            color: modern.ModernDesignSystem.textPrimary,
           ),
         ),
         subtitle: Text(
           info.description,
-          style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
-            color: cartoon.CartoonDesignSystem.textSecondary,
+          style: modern.ModernDesignSystem.bodySmall.copyWith(
+            color: modern.ModernDesignSystem.textSecondary,
           ),
         ),
         trailing: Switch(
           value: isCompleted,
           onChanged: (value) => _toggleTutorial(tutorialId, value),
-          activeColor: cartoon.CartoonDesignSystem.forestGreen,
+          activeColor: modern.ModernDesignSystem.forestGreen,
         ),
       ),
     );
@@ -542,17 +542,17 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
   Color _getCategoryColor(TutorialCategory category) {
     switch (category) {
       case TutorialCategory.navigation:
-        return cartoon.CartoonDesignSystem.skyBlue;
+        return modern.ModernDesignSystem.skyBlue;
       case TutorialCategory.gameplay:
-        return cartoon.CartoonDesignSystem.sunshineYellow;
+        return modern.ModernDesignSystem.sunshineYellow;
       case TutorialCategory.dialogue:
-        return cartoon.CartoonDesignSystem.cherryRed;
+        return modern.ModernDesignSystem.cherryRed;
       case TutorialCategory.combat:
-        return cartoon.CartoonDesignSystem.warmOrange;
+        return modern.ModernDesignSystem.warmOrange;
       case TutorialCategory.learning:
-        return cartoon.CartoonDesignSystem.forestGreen;
+        return modern.ModernDesignSystem.forestGreen;
       case TutorialCategory.achievements:
-        return cartoon.CartoonDesignSystem.cherryRed;
+        return modern.ModernDesignSystem.cherryRed;
     }
   }
 
@@ -603,7 +603,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('All navigation tutorial steps marked as completed'),
-              backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+              backgroundColor: modern.ModernDesignSystem.forestGreen,
             ),
           );
         }
@@ -616,7 +616,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('All navigation tutorial steps reset'),
-              backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+              backgroundColor: modern.ModernDesignSystem.warmOrange,
             ),
           );
         }
@@ -629,7 +629,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" marked as completed'),
-              backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+              backgroundColor: modern.ModernDesignSystem.forestGreen,
             ),
           );
         }
@@ -639,7 +639,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" reset'),
-              backgroundColor: cartoon.CartoonDesignSystem.warmOrange,
+              backgroundColor: modern.ModernDesignSystem.warmOrange,
             ),
           );
         }
@@ -663,7 +663,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
-              foregroundColor: cartoon.CartoonDesignSystem.cherryRed,
+              foregroundColor: modern.ModernDesignSystem.cherryRed,
             ),
             child: const Text('Reset All'),
           ),
@@ -676,7 +676,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('All tutorials have been reset'),
-          backgroundColor: cartoon.CartoonDesignSystem.cherryRed,
+          backgroundColor: modern.ModernDesignSystem.cherryRed,
         ),
       );
     }
@@ -698,7 +698,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
-              foregroundColor: cartoon.CartoonDesignSystem.forestGreen,
+              foregroundColor: modern.ModernDesignSystem.forestGreen,
             ),
             child: const Text('Mark All Done'),
           ),
@@ -716,7 +716,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('All tutorials marked as completed'),
-            backgroundColor: cartoon.CartoonDesignSystem.forestGreen,
+            backgroundColor: modern.ModernDesignSystem.forestGreen,
           ),
         );
       }

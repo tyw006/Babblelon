@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/character_models.dart';
-import '../widgets/cartoon_design_system.dart';
+import '../theme/modern_design_system.dart';
 
 /// Simplified character selection screen - only 2 characters, no customization
 class CharacterSelectionScreen extends ConsumerStatefulWidget {
@@ -75,7 +75,7 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.skyBlue,
+      backgroundColor: ModernDesignSystem.skyBlue,
       body: SafeArea(
         child: Column(
           children: [
@@ -86,7 +86,7 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                 children: [
                   Text(
                     'Choose Your Character',
-                    style: CartoonDesignSystem.displayMedium.copyWith(
+                    style: ModernDesignSystem.displayMedium.copyWith(
                       color: Colors.white,
                       fontSize: 28,
                     ),
@@ -94,7 +94,7 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                   const SizedBox(height: 8),
                   Text(
                     'Select your avatar for the adventure',
-                    style: CartoonDesignSystem.bodyLarge.copyWith(
+                    style: ModernDesignSystem.bodyLarge.copyWith(
                       color: Colors.white70,
                     ),
                     textAlign: TextAlign.center,
@@ -139,12 +139,12 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                                 height: 180,
                                 decoration: BoxDecoration(
                                   color: isSelected 
-                                    ? CartoonDesignSystem.skyBlue.withValues(alpha: 0.1)
+                                    ? ModernDesignSystem.skyBlue.withValues(alpha: 0.1)
                                     : Colors.grey[50],
                                   borderRadius: BorderRadius.circular(15),
                                   border: Border.all(
                                     color: isSelected 
-                                      ? CartoonDesignSystem.skyBlue
+                                      ? ModernDesignSystem.skyBlue
                                       : Colors.grey[300]!,
                                     width: isSelected ? 3 : 1,
                                   ),
@@ -158,7 +158,7 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                                       height: 100,
                                       decoration: BoxDecoration(
                                         color: isSelected 
-                                          ? CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.2)
+                                          ? ModernDesignSystem.lavenderPurple.withValues(alpha: 0.2)
                                           : Colors.transparent,
                                         shape: BoxShape.circle,
                                       ),
@@ -176,8 +176,8 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                                                 : Icons.person_outline,
                                               size: 40,
                                               color: isSelected 
-                                                ? CartoonDesignSystem.skyBlue
-                                                : CartoonDesignSystem.textSecondary,
+                                                ? ModernDesignSystem.skyBlue
+                                                : ModernDesignSystem.textOnLightSecondary,
                                             );
                                           },
                                         ),
@@ -186,18 +186,19 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                                     const SizedBox(height: 12),
                                     Text(
                                       character.name,
-                                      style: CartoonDesignSystem.labelLarge.copyWith(
+                                      style: ModernDesignSystem.labelLarge.copyWith(
                                         fontSize: 14,
                                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        color: ModernDesignSystem.textOnLight,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       character.description,
-                                      style: CartoonDesignSystem.bodySmall.copyWith(
+                                      style: ModernDesignSystem.bodySmall.copyWith(
                                         fontSize: 11,
-                                        color: Colors.grey[600],
+                                        color: ModernDesignSystem.textOnLightSecondary,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -215,17 +216,17 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: CartoonDesignSystem.skyBlue.withValues(alpha: 0.1),
+                            color: ModernDesignSystem.skyBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: CartoonDesignSystem.skyBlue,
+                              color: ModernDesignSystem.skyBlue,
                               width: 1,
                             ),
                           ),
                           child: Text(
                             'Selected: ${selectedCharacter!.displayName}',
-                            style: CartoonDesignSystem.bodyMedium.copyWith(
-                              color: CartoonDesignSystem.skyBlue,
+                            style: ModernDesignSystem.bodyMedium.copyWith(
+                              color: ModernDesignSystem.skyBlue,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -244,21 +245,21 @@ class _CharacterSelectionScreenState extends ConsumerState<CharacterSelectionScr
                 children: [
                   if (!widget.isOnboarding) ...[
                     Expanded(
-                      child: CartoonButton(
+                      child: ModernButton(
                         text: 'Cancel',
                         onPressed: () => Navigator.pop(context),
-                        style: CartoonButtonStyle.secondary,
+                        style: ModernButtonStyle.secondary,
                       ),
                     ),
                     const SizedBox(width: 12),
                   ],
                   Expanded(
-                    child: CartoonButton(
+                    child: ModernButton(
                       text: widget.isOnboarding ? 'Continue' : 'Confirm',
                       onPressed: selectedCharacter != null ? _confirmSelection : null,
                       style: selectedCharacter != null 
-                        ? CartoonButtonStyle.primary
-                        : CartoonButtonStyle.secondary,
+                        ? ModernButtonStyle.primary
+                        : ModernButtonStyle.secondary,
                     ),
                   ),
                 ],

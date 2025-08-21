@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:babblelon/theme/unified_dark_theme.dart';
 
 class GlassmorphicCard extends StatelessWidget {
   final Widget child;
@@ -23,38 +23,17 @@ class GlassmorphicCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: margin,
-      child: ClipRRect(
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: UnifiedDarkTheme.primarySurface,
         borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding ?? const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.black.withOpacity(0.7),
-                  Colors.black.withOpacity(0.5),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(
-                color: Colors.white.withAlpha(51), // 0.2 * 255
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(26), // 0.1 * 255
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: child,
-          ),
+        border: Border.all(
+          color: UnifiedDarkTheme.borderPrimary,
+          width: 1.5,
         ),
+        boxShadow: UnifiedDarkTheme.shadowLG,
       ),
+      child: child,
     );
   }
 }

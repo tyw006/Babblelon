@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/widgets/performance_optimization_helpers.dart';
 
 /// Voice-first interaction system for 2025 UI/UX trends
@@ -186,14 +186,14 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
                 height: 60,
                 decoration: BoxDecoration(
                   gradient: _isListening
-                      ? CartoonDesignSystem.warmGradient
-                      : CartoonDesignSystem.primaryGradient,
+                      ? ModernDesignSystem.warmGradient
+                      : ModernDesignSystem.primaryGradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
                       color: _isListening
-                          ? CartoonDesignSystem.warmOrange.withValues(alpha: 0.4)
-                          : CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+                          ? ModernDesignSystem.warmOrange.withValues(alpha: 0.4)
+                          : ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
                       blurRadius: _isListening ? 20 : 15,
                       spreadRadius: _isListening ? 8 : 5,
                     ),
@@ -218,10 +218,10 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
       child: Container(
         color: Colors.black.withValues(alpha: 0.3),
         child: Center(
-          child: CartoonCard(
-            backgroundColor: CartoonDesignSystem.creamWhite,
-            borderRadius: CartoonDesignSystem.radiusXLarge,
-            padding: const EdgeInsets.all(CartoonDesignSystem.spaceXL),
+          child: ModernCard(
+            backgroundColor: ModernDesignSystem.creamWhite,
+            borderRadius: ModernDesignSystem.radiusXLarge,
+            padding: const EdgeInsets.all(ModernDesignSystem.spaceXL),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -233,37 +233,37 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
                       size: const Size(120, 60),
                       painter: VoiceWavePainter(
                         animation: _waveAnimation,
-                        color: CartoonDesignSystem.cherryRed,
+                        color: ModernDesignSystem.cherryRed,
                       ),
                     );
                   },
                 ),
                 
-                const SizedBox(height: CartoonDesignSystem.spaceLG),
+                const SizedBox(height: ModernDesignSystem.spaceLG),
                 
                 Text(
                   'Listening...',
-                  style: CartoonDesignSystem.headlineMedium.copyWith(
-                    color: CartoonDesignSystem.textPrimary,
+                  style: ModernDesignSystem.headlineMedium.copyWith(
+                    color: ModernDesignSystem.textPrimary,
                   ),
                 ),
                 
-                const SizedBox(height: CartoonDesignSystem.spaceSM),
+                const SizedBox(height: ModernDesignSystem.spaceSM),
                 
                 Text(
                   'Try saying: "Start adventure" or "Select language"',
-                  style: CartoonDesignSystem.bodyMedium.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
+                  style: ModernDesignSystem.bodyMedium.copyWith(
+                    color: ModernDesignSystem.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 
-                const SizedBox(height: CartoonDesignSystem.spaceLG),
+                const SizedBox(height: ModernDesignSystem.spaceLG),
                 
-                CartoonButton(
+                ModernButton(
                   text: 'Cancel',
                   onPressed: _stopListening,
-                  style: CartoonButtonStyle.outline,
+                  style: ModernButtonStyle.outline,
                 ),
               ],
             ),
@@ -276,23 +276,23 @@ class _VoiceInteractionSystemState extends State<VoiceInteractionSystem>
   Widget _buildVoiceNavigationHelper() {
     return OptimizedRepaintBoundary(
       debugLabel: 'VoiceNavigationHelper',
-      child: CartoonCard(
-        backgroundColor: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.1),
-        borderRadius: CartoonDesignSystem.radiusLarge,
-        padding: const EdgeInsets.all(CartoonDesignSystem.spaceMD),
+      child: ModernCard(
+        backgroundColor: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.1),
+        borderRadius: ModernDesignSystem.radiusLarge,
+        padding: const EdgeInsets.all(ModernDesignSystem.spaceMD),
         child: Row(
           children: [
             Icon(
               Icons.keyboard_voice,
-              color: CartoonDesignSystem.cherryRed,
+              color: ModernDesignSystem.cherryRed,
               size: 20,
             ),
-            const SizedBox(width: CartoonDesignSystem.spaceSM),
+            const SizedBox(width: ModernDesignSystem.spaceSM),
             Expanded(
               child: Text(
                 widget.navigationConfig!.helpText,
-                style: CartoonDesignSystem.caption.copyWith(
-                  color: CartoonDesignSystem.textPrimary,
+                style: ModernDesignSystem.caption.copyWith(
+                  color: ModernDesignSystem.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -370,12 +370,12 @@ class VoiceCommandConfirmation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CartoonCard(
-      backgroundColor: CartoonDesignSystem.forestGreen,
-      borderRadius: CartoonDesignSystem.radiusMedium,
+    return ModernCard(
+      backgroundColor: ModernDesignSystem.forestGreen,
+      borderRadius: ModernDesignSystem.radiusMedium,
       padding: const EdgeInsets.symmetric(
-        horizontal: CartoonDesignSystem.spaceLG,
-        vertical: CartoonDesignSystem.spaceMD,
+        horizontal: ModernDesignSystem.spaceLG,
+        vertical: ModernDesignSystem.spaceMD,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -385,10 +385,10 @@ class VoiceCommandConfirmation extends StatelessWidget {
             color: Colors.white,
             size: 20,
           ),
-          const SizedBox(width: CartoonDesignSystem.spaceSM),
+          const SizedBox(width: ModernDesignSystem.spaceSM),
           Text(
             _getCommandDisplayText(command),
-            style: CartoonDesignSystem.bodyMedium.copyWith(
+            style: ModernDesignSystem.bodyMedium.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
@@ -430,7 +430,7 @@ class VoiceEnabledButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final List<String> voicePhrases;
-  final CartoonButtonStyle style;
+  final ModernButtonStyle style;
   final IconData? icon;
 
   const VoiceEnabledButton({
@@ -438,7 +438,7 @@ class VoiceEnabledButton extends StatefulWidget {
     required this.text,
     this.onPressed,
     required this.voicePhrases,
-    this.style = CartoonButtonStyle.primary,
+    this.style = ModernButtonStyle.primary,
     this.icon,
   });
 
@@ -498,10 +498,10 @@ class _VoiceEnabledButtonState extends State<VoiceEnabledButton>
         return Container(
           decoration: _isVoiceHighlighted
               ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+                  borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
                   boxShadow: [
                     BoxShadow(
-                      color: CartoonDesignSystem.warmOrange.withValues(
+                      color: ModernDesignSystem.warmOrange.withValues(
                         alpha: 0.4 * _highlightAnimation.value,
                       ),
                       blurRadius: 20 * _highlightAnimation.value,
@@ -510,7 +510,7 @@ class _VoiceEnabledButtonState extends State<VoiceEnabledButton>
                   ],
                 )
               : null,
-          child: CartoonButton(
+          child: ModernButton(
             text: widget.text,
             onPressed: widget.onPressed,
             style: widget.style,

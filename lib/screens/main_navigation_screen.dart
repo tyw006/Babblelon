@@ -5,7 +5,7 @@ import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/screens/home_screen.dart';
 import 'package:babblelon/screens/learn_screen.dart';
 import 'package:babblelon/screens/settings_screen.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/services/tutorial_service.dart';
 
 /// Main navigation screen with bottom tab navigation
@@ -22,7 +22,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   void initState() {
     super.initState();
     
-    // Note: Intro music is already handled by SpaceLoadingScreen/3D Earth globe
+    // Note: Intro music is already handled by IntroSplashScreen/3D Earth globe
     // No need to trigger it again here to avoid conflicts
     
     // Check and show tutorial on first load with additional delay for stability
@@ -91,7 +91,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final currentTab = ref.watch(currentTabProvider);
     
     return Scaffold(
-      backgroundColor: cartoon.CartoonDesignSystem.creamWhite,
+      backgroundColor: modern.ModernDesignSystem.primaryBackground,
       body: _buildBody(currentTab),
       bottomNavigationBar: _buildBottomNavigation(context, ref, currentTab),
     );
@@ -113,10 +113,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget _buildBottomNavigation(BuildContext context, WidgetRef ref, AppTab currentTab) {
     return Container(
       decoration: BoxDecoration(
-        color: cartoon.CartoonDesignSystem.softPeach,
+        color: modern.ModernDesignSystem.primarySurface,
         border: Border(
           top: BorderSide(
-            color: cartoon.CartoonDesignSystem.cherryRed.withValues(alpha: 0.3),
+            color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -138,17 +138,17 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           final tab = AppTab.values[index];
           ref.read(navigationControllerProvider).switchToTab(tab);
         },
-        selectedItemColor: cartoon.CartoonDesignSystem.cherryRed,
-        unselectedItemColor: cartoon.CartoonDesignSystem.textMuted,
+        selectedItemColor: modern.ModernDesignSystem.primaryAccent,
+        unselectedItemColor: modern.ModernDesignSystem.textSecondary,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        selectedLabelStyle: cartoon.CartoonDesignSystem.caption.copyWith(
+        selectedLabelStyle: modern.ModernDesignSystem.caption.copyWith(
           fontWeight: FontWeight.w600,
-          color: cartoon.CartoonDesignSystem.cherryRed,
+          color: modern.ModernDesignSystem.primaryAccent,
         ),
-        unselectedLabelStyle: cartoon.CartoonDesignSystem.caption.copyWith(
+        unselectedLabelStyle: modern.ModernDesignSystem.caption.copyWith(
           fontWeight: FontWeight.w400,
-          color: cartoon.CartoonDesignSystem.textMuted,
+          color: modern.ModernDesignSystem.textSecondary,
         ),
         items: const [
           BottomNavigationBarItem(

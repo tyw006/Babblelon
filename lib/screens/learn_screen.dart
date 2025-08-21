@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
 import 'package:babblelon/widgets/universal_stats_row.dart';
@@ -19,7 +19,7 @@ class LearnScreen extends ConsumerWidget {
     final playerProfileAsync = ref.watch(player_providers.currentPlayerProfileProvider);
     
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: playerProfileAsync.when(
           data: (profile) {
@@ -71,10 +71,10 @@ class _AdventureModeHero extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+        color: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
         border: Border.all(
-          color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.6),
+          color: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.6),
           width: 3,
         ),
       ),
@@ -83,12 +83,12 @@ class _AdventureModeHero extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: CartoonDesignSystem.sunshineYellow.withValues(alpha: 0.3),
+              color: ModernDesignSystem.sunshineYellow.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.videogame_asset,
-              color: CartoonDesignSystem.cherryRed,
+              color: ModernDesignSystem.cherryRed,
               size: 48,
             ),
           ),
@@ -96,14 +96,14 @@ class _AdventureModeHero extends ConsumerWidget {
           Text(
             'Cultural Adventure',
             style: AppTheme.textTheme.headlineSmall?.copyWith(
-              color: CartoonDesignSystem.cherryRed,
+              color: ModernDesignSystem.cherryRed,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Explore cultural environments and practice languages with AI-powered NPCs',
             style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: CartoonDesignSystem.textSecondary,
+              color: ModernDesignSystem.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -117,11 +117,11 @@ class _AdventureModeHero extends ConsumerWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: CartoonDesignSystem.sunshineYellow,
-              foregroundColor: CartoonDesignSystem.textPrimary,
+              backgroundColor: ModernDesignSystem.sunshineYellow,
+              foregroundColor: ModernDesignSystem.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+                borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
               ),
             ),
             child: Row(
@@ -155,7 +155,7 @@ class _PremiumTrainingSection extends StatelessWidget {
           'Premium Training',
           style: AppTheme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            color: CartoonDesignSystem.textPrimary,
+            color: ModernDesignSystem.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -219,12 +219,12 @@ class _PremiumFeatureCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isAvailable 
             ? color.withValues(alpha: 0.15)
-            : CartoonDesignSystem.textMuted.withValues(alpha: 0.1),
+            : ModernDesignSystem.textMuted.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isAvailable 
               ? color.withValues(alpha: 0.4)
-              : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+              : ModernDesignSystem.textMuted.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),
@@ -235,14 +235,14 @@ class _PremiumFeatureCard extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  color: isAvailable ? color : CartoonDesignSystem.textMuted,
+                  color: isAvailable ? color : ModernDesignSystem.textMuted,
                   size: 20,
                 ),
                 const Spacer(),
                 if (!isAvailable)
                   const Icon(
                     Icons.lock,
-                    color: CartoonDesignSystem.textMuted,
+                    color: ModernDesignSystem.textMuted,
                     size: 12,
                   ),
               ],
@@ -252,8 +252,8 @@ class _PremiumFeatureCard extends StatelessWidget {
               title,
               style: AppTheme.textTheme.titleMedium?.copyWith(
                 color: isAvailable 
-                  ? CartoonDesignSystem.textPrimary
-                  : CartoonDesignSystem.textMuted,
+                  ? ModernDesignSystem.textPrimary
+                  : ModernDesignSystem.textMuted,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -262,7 +262,7 @@ class _PremiumFeatureCard extends StatelessWidget {
             Text(
               subtitle,
               style: AppTheme.textTheme.bodySmall?.copyWith(
-                color: CartoonDesignSystem.textSecondary,
+                color: ModernDesignSystem.textSecondary,
                 fontSize: 11,
               ),
             ),

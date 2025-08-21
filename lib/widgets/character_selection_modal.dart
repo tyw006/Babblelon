@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 
 /// Character data model for character selection
 class CharacterData {
@@ -62,7 +62,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
         children: [
           Icon(
             Icons.person_outline,
-            color: cartoon.CartoonDesignSystem.lavenderPurple,
+            color: modern.ModernDesignSystem.lavenderPurple,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -94,19 +94,19 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
                     height: 150,
                     decoration: BoxDecoration(
                       color: isSelected 
-                        ? cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.1)
+                        ? modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.1)
                         : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                      borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                       border: Border.all(
                         color: isSelected 
-                          ? cartoon.CartoonDesignSystem.lavenderPurple
-                          : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                          ? modern.ModernDesignSystem.lavenderPurple
+                          : modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1,
                       ),
                       boxShadow: [
                         if (isSelected)
                           BoxShadow(
-                            color: cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.3),
+                            color: modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -127,8 +127,8 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
                                   character.id == 'male' ? Icons.person : Icons.person_4,
                                   size: 48,
                                   color: isSelected 
-                                      ? cartoon.CartoonDesignSystem.lavenderPurple
-                                      : cartoon.CartoonDesignSystem.textSecondary,
+                                      ? modern.ModernDesignSystem.lavenderPurple
+                                      : modern.ModernDesignSystem.textSecondary,
                                 );
                               },
                             ),
@@ -136,12 +136,12 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
                           const SizedBox(height: 8),
                           Text(
                             character.name,
-                            style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                            style: modern.ModernDesignSystem.bodySmall.copyWith(
                               fontSize: 12,
                               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                               color: isSelected 
-                                  ? cartoon.CartoonDesignSystem.lavenderPurple
-                                  : cartoon.CartoonDesignSystem.textPrimary,
+                                  ? modern.ModernDesignSystem.lavenderPurple
+                                  : modern.ModernDesignSystem.textPrimary,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -160,7 +160,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
             'Cancel',
-            style: TextStyle(color: cartoon.CartoonDesignSystem.textSecondary),
+            style: TextStyle(color: modern.ModernDesignSystem.textSecondary),
           ),
         ),
         ElevatedButton(
@@ -171,7 +171,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
               }
             : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: cartoon.CartoonDesignSystem.lavenderPurple,
+            backgroundColor: modern.ModernDesignSystem.lavenderPurple,
             foregroundColor: Colors.white,
           ),
           child: const Text('Select'),

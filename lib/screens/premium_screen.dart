@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/premium/premium_npc_chat_screen.dart';
 import 'package:babblelon/screens/premium/premium_boss_battle_screen.dart';
@@ -14,7 +14,7 @@ class PremiumScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Premium Features',
@@ -130,7 +130,7 @@ class _PremiumFeaturesGrid extends StatelessWidget {
           'Premium Features',
           style: AppTheme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            color: CartoonDesignSystem.textPrimary,
+            color: ModernDesignSystem.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -195,12 +195,12 @@ class _PremiumFeatureCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isAvailable 
             ? color.withValues(alpha: 0.15)
-            : CartoonDesignSystem.textMuted.withValues(alpha: 0.1),
+            : ModernDesignSystem.textMuted.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isAvailable 
               ? color.withValues(alpha: 0.4)
-              : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+              : ModernDesignSystem.textMuted.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),
@@ -211,14 +211,14 @@ class _PremiumFeatureCard extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  color: isAvailable ? color : CartoonDesignSystem.textMuted,
+                  color: isAvailable ? color : ModernDesignSystem.textMuted,
                   size: 20,
                 ),
                 const Spacer(),
                 if (!isAvailable)
                   const Icon(
                     Icons.lock,
-                    color: CartoonDesignSystem.textMuted,
+                    color: ModernDesignSystem.textMuted,
                     size: 12,
                   ),
               ],
@@ -228,8 +228,8 @@ class _PremiumFeatureCard extends StatelessWidget {
               title,
               style: AppTheme.textTheme.titleMedium?.copyWith(
                 color: isAvailable 
-                  ? CartoonDesignSystem.textPrimary
-                  : CartoonDesignSystem.textMuted,
+                  ? ModernDesignSystem.textPrimary
+                  : ModernDesignSystem.textMuted,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -238,7 +238,7 @@ class _PremiumFeatureCard extends StatelessWidget {
             Text(
               subtitle,
               style: AppTheme.textTheme.bodySmall?.copyWith(
-                color: CartoonDesignSystem.textSecondary,
+                color: ModernDesignSystem.textSecondary,
                 fontSize: 11,
               ),
             ),
@@ -280,7 +280,7 @@ class _SubscriptionInfo extends StatelessWidget {
                 'Premium Benefits',
                 style: AppTheme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: CartoonDesignSystem.textPrimary,
+                  color: ModernDesignSystem.textPrimary,
                 ),
               ),
             ],
@@ -292,7 +292,7 @@ class _SubscriptionInfo extends StatelessWidget {
                 child: Text(
                   '• Unlimited NPC conversations\n• Boss battle training mode\n• Advanced features coming soon',
                   style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
+                    color: ModernDesignSystem.textSecondary,
                   ),
                 ),
               ),

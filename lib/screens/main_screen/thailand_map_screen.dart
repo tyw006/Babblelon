@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/screens/main_screen/widgets/location_marker_widget.dart';
 import 'package:babblelon/screens/game_loading_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
-import 'package:babblelon/widgets/modern_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/services/supabase_service.dart';
@@ -266,7 +265,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: ModernDesignSystem.spaceGradient,
+          gradient: modern.ModernDesignSystem.backgroundGradient,
         ),
         child: Stack(
           children: [
@@ -300,7 +299,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                               fit: BoxFit.cover, // Use cover to fill entire screen
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  color: ModernDesignSystem.deepSpaceBlue,
+                                  color: modern.ModernDesignSystem.primaryBackground,
                                   child: Center(
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
@@ -313,8 +312,8 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                                         const SizedBox(height: 16),
                                         Text(
                                           'Thailand Map',
-                                          style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
-                                            color: ModernDesignSystem.electricCyan,
+                                          style: modern.ModernDesignSystem.headlineMedium.copyWith(
+                                            color: modern.ModernDesignSystem.tertiaryAccent,
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -374,15 +373,15 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
               left: 20,
               child: Container(
                 decoration: BoxDecoration(
-                  color: ModernDesignSystem.deepSpaceBlue.withValues(alpha: 0.7),
+                  color: modern.ModernDesignSystem.primaryBackground.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(25),
                   border: Border.all(
-                    color: ModernDesignSystem.electricCyan.withValues(alpha: 0.5),
+                    color: modern.ModernDesignSystem.tertiaryAccent.withValues(alpha: 0.5),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: ModernDesignSystem.electricCyan.withValues(alpha: 0.3),
+                      color: modern.ModernDesignSystem.tertiaryAccent.withValues(alpha: 0.3),
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
@@ -392,7 +391,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
                   onPressed: _handleBackNavigation,
                   icon: const Icon(
                     Icons.arrow_back_ios_rounded,
-                    color: ModernDesignSystem.electricCyan,
+                    color: modern.ModernDesignSystem.tertiaryAccent,
                     size: 24,
                   ),
                 ),
@@ -406,9 +405,9 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
               right: 20,
               child: Text(
                 'Choose Your Destination',
-                style: cartoon.CartoonDesignSystem.headlineMedium.copyWith(
+                style: modern.ModernDesignSystem.headlineMedium.copyWith(
                   fontSize: 18,
-                  color: ModernDesignSystem.electricCyan,
+                  color: modern.ModernDesignSystem.tertiaryAccent,
                   fontWeight: FontWeight.w600,
                 ),
               ),

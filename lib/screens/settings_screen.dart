@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:babblelon/providers/game_providers.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
-import 'package:babblelon/widgets/cartoon_design_system.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/screens/tutorial_settings_screen.dart';
@@ -25,7 +25,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: CartoonDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.creamWhite,
       appBar: AppBar(
         title: Text(
           'Settings',
@@ -106,7 +106,7 @@ class _AudioSection extends ConsumerWidget {
               
               debugPrint('🎵 SettingsScreen: Synced BackgroundAudioService with music toggle: $value');
             },
-            activeColor: CartoonDesignSystem.sunshineYellow,
+            activeColor: ModernDesignSystem.sunshineYellow,
           ),
         ),
         _SettingsTile(
@@ -133,7 +133,7 @@ class _AudioSection extends ConsumerWidget {
               );
               debugPrint('🔊 SettingsScreen: Synced BackgroundAudioService with sound effects toggle: $value');
             },
-            activeColor: CartoonDesignSystem.sunshineYellow,
+            activeColor: ModernDesignSystem.sunshineYellow,
           ),
         ),
       ],
@@ -161,7 +161,7 @@ class _AccessibilitySection extends StatelessWidget {
                 onChanged: (value) {
                   motionPrefs.setReduceMotion(value);
                 },
-                activeColor: CartoonDesignSystem.sunshineYellow,
+                activeColor: ModernDesignSystem.sunshineYellow,
               ),
             ),
           ],
@@ -186,7 +186,7 @@ class _LanguageSection extends ConsumerWidget {
           subtitle: 'English (Default)',
           trailing: Icon(
             Icons.check_circle,
-            color: CartoonDesignSystem.forestGreen,
+            color: ModernDesignSystem.forestGreen,
             size: 20,
           ),
           onTap: () {
@@ -194,7 +194,7 @@ class _LanguageSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('App interface is available in English only'),
-                backgroundColor: CartoonDesignSystem.skyBlue,
+                backgroundColor: ModernDesignSystem.skyBlue,
               ),
             );
           },
@@ -219,7 +219,7 @@ class _TutorialSection extends StatelessWidget {
           subtitle: 'Manage tutorial preferences and completion status',
           trailing: Icon(
             Icons.arrow_forward_ios,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -318,7 +318,7 @@ class _GamePreferencesSection extends ConsumerWidget {
           subtitle: 'Currently: $languageDisplayName',
           trailing: Icon(
             Icons.arrow_forward_ios,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -330,7 +330,7 @@ class _GamePreferencesSection extends ConsumerWidget {
           subtitle: 'Currently: $characterDisplayName',
           trailing: Icon(
             Icons.arrow_forward_ios,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -410,7 +410,7 @@ class _GamePreferencesSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Learning language updated to ${_getLanguageDisplayName(languageCode)}'),
-                backgroundColor: CartoonDesignSystem.forestGreen,
+                backgroundColor: ModernDesignSystem.forestGreen,
               ),
             );
           }
@@ -421,7 +421,7 @@ class _GamePreferencesSection extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating language: $e'),
-            backgroundColor: CartoonDesignSystem.cherryRed,
+            backgroundColor: ModernDesignSystem.cherryRed,
           ),
         );
       }
@@ -454,7 +454,7 @@ class _GamePreferencesSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Character updated to ${_getCharacterDisplayName(characterId)}'),
-                backgroundColor: CartoonDesignSystem.forestGreen,
+                backgroundColor: ModernDesignSystem.forestGreen,
               ),
             );
           }
@@ -465,7 +465,7 @@ class _GamePreferencesSection extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating character: $e'),
-            backgroundColor: CartoonDesignSystem.cherryRed,
+            backgroundColor: ModernDesignSystem.cherryRed,
           ),
         );
       }
@@ -488,7 +488,7 @@ class _AboutSection extends ConsumerWidget {
           subtitle: 'View our privacy policy',
           trailing: Icon(
             Icons.open_in_new,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -496,7 +496,7 @@ class _AboutSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Privacy policy link coming soon'),
-                backgroundColor: CartoonDesignSystem.sunshineYellow,
+                backgroundColor: ModernDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -506,7 +506,7 @@ class _AboutSection extends ConsumerWidget {
           subtitle: 'View our terms of service',
           trailing: Icon(
             Icons.open_in_new,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -514,7 +514,7 @@ class _AboutSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Terms of service link coming soon'),
-                backgroundColor: CartoonDesignSystem.sunshineYellow,
+                backgroundColor: ModernDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -529,7 +529,7 @@ class _AboutSection extends ConsumerWidget {
           subtitle: 'Get help and contact support',
           trailing: Icon(
             Icons.open_in_new,
-            color: CartoonDesignSystem.textSecondary,
+            color: ModernDesignSystem.textSecondary,
             size: 16,
           ),
           onTap: () {
@@ -537,7 +537,7 @@ class _AboutSection extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Support link coming soon'),
-                backgroundColor: CartoonDesignSystem.sunshineYellow,
+                backgroundColor: ModernDesignSystem.sunshineYellow,
               ),
             );
           },
@@ -547,7 +547,7 @@ class _AboutSection extends ConsumerWidget {
           subtitle: 'Sign out of your account',
           trailing: Icon(
             Icons.logout,
-            color: CartoonDesignSystem.cherryRed,
+            color: ModernDesignSystem.cherryRed,
             size: 16,
           ),
           onTap: () {
@@ -575,7 +575,7 @@ class _AboutSection extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(color: CartoonDesignSystem.textSecondary),
+              style: TextStyle(color: ModernDesignSystem.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -584,7 +584,7 @@ class _AboutSection extends ConsumerWidget {
               await _signOut(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: CartoonDesignSystem.cherryRed,
+              backgroundColor: ModernDesignSystem.cherryRed,
             ),
             child: const Text('Sign Out'),
           ),
@@ -607,7 +607,7 @@ class _AboutSection extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Signed out successfully'),
-            backgroundColor: CartoonDesignSystem.forestGreen,
+            backgroundColor: ModernDesignSystem.forestGreen,
           ),
         );
       }
@@ -616,7 +616,7 @@ class _AboutSection extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error signing out: $e'),
-            backgroundColor: CartoonDesignSystem.cherryRed,
+            backgroundColor: ModernDesignSystem.cherryRed,
           ),
         );
       }
@@ -647,14 +647,14 @@ class _SettingsSection extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: CartoonDesignSystem.cherryRed,
+                color: ModernDesignSystem.cherryRed,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 title,
                 style: AppTheme.textTheme.headlineSmall?.copyWith(
-                  color: CartoonDesignSystem.cherryRed,
+                  color: ModernDesignSystem.cherryRed,
                 ),
               ),
             ],
@@ -662,10 +662,10 @@ class _SettingsSection extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+            color: ModernDesignSystem.softPeach.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
             border: Border.all(
-              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
+              color: ModernDesignSystem.chocolateBrown.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -698,7 +698,7 @@ class _SettingsTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -715,7 +715,7 @@ class _SettingsTile extends StatelessWidget {
                     Text(
                       subtitle,
                       style: AppTheme.textTheme.bodySmall?.copyWith(
-                        color: CartoonDesignSystem.textSecondary,
+                        color: ModernDesignSystem.textSecondary,
                       ),
                     ),
                   ],
