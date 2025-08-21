@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
+import 'package:babblelon/widgets/universal_stats_row.dart';
+import 'package:babblelon/screens/premium/premium_npc_chat_screen.dart';
+import 'package:babblelon/screens/premium/premium_boss_battle_screen.dart';
+import 'package:babblelon/providers/player_data_providers.dart' as player_providers;
+import 'package:babblelon/utils/language_utils.dart';
 
 /// Learn screen that connects to existing game flow
 /// Performance optimized with direct navigation to game
@@ -11,12 +16,27 @@ class LearnScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final playerProfileAsync = ref.watch(player_providers.currentPlayerProfileProvider);
+    
     return Scaffold(
       backgroundColor: CartoonDesignSystem.creamWhite,
       appBar: AppBar(
-        title: Text(
-          'Learn Thai',
-          style: AppTheme.textTheme.headlineMedium,
+        title: playerProfileAsync.when(
+          data: (profile) {
+            final languageName = LanguageUtils.getLanguageName(profile?.targetLanguage);
+            return Text(
+              'Learn $languageName',
+              style: AppTheme.textTheme.headlineMedium,
+            );
+          },
+          loading: () => Text(
+            'Learn',
+            style: AppTheme.textTheme.headlineMedium,
+          ),
+          error: (error, stack) => Text(
+            'Learn',
+            style: AppTheme.textTheme.headlineMedium,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -25,13 +45,14 @@ class LearnScreen extends ConsumerWidget {
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _GameModeSection(),
+              SizedBox(height: 16),
+              _AdventureModeHero(),
               SizedBox(height: 24),
-              _LearningOptionsSection(),
-              SizedBox(height: 24),
-              _QuickStartSection(),
+              UniversalStatsRow(),
+              SizedBox(height: 20),
+              _PremiumTrainingSection(),
             ],
           ),
         ),
@@ -40,9 +61,9 @@ class LearnScreen extends ConsumerWidget {
   }
 }
 
-/// Main game mode section
-class _GameModeSection extends ConsumerWidget {
-  const _GameModeSection();
+/// Adventure mode hero - primary learning path
+class _AdventureModeHero extends ConsumerWidget {
+  const _AdventureModeHero();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,9 +142,9 @@ class _GameModeSection extends ConsumerWidget {
   }
 }
 
-/// Learning options section with different study modes
-class _LearningOptionsSection extends StatelessWidget {
-  const _LearningOptionsSection();
+/// Premium training section - advanced practice modes
+class _PremiumTrainingSection extends StatelessWidget {
+  const _PremiumTrainingSection();
 
   @override
   Widget build(BuildContext context) {
@@ -131,169 +152,123 @@ class _LearningOptionsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Learning Modes',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
-        _LearningOptionCard(
-          title: 'Conversation Practice',
-          description: 'Chat with NPCs to improve speaking skills',
-          icon: Icons.chat_bubble_outline,
-          color: CartoonDesignSystem.warmOrange,
-          isAvailable: true,
+          'Premium Training',
+          style: AppTheme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: CartoonDesignSystem.textPrimary,
+          ),
         ),
         const SizedBox(height: 12),
-        _LearningOptionCard(
-          title: 'Character Writing',
-          description: 'Learn to write Thai characters',
-          icon: Icons.edit_outlined,
-          color: CartoonDesignSystem.sunshineYellow,
-          isAvailable: true,
-        ),
-        const SizedBox(height: 12),
-        _LearningOptionCard(
-          title: 'Pronunciation Training',
-          description: 'Perfect your Thai pronunciation',
-          icon: Icons.record_voice_over_outlined,
-          color: CartoonDesignSystem.cherryRed,
-          isAvailable: true,
+        const Row(
+          children: [
+            Expanded(
+              child: _PremiumFeatureCard(
+                title: 'NPC Chat',
+                subtitle: 'Unlimited conversations',
+                icon: Icons.chat_bubble,
+                color: Color(0xFFFFD700),
+                route: PremiumNPCChatScreen(),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _PremiumFeatureCard(
+                title: 'Boss Battles',
+                subtitle: 'Training mode',
+                icon: Icons.sports_mma,
+                color: Color(0xFFFFA500),
+                route: PremiumBossBattleScreen(),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-/// Individual learning option card
-class _LearningOptionCard extends StatelessWidget {
+/// Premium feature card component
+class _PremiumFeatureCard extends StatelessWidget {
   final String title;
-  final String description;
+  final String subtitle;
   final IconData icon;
   final Color color;
-  final bool isAvailable;
+  final Widget? route;
 
-  const _LearningOptionCard({
+  const _PremiumFeatureCard({
     required this.title,
-    required this.description,
+    required this.subtitle,
     required this.icon,
     required this.color,
-    required this.isAvailable,
+    required this.route,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
-        border: Border.all(
+    final isAvailable = route != null;
+    
+    return GestureDetector(
+      onTap: isAvailable ? () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => route!),
+        );
+      } : null,
+      child: Container(
+        height: 100,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
           color: isAvailable 
-            ? color.withValues(alpha: 0.5)
-            : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isAvailable 
-                ? color.withValues(alpha: 0.2)
-                : CartoonDesignSystem.textMuted.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
-            ),
-            child: Icon(
-              icon,
-              color: isAvailable ? color : CartoonDesignSystem.textMuted,
-              size: 24,
-            ),
+            ? color.withValues(alpha: 0.15)
+            : CartoonDesignSystem.textMuted.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isAvailable 
+              ? color.withValues(alpha: 0.4)
+              : CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+            width: 1.5,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  title,
-                  style: AppTheme.textTheme.titleMedium?.copyWith(
-                    color: isAvailable 
-                      ? CartoonDesignSystem.textPrimary
-                      : CartoonDesignSystem.textMuted,
-                  ),
+                Icon(
+                  icon,
+                  color: isAvailable ? color : CartoonDesignSystem.textMuted,
+                  size: 20,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
+                const Spacer(),
+                if (!isAvailable)
+                  const Icon(
+                    Icons.lock,
+                    color: CartoonDesignSystem.textMuted,
+                    size: 12,
                   ),
-                ),
               ],
             ),
-          ),
-          if (isAvailable)
-            Icon(
-              Icons.arrow_forward_ios,
-              color: color,
-              size: 16,
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: AppTheme.textTheme.titleMedium?.copyWith(
+                color: isAvailable 
+                  ? CartoonDesignSystem.textPrimary
+                  : CartoonDesignSystem.textMuted,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Quick start section with recent lessons
-class _QuickStartSection extends StatelessWidget {
-  const _QuickStartSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Start',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
-            border: Border.all(
-              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.play_circle_outline,
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: AppTheme.textTheme.bodySmall?.copyWith(
                 color: CartoonDesignSystem.textSecondary,
-                size: 48,
+                fontSize: 11,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'No recent lessons',
-                style: AppTheme.textTheme.bodyLarge?.copyWith(
-                  color: CartoonDesignSystem.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Start your first adventure to begin learning',
-                style: AppTheme.textTheme.bodyMedium?.copyWith(
-                  color: CartoonDesignSystem.textMuted,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

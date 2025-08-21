@@ -4,6 +4,7 @@ import '../models/local_storage_models.dart';
 import '../services/isar_service.dart';
 import '../services/sync_service.dart';
 import '../services/supabase_service.dart';
+import '../services/auth_service_interface.dart';
 
 // Provider for the IsarService instance
 final isarServiceProvider = Provider<IsarService>((ref) {
@@ -27,6 +28,33 @@ final playerProfileProvider = FutureProvider.family<PlayerProfile?, String>((ref
     syncService.syncPlayerProfile().catchError((error) {
       debugPrint('Background profile sync error: $error');
     });
+  }
+  
+  return profile;
+});
+
+// Provider for current user's player profile with enhanced sync
+final currentPlayerProfileProvider = FutureProvider<PlayerProfile?>((ref) async {
+  final authService = AuthServiceFactory.getInstance();
+  final currentUserId = authService.currentUserId;
+  
+  if (currentUserId == null) {
+    return null;
+  }
+  
+  final isarService = ref.read(isarServiceProvider);
+  final syncService = ref.read(syncServiceProvider);
+  
+  // Try to get profile from ISAR first
+  var profile = await isarService.getPlayerProfile(currentUserId);
+  
+  // If profile is null or firstName is missing, trigger sync and retry
+  if (profile == null || profile.firstName == null || profile.firstName!.isEmpty) {
+    if (await syncService.hasConnectivity) {
+      await syncService.syncPlayerProfile();
+      // Retry getting profile after sync
+      profile = await isarService.getPlayerProfile(currentUserId);
+    }
   }
   
   return profile;

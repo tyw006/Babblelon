@@ -4,6 +4,7 @@ import 'package:babblelon/models/local_storage_models.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/widgets/universal_stats_row.dart';
 
 /// Progress screen with performance-optimized charts and statistics
 /// Uses built-in Flutter widgets for efficient rendering
@@ -26,15 +27,12 @@ class ProgressScreen extends ConsumerWidget {
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _OverviewSection(),
-              SizedBox(height: 24),
-              _ProgressMetricsSection(),
-              SizedBox(height: 24),
-              _AchievementsSection(),
-              SizedBox(height: 24),
-              _DetailedStatsSection(),
+              SizedBox(height: 16),
+              UniversalStatsRow(),
+              SizedBox(height: 20),
+              _DetailedMetrics(),
             ],
           ),
         ),
@@ -43,113 +41,12 @@ class ProgressScreen extends ConsumerWidget {
   }
 }
 
-/// Overview section with main progress indicators
-class _OverviewSection extends StatelessWidget {
-  const _OverviewSection();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: CartoonDesignSystem.softPeach,
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
-        border: Border.all(
-          color: CartoonDesignSystem.cherryRed.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Learning Overview',
-            style: AppTheme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _ProgressCircle(
-                  title: 'Overall Progress',
-                  progress: 0.35,
-                  color: CartoonDesignSystem.sunshineYellow,
-                  centerText: '35%',
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _ProgressCircle(
-                  title: 'Weekly Goal',
-                  progress: 0.68,
-                  color: CartoonDesignSystem.cherryRed,
-                  centerText: '68%',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-/// Circular progress indicator widget
-class _ProgressCircle extends StatelessWidget {
-  final String title;
-  final double progress;
-  final Color color;
-  final String centerText;
 
-  const _ProgressCircle({
-    required this.title,
-    required this.progress,
-    required this.color,
-    required this.centerText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: 100,
-          height: 100,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 8,
-                backgroundColor: color.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-              Text(
-                centerText,
-                style: AppTheme.textTheme.titleLarge?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          title,
-          style: AppTheme.textTheme.bodyMedium?.copyWith(
-            color: CartoonDesignSystem.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-/// Progress metrics section with statistics
-class _ProgressMetricsSection extends ConsumerWidget {
-  const _ProgressMetricsSection();
+/// Detailed metrics section - performance analytics
+class _DetailedMetrics extends ConsumerWidget {
+  const _DetailedMetrics();
 
   /// Get all mastered phrases from the database
   Future<List<MasteredPhrase>> _getAllMasteredPhrases() async {
@@ -164,9 +61,12 @@ class _ProgressMetricsSection extends ConsumerWidget {
       children: [
         Text(
           'Learning Metrics',
-          style: AppTheme.textTheme.headlineSmall,
+          style: AppTheme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: CartoonDesignSystem.textPrimary,
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         FutureBuilder<List<MasteredPhrase>>(
           future: _getAllMasteredPhrases(),
           builder: (context, snapshot) {
@@ -178,45 +78,58 @@ class _ProgressMetricsSection extends ConsumerWidget {
               ? phrases.map((p) => p.lastScore).fold(0.0, (a, b) => a + (b ?? 0.0)) / phrases.length
               : 0.0;
 
-            return GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.8, // Adjusted from 2.0 to 1.8 for more height
+            return Column(
               children: [
-                _MetricCard(
-                  title: 'Words Learned',
-                  value: '$masteredWords',
-                  subtitle: 'of $totalWords practiced',
-                  icon: Icons.text_fields,
-                  color: CartoonDesignSystem.sunshineYellow,
-                  progress: totalWords > 0 ? masteredWords / totalWords : 0.0,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'Words',
+                        value: '$masteredWords',
+                        subtitle: 'learned',
+                        icon: Icons.text_fields,
+                        color: CartoonDesignSystem.sunshineYellow,
+                        progress: totalWords > 0 ? masteredWords / totalWords : 0.0,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'Accuracy',
+                        value: '${(averageScore * 100).toInt()}%',
+                        subtitle: 'average',
+                        icon: Icons.trending_up,
+                        color: CartoonDesignSystem.forestGreen,
+                        progress: averageScore,
+                      ),
+                    ),
+                  ],
                 ),
-                _MetricCard(
-                  title: 'Characters',
-                  value: '$masteredCharacters',
-                  subtitle: 'mastered',
-                  icon: Icons.text_format,
-                  color: CartoonDesignSystem.cherryRed,
-                  progress: totalWords > 0 ? masteredCharacters / totalWords : 0.0,
-                ),
-                _MetricCard(
-                  title: 'Accuracy',
-                  value: '${(averageScore * 100).toInt()}%',
-                  subtitle: 'average score',
-                  icon: Icons.trending_up,
-                  color: CartoonDesignSystem.forestGreen,
-                  progress: averageScore,
-                ),
-                _MetricCard(
-                  title: 'Practice Time',
-                  value: '${phrases.fold(0, (sum, p) => sum + p.timesPracticed)}',
-                  subtitle: 'sessions',
-                  icon: Icons.timer,
-                  color: CartoonDesignSystem.lavenderPurple,
-                  progress: 0.7, // Placeholder progress
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'Characters',
+                        value: '$masteredCharacters',
+                        subtitle: 'mastered',
+                        icon: Icons.text_format,
+                        color: CartoonDesignSystem.cherryRed,
+                        progress: totalWords > 0 ? masteredCharacters / totalWords : 0.0,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'Sessions',
+                        value: '${phrases.fold(0, (sum, p) => sum + p.timesPracticed)}',
+                        subtitle: 'total',
+                        icon: Icons.timer,
+                        color: CartoonDesignSystem.skyBlue,
+                        progress: 0.7,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -248,65 +161,55 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(8), // Reduced from 10 to 8
+      height: 100,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: color.withValues(alpha: 0.3),
-          width: 1,
+          width: 1.5,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
               Icon(
                 icon,
                 color: color,
-                size: 14, // Reduced from 16 to 14
+                size: 16,
               ),
-              const SizedBox(width: 2), // Reduced from 3 to 2
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTheme.textTheme.bodySmall?.copyWith(
-                    color: CartoonDesignSystem.textSecondary,
-                    fontSize: 11, // Explicitly set font size
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: AppTheme.textTheme.bodySmall?.copyWith(
+                  color: CartoonDesignSystem.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 2), // Reduced from 4 to 2
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: AppTheme.textTheme.titleLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 20, // Explicitly set font size
-              ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTheme.textTheme.titleLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
             ),
           ),
           Text(
             subtitle,
             style: AppTheme.textTheme.bodySmall?.copyWith(
               color: CartoonDesignSystem.textMuted,
-              fontSize: 9, // Reduced from 10 to 9
+              fontSize: 10,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2), // Reduced from 4 to 2
+          const Spacer(),
           SizedBox(
-            height: 3, // Fixed height for progress bar
+            height: 3,
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: color.withValues(alpha: 0.2),
@@ -319,149 +222,3 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-/// Achievements section with unlocked badges
-class _AchievementsSection extends StatelessWidget {
-  const _AchievementsSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Achievements',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: CartoonDesignSystem.softPeach,
-            borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
-            border: Border.all(
-              color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.emoji_events_outlined,
-                color: CartoonDesignSystem.textSecondary,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No achievements yet',
-                style: AppTheme.textTheme.bodyLarge?.copyWith(
-                  color: CartoonDesignSystem.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Start learning to unlock your first achievement',
-                style: AppTheme.textTheme.bodyMedium?.copyWith(
-                  color: CartoonDesignSystem.textMuted,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Detailed statistics section
-class _DetailedStatsSection extends StatelessWidget {
-  const _DetailedStatsSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Detailed Statistics',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
-        _StatRow(
-          label: 'Total Study Sessions',
-          value: '0',
-          icon: Icons.school_outlined,
-        ),
-        const SizedBox(height: 12),
-        _StatRow(
-          label: 'Longest Streak',
-          value: '0 days',
-          icon: Icons.local_fire_department_outlined,
-        ),
-        const SizedBox(height: 12),
-        _StatRow(
-          label: 'Words Per Session',
-          value: '0.0',
-          icon: Icons.speed_outlined,
-        ),
-        const SizedBox(height: 12),
-        _StatRow(
-          label: 'Improvement Rate',
-          value: '0%',
-          icon: Icons.trending_up_outlined,
-        ),
-      ],
-    );
-  }
-}
-
-/// Statistics row widget
-class _StatRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _StatRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CartoonDesignSystem.softPeach.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusSmall),
-        border: Border.all(
-          color: CartoonDesignSystem.chocolateBrown.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: CartoonDesignSystem.cherryRed,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTheme.textTheme.bodyMedium,
-            ),
-          ),
-          Text(
-            value,
-            style: AppTheme.textTheme.bodyMedium?.copyWith(
-              color: CartoonDesignSystem.cherryRed,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

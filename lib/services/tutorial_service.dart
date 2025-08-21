@@ -148,7 +148,7 @@ class TutorialManager {
       title: "Track Your Amazing Progress!",
       content: "This Progress screen is one of my favorites! Here you can see all your achievements, vocabulary mastered, and learning streaks.\n\nI love watching learners see their progress grow over time - it's so motivating! You'll be amazed at how much you accomplish.",
       trigger: TutorialTrigger.startAdventure,
-      targetTab: AppTab.progress,
+      targetTab: AppTab.home,
       delay: Duration(milliseconds: 500),
     ),
     TutorialStep(
@@ -156,7 +156,7 @@ class TutorialManager {
       title: "Discover Premium Adventures!",
       content: "The Premium section unlocks additional levels, exclusive content, and advanced learning features beyond your current adventure.\n\nIf you want to explore more locations and dive deeper into language and culture, this is where you'll find those exciting opportunities!",
       trigger: TutorialTrigger.startAdventure,
-      targetTab: AppTab.premium,
+      targetTab: AppTab.learn,
       delay: Duration(milliseconds: 500),
     ),
     TutorialStep(

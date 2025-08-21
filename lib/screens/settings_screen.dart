@@ -14,6 +14,8 @@ import 'package:babblelon/providers/player_data_providers.dart' as player_provid
 import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/services/sync_service.dart';
+import 'package:babblelon/widgets/universal_stats_row.dart';
+import 'package:babblelon/screens/authentication_screen.dart';
 
 /// Settings screen with instant toggles and simple layout
 /// Performance optimized with minimal animations
@@ -36,21 +38,27 @@ class SettingsScreen extends ConsumerWidget {
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _AudioSection(),
+              SizedBox(height: 16),
+              UniversalStatsRow(),
               SizedBox(height: 24),
-              _TutorialSection(),
-              SizedBox(height: 24),
-              _AccessibilitySection(),
-              SizedBox(height: 24),
-              _LanguageSection(),
-              SizedBox(height: 24),
-              _GamePreferencesSection(),
-              SizedBox(height: 24),
-              _DeveloperSection(),
-              SizedBox(height: 24),
-              _AboutSection(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _AudioSection(),
+                  SizedBox(height: 20),
+                  _TutorialSection(),
+                  SizedBox(height: 20),
+                  _AccessibilitySection(),
+                  SizedBox(height: 20),
+                  _LanguageSection(),
+                  SizedBox(height: 20),
+                  _GamePreferencesSection(),
+                  SizedBox(height: 20),
+                  _AboutSection(),
+                ],
+              ),
             ],
           ),
         ),
@@ -465,263 +473,12 @@ class _GamePreferencesSection extends ConsumerWidget {
   }
 }
 
-/// Developer section with debug and testing tools
-class _DeveloperSection extends ConsumerWidget {
-  const _DeveloperSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentUser = SupabaseService.client.auth.currentUser;
-    final isDebugMode = currentUser != null;
-    
-    if (!isDebugMode) {
-      return const SizedBox.shrink(); // Hide section if not logged in
-    }
-    
-    return _SettingsSection(
-      title: 'Developer Tools',
-      icon: Icons.code,
-      children: [
-        _SettingsTile(
-          title: 'Current User',
-          subtitle: currentUser.email ?? 'No email',
-          trailing: Container(),
-        ),
-        _SettingsTile(
-          title: 'User ID',
-          subtitle: currentUser.id.substring(0, 8) + '...',
-          trailing: IconButton(
-            icon: Icon(
-              Icons.copy,
-              color: CartoonDesignSystem.textSecondary,
-              size: 16,
-            ),
-            onPressed: () {
-              // Copy user ID to clipboard
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('User ID copied: ${currentUser.id}'),
-                  backgroundColor: CartoonDesignSystem.forestGreen,
-                ),
-              );
-            },
-          ),
-        ),
-        const Divider(height: 1),
-        _SettingsTile(
-          title: 'Clear Test Data',
-          subtitle: 'Delete current user from Supabase',
-          trailing: Icon(
-            Icons.delete_forever,
-            color: CartoonDesignSystem.cherryRed,
-            size: 20,
-          ),
-          onTap: () => _showClearDataDialog(context, ref),
-        ),
-        _SettingsTile(
-          title: 'Sign Out',
-          subtitle: 'Sign out and return to onboarding',
-          trailing: Icon(
-            Icons.logout,
-            color: CartoonDesignSystem.warmOrange,
-            size: 20,
-          ),
-          onTap: () => _showSignOutDialog(context, ref),
-        ),
-      ],
-    );
-  }
-  
-  void _showClearDataDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Clear Test Data',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        content: Text(
-          'This will delete your account and all associated data from Supabase. This action cannot be undone.\n\nYou will be signed out and can create a new test account.',
-          style: AppTheme.textTheme.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: CartoonDesignSystem.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _clearTestData(context, ref);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: CartoonDesignSystem.cherryRed,
-            ),
-            child: const Text('Delete Everything'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showSignOutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Sign Out',
-          style: AppTheme.textTheme.headlineSmall,
-        ),
-        content: Text(
-          'Are you sure you want to sign out? You will need to sign in again to continue.',
-          style: AppTheme.textTheme.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: CartoonDesignSystem.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _signOut(context, ref);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: CartoonDesignSystem.warmOrange,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Future<void> _clearTestData(BuildContext context, WidgetRef ref) async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(CartoonDesignSystem.radiusMedium),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  color: CartoonDesignSystem.cherryRed,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Deleting test data...',
-                  style: AppTheme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      
-      final currentUser = SupabaseService.client.auth.currentUser;
-      if (currentUser != null) {
-        // Delete player profile first
-        await SupabaseService.client
-            .from('players')
-            .delete()
-            .eq('user_id', currentUser.id);
-        
-        // Sign out (this doesn't delete the auth.users entry)
-        await SupabaseService.client.auth.signOut();
-        
-        // Note: We can't delete from auth.users table directly from client
-        // That would require admin/service role access
-        // The user can create a new account with a different email
-      }
-      
-      // Clear local data
-      final isarService = ref.read(isarServiceProvider);
-      await isarService.clearAllData();
-      
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.pop(context);
-        
-        // Navigate to onboarding
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/onboarding',
-          (route) => false,
-        );
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Test data cleared. You can create a new account.'),
-            backgroundColor: CartoonDesignSystem.forestGreen,
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.pop(context);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error clearing data: $e'),
-            backgroundColor: CartoonDesignSystem.cherryRed,
-          ),
-        );
-      }
-    }
-  }
-  
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    try {
-      await SupabaseService.client.auth.signOut();
-      
-      if (context.mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/onboarding',
-          (route) => false,
-        );
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Signed out successfully'),
-            backgroundColor: CartoonDesignSystem.forestGreen,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: $e'),
-            backgroundColor: CartoonDesignSystem.cherryRed,
-          ),
-        );
-      }
-    }
-  }
-}
-
 /// About section with links and information
-class _AboutSection extends StatelessWidget {
+class _AboutSection extends ConsumerWidget {
   const _AboutSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _SettingsSection(
       title: 'About',
       icon: Icons.info_outline,
@@ -785,8 +542,85 @@ class _AboutSection extends StatelessWidget {
             );
           },
         ),
+        _SettingsTile(
+          title: 'Sign Out',
+          subtitle: 'Sign out of your account',
+          trailing: Icon(
+            Icons.logout,
+            color: CartoonDesignSystem.cherryRed,
+            size: 16,
+          ),
+          onTap: () {
+            _showSignOutDialog(context);
+          },
+        ),
       ],
     );
+  }
+
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Sign Out',
+          style: AppTheme.textTheme.headlineSmall,
+        ),
+        content: Text(
+          'Are you sure you want to sign out? You will need to sign in again to continue.',
+          style: AppTheme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: CartoonDesignSystem.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _signOut(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CartoonDesignSystem.cherryRed,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    try {
+      await SupabaseService.client.auth.signOut();
+      
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthenticationScreen()),
+          (route) => false,
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Signed out successfully'),
+            backgroundColor: CartoonDesignSystem.forestGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing out: $e'),
+            backgroundColor: CartoonDesignSystem.cherryRed,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum AppTab {
   home,
   learn,
-  progress,
-  premium,
   settings,
 }
 
@@ -29,12 +27,6 @@ class NavigationController {
   
   /// Switch to learn tab (connects to existing game flow)
   void goToLearn() => switchToTab(AppTab.learn);
-  
-  /// Switch to progress tab
-  void goToProgress() => switchToTab(AppTab.progress);
-  
-  /// Switch to premium tab
-  void goToPremium() => switchToTab(AppTab.premium);
   
   /// Switch to settings tab
   void goToSettings() => switchToTab(AppTab.settings);

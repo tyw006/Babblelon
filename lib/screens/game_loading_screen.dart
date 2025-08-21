@@ -43,7 +43,7 @@ class _GameLoadingScreenState extends ConsumerState<GameLoadingScreen>
   
   double _totalProgress = 0.0;
   double _lastProgress = 0.0;
-  String _loadingText = 'Preparing your Thai adventure...';
+  String _loadingText = 'Preparing your language adventure...';
   bool _isComplete = false;
   bool _isLoading = false;
   bool _hasStartedLoading = false; // Guard to prevent duplicate loading calls
@@ -215,7 +215,7 @@ class _GameLoadingScreenState extends ConsumerState<GameLoadingScreen>
         if (mounted) {
           setState(() {
             _totalProgress = progress;
-            _loadingText = _getThaiLoadingText(step);
+            _loadingText = _getLanguageLoadingText(step);
             _updateCharacterPositions(progress);
           });
           _progressController.animateTo(_totalProgress);
@@ -262,19 +262,19 @@ class _GameLoadingScreenState extends ConsumerState<GameLoadingScreen>
     );
   }
 
-  String _getThaiLoadingText(String step) {
-    // Add Thai cultural flair to loading messages
-    final thaiLoadingPhrases = {
-      'Initializing': 'เริ่มต้นการผจญภัย... (Starting adventure)',
-      'Loading': 'กำลังโหลด... (Loading)',
-      'Preparing': 'เตรียมพร้อม... (Preparing)',
-      'assets': 'โหลดภาพและเสียง... (Loading images and sounds)',
-      'audio': 'เตรียมเสียง... (Preparing audio)',
-      'game': 'เริ่มเกม... (Starting game)',
-      'ready': 'พร้อมแล้ว! (Ready!)',
+  String _getLanguageLoadingText(String step) {
+    // Add cultural flair to loading messages
+    final loadingPhrases = {
+      'Initializing': 'Starting your language adventure...',
+      'Loading': 'Loading resources...',
+      'Preparing': 'Preparing your experience...',
+      'assets': 'Loading images and sounds...',
+      'audio': 'Preparing audio...',
+      'game': 'Starting game...',
+      'ready': 'Ready to learn!',
     };
     
-    for (final phrase in thaiLoadingPhrases.entries) {
+    for (final phrase in loadingPhrases.entries) {
       if (step.toLowerCase().contains(phrase.key.toLowerCase())) {
         return phrase.value;
       }

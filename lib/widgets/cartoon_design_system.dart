@@ -79,6 +79,13 @@ class CartoonDesignSystem {
     colors: [cherryRed, Colors.transparent],
   );
 
+  // Hero Learn Button Gradient - Performance optimized static gradient
+  static const LinearGradient heroButtonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [sunshineYellow, Color(0xFFFF8F00)], // Sunshine to warm orange
+  );
+
   // Typography Scale - Friendly, rounded fonts
   static const TextStyle displayLarge = TextStyle(
     fontSize: 40,
