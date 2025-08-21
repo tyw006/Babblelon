@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart';
 import 'package:babblelon/theme/app_theme.dart';
-import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
+import 'package:babblelon/screens/main_screen/thailand_map_screen.dart';
 
 /// Learn screen that connects to existing game flow
 /// Performance optimized with direct navigation to game
@@ -91,7 +91,7 @@ class _GameModeSection extends ConsumerWidget {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const CombinedSelectionScreen(),
+                  builder: (context) => const ThailandMapScreen(),
                 ),
               );
             },

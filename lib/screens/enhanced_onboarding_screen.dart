@@ -30,6 +30,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
   int? _enteredAge;
   Set<String> _selectedMotivations = {};
   String? _selectedTargetLanguage = 'thai';
+  String? _selectedCharacter;
   
   // Supabase service
   final SupabaseService _supabaseService = SupabaseService();
@@ -73,6 +74,22 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
   };
   
   final List<String> _languageLevelOptions = ['beginner', 'elementary', 'intermediate', 'advanced'];
+  
+  // Character options
+  final List<CharacterData> _characters = [
+    const CharacterData(
+      id: 'male',
+      name: 'Male Tourist',
+      assetPath: 'assets/images/player/sprite_male_tourist.png',
+      description: 'Ready for adventure!',
+    ),
+    const CharacterData(
+      id: 'female',
+      name: 'Female Tourist',
+      assetPath: 'assets/images/player/sprite_female_tourist.png',
+      description: 'Excited to explore!',
+    ),
+  ];
   
   final Map<String, String> _languageLevelLabels = {
     'beginner': '🌱 Complete Beginner - I\'m just starting',
@@ -138,11 +155,13 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                _enteredAge != null && _enteredAge! >= 13;
       case 2: // Target Language page (Thai only for now)
         return _selectedTargetLanguage != null;
-      case 3: // Experience & Goals page (level + pace)
+      case 3: // Character Selection page
+        return _selectedCharacter != null;
+      case 4: // Experience & Goals page (level + pace)
         return _selectedLanguageLevel != null && _selectedPace != null;
-      case 4: // Motivation page
+      case 5: // Motivation page
         return _selectedMotivations.isNotEmpty;
-      case 5: // Privacy & Complete page
+      case 6: // Privacy & Complete page
         return true; // Optional page
       default:
         return true;
@@ -180,6 +199,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
           ..lastName = _lastNameController.text.trim()
           ..age = _enteredAge
           ..targetLanguage = _selectedTargetLanguage
+          ..selectedCharacter = _selectedCharacter
           ..targetLanguageLevel = _selectedLanguageLevel
           ..hasPriorLearning = (_selectedLanguageLevel != 'beginner')
           ..nativeLanguage = 'en'
@@ -223,7 +243,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             'target_language_level': profile.targetLanguageLevel,
             'has_prior_learning': profile.hasPriorLearning,
             'native_language': profile.nativeLanguage,
-            'selected_character': null,
+            'selected_character': profile.selectedCharacter,
             'character_customization': {},
             'learning_motivation': profile.learningMotivation,
             'learning_pace': profile.learningPace,
@@ -376,7 +396,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
     }
   }
 
-  int _getPageCount() => 6; // Welcome, Basic Info, Language Background, Experience & Goals, Motivation, Privacy & Complete
+  int _getPageCount() => 7; // Welcome, Basic Info, Target Language, Character Selection, Experience & Goals, Motivation, Privacy & Complete
 
   @override
   Widget build(BuildContext context) {
@@ -432,6 +452,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
                   _buildWelcomePage(),
                   _buildBasicInfoPage(),
                   _buildTargetLanguagePage(),
+                  _buildCharacterSelectionPage(),
                   _buildExperienceAndGoalsPage(),
                   _buildMotivationPage(),
                   _buildPrivacyAndCompletePage(),
@@ -476,7 +497,7 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
   String _getButtonText() {
     switch (_currentPage) {
       case 0: return 'Get Started';
-      case 5: return 'Complete Setup'; // Updated index since we removed character selection
+      case 6: return 'Complete Setup'; // Updated index for 7 total pages
       default: return 'Continue';
     }
   }
@@ -805,6 +826,163 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCharacterSelectionPage() {
+    return _FormPageWidget(
+      title: 'Choose Your Adventure Companion',
+      description: 'Select your character to represent you in the Thai cultural adventure.',
+      icon: Icons.person_outline,
+      color: cartoon.CartoonDesignSystem.lavenderPurple,
+      child: Column(
+        children: [
+          // Character grid - 2 characters side by side
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _characters.map((character) {
+              final isSelected = _selectedCharacter == character.id;
+              
+              return GestureDetector(
+                onTap: () => setState(() => _selectedCharacter = character.id),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 140,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                      ? cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.1)
+                      : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                    border: Border.all(
+                      color: isSelected 
+                        ? cartoon.CartoonDesignSystem.lavenderPurple
+                        : cartoon.CartoonDesignSystem.textMuted.withValues(alpha: 0.3),
+                      width: isSelected ? 3 : 1,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Character sprite
+                        Expanded(
+                          child: Image.asset(
+                            character.assetPath,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                character.id == 'male' ? Icons.person : Icons.person_4,
+                                size: 64,
+                                color: isSelected 
+                                    ? cartoon.CartoonDesignSystem.lavenderPurple
+                                    : cartoon.CartoonDesignSystem.textSecondary,
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          character.name,
+                          style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isSelected 
+                                ? cartoon.CartoonDesignSystem.lavenderPurple
+                                : cartoon.CartoonDesignSystem.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          character.description,
+                          style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                            fontSize: 11,
+                            color: cartoon.CartoonDesignSystem.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          
+          // Selected character indicator
+          if (_selectedCharacter != null) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: cartoon.CartoonDesignSystem.lavenderPurple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusLarge),
+                border: Border.all(
+                  color: cartoon.CartoonDesignSystem.lavenderPurple,
+                  width: 2,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: cartoon.CartoonDesignSystem.lavenderPurple,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Selected: ${_characters.firstWhere((c) => c.id == _selectedCharacter).name}',
+                    style: cartoon.CartoonDesignSystem.bodyMedium.copyWith(
+                      color: cartoon.CartoonDesignSystem.lavenderPurple,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 16),
+          
+          // Info about character use
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cartoon.CartoonDesignSystem.lightBlue.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(cartoon.CartoonDesignSystem.radiusMedium),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: cartoon.CartoonDesignSystem.skyBlue,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Your character will represent you in conversations with Thai NPCs and can be changed later in Settings.',
+                    style: cartoon.CartoonDesignSystem.bodySmall.copyWith(
+                      color: cartoon.CartoonDesignSystem.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1181,6 +1359,21 @@ class _EnhancedOnboardingScreenState extends ConsumerState<EnhancedOnboardingScr
       ),
     );
   }
+}
+
+/// Character data model for character selection
+class CharacterData {
+  final String id;
+  final String name;
+  final String assetPath;
+  final String description;
+
+  const CharacterData({
+    required this.id,
+    required this.name,
+    required this.assetPath,
+    required this.description,
+  });
 }
 
 /// Reusable widget for onboarding pages with static content

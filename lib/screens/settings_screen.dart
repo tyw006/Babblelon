@@ -8,6 +8,12 @@ import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/screens/tutorial_settings_screen.dart';
 import 'package:babblelon/services/supabase_service.dart';
+import 'package:babblelon/widgets/character_selection_modal.dart';
+import 'package:babblelon/widgets/language_selection_modal.dart';
+import 'package:babblelon/providers/player_data_providers.dart' as player_providers;
+import 'package:babblelon/services/auth_service_interface.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:babblelon/services/sync_service.dart';
 
 /// Settings screen with instant toggles and simple layout
 /// Performance optimized with minimal animations
@@ -39,6 +45,8 @@ class SettingsScreen extends ConsumerWidget {
               _AccessibilitySection(),
               SizedBox(height: 24),
               _LanguageSection(),
+              SizedBox(height: 24),
+              _GamePreferencesSection(),
               SizedBox(height: 24),
               _DeveloperSection(),
               SizedBox(height: 24),
@@ -156,11 +164,11 @@ class _AccessibilitySection extends StatelessWidget {
 }
 
 /// Language settings section
-class _LanguageSection extends StatelessWidget {
+class _LanguageSection extends ConsumerWidget {
   const _LanguageSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _SettingsSection(
       title: 'Language',
       icon: Icons.language_outlined,
@@ -183,8 +191,6 @@ class _LanguageSection extends StatelessWidget {
             );
           },
         ),
-        // Target language selection is now handled in onboarding
-        // No need for duplicate option here
       ],
     );
   }
@@ -219,6 +225,243 @@ class _TutorialSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Game preferences section with language and character settings
+class _GamePreferencesSection extends ConsumerWidget {
+  const _GamePreferencesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get current authenticated user ID
+    final authService = AuthServiceFactory.getInstance();
+    final currentUserId = authService.currentUserId;
+    
+    if (currentUserId == null) {
+      return _SettingsSection(
+        title: 'Game Preferences',
+        icon: Icons.videogame_asset_outlined,
+        children: [
+          _SettingsTile(
+            title: 'Sign in Required',
+            subtitle: 'Please sign in to change game preferences',
+            trailing: Container(),
+          ),
+        ],
+      );
+    }
+
+    // Use the playerProfileProvider with the authenticated user ID
+    final profileAsyncValue = ref.watch(player_providers.playerProfileProvider(currentUserId));
+    
+    return profileAsyncValue.when(
+      data: (profile) => _buildGamePreferences(context, ref, profile),
+      loading: () => _SettingsSection(
+        title: 'Game Preferences',
+        icon: Icons.videogame_asset_outlined,
+        children: [
+          _SettingsTile(
+            title: 'Loading...',
+            subtitle: 'Fetching your preferences',
+            trailing: const CircularProgressIndicator(),
+          ),
+        ],
+      ),
+      error: (error, stackTrace) => _SettingsSection(
+        title: 'Game Preferences',
+        icon: Icons.videogame_asset_outlined,
+        children: [
+          _SettingsTile(
+            title: 'Error Loading Preferences',
+            subtitle: 'Please try again later',
+            trailing: Container(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGamePreferences(BuildContext context, WidgetRef ref, profile) {
+    if (profile == null) {
+      return _SettingsSection(
+        title: 'Game Preferences',
+        icon: Icons.videogame_asset_outlined,
+        children: [
+          _SettingsTile(
+            title: 'No Profile Found',
+            subtitle: 'Complete onboarding to set preferences',
+            trailing: Container(),
+          ),
+        ],
+      );
+    }
+
+    // Get display names
+    final languageDisplayName = _getLanguageDisplayName(profile.targetLanguage);
+    final characterDisplayName = _getCharacterDisplayName(profile.selectedCharacter);
+
+    return _SettingsSection(
+      title: 'Game Preferences',
+      icon: Icons.videogame_asset_outlined,
+      children: [
+        _SettingsTile(
+          title: 'Learning Language',
+          subtitle: 'Currently: $languageDisplayName',
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            color: CartoonDesignSystem.textSecondary,
+            size: 16,
+          ),
+          onTap: () {
+            _showLanguageSelection(context, ref, profile.targetLanguage);
+          },
+        ),
+        _SettingsTile(
+          title: 'Character',
+          subtitle: 'Currently: $characterDisplayName',
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            color: CartoonDesignSystem.textSecondary,
+            size: 16,
+          ),
+          onTap: () {
+            _showCharacterSelection(context, ref, profile.selectedCharacter);
+          },
+        ),
+      ],
+    );
+  }
+
+  String _getLanguageDisplayName(String? languageCode) {
+    switch (languageCode) {
+      case 'thai': return 'Thai 🇹🇭';
+      case 'chinese': return 'Chinese 🇨🇳';
+      case 'japanese': return 'Japanese 🇯🇵';
+      case 'korean': return 'Korean 🇰🇷';
+      case 'vietnamese': return 'Vietnamese 🇻🇳';
+      default: return 'Thai 🇹🇭'; // Default fallback
+    }
+  }
+
+  String _getCharacterDisplayName(String? characterId) {
+    switch (characterId) {
+      case 'male': return 'Male Tourist';
+      case 'female': return 'Female Tourist';
+      default: return 'Male Tourist'; // Default fallback
+    }
+  }
+
+  void _showLanguageSelection(BuildContext context, WidgetRef ref, String? currentLanguage) {
+    showDialog(
+      context: context,
+      builder: (context) => LanguageSelectionModal(
+        initialLanguage: currentLanguage,
+        onLanguageSelected: (languageCode) async {
+          await _updateLanguage(context, ref, languageCode);
+        },
+      ),
+    );
+  }
+
+  void _showCharacterSelection(BuildContext context, WidgetRef ref, String? currentCharacter) {
+    showDialog(
+      context: context,
+      builder: (context) => CharacterSelectionModal(
+        initialCharacter: currentCharacter,
+        onCharacterSelected: (characterId) async {
+          await _updateCharacter(context, ref, characterId);
+        },
+      ),
+    );
+  }
+
+  Future<void> _updateLanguage(BuildContext context, WidgetRef ref, String languageCode) async {
+    try {
+      final authService = AuthServiceFactory.getInstance();
+      final userId = authService.currentUserId;
+      
+      if (userId != null) {
+        final isarService = IsarService();
+        final profile = await isarService.getPlayerProfile(userId);
+        
+        if (profile != null) {
+          profile.targetLanguage = languageCode;
+          profile.needsSync = true;
+          
+          await isarService.savePlayerProfile(profile);
+          
+          // Trigger sync to Supabase immediately
+          final syncService = SyncService();
+          await syncService.syncPlayerProfile();
+          
+          // Refresh the profile provider
+          ref.invalidate(player_providers.playerProfileProvider(userId));
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Learning language updated to ${_getLanguageDisplayName(languageCode)}'),
+                backgroundColor: CartoonDesignSystem.forestGreen,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating language: $e'),
+            backgroundColor: CartoonDesignSystem.cherryRed,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateCharacter(BuildContext context, WidgetRef ref, String characterId) async {
+    try {
+      final authService = AuthServiceFactory.getInstance();
+      final userId = authService.currentUserId;
+      
+      if (userId != null) {
+        final isarService = IsarService();
+        final profile = await isarService.getPlayerProfile(userId);
+        
+        if (profile != null) {
+          profile.selectedCharacter = characterId;
+          profile.needsSync = true;
+          
+          await isarService.savePlayerProfile(profile);
+          
+          // Trigger sync to Supabase immediately
+          final syncService = SyncService();
+          await syncService.syncPlayerProfile();
+          
+          // Refresh the profile provider
+          ref.invalidate(player_providers.playerProfileProvider(userId));
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Character updated to ${_getCharacterDisplayName(characterId)}'),
+                backgroundColor: CartoonDesignSystem.forestGreen,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating character: $e'),
+            backgroundColor: CartoonDesignSystem.cherryRed,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/screens/main_screen/widgets/location_marker_widget.dart';
 import 'package:babblelon/screens/game_loading_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
-import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 import 'package:babblelon/widgets/modern_design_system.dart';
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
@@ -259,16 +258,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
   }
 
   void _handleBackNavigation() {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const CombinedSelectionScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return child!;
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+    Navigator.pop(context);
   }
 
   @override
