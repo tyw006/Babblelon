@@ -113,7 +113,6 @@ class SyncService {
     try {
       // Build sync data map with conditional fields to avoid constraint violations
       final syncData = <String, dynamic>{
-        'user_id': currentUserId,
         'first_name': profile.firstName,
         'last_name': profile.lastName,
         'avatar_url': profile.avatarUrl,
@@ -146,22 +145,44 @@ class SyncService {
         'tutorials_completed': profile.tutorialsCompleted,
         'onboarding_completed': profile.onboardingCompleted,
         'onboarding_completed_at': profile.onboardingCompletedAt?.toIso8601String(),
+        'account_upgraded_at': profile.accountUpgradedAt?.toIso8601String(),
         'created_at': profile.createdAt?.toIso8601String(),
         'last_active_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
       
-      // Only include learning_motivation if it has a valid value
-      // This prevents constraint violations since this field is set during onboarding only
-      if (profile.learningMotivation != null && profile.learningMotivation!.isNotEmpty) {
-        syncData['learning_motivation'] = profile.learningMotivation;
-      }
+      // learning_motivation is only set during onboarding and should not be synced repeatedly
+      // Removing this field prevents database constraint violations during routine syncs
       
-      final response = await SupabaseService.client
+      // Check if profile exists first to determine INSERT vs UPDATE strategy
+      final existingProfile = await SupabaseService.client
           .from('players')
-          .upsert(syncData)
-          .select()
-          .single();
+          .select('id')
+          .eq('user_id', currentUserId!)
+          .maybeSingle();
+      
+      Map<String, dynamic> response;
+      
+      if (existingProfile == null) {
+        // New profile: Use INSERT with user_id included
+        final insertData = {
+          ...syncData,
+          'user_id': currentUserId!, // Include user_id for INSERT to satisfy RLS
+        };
+        response = await SupabaseService.client
+            .from('players')
+            .insert(insertData)
+            .select()
+            .single();
+      } else {
+        // Existing profile: Use UPDATE without user_id (already established)
+        response = await SupabaseService.client
+            .from('players')
+            .update(syncData)
+            .eq('user_id', currentUserId!)
+            .select()
+            .single();
+      }
       
       // Update local record with sync metadata
       profile.supabaseId = response['id'];
@@ -169,7 +190,15 @@ class SyncService {
       profile.needsSync = false;
       await _isarService.savePlayerProfile(profile);
     } catch (e) {
-      print('Error uploading player profile: $e');
+      if (e.toString().contains('42501')) {
+        print('Error uploading player profile - RLS Policy Violation: $e');
+        print('Current user ID: $currentUserId');
+        print('Attempting to sync profile for user: ${profile.userId}');
+      } else if (e.toString().contains('23505')) {
+        print('Error uploading player profile - Unique Constraint Violation: $e');
+      } else {
+        print('Error uploading player profile: $e');
+      }
       rethrow;
     }
   }

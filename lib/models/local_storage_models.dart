@@ -75,6 +75,9 @@ class PlayerProfile {
   bool personalizedContentConsent = true;
   DateTime? consentDate;
   
+  // Premium account tracking
+  DateTime? accountUpgradedAt; // When user upgraded to premium
+  
   // Authentication metadata (email-first signup only)
   // Note: All users now have email-based accounts
   

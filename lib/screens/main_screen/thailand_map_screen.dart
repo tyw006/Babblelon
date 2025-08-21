@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/screens/main_screen/widgets/location_marker_widget.dart';
-import 'package:babblelon/screens/game_screen.dart';
+import 'package:babblelon/screens/game_loading_screen.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/screens/main_screen/combined_selection_screen.dart';
 import 'package:babblelon/widgets/cartoon_design_system.dart' as cartoon;
 import 'package:babblelon/widgets/modern_design_system.dart';
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:babblelon/services/supabase_service.dart';
 
 class ThailandMapScreen extends ConsumerStatefulWidget {
   const ThailandMapScreen({super.key});
@@ -87,55 +89,38 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     }
   }
 
-  void _navigateToGame(LocationData location) {
+  Future<void> _navigateToGame(LocationData location) async {
+    debugPrint('🗺️ ThailandMapScreen: _navigateToGame called for ${location.name}');
+    debugPrint('📍 Navigation stack trace:');
+    debugPrint(StackTrace.current.toString());
+    
     // Stop background music before transitioning to game
     _audioService.stopBackgroundMusic();
     
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return AnimatedBuilder(
-            animation: animation,
-            builder: (context, child) {
-              // First half: fade to black
-              if (animation.value < 0.5) {
-                final blackOpacity = animation.value * 2;
-                final contentOpacity = (1 - blackOpacity).clamp(0.0, 1.0);
-                return Container(
-                  color: Colors.black,
-                  child: Transform.scale(
-                    scale: contentOpacity,
-                    child: const SizedBox.expand(),
-                  ),
-                );
-              }
-              // Second half: fade in new screen
-              else {
-                final blackOpacity = (2 - (animation.value * 2)).clamp(0.0, 1.0);
-                final contentOpacity = ((animation.value - 0.5) * 2).clamp(0.0, 1.0);
-                return Stack(
-                  children: [
-                    Transform.scale(
-                      scale: contentOpacity,
-                      child: child,
-                    ),
-                    if (blackOpacity > 0)
-                      Container(
-                        color: Colors.black,
-                        child: const SizedBox.expand(),
-                      ),
-                  ],
-                );
-              }
-            },
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 1200),
-      ),
-    );
+    // Get selected character from user profile  
+    final isarService = IsarService();
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    String selectedCharacter = 'male'; // Default character
+    
+    if (userId != null) {
+      final profile = await isarService.getPlayerProfile(userId);
+      selectedCharacter = profile?.selectedCharacter ?? 'male';
+    }
+    
+    debugPrint('🗺️ ThailandMapScreen: About to navigate to GameLoadingScreen with character: $selectedCharacter');
+    debugPrint('🗺️ ThailandMapScreen: Widget mounted: $mounted');
+    
+    if (mounted) {
+      debugPrint('🗺️ ThailandMapScreen: Calling Navigator.push with MaterialPageRoute...');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameLoadingScreen(
+            selectedCharacter: selectedCharacter,
+          ),
+        ),
+      );
+    }
   }
 
   void _showComingSoonDialog(LocationData location) {

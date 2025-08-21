@@ -56,7 +56,10 @@ class TutorialCompletionNotifier extends StateNotifier<Map<String, bool>> {
     // Clear local state
     state = {};
     
-    debugPrint('TutorialCompletion: All tutorials reset');
+    // Force reload from database to ensure all providers see the reset state
+    await refreshFromDatabase();
+    
+    debugPrint('TutorialCompletion: All tutorials reset and state refreshed');
   }
 
   /// Load tutorial completions from database

@@ -13,6 +13,7 @@ import 'package:babblelon/providers/motion_preferences_provider.dart';
 import 'package:babblelon/services/background_audio_service.dart';
 import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/screens/authentication_screen.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart';
 
 /// Cartoon splash screen following BabbleOn UI Design Guide v2.0 (July 2025)
 /// Implements cartoon-themed design with playful animations and warm colors
@@ -78,6 +79,21 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
     }
   }
 
+  /// Preload tutorial data in the background for faster navigation screen loading
+  void _preloadTutorialData() {
+    // Start tutorial data loading in background without blocking navigation
+    // This ensures tutorial data is ready when MainNavigationScreen loads
+    Future.microtask(() {
+      try {
+        // Trigger tutorial completion provider to load data from database
+        ref.read(tutorialCompletionProvider.notifier).refreshFromDatabase();
+      } catch (e) {
+        // Silently handle errors - tutorial loading will fallback to normal timing
+        debugPrint('Tutorial preload failed: $e');
+      }
+    });
+  }
+
   @override
   void dispose() {
     _globeRotationController.dispose();
@@ -116,7 +132,8 @@ class _CartoonSplashScreenState extends ConsumerState<CartoonSplashScreen>
         try {
           final profileState = await ref.read(profileCompletionProvider.future);
           if (profileState.isCompleted) {
-            // Returning user - go to main navigation
+            // Returning user - preload tutorial data for faster navigation screen loading
+            _preloadTutorialData();
             destination = const MainNavigationScreen();
           } else {
             // First-time user - show enhanced onboarding

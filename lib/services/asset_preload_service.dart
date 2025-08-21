@@ -18,45 +18,23 @@ class AssetPreloadService {
   double _preloadProgress = 0.0;
   String _currentPreloadStep = '';
   
-  // Asset lists
+  // Asset lists - INTRO/NAVIGATION ONLY (game assets moved to GameAssetPreloadService)
   final List<String> _criticalImages = [
-    'assets/images/player/capybara.png',
-    'assets/images/ui/speech_bubble_interact.png',
+    'maps/map_thailand.png', // Thailand map for navigation
   ];
   
-  final List<String> _gameImages = [
-    'player/sprite_male_tourist.png',
-    'player/sprite_female_tourist.png',
-    'player/capybara.png',
-    'npcs/sprite_dimsum_vendor_female.png',
-    'npcs/sprite_kwaychap_vendor.png',
-    'npcs/sprite_noodle_vendor_female.png',
-    'ui/speech_bubble_interact.png', // Speech bubble sprite for NPC interactions
-    'bosses/tuktuk/portal.png',
-    'bosses/tuktuk/sprite_tuktukmonster.png',
-    'background/bossfight_tuktuk_bg.png',
-    'background/yaowarat_bg2.png', // Main game background
-    'maps/map_thailand.png',
+  final List<String> _introImages = [
+    'maps/map_thailand.png', // Thailand map for navigation
   ];
   
-  final List<String> _audioFiles = [
-    'bg/background_yaowarat.wav',
-    'bg/background_tuktukbossfight.wav',
-    'bg/background_introscreen.wav',
-    'soundeffects/soundeffect_button.mp3',
-    'soundeffects/soundeffect_crispyporkbelly.mp3',
-    'soundeffects/soundeffect_defeat.mp3',
-    'soundeffects/soundeffect_victory.mp3',
-    'soundeffects/soundeffect_portal_v2.mp3',
-    'soundeffects/soundeffect_speechbubble.mp3',
-    'soundeffects/soundeffect_startgame.mp3',
+  final List<String> _introAudioFiles = [
+    'bg/background_introscreen.wav', // Intro screen music
+    'soundeffects/soundeffect_button.mp3', // Button sounds for navigation
+    'soundeffects/soundeffect_startgame.mp3', // Start game sound
   ];
   
-  final List<String> _dataFiles = [
-    'assets/data/thai_writing_guide.json',
-    'assets/data/npc_vocabulary_somchai.json',
-    'assets/data/npc_vocabulary_amara.json',
-    'assets/data/beginner_food_vocabulary.json',
+  final List<String> _intro3DAssets = [
+    'assets/images/main_screen/earth_3d.glb', // 3D Earth model for immediate display
   ];
 
   // Getters for status
@@ -77,24 +55,22 @@ class AssetPreloadService {
     _preloadProgress = 0.0;
     
     try {
-      // Phase 1: Critical UI assets (0-30%)
+      // Phase 1: Critical navigation assets (0-30%)
       await _preloadCriticalAssets(context, onProgress);
       
-      // Phase 2: Game assets (30-70%)
-      await _preloadGameAssets(onProgress);
+      // Phase 2: 3D Earth model (30-60%)
+      await _preload3DAssets(onProgress);
       
-      // Phase 3: Audio files (70-90%)
-      await _preloadAudioAssets(onProgress);
+      // Phase 3: Intro audio files (60-90%)
+      await _preloadIntroAudioAssets(onProgress);
       
-      // Phase 4: Data files (90-100%)
-      await _preloadDataAssets(onProgress);
-      
-      _updateProgress(1.0, 'Asset preloading complete!', onProgress);
+      // Phase 4: Navigation completion (90-100%)
+      _updateProgress(1.0, 'Navigation ready!', onProgress);
       
       _isPreloaded = true;
       _isPreloading = false;
       
-      print('🎮 Asset preloading completed successfully');
+      print('🎮 Intro asset preloading completed successfully');
       return true;
       
     } catch (e) {
@@ -135,72 +111,52 @@ class AssetPreloadService {
     _updateProgress(0.3, 'Critical assets loaded', onProgress);
   }
 
-  /// Preload game assets using Flame's image cache
-  Future<void> _preloadGameAssets(Function(double, String)? onProgress) async {
-    _updateProgress(0.3, 'Loading game assets...', onProgress);
+  /// Preload 3D assets including earth model
+  Future<void> _preload3DAssets(Function(double, String)? onProgress) async {
+    _updateProgress(0.3, 'Loading 3D models...', onProgress);
     
-    for (int i = 0; i < _gameImages.length; i++) {
-      final imagePath = _gameImages[i];
+    for (int i = 0; i < _intro3DAssets.length; i++) {
+      final assetPath = _intro3DAssets[i];
       
       try {
-        await Flame.images.load(imagePath);
+        // For 3D assets, preload via rootBundle to ensure availability
+        await rootBundle.load(assetPath);
+        debugPrint('✅ Loaded 3D asset: $assetPath');
       } catch (error) {
-        debugPrint('⚠️ Failed to preload game image $imagePath: $error');
+        debugPrint('⚠️ Failed to preload 3D asset $assetPath: $error');
         // Continue with other assets
       }
       
-      // Update progress for each image
-      final progress = 0.3 + (0.4 * ((i + 1) / _gameImages.length));
-      _updateProgress(progress, 'Loading game assets... (${i + 1}/${_gameImages.length})', onProgress);
+      // Update progress for each asset
+      final progress = 0.3 + (0.3 * ((i + 1) / _intro3DAssets.length));
+      _updateProgress(progress, 'Loading 3D models... (${i + 1}/${_intro3DAssets.length})', onProgress);
     }
     
-    _updateProgress(0.7, 'Game assets loaded', onProgress);
+    _updateProgress(0.6, '3D assets loaded', onProgress);
   }
 
-  /// Preload audio files using FlameAudio
-  Future<void> _preloadAudioAssets(Function(double, String)? onProgress) async {
-    _updateProgress(0.7, 'Loading audio files...', onProgress);
+  /// Preload intro audio files using FlameAudio
+  Future<void> _preloadIntroAudioAssets(Function(double, String)? onProgress) async {
+    _updateProgress(0.6, 'Loading intro audio...', onProgress);
     
-    for (int i = 0; i < _audioFiles.length; i++) {
-      final audioPath = _audioFiles[i];
+    for (int i = 0; i < _introAudioFiles.length; i++) {
+      final audioPath = _introAudioFiles[i];
       
       try {
         await FlameAudio.audioCache.load(audioPath);
       } catch (error) {
-        debugPrint('⚠️ Failed to preload audio $audioPath: $error');
+        debugPrint('⚠️ Failed to preload intro audio $audioPath: $error');
         // Continue with other assets
       }
       
       // Update progress for each audio file
-      final progress = 0.7 + (0.2 * ((i + 1) / _audioFiles.length));
-      _updateProgress(progress, 'Loading audio... (${i + 1}/${_audioFiles.length})', onProgress);
+      final progress = 0.6 + (0.3 * ((i + 1) / _introAudioFiles.length));
+      _updateProgress(progress, 'Loading intro audio... (${i + 1}/${_introAudioFiles.length})', onProgress);
     }
     
-    _updateProgress(0.9, 'Audio files loaded', onProgress);
+    _updateProgress(0.9, 'Intro audio loaded', onProgress);
   }
 
-  /// Preload data files into memory
-  Future<void> _preloadDataAssets(Function(double, String)? onProgress) async {
-    _updateProgress(0.9, 'Loading data files...', onProgress);
-    
-    for (int i = 0; i < _dataFiles.length; i++) {
-      final dataPath = _dataFiles[i];
-      
-      try {
-        final data = await rootBundle.loadString(dataPath);
-        debugPrint('✅ Loaded data file: $dataPath (${data.length} characters)');
-      } catch (error) {
-        debugPrint('⚠️ Failed to preload data file $dataPath: $error');
-        // Continue with other assets
-      }
-      
-      // Update progress for each data file
-      final progress = 0.9 + (0.1 * ((i + 1) / _dataFiles.length));
-      _updateProgress(progress, 'Loading data... (${i + 1}/${_dataFiles.length})', onProgress);
-    }
-    
-    _updateProgress(1.0, 'Data files loaded', onProgress);
-  }
 
   /// Preload specific assets for a screen
   Future<void> preloadScreenAssets(String screenName) async {
@@ -377,10 +333,10 @@ class AssetPreloadService {
       'preloadProgress': _preloadProgress,
       'currentStep': _currentPreloadStep,
       'criticalAssets': _criticalImages.length,
-      'gameAssets': _gameImages.length,
-      'audioFiles': _audioFiles.length,
-      'dataFiles': _dataFiles.length,
-      'totalAssets': _criticalImages.length + _gameImages.length + _audioFiles.length + _dataFiles.length,
+      'introImages': _introImages.length,
+      'introAudioFiles': _introAudioFiles.length,
+      'intro3DAssets': _intro3DAssets.length,
+      'totalAssets': _criticalImages.length + _introImages.length + _introAudioFiles.length + _intro3DAssets.length,
     };
   }
 }

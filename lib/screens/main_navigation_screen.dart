@@ -40,23 +40,26 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Future<void> _checkAndShowMainTutorial() async {
     if (!mounted) return;
     
-    // Wait for tutorial progress to fully load before checking completion status
-    // This prevents the race condition where tutorial check happens before sync completes
-    
-    // Give tutorial sync time to complete (up to 3 seconds)
-    int attempts = 0;
-    const maxAttempts = 30; // 30 * 100ms = 3 seconds max wait
-    
-    while (attempts < maxAttempts && mounted) {
-      final tutorialProgress = ref.read(tutorialProgressProvider);
-      // If we have any tutorial progress loaded, sync has likely completed
-      if (tutorialProgress.isNotEmpty) {
-        debugPrint('Tutorial: Tutorial progress loaded, checking completion status');
-        break;
-      }
+    // Check if tutorial data is already loaded (from preloading in splash screen)
+    final tutorialProgress = ref.read(tutorialProgressProvider);
+    if (tutorialProgress.isNotEmpty) {
+      debugPrint('Tutorial: Tutorial progress already loaded, checking completion status');
+    } else {
+      // Fallback: Brief wait for tutorial sync if preloading didn't complete
+      // Reduced from 3 seconds to 500ms for better UX
+      int attempts = 0;
+      const maxAttempts = 5; // 5 * 100ms = 500ms max wait
       
-      await Future.delayed(const Duration(milliseconds: 100));
-      attempts++;
+      while (attempts < maxAttempts && mounted) {
+        final currentProgress = ref.read(tutorialProgressProvider);
+        if (currentProgress.isNotEmpty) {
+          debugPrint('Tutorial: Tutorial progress loaded during fallback wait');
+          break;
+        }
+        
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
     }
     
     if (!mounted) return;
@@ -67,11 +70,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     debugPrint('Tutorial: Tutorial completion status: $tutorialCompleted');
     
     if (!tutorialCompleted && mounted) {
-      // Additional delay to ensure navigation is stable
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (!mounted) return;
-      
-      // Start tutorial
+      // Start tutorial immediately
       final tutorialManager = TutorialManager(context: context, ref: ref);
       ref.read(tutorialActiveProvider.notifier).state = true;
       

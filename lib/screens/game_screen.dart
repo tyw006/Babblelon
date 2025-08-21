@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flame/game.dart';
-import 'package:flutter/services.dart';
 import 'dart:ui';
 import '../game/babblelon_game.dart';
 import '../overlays/dialogue_overlay.dart';
@@ -9,20 +7,17 @@ import 'package:flame_riverpod/flame_riverpod.dart';
 import '../providers/game_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
-import 'main_menu_screen.dart';
 import 'main_navigation_screen.dart';
-import 'package:flame_audio/flame_audio.dart';
 import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
 import '../models/popup_models.dart';
-import '../services/tutorial_service.dart';
 import '../widgets/popups/base_popup_widget.dart';
+import '../services/static_game_loader.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
 class GameScreen extends StatefulWidget {
-  GameScreen({super.key});
-  final BabblelonGame _game = BabblelonGame();
+  const GameScreen({super.key});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -100,7 +95,7 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               RiverpodAwareGameWidget(
                 key: gameWidgetKey,
-                game: widget._game,
+                game: BabblelonGame.instance,
                 loadingBuilder: (context) => const Center(
                   child: CircularProgressIndicator(),
                 ),
@@ -212,18 +207,20 @@ class _GameScreenState extends State<GameScreen> {
 
   void _openMenu() {
     final isPaused = _ref.read(gameStateProvider).isPaused;
+    final game = BabblelonGame.instance;
     // Only add overlay if not already present
-    if (!widget._game.overlays.isActive('main_menu')) {
+    if (!game.overlays.isActive('main_menu')) {
       if (!isPaused) {
-        widget._game.pauseGame(_ref);
+        game.pauseGame(_ref);
       }
-      widget._game.overlays.add('main_menu');
+      game.overlays.add('main_menu');
     }
   }
 
   void _closeMenuAndResume() {
-    widget._game.overlays.remove('main_menu');
-    widget._game.resumeGame(_ref);
+    final game = BabblelonGame.instance;
+    game.overlays.remove('main_menu');
+    game.resumeGame(_ref);
   }
 }
 
@@ -415,10 +412,39 @@ class MainMenu extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-        (route) => false, // Remove all previous routes
-      );
+      // Reset UI state and close any open overlays/menus
+      try {
+        // Clear any new item notifications and reset overlay visibility
+        ref.read(gameStateProvider.notifier).clearNewItem();
+        ref.read(dialogueOverlayVisibilityProvider.notifier).state = false;
+        debugPrint('🔄 GameScreen: Reset UI state on exit');
+      } catch (e) {
+        debugPrint('⚠️ GameScreen: Error resetting UI state: $e');
+      }
+      
+      // Reset the entire game instance for clean state
+      try {
+        BabblelonGame.resetInstance();
+        debugPrint('🔄 GameScreen: Reset game instance completely');
+        
+        // Also reset StaticGameLoader to ensure coordinated state
+        final staticLoader = StaticGameLoader();
+        staticLoader.reset();
+        debugPrint('🔄 GameScreen: Reset StaticGameLoader state');
+        
+      } catch (e) {
+        debugPrint('⚠️ GameScreen: Error resetting game instance: $e');
+      }
+      
+      // Navigate away
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          (route) => false, // Remove all previous routes
+        );
+      }
+      
+      debugPrint('🎮 GameScreen: Navigation complete - game disposed itself properly');
     }
   }
 }
