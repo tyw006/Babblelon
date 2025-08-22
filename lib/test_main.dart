@@ -10,8 +10,39 @@ import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/screens/test_navigation_screen.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart';
+import 'package:babblelon/services/auth_service_interface.dart';
+import 'package:babblelon/services/test_auth_service.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:io';
+
+/// Test implementation of TutorialCompletionNotifier that marks all tutorials as completed
+class TestTutorialCompletionNotifier extends TutorialCompletionNotifier {
+  TestTutorialCompletionNotifier() : super() {
+    // Initialize with all tutorials marked as completed
+    state = {
+      'initial_movement': true,
+      'conversation_basics': true,
+      'tracing_introduction': true,
+      'pronunciation_basics': true,
+      'inventory_basics': true,
+      'quest_system': true,
+      'npc_interaction': true,
+      'boss_battle_intro': true,
+      'item_management': true,
+      'combat_basics': true,
+      'character_tracing': true,
+      'pronunciation_assessment': true,
+      'npc_dialogue': true,
+    };
+  }
+
+  @override
+  bool isTutorialCompleted(String tutorialId) {
+    // Always return true for any tutorial in test mode
+    return true;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,10 +75,13 @@ void main() async {
   // Initialize Isar DB
   await IsarService.init();
   
-  // Note: Test user functionality has been removed for production-ready authentication
-  // Tutorial service now requires real authenticated users
-  // Individual components can still be tested through the test navigation interface
-  print('✅ Test environment initialized (production authentication required)');
+  // Initialize test authentication service for testing
+  AuthServiceFactory.setInstance(TestAuthService());
+  debugPrint('✅ Test authentication service initialized');
+  
+  // Note: Test environment now uses mock authentication and tutorial bypass
+  // This allows testing all features without authentication barriers
+  debugPrint('✅ Test environment initialized with mock authentication');
 
   // Initialize PostHog
   final postHogApiKey = EnvLoader.getString('POSTHOG_API_KEY');
@@ -98,7 +132,15 @@ void main() async {
         providers: [
           provider.ChangeNotifierProvider(create: (context) => MotionPreferences()..init()),
         ],
-        child: const ProviderScope(child: TestApp()),
+        child: ProviderScope(
+          overrides: [
+            // Override tutorial completion provider to mark all tutorials as completed
+            tutorialCompletionProvider.overrideWith((ref) {
+              return TestTutorialCompletionNotifier();
+            }),
+          ],
+          child: const TestApp(),
+        ),
       ),
     )),
   );
