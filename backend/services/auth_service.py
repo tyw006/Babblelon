@@ -13,6 +13,8 @@ from pydantic import BaseModel
 import logging
 import httpx
 from functools import wraps
+from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientError, InvalidTokenError
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +32,28 @@ class AuthService:
     def __init__(self):
         self.supabase_url = os.getenv("SUPABASE_URL")
         self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY")
-        self.jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
         
-        if not self.supabase_url or not self.jwt_secret:
-            logger.warning("Supabase configuration missing - authentication will be disabled")
+        if not self.supabase_url:
+            logger.warning("Supabase URL missing - authentication will be disabled")
             self.enabled = False
         else:
-            self.enabled = True
-            logger.info("Authentication service initialized successfully")
+            # Extract project configuration for JWKS
+            self.project_id = self.supabase_url.split('//')[1].split('.')[0]
+            self.jwks_url = f"{self.supabase_url}/auth/v1/.well-known/jwks.json"
+            self.issuer = f"{self.supabase_url}/auth/v1"
+            
+            # Initialize JWKS client with caching for performance
+            try:
+                self.jwk_client = PyJWKClient(self.jwks_url, cache_keys=True)
+                self.enabled = True
+                logger.info(f"Auth service initialized with JWKS endpoint: {self.jwks_url}")
+            except Exception as e:
+                logger.error(f"Failed to initialize JWKS client: {e}")
+                self.enabled = False
     
     def verify_jwt_token(self, token: str) -> Optional[UserInfo]:
         """
-        Verify JWT token and extract user information
+        Verify JWT token using JWKS endpoint (modern Supabase approach)
         
         Args:
             token: JWT token string
@@ -62,12 +74,16 @@ class AuthService:
             if token.startswith('Bearer '):
                 token = token[7:]
             
-            # Decode JWT token
+            # Get the signing key from JWKS endpoint
+            signing_key = self.jwk_client.get_signing_key_from_jwt(token)
+            
+            # Verify and decode the JWT with modern algorithms (ES256/RS256)
             payload = jwt.decode(
-                token, 
-                self.jwt_secret, 
-                algorithms=["HS256"],
-                audience="authenticated"
+                token,
+                signing_key.key,
+                algorithms=["ES256", "RS256"],  # Modern asymmetric algorithms
+                audience="authenticated",
+                issuer=self.issuer
             )
             
             # Extract user information
@@ -79,9 +95,12 @@ class AuthService:
                 app_metadata=payload.get("app_metadata", {})
             )
             
-            logger.info(f"Successfully authenticated user: {user_info.user_id}")
+            logger.info(f"Successfully authenticated user via JWKS: {user_info.user_id}")
             return user_info
             
+        except PyJWKClientError as e:
+            logger.error(f"Failed to fetch JWKS: {e}")
+            return None
         except jwt.ExpiredSignatureError:
             logger.warning("JWT token has expired")
             return None
@@ -89,7 +108,7 @@ class AuthService:
             logger.warning(f"Invalid JWT token: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error verifying JWT token: {e}")
+            logger.error(f"Unexpected error verifying JWT: {e}")
             return None
     
     def extract_token_from_request(self, request: Request) -> Optional[str]:

@@ -39,6 +39,7 @@ import 'package:babblelon/models/local_storage_models.dart' as isar_models;
 import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/services/tutorial_service.dart';
+import 'package:babblelon/widgets/recording_animation_button.dart';
 
 // --- Item Data Structure ---
 class BattleItem {
@@ -2210,9 +2211,11 @@ class _InteractiveFlashcardDialogState
       children: [
         const Text("Ready to record?", style: TextStyle(color: Colors.white70)),
         const SizedBox(height: 16),
-        _RecordButton(
+        RecordingAnimationButton(
           isRecording: false,
-          onTap: widget.onPracticeRecord,
+          onStartRecording: widget.onPracticeRecord,
+          onStopRecording: () {}, // Not used in this state
+          size: 60.0,
         ),
       ],
     );
@@ -2223,9 +2226,11 @@ class _InteractiveFlashcardDialogState
       children: [
         const Text("Recording...", style: TextStyle(color: Colors.redAccent)),
          const SizedBox(height: 16),
-        _RecordButton(
+        RecordingAnimationButton(
           isRecording: true,
-          onTap: widget.onPracticeStop,
+          onStartRecording: () {}, // Not used in this state
+          onStopRecording: widget.onPracticeStop,
+          size: 60.0,
         ),
       ],
     );
@@ -3021,35 +3026,6 @@ class _RevealedCardDetails extends StatelessWidget {
   }
 }
 
-class _RecordButton extends StatelessWidget {
-  final bool isRecording;
-  final VoidCallback onTap;
-
-  const _RecordButton({required this.isRecording, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: isRecording ? Colors.redAccent.withOpacity(0.8) : Colors.red,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-        ),
-        child: Center(
-          child: Icon(
-            isRecording ? Icons.stop_rounded : Icons.mic_none,
-            color: Colors.white,
-            size: 30,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // Custom widget for the playback button with progress animation
 class _PlaybackButton extends StatelessWidget {

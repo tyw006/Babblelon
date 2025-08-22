@@ -16,6 +16,8 @@ import '../overlays/dialogue_overlay/dialogue_models.dart';
 import '../providers/game_providers.dart';
 import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import '../services/tutorial_service.dart';
+import '../theme/unified_dark_theme.dart';
+import 'recording_animation_button.dart';
 
 // POS Color Mapping (same as dialogue_overlay.dart)
 final Map<String, Color> posColorMapping = {
@@ -167,8 +169,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   
   // Animation controllers
   late AnimationController _waveformController;
-  late AnimationController _pulseController;
-  late AnimationController _scaleController;
   
   // Audio waveform simulation
   List<double> _waveformData = [];
@@ -228,6 +228,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     
     // Show first NPC response tutorial if this is the first time seeing response modal
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Check and request microphone permission when modal opens
+      _checkAndRequestMicrophonePermission();
+      
       final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       if (!tutorialProgressNotifier.isStepCompleted('first_npc_response_tutorial')) {
         final tutorialManager = TutorialManager(
@@ -341,23 +344,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-    
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
   }
 
   @override
   void dispose() {
     _waveformController.dispose();
-    _pulseController.dispose();
-    _scaleController.dispose();
     _waveformTimer?.cancel();
     _audioPlayer?.dispose();
     _audioRecorder.dispose();
@@ -376,6 +367,29 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           curve: Curves.easeOut,
         );
       });
+    }
+  }
+
+  Future<void> _checkAndRequestMicrophonePermission() async {
+    try {
+      // Check current permission status
+      final status = await Permission.microphone.status;
+      
+      // If not granted, request permission
+      if (status != PermissionStatus.granted) {
+        final requestedStatus = await Permission.microphone.request();
+        
+        if (requestedStatus != PermissionStatus.granted && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Microphone permission is needed for voice recording'),
+              backgroundColor: UnifiedDarkTheme.warning,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error checking microphone permission: $e');
     }
   }
 
@@ -422,7 +436,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         
         // Start waveform animation
         _startWaveformAnimation();
-        _scaleController.forward();
         
         // Auto-scroll to bottom to expose stop button
         _scrollToBottom();
@@ -456,7 +469,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         
         // Stop waveform animation
         _stopWaveformAnimation();
-        _scaleController.reverse();
         
         // Process the audio
         if (path != null) {
@@ -1822,8 +1834,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: _transcriptionResult!.transcription.isNotEmpty 
-                        ? Colors.black87
-                        : Colors.white.withOpacity(0.6),
+                        ? UnifiedDarkTheme.textPrimary
+                        : UnifiedDarkTheme.textSecondary,
                     fontStyle: _transcriptionResult!.transcription.isNotEmpty 
                         ? FontStyle.normal 
                         : FontStyle.italic,
@@ -1876,7 +1888,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black.withOpacity(0.3),
+                  color: UnifiedDarkTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -1989,7 +2001,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black.withOpacity(0.3),
+                  color: UnifiedDarkTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -2268,11 +2280,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Try Again', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white.withOpacity(0.7),
-                  side: BorderSide(color: Colors.white.withOpacity(0.4)!, width: 2),
+                  foregroundColor: UnifiedDarkTheme.secondaryAccent,
+                  side: BorderSide(color: UnifiedDarkTheme.secondaryAccent, width: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: Colors.white.withOpacity(0.05),
+                  backgroundColor: UnifiedDarkTheme.secondaryAccent.withValues(alpha: 0.1),
                   minimumSize: const Size(0, 48), // Ensure consistent height with Send Message button
                 ),
               ),
@@ -2290,9 +2302,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 } : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _transcriptionResult != null 
-                      ? Colors.white.withOpacity(0.6) // Green when ready to send
-                      : Colors.white.withOpacity(0.4), // Grey when disabled
-                  foregroundColor: Colors.white,
+                      ? UnifiedDarkTheme.primaryAccent
+                      : UnifiedDarkTheme.primaryAccent.withValues(alpha: 0.4), // Dimmed when disabled
+                  foregroundColor: UnifiedDarkTheme.textOnColor,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
@@ -2372,13 +2384,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     hintStyle: const TextStyle(fontSize: 14),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)!),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.borderSecondary),
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(0.3),
+                    fillColor: UnifiedDarkTheme.primarySurfaceVariant,
                   ),
-                  style: TextStyle(fontSize: 14, color: Colors.white),
+                  style: TextStyle(fontSize: 14, color: UnifiedDarkTheme.textPrimary),
                   onChanged: (_) {
                     // Clear previous translation when typing
                     if (_translatedText.isNotEmpty) {
@@ -2395,8 +2407,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               ElevatedButton(
                 onPressed: _isTranslating ? null : _translateText,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.6),
-                  foregroundColor: Colors.white,
+                  backgroundColor: UnifiedDarkTheme.tertiaryAccent,
+                  foregroundColor: UnifiedDarkTheme.textOnColor,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 ),
@@ -2607,18 +2619,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   } : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _sttAttemptCount >= _maxAttemptsBeforeFallback 
-                        ? Colors.white.withOpacity(0.6) // Green when ready to send translation (same as Send Message)
-                        : Colors.white.withOpacity(0.7), // Solid grey for better visibility
-                    disabledBackgroundColor: Colors.white.withOpacity(0.7), // Force grey when disabled
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
+                        ? UnifiedDarkTheme.success
+                        : UnifiedDarkTheme.success.withValues(alpha: 0.4), // Dimmed when disabled
+                    disabledBackgroundColor: UnifiedDarkTheme.success.withValues(alpha: 0.4),
+                    foregroundColor: UnifiedDarkTheme.textOnColor,
+                    disabledForegroundColor: UnifiedDarkTheme.textOnColor.withValues(alpha: 0.7),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                       side: BorderSide(
                         color: _sttAttemptCount >= _maxAttemptsBeforeFallback 
-                            ? Colors.white.withOpacity(0.7)! 
-                            : Colors.white.withOpacity(0.6)!, 
+                            ? UnifiedDarkTheme.success
+                            : UnifiedDarkTheme.success.withValues(alpha: 0.4), 
                         width: 1,
                       ),
                     ),
@@ -2780,25 +2792,25 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   controller: _translationController,
                   decoration: InputDecoration(
                     hintText: 'Type in English...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                    hintStyle: TextStyle(color: UnifiedDarkTheme.textSecondary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.6)!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.6)!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.6)!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(0.3),
+                    fillColor: UnifiedDarkTheme.primarySurfaceVariant,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                   style: TextStyle(
-                    color: Colors.white,
+                    color: UnifiedDarkTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2819,8 +2831,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         : const Icon(Icons.translate, size: 16),
                     label: Text(_isTranslating ? 'Translating...' : 'Translate'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.6),
-                      foregroundColor: Colors.white,
+                      backgroundColor: UnifiedDarkTheme.tertiaryAccent,
+                      foregroundColor: UnifiedDarkTheme.textOnColor,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3015,7 +3027,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 Text(
                   '${widget.npcData.name}\'s Last Message',
                   style: TextStyle(fontSize: 16).copyWith(
-                    color: Colors.black.withOpacity(0.3),
+                    color: UnifiedDarkTheme.textSecondary,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
@@ -3087,43 +3099,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
 
   Widget _buildMicrophoneButton() {
-    return GestureDetector(
-      onTap: _isRecording ? _stopRecording : _startRecording,
-      child: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          return ScaleTransition(
-            scale: _scaleController.drive(
-              Tween(begin: 1.0, end: 1.1).chain(
-                CurveTween(curve: Curves.elasticOut),
-              ),
-            ),
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isRecording 
-                    ? Colors.white.withOpacity(0.8).withOpacity(0.8 + 0.2 * _pulseController.value)
-                    : Theme.of(context).primaryColor.withOpacity(0.8),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isRecording ? Colors.white.withOpacity(0.8) : Theme.of(context).primaryColor)
-                        .withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: _isRecording ? 5 + 10 * _pulseController.value : 5,
-                  ),
-                ],
-              ),
-              child: Icon(
-                _isRecording ? Icons.stop : Icons.mic,
-                color: Colors.black.withOpacity(0.3),
-                size: 40,
-              ),
-            ),
-          );
-        },
-      ),
+    return RecordingAnimationButton(
+      isRecording: _isRecording,
+      onStartRecording: _startRecording,
+      onStopRecording: _stopRecording,
+      size: 80.0,
     );
   }
 
