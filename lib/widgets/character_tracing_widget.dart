@@ -14,6 +14,7 @@ import '../services/character_recognition_service.dart';
 import '../services/posthog_service.dart';
 import '../widgets/tracing_confirmation_dialog.dart';
 import '../widgets/character_assessment_dialog.dart';
+import '../widgets/popups/base_popup_widget.dart';
 
 /// Custom StreamAudioSource for playing base64 audio data on iOS
 class Base64AudioSource extends just_audio.StreamAudioSource {
@@ -142,8 +143,7 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   // Track last processed semantic word to prevent unnecessary page resets
   String? _lastProcessedSemanticWord;
   
-  // New UI state for enhanced writing tips
-  bool _tipsExpanded = false; // Will be removed - tips will be always visible
+  // UI state for enhanced writing tips
   bool _highlightingActive = true; // Controls when highlighting is shown vs neutral
   List<String> _generalWritingTips = [
     "Write from left to right across the page.",
@@ -156,7 +156,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
   void initState() {
     super.initState();
     _initializeAsync();
-    _loadUIPreferences();
   }
 
   /// Initialize widget with proper async sequencing
@@ -455,28 +454,6 @@ class _CharacterTracingWidgetState extends State<CharacterTracingWidget> {
     _ttsAudioCache.clear();
     // Don't dispose the singleton _audioService as it's shared across widgets
     super.dispose();
-  }
-  
-  /// Load UI preferences for tips display
-  Future<void> _loadUIPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _tipsExpanded = prefs.getBool('character_tips_expanded') ?? false; // Will be removed
-      });
-    } catch (e) {
-      print('Error loading UI preferences: $e');
-    }
-  }
-  
-  /// Save UI preferences
-  Future<void> _saveUIPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('character_tips_expanded', _tipsExpanded);
-    } catch (e) {
-      print('Error saving UI preferences: $e');
-    }
   }
 
   Future<void> _initializeCharacters() async {
@@ -7503,114 +7480,95 @@ Note: For detailed analysis, check your connection and try again.
       _loadWritingTipsFromCache();
     }
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 450),
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF4ECCA3).withValues(alpha: 0.3),
-                width: 2,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Writing Tips',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4ECCA3),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                    ),
-                  ],
+    BasePopup.showPopup(
+      context,
+      maxWidth: 500,
+      maxHeight: 450,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Writing Tips',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
                 ),
-                const SizedBox(height: 16),
-                Flexible(
-                  child: _isLoadingTips
-                      ? const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircularProgressIndicator(
-                                color: Color(0xFF4ECCA3),
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Loading writing tips...',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1F1F1F),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (_writingTips.isNotEmpty)
-                                  _buildFormattedWritingTips(_writingTips)
-                                else
-                                  const Text(
-                                    'No specific tips available for this character.',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                if (_hasLoadingError) ...[
-                                  const SizedBox(height: 16),
-                                  Center(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _retryLoadingTips,
-                                      icon: const Icon(Icons.refresh, size: 16),
-                                      label: const Text('Retry'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF4ECCA3),
-                                        foregroundColor: Colors.black87,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, 
-                                          vertical: 8,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: _isLoadingTips
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          color: Colors.orange,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading writing tips...',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
                           ),
                         ),
-                ),
-              ],
-            ),
+                      ],
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_writingTips.isNotEmpty)
+                            _buildFormattedWritingTips(_writingTips)
+                          else
+                            const Text(
+                              'No specific tips available for this character.',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                height: 1.5,
+                              ),
+                            ),
+                          if (_hasLoadingError) ...[
+                            const SizedBox(height: 16),
+                            Center(
+                              child: ElevatedButton.icon(
+                                onPressed: _retryLoadingTips,
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Retry'),
+                                style: BasePopup.primaryButtonStyle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -8225,76 +8183,74 @@ Note: For detailed analysis, check your connection and try again.
       builder: (context) => DefaultTabController(
         length: 3,
         initialIndex: 1, // Start with Step-by-Step tab
-        child: Dialog(
-          backgroundColor: const Color(0xFF2D2D2D),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 650, maxHeight: 600),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1F1F1F),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
-                    ),
+        child: BasePopup.buildPopupContainer(
+          maxWidth: 650,
+          maxHeight: 600,
+          padding: EdgeInsets.zero, // Remove padding since we'll handle it in the tabs
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Writing Tips: $character',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4ECCA3),
-                        ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Writing Tips: $character',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Tab Bar
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1F1F1F),
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFF4ECCA3), width: 1),
                     ),
-                  ),
-                  child: const TabBar(
-                    indicatorColor: Color(0xFF4ECCA3),
-                    labelColor: Color(0xFF4ECCA3),
-                    unselectedLabelColor: Colors.white54,
-                    labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    tabs: [
-                      Tab(text: 'Guidelines'),
-                      Tab(text: 'Writing Order'),
-                      Tab(text: 'Pronunciation'),
-                    ],
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Tab Bar
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  border: const Border(
+                    bottom: BorderSide(color: Colors.orange, width: 1),
                   ),
                 ),
-                
-                // Tab Content
-                Flexible(
-                  child: TabBarView(
-                    children: [
-                      _buildTabContentWidget(tabbedContent['general'] ?? []),
-                      _buildTabContentWidget(tabbedContent['stepByStep'] ?? []),
-                      _buildTabContentWidget(tabbedContent['pronunciation'] ?? []),
-                    ],
-                  ),
+                child: const TabBar(
+                  indicatorColor: Colors.orange,
+                  labelColor: Colors.orange,
+                  unselectedLabelColor: Colors.white54,
+                  labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  tabs: [
+                    Tab(text: 'Guidelines'),
+                    Tab(text: 'Writing Order'),
+                    Tab(text: 'Pronunciation'),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              
+              // Tab Content
+              Flexible(
+                child: TabBarView(
+                  children: [
+                    _buildTabContentWidget(tabbedContent['general'] ?? []),
+                    _buildTabContentWidget(tabbedContent['stepByStep'] ?? []),
+                    _buildTabContentWidget(tabbedContent['pronunciation'] ?? []),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -8642,7 +8598,6 @@ Note: For detailed analysis, check your connection and try again.
         if (pronunciationOrder.isNotEmpty) {
           explanation += '. $pronunciationOrder';
         }
-        
         tips.add(explanation);
         print('Added complex vowel sound tip for vowel: "Sound: $complexVowelGuide"');
       }
@@ -9062,13 +9017,15 @@ Note: For detailed analysis, check your connection and try again.
   Map<String, dynamic> _getToneMarkInfoFromJSON(String toneMark) {
     if (_thaiWritingGuideData == null) return {};
     
-    // Look in the tone_marks section for name and other info
+    // First check tone_marks section for name
     final toneMarks = _thaiWritingGuideData!['tone_marks'] as Map<String, dynamic>?;
     if (toneMarks != null && toneMarks.containsKey(toneMark)) {
-      return toneMarks[toneMark] as Map<String, dynamic>;
+      final markData = toneMarks[toneMark] as Map<String, dynamic>;
+      final name = markData['name'] as String? ?? '';
+      if (name.isNotEmpty) return markData;
     }
     
-    // Fallback to pronunciation_system.tone_mark_rules for effect info
+    // Fallback to pronunciation_system.tone_mark_rules
     final pronunciationSystem = _thaiWritingGuideData!['pronunciation_system'] as Map<String, dynamic>?;
     final toneMarkRules = pronunciationSystem?['tone_mark_rules'] as Map<String, dynamic>?;
     

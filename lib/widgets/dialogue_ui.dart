@@ -195,6 +195,35 @@ class _DialogueUIState extends State<DialogueUI> with TickerProviderStateMixin {
               ],
             ),
           ),
+          // Language Tools Button (Bottom Right)
+          Positioned(
+            bottom: 200, // Position above the main speech bubble area
+            right: 20,   // 20px from right edge
+            child: GestureDetector(
+              onTap: widget.onShowTranslation,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.translate,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
           Positioned(
             bottom: 20,
             left: 0,

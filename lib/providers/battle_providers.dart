@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
+import '../services/sync_service.dart';
 
 // Battle tracking data class
 class BattleMetrics {
@@ -63,7 +65,7 @@ class BattleMetrics {
     const double mediumComplexityBonus = 0.3; // Complexity 3 bonus
     
     // Calculate good performance damage
-    final goodPerformanceDamage = baseAttackRegular * (1.0 + goodPronunciationBonus + mediumComplexityBonus);
+    const goodPerformanceDamage = baseAttackRegular * (1.0 + goodPronunciationBonus + mediumComplexityBonus);
     
     // Calculate ideal turns and round up to next integer
     return (bossMaxHealth / goodPerformanceDamage).ceil();
@@ -74,7 +76,7 @@ class BattleMetrics {
     // Final Score = (AvgPronunciationScore/100 * 0.5) + (IdealTurns/ActualTurns * 0.3) + (RemainingHP/TotalHP * 0.2)
     final avgPronScore = averagePronunciationScore / 100.0;
     final turnEfficiency = idealTurns / actualTurns.clamp(1, double.infinity);
-    final hpRetention = (playerStartingHealth - 0) / playerStartingHealth.clamp(1, double.infinity); // TODO: Get actual remaining HP
+    final hpRetention = finalPlayerHealth / playerStartingHealth.clamp(1, double.infinity); // Use final player health from battle metrics
     
     final finalScore = (avgPronScore * 0.5) + (turnEfficiency * 0.3) + (hpRetention * 0.2);
     
@@ -265,6 +267,33 @@ class BattleTrackingNotifier extends StateNotifier<BattleMetrics?> {
       goldEarned: finalGold,
       newlyMasteredWords: newlyMastered,
     );
+  }
+
+  // Upload battle session data to Supabase
+  Future<void> uploadBattleSession(String bossId) async {
+    if (state == null) return;
+
+    final syncService = SyncService();
+    
+    try {
+      await syncService.uploadBattleSession(
+        bossId: bossId,
+        durationSeconds: state!.battleDuration.inSeconds,
+        avgPronunciationScore: state!.averagePronunciationScore,
+        totalDamage: state!.totalDamageDealt,
+        turnsTaken: state!.actualTurns,
+        grade: state!.overallGrade,
+        wordsUsed: {'words': state!.wordsUsed.toList()},
+        wordScores: state!.wordScores,
+        maxStreak: state!.maxStreak,
+        finalPlayerHealth: state!.finalPlayerHealth,
+        expGained: state!.expGained,
+        goldEarned: state!.goldEarned,
+        newlyMasteredWords: state!.newlyMasteredWords.toList(),
+      );
+    } catch (e) {
+      debugPrint('Failed to upload battle session: $e');
+    }
   }
   
   void resetBattle() {

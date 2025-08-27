@@ -11,7 +11,7 @@ class PostHogService {
   /// Initialize user session for tracking
   static void initializeUser({
     String? userId,
-    String? username,
+    String? displayName,
     int? playerLevel,
     DateTime? accountCreatedAt,
   }) {
@@ -31,7 +31,7 @@ class PostHogService {
     };
     
     // Add optional user properties
-    if (username != null) userProps['\$name'] = username;
+    if (displayName != null) userProps['\$name'] = displayName;
     if (playerLevel != null) userProps['player_level'] = playerLevel;
     
     // Store properties for later use
@@ -42,7 +42,7 @@ class PostHogService {
       userId: _userId!,
       userProperties: userProps.cast<String, Object>(),
     );
-    developer.log('✅ PostHog: User identified with properties - userId: $_userId, username: $username', name: 'PostHogService');
+    developer.log('✅ PostHog: User identified with properties - userId: $_userId, displayName: $displayName', name: 'PostHogService');
     
     // Track daily active user event
     _trackDailyActiveUser();
@@ -63,7 +63,7 @@ class PostHogService {
 
   /// Update user profile properties
   static void updateUserProfile({
-    String? username,
+    String? displayName,
     int? playerLevel,
     int? experiencePoints,
     int? gold,
@@ -75,9 +75,9 @@ class PostHogService {
     // Build updated properties
     final updatedProps = <String, dynamic>{};
     
-    if (username != null) {
-      updatedProps['\$name'] = username;
-      _userProperties['\$name'] = username;
+    if (displayName != null) {
+      updatedProps['\$name'] = displayName;
+      _userProperties['\$name'] = displayName;
     }
     if (playerLevel != null) {
       updatedProps['player_level'] = playerLevel;
@@ -229,8 +229,16 @@ class PostHogService {
       if (_sessionId != null) 'session_id': _sessionId!,
       if (screen != null) 'screen': screen,
       'timestamp': DateTime.now().toIso8601String(),
-      if (additionalProperties != null) ...additionalProperties.cast<String, Object>(),
     };
+    
+    // Add additional properties, filtering out null values
+    if (additionalProperties != null) {
+      for (final entry in additionalProperties.entries) {
+        if (entry.value != null) {
+          properties[entry.key] = entry.value as Object;
+        }
+      }
+    }
 
     Posthog().capture(
       eventName: 'game_$event',
@@ -349,20 +357,35 @@ class PostHogService {
     developer.log('✅ PostHog: User return tracked - userId: $_userId, returnType: $returnType, daysSince: $daysSinceLastSession', name: 'PostHogService');
   }
 
-  /// Track session end
-  static void trackSessionEnd() {
+  /// Track session end with learning metrics
+  static void trackSessionEnd({
+    int? wordsDiscovered,
+    int? wordsImproved,
+    int? charactersTraced,
+    int? npcInteractions,
+    int? battlesCompleted,
+    double? avgPronunciationScore,
+    int? durationSeconds,
+  }) {
     if (_sessionId != null) {
       final properties = <String, Object>{
         'session_id': _sessionId!,
         if (_userId != null) 'user_id': _userId!,
         'timestamp': DateTime.now().toIso8601String(),
+        if (wordsDiscovered != null) 'words_discovered': wordsDiscovered,
+        if (wordsImproved != null) 'words_improved': wordsImproved,
+        if (charactersTraced != null) 'characters_traced': charactersTraced,
+        if (npcInteractions != null) 'npc_interactions': npcInteractions,
+        if (battlesCompleted != null) 'battles_completed': battlesCompleted,
+        if (avgPronunciationScore != null) 'avg_pronunciation_score': avgPronunciationScore,
+        if (durationSeconds != null) 'duration_seconds': durationSeconds,
       };
       
       Posthog().capture(
-        eventName: 'session_end',
+        eventName: 'learning_session_complete',
         properties: properties,
       );
-      developer.log('✅ PostHog: Session end tracked - sessionId: $_sessionId, userId: $_userId', name: 'PostHogService');
+      developer.log('✅ PostHog: Learning session end tracked - sessionId: $_sessionId, wordsDiscovered: $wordsDiscovered', name: 'PostHogService');
     }
   }
 
@@ -371,6 +394,95 @@ class PostHogService {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = Random().nextInt(999999);
     return 'user_${timestamp}_$random';
+  }
+
+  /// Track vocabulary learning events
+  static void trackVocabularyLearning({
+    required String event, // 'word_discovered', 'word_mastered', 'review_completed'
+    required String wordThai,
+    String? wordEnglish,
+    String? discoveredFromNpc,
+    double? pronunciationScore,
+    int? attemptNumber,
+    String? learningContext, // 'battle', 'dialogue', 'practice'
+  }) {
+    final properties = <String, Object>{
+      'word_thai': wordThai,
+      if (_userId != null) 'user_id': _userId!,
+      if (_sessionId != null) 'session_id': _sessionId!,
+      if (wordEnglish != null) 'word_english': wordEnglish,
+      if (discoveredFromNpc != null) 'discovered_from_npc': discoveredFromNpc,
+      if (pronunciationScore != null) 'pronunciation_score': pronunciationScore,
+      if (attemptNumber != null) 'attempt_number': attemptNumber,
+      if (learningContext != null) 'learning_context': learningContext,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    Posthog().capture(
+      eventName: 'vocabulary_$event',
+      properties: properties,
+    );
+    developer.log('✅ PostHog: Vocabulary learning tracked - event: vocabulary_$event, word: $wordThai', name: 'PostHogService');
+  }
+
+  /// Track character tracing events
+  static void trackCharacterTracing({
+    required String event, // 'character_traced', 'character_mastered'
+    required String character,
+    required String phraseId,
+    int? characterPosition,
+    bool? isCorrect,
+    double? accuracyPercentage,
+    String? recognizedText,
+    double? confidenceScore,
+  }) {
+    final properties = <String, Object>{
+      'character': character,
+      'phrase_id': phraseId,
+      if (_userId != null) 'user_id': _userId!,
+      if (_sessionId != null) 'session_id': _sessionId!,
+      if (characterPosition != null) 'character_position': characterPosition,
+      if (isCorrect != null) 'is_correct': isCorrect,
+      if (accuracyPercentage != null) 'accuracy_percentage': accuracyPercentage,
+      if (recognizedText != null) 'recognized_text': recognizedText,
+      if (confidenceScore != null) 'confidence_score': confidenceScore,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    Posthog().capture(
+      eventName: 'character_tracing_$event',
+      properties: properties,
+    );
+    developer.log('✅ PostHog: Character tracing tracked - event: character_tracing_$event, character: $character', name: 'PostHogService');
+  }
+
+  /// Track NPC relationship changes
+  static void trackNpcRelationship({
+    required String event, // 'charm_increased', 'charm_decreased', 'quest_completed'
+    required String npcId,
+    int? charmBefore,
+    int? charmAfter,
+    int? charmChange,
+    String? questId,
+    List<String>? wordsLearned,
+  }) {
+    final properties = <String, Object>{
+      'npc_id': npcId,
+      if (_userId != null) 'user_id': _userId!,
+      if (_sessionId != null) 'session_id': _sessionId!,
+      if (charmBefore != null) 'charm_before': charmBefore,
+      if (charmAfter != null) 'charm_after': charmAfter,
+      if (charmChange != null) 'charm_change': charmChange,
+      if (questId != null) 'quest_id': questId,
+      if (wordsLearned != null) 'words_learned_count': wordsLearned.length,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    Posthog().capture(
+      eventName: 'npc_relationship_$event',
+      properties: properties,
+    );
+    developer.log('✅ PostHog: NPC relationship tracked - event: npc_relationship_$event, npc: $npcId', name: 'PostHogService');
   }
 
   /// Generate a unique session ID

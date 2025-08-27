@@ -1,13 +1,11 @@
 import 'dart:math' as math;
-import 'package:babblelon/models/game_models.dart';
+import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 
 class Flashcard extends ConsumerStatefulWidget {
   final Vocabulary vocabulary;
@@ -17,6 +15,8 @@ class Flashcard extends ConsumerStatefulWidget {
   final bool isRevealed;
   final Widget? revealedChild;
   final bool showAudioButton;
+  final bool isBossFightContext;
+  final bool isDialog;
 
   const Flashcard({
     super.key,
@@ -27,6 +27,8 @@ class Flashcard extends ConsumerStatefulWidget {
     this.isRevealed = false,
     this.revealedChild,
     this.showAudioButton = true,
+    this.isBossFightContext = false,
+    this.isDialog = false,
   });
 
   @override
@@ -109,15 +111,18 @@ class _FlashcardState extends ConsumerState<Flashcard>
   void didUpdateWidget(Flashcard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isRevealed != oldWidget.isRevealed) {
-      if (widget.isRevealed) {
-        _controller.forward();
-        _checkScrollableContent();
-      } else {
-        _controller.reverse();
-        setState(() {
-          _showScrollIndicator = false;
-        });
-        _bounceController.stop();
+      // Don't flip cards in boss fight context - only show visual indicators
+      if (!widget.isBossFightContext) {
+        if (widget.isRevealed) {
+          _controller.forward();
+          _checkScrollableContent();
+        } else {
+          _controller.reverse();
+          setState(() {
+            _showScrollIndicator = false;
+          });
+          _bounceController.stop();
+        }
       }
     }
   }
@@ -148,7 +153,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
         if (widget.isFlippable) {
           // Play reveal sound effect on every flip (front <-> back)
           if (soundEffectsEnabled) {
-            FlameAudio.play('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
+            ref.playSound('soundeffects/soundeffect_flashcardreveal.mp3', volume: 1.0);
           }
           if (_controller.isCompleted) {
             _controller.reverse();
@@ -189,24 +194,45 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildFront() {
     return Container(
-      decoration: AppStyles.flashcardDecoration,
+      decoration: BoxDecoration(
+        color: ModernDesignSystem.primarySurface,
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        border: Border.all(
+          color: widget.isBossFightContext && widget.isRevealed 
+            ? Colors.green.shade400 
+            : ModernDesignSystem.borderPrimary,
+          width: widget.isBossFightContext && widget.isRevealed ? 2.0 : 1.0,
+        ),
+        boxShadow: widget.isBossFightContext && widget.isRevealed ? [
+          BoxShadow(
+            color: Colors.green.shade400.withValues(alpha: 0.2),
+            blurRadius: 8,
+            spreadRadius: 1,
+            offset: const Offset(0, 0),
+          ),
+        ] : null,
+      ),
       child: Stack(
         children: [
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
               child: Text(
                 widget.vocabulary.english,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-                style: AppStyles.subtitleTextStyle,
+                maxLines: 3,
+                style: ModernDesignSystem.headlineMedium.copyWith(
+                  fontSize: widget.isDialog ? 26.0 : 17.0,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
                 softWrap: true,
               ),
             ),
           ),
           Positioned(
-            top: 8,
+            top: 4,
             left: 0,
             right: 0,
             child: Align(
@@ -214,9 +240,38 @@ class _FlashcardState extends ConsumerState<Flashcard>
               child: ComplexityRating(
                 complexity: widget.vocabulary.complexity,
                 size: 14,
+                isDialog: widget.isDialog,
               ),
             ),
           ),
+          if (widget.isBossFightContext && widget.isRevealed)
+            Positioned(
+              top: 3,
+              right: 3,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutBack,
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade500,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.shade400.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 12,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -224,7 +279,11 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildBack() {
     return Container(
-      decoration: AppStyles.flashcardDecoration,
+      decoration: BoxDecoration(
+        color: ModernDesignSystem.primarySurface,
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        border: Border.all(color: ModernDesignSystem.borderPrimary),
+      ),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -245,14 +304,18 @@ class _FlashcardState extends ConsumerState<Flashcard>
                               child: Text(
                                 widget.vocabulary.thai,
                                 textAlign: TextAlign.center,
-                                style: AppStyles.flashcardThaiTextStyle,
+                                style: ModernDesignSystem.headlineMedium.copyWith(
+                                  fontSize: widget.isDialog ? 28.0 : 20.0,
+                                  color: ModernDesignSystem.textPrimary,
+                                  height: 1.2,
+                                ),
                               ),
                             ),
                             if (widget.showAudioButton && widget.vocabulary.audioPath != null && widget.vocabulary.audioPath!.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8.0),
                                 child: IconButton(
-                                  icon: const Icon(Icons.volume_up, color: AppStyles.textColor),
+                                  icon: const Icon(Icons.volume_up, color: ModernDesignSystem.textPrimary),
                                   onPressed: () async {
                                     try {
                                       // Use the specific audio path from the vocabulary
@@ -260,7 +323,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                                       _audioPlayer.play();
                                     } catch (e) {
                                       // Handle potential errors, e.g., file not found
-                                      print("Error playing audio: $e");
+                                      debugPrint("Error playing audio: $e");
                                     }
                                   },
                                 ),
@@ -284,7 +347,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                   offset: Offset(0, _bounceAnimation.value),
                   child: const Icon(
                     Icons.keyboard_arrow_down,
-                    color: AppStyles.indicatorColor,
+                    color: ModernDesignSystem.textTertiary,
                     size: 28,
                   ),
                 ),

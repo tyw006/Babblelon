@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/battle_providers.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
-import 'package:animated_flip_counter/animated_flip_counter.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
+import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 
 class VictoryReportDialog extends ConsumerStatefulWidget {
   final BattleMetrics metrics;
@@ -116,62 +116,107 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         scale: _scaleAnimation,
         child: SlideTransition(
           position: _slideAnimation,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: screenSize.height * 0.85,
-              maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
-            ),
-            decoration: AppStyles.cardDecoration,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                _buildHeader(),
-                
-                // Page Content
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (page) {
-                      setState(() {
-                        _currentPage = page;
-                      });
-                    },
-                    children: [
-                      _buildPage1_InstantResultAndCore(),
-                      _buildPage2_LanguageReport(),
-                      _buildPage3_ProgressAndRewards(),
-                    ],
+          child: GlassmorphicCard(
+            padding: EdgeInsets.zero,
+            blur: 20,
+            opacity: 0.15,
+            margin: EdgeInsets.zero,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: screenSize.height * 0.85,
+                maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  _buildHeader(),
+                  
+                  // Page Content
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      onPageChanged: (page) {
+                        setState(() {
+                          _currentPage = page;
+                        });
+                      },
+                      children: [
+                        _buildPage1_InstantResultAndCore(),
+                        _buildPage2_LanguageReport(),
+                        _buildPage3_ProgressAndRewards(),
+                      ],
+                    ),
                   ),
-                ),
-                
-                // Page Indicator
-                _buildPageIndicator(),
-                
-                // Continue Button (Fixed Footer)
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: AppStyles.cardDecoration,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: AppStyles.primaryButtonStyle.copyWith(
-                        backgroundColor: MaterialStateProperty.all(Colors.green),
-                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                  
+                  // Page Indicator
+                  _buildPageIndicator(),
+                  
+                  // Continue Button (Fixed Footer)
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
                       ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'CONTINUE',
-                        style: AppStyles.bodyTextStyle.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF4CAF50), // Bright green like assessment
+                                Color(0xFF45A049), // Darker green
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4CAF50).withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: const Text(
+                            'CONTINUE',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -182,7 +227,21 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           SizedBox(
@@ -195,7 +254,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 return const Icon(
                   Icons.emoji_events,
                   size: 40,
-                  color: Colors.amber,
+                  color: Color(0xFF10B981), // Ethereal green for victory
                 );
               },
             ),
@@ -203,15 +262,24 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           const SizedBox(height: 8),
           Text(
             'VICTORY!',
-            style: AppStyles.subtitleTextStyle.copyWith(
-              color: Colors.amber,
-              fontSize: 22,
+            style: TextStyle(
+              color: const Color(0xFF10B981), // Ethereal green for victory
+              fontSize: 28, // Larger to match assessment prominence
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: const Color(0xFF10B981).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
           ),
           Text(
             'Battle Complete',
-            style: AppStyles.bodyTextStyle.copyWith(
-              fontSize: 14,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 16,
             ),
           ),
         ],
@@ -227,77 +295,130 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          // Overall Grade and Personal Best
+          // DOMINANT Grade Display (Like Assessment's 98/100)
           Container(
-            padding: const EdgeInsets.all(20.0),
-            decoration: AppStyles.cardDecoration,
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Overall Grade
-                    AnimatedBuilder(
-                      animation: _scaleAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _getGradeColor(widget.metrics.overallGrade),
-                              border: Border.all(color: Colors.white, width: 3),
+                // MASSIVE Grade Circle - Like Assessment's 98/100
+                AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: Container(
+                        width: 120, // Increased from 80 to 120
+                        height: 120, // Increased from 80 to 120
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF00BCD4).withOpacity(0.9), // Bright cyan like assessment
+                              const Color(0xFF0097A7).withOpacity(0.9), // Darker cyan
+                            ],
+                          ),
+                          border: Border.all(color: const Color(0xFF00BCD4), width: 4), // Bright cyan border
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00BCD4).withOpacity(0.4),
+                              blurRadius: 20,
+                              spreadRadius: 2,
                             ),
-                            child: Center(
-                              child: Text(
-                                widget.metrics.overallGrade,
-                                style: AppStyles.subtitleTextStyle.copyWith(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            widget.metrics.overallGrade,
+                            style: TextStyle(
+                              fontSize: 56, // Increased from 32 to 56 - HUGE like assessment
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFF00BCD4).withOpacity(0.8),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    
-                    if (isPersonalBest) ...[
-                      const SizedBox(width: 20),
-                      AnimatedBuilder(
-                        animation: _slideAnimation,
-                        builder: (context, child) {
-                          return Column(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 24,
-                              ),
-                              Text(
-                                'New Personal\nBest!',
-                                style: AppStyles.bodyTextStyle.copyWith(
-                                  color: Colors.amber,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          );
-                        },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // "Excellent!" style label like assessment
+                Text(
+                  _getGradeLabel(widget.metrics.overallGrade),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFFFC107), // Golden yellow like assessment
+                    shadows: [
+                      Shadow(
+                        color: const Color(0xFFFFC107).withOpacity(0.6),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                // Personal Best indicator if applicable
+                if (isPersonalBest) ...[
+                  const SizedBox(height: 12),
+                  AnimatedBuilder(
+                    animation: _slideAnimation,
+                    builder: (context, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            color: const Color(0xFFFFC107),
+                            size: 28,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'New Personal Best!',
+                            style: TextStyle(
+                              color: const Color(0xFFFFC107),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFFFFC107).withOpacity(0.6),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+                const SizedBox(height: 16),
                 Text(
                   'Overall Grade',
-                  style: AppStyles.bodyTextStyle.copyWith(
-                    color: Colors.grey.shade300,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 16,
                   ),
                 ),
               ],
@@ -309,7 +430,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Core Performance Metrics
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               children: [
                 Row(
@@ -376,7 +501,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         children: [
           Text(
             'LANGUAGE REPORT',
-            style: AppStyles.subtitleTextStyle.copyWith(
+            style: ModernDesignSystem.headlineMedium.copyWith(
               fontSize: 18,
               color: Colors.green,
             ),
@@ -387,7 +512,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Average Pronunciation
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -397,7 +526,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     Expanded(
                       child: Text(
                         'Average Pronunciation:',
-                        style: AppStyles.bodyTextStyle,
+                        style: ModernDesignSystem.bodyMedium,
                       ),
                     ),
                     Expanded(
@@ -414,7 +543,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                           return Text(
                             scoreText,
                             textAlign: TextAlign.end,
-                            style: AppStyles.bodyTextStyle.copyWith(
+                            style: ModernDesignSystem.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               color: _getScoreColor(avgPronScore),
                             ),
@@ -431,7 +560,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     return LinearProgressIndicator(
                       value: ((avgPronScore / 100) * _progressAnimation.value).clamp(0.0, 1.0),
                       backgroundColor: Colors.grey.shade800,
-                      valueColor: AlwaysStoppedAnimation<Color>(_getScoreColor(avgPronScore)),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)), // Bright green like assessment
                     ).animate().scaleX(alignment: Alignment.centerLeft, duration: 1200.ms, curve: Curves.easeOutCubic);
                   },
                 ),
@@ -444,7 +573,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Vocabulary Mastery
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -453,7 +586,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   children: [
                     Text(
                       'Level Vocabulary Mastered:',
-                      style: AppStyles.bodyTextStyle,
+                      style: ModernDesignSystem.bodyMedium,
                     ),
                     AnimatedBuilder(
                       animation: _numberAnimation,
@@ -462,7 +595,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                         final percentage = ((masteredWords / totalLevelWords) * 100).toInt();
                         return Text(
                           '$animatedMastered/$totalLevelWords ($percentage%)',
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
@@ -479,7 +612,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     return LinearProgressIndicator(
                       value: (progress * _progressAnimation.value).clamp(0.0, 1.0),
                       backgroundColor: Colors.grey.shade800,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)), // Bright green like assessment
                     ).animate().scaleX(alignment: Alignment.centerLeft, duration: 1200.ms, curve: Curves.easeOutCubic);
                   },
                 ),
@@ -487,7 +620,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   const SizedBox(height: 12),
                   Text(
                     'New Words Acquired:',
-                    style: AppStyles.smallTextStyle.copyWith(
+                    style: ModernDesignSystem.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.green.shade300,
                     ),
@@ -500,13 +633,13 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           word,
-                          style: AppStyles.smallTextStyle.copyWith(
+                          style: ModernDesignSystem.bodySmall.copyWith(
                             color: Colors.green.shade300,
                             fontSize: 12,
                           ),
@@ -524,13 +657,17 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Words to Practice (Expandable)
           if (wordsToePractice.isNotEmpty)
             Container(
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   title: Text(
                     'Words to Practice:',
-                    style: AppStyles.bodyTextStyle.copyWith(
+                    style: ModernDesignSystem.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -548,13 +685,13 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               children: [
                                 Text(
                                   wordData['word'] as String,
-                                  style: AppStyles.bodyTextStyle.copyWith(
+                                  style: ModernDesignSystem.bodyMedium.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
                                   'Avg: ${wordData['score']}%',
-                                  style: AppStyles.smallTextStyle.copyWith(
+                                  style: ModernDesignSystem.bodySmall.copyWith(
                                     color: _getScoreColor(wordData['score'] as double),
                                   ),
                                 ),
@@ -570,7 +707,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               label: const Text('Listen', style: TextStyle(fontSize: 12)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.blue,
-                                side: BorderSide(color: Colors.blue.withOpacity(0.5)),
+                                side: BorderSide(color: Colors.blue.withValues(alpha: 0.5)),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               ),
                             ),
@@ -585,7 +722,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               label: const Text('Practice', style: TextStyle(fontSize: 12)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.orange,
-                                side: BorderSide(color: Colors.orange.withOpacity(0.5)),
+                                side: BorderSide(color: Colors.orange.withValues(alpha: 0.5)),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               ),
                             ),
@@ -615,7 +752,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         children: [
           Text(
             'PROGRESS & REWARDS',
-            style: AppStyles.subtitleTextStyle.copyWith(
+            style: ModernDesignSystem.headlineMedium.copyWith(
               fontSize: 18,
               color: Colors.purple,
             ),
@@ -626,13 +763,17 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Rewards Section
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Rewards:',
-                  style: AppStyles.bodyTextStyle.copyWith(fontWeight: FontWeight.bold),
+                  style: ModernDesignSystem.bodyMedium.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -666,7 +807,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     const SizedBox(width: 8),
                     Text(
                       'Daily Streak: Day ${dailyStreak['current']} of ${dailyStreak['target']}',
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -678,7 +819,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 // Weekly Goal Progress
                 Text(
                   'Weekly Goal: ${weeklyProgress['description']}',
-                  style: AppStyles.bodyTextStyle,
+                  style: ModernDesignSystem.bodyMedium,
                 ),
                 const SizedBox(height: 8),
                 AnimatedBuilder(
@@ -690,7 +831,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                         LinearProgressIndicator(
                           value: (progress * _progressAnimation.value).clamp(0.0, 1.0),
                           backgroundColor: Colors.grey.shade800,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.purple),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)), // Bright green like assessment
                         ).animate().scaleX(alignment: Alignment.centerLeft, duration: 1200.ms, curve: Curves.easeOutCubic),
                         const SizedBox(height: 4),
                         Row(
@@ -698,11 +839,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                           children: [
                             Text(
                               '${weeklyProgress['current']}/${weeklyProgress['target']}',
-                              style: AppStyles.smallTextStyle,
+                              style: ModernDesignSystem.bodySmall,
                             ),
                             Text(
                               '${(progress * 100).toInt()}%',
-                              style: AppStyles.smallTextStyle.copyWith(
+                              style: ModernDesignSystem.bodySmall.copyWith(
                                 color: Colors.purple,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -723,7 +864,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           if (socialBenchmark != null)
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Row(
                 children: [
                   const Icon(Icons.trending_up, color: Colors.cyan, size: 24),
@@ -731,7 +876,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   Expanded(
                     child: Text(
                       socialBenchmark,
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         color: Colors.cyan.shade200,
                         fontStyle: FontStyle.italic,
                       ),
@@ -747,7 +892,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           if (nextTip != null)
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -757,7 +906,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                       const SizedBox(width: 8),
                       Text(
                         'Next Time, Try This!',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.green,
                         ),
@@ -767,7 +916,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   const SizedBox(height: 8),
                   Text(
                     nextTip,
-                    style: AppStyles.bodyTextStyle.copyWith(
+                    style: ModernDesignSystem.bodyMedium.copyWith(
                       color: Colors.green.shade200,
                     ),
                   ),
@@ -794,19 +943,19 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  color.withOpacity(0.3),
-                  color.withOpacity(0.1),
+                  color.withValues(alpha: 0.3),
+                  color.withValues(alpha: 0.1),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.4)),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
             ),
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 24),
@@ -814,22 +963,26 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 const SizedBox(height: 8),
                 Text(
                   value,
-                  style: AppStyles.bodyTextStyle.copyWith(
-                    color: color,
+                  style: TextStyle(
+                    color: const Color(0xFF00BCD4), // Bright cyan like assessment
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 28, // Much larger like assessment numbers
                     shadows: [
                       Shadow(
-                        color: color.withOpacity(0.5),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
+                        color: const Color(0xFF00BCD4).withValues(alpha: 0.8),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   label,
-                  style: AppStyles.smallTextStyle.copyWith(fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -851,19 +1004,19 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withOpacity(0.2),
-                color.withOpacity(0.05),
+                color.withValues(alpha: 0.2),
+                color.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -875,14 +1028,14 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   children: [
                     Text(
                       value,
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         color: color,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       label,
-                      style: AppStyles.smallTextStyle.copyWith(fontSize: 11),
+                      style: ModernDesignSystem.bodySmall.copyWith(fontSize: 11),
                     ),
                   ],
                 ),
@@ -897,7 +1050,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
   Widget _buildPageIndicator() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(3, (index) {
@@ -918,11 +1075,21 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
   // Helper Methods
   Color _getGradeColor(String grade) {
     switch (grade) {
-      case 'S': return Colors.purple;
-      case 'A': return Colors.green;
-      case 'B': return Colors.blue;
-      case 'C': return Colors.orange;
+      case 'S': return const Color(0xFF8B5CF6); // Purple
+      case 'A': return const Color(0xFF10B981); // Green
+      case 'B': return const Color(0xFF3B82F6); // Blue
+      case 'C': return const Color(0xFFF59E0B); // Orange
       default: return Colors.grey;
+    }
+  }
+  
+  String _getGradeLabel(String grade) {
+    switch (grade) {
+      case 'S': return 'Outstanding!';
+      case 'A': return 'Excellent!';
+      case 'B': return 'Good Work!';
+      case 'C': return 'Keep Going!';
+      default: return 'Try Again!';
     }
   }
 

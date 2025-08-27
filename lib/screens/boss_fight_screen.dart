@@ -1,9 +1,9 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/models/turn.dart';
-import 'package:babblelon/models/game_models.dart';
+import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/widgets/flashcard.dart';
 import 'package:babblelon/widgets/top_info_bar.dart';
-import 'package:babblelon/screens/main_menu_screen.dart';
+import 'package:babblelon/screens/main_navigation_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
@@ -17,33 +17,34 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart' as tutorial_db;
 import 'package:babblelon/models/assessment_model.dart';
 import 'package:babblelon/services/api_service.dart';
+import 'package:babblelon/widgets/audio_recognition_error_dialog.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:babblelon/widgets/complexity_rating.dart';
 import 'package:babblelon/widgets/score_progress_bar.dart';
 import 'package:babblelon/widgets/modern_calculation_display.dart';
 import 'package:babblelon/widgets/floating_damage_overlay.dart';
+import 'package:babblelon/services/static_game_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/models/local_storage_models.dart' as isar_models;
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
+import 'package:babblelon/widgets/popups/base_popup_widget.dart';
+import 'package:babblelon/models/battle_item.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
+import 'package:babblelon/services/tutorial_service.dart';
+import 'package:babblelon/widgets/recording_animation_button.dart';
+import 'package:babblelon/services/game_save_service.dart';
+import 'package:babblelon/models/local_storage_models.dart';
+import 'package:babblelon/services/auth_service_interface.dart';
 
-// --- Item Data Structure ---
-class BattleItem {
-  final String name;
-  final String assetPath;
-  final bool isSpecial;
-  
-  const BattleItem({required this.name, required this.assetPath, this.isSpecial = false});
-}
 
 // --- Recording State Enum ---
 enum RecordingState {
@@ -89,6 +90,7 @@ class BossFightScreen extends ConsumerStatefulWidget {
   final BattleItem attackItem;
   final BattleItem defenseItem;
   final BabblelonGame game;
+  final GameSaveState? existingSave;
 
   const BossFightScreen({
     super.key, 
@@ -96,10 +98,38 @@ class BossFightScreen extends ConsumerStatefulWidget {
     required this.attackItem,
     required this.defenseItem,
     required this.game,
+    this.existingSave,
   });
 
   @override
   ConsumerState<BossFightScreen> createState() => _BossFightScreenState();
+  
+  /// Reset all boss fight providers to their default states
+  /// Call this when starting a completely fresh boss fight (no existing save)
+  static void resetAllBossFightProviders(WidgetRef ref, int bossMaxHealth) {
+    debugPrint('🔄 BossFightScreen: Resetting all boss fight providers to defaults');
+    
+    // Reset health providers
+    ref.read(playerHealthProvider.notifier).state = 100;
+    ref.read(bossHealthProvider(bossMaxHealth).notifier).state = bossMaxHealth;
+    
+    // Reset turn and game state
+    ref.read(turnProvider.notifier).state = Turn.player;
+    ref.read(flashcardIndexProvider.notifier).state = 0;
+    ref.read(animationStateProvider.notifier).state = AnimationState.idle;
+    ref.read(tappedCardProvider.notifier).state = null;
+    
+    // Reset flashcard and vocabulary state
+    ref.read(usedVocabularyIndicesProvider.notifier).state = <int>{};
+    ref.read(activeFlashcardsProvider.notifier).state = [];
+    ref.read(revealedCardsProvider.notifier).state = {};
+    ref.read(cardsRevealedBeforeAssessmentProvider.notifier).state = {};
+    
+    // Reset battle tracking
+    ref.read(battleTrackingProvider.notifier).resetBattle();
+    
+    debugPrint('🔄 BossFightScreen: Boss fight provider reset completed');
+  }
 }
 
 class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerProviderStateMixin {
@@ -110,6 +140,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   final Random _random = Random();
   bool _isInitialTurnSet = false; // Ensures initial turn is set only once
   bool _gameInitialized = false; // Ensures game setup happens only once
+  bool _hasRestoredBossFight = false; // Flag to prevent duplicate restoration
+  List<int>? _savedActiveFlashcardIndices; // Saved active flashcard indices for restoration
+  late WidgetRef _ref; // Reference for provider access
   late final ApiService _apiService;
   late final EchoAudioService _echoAudioService;
   final GlobalKey<FloatingDamageOverlayState> damageOverlayKey = GlobalKey<FloatingDamageOverlayState>();
@@ -117,6 +150,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   bool _isLoading = false;
   bool _showProjectile = false;
   PronunciationAssessmentResponse? _lastAssessment;
+  
+  // --- Character Sprite Path ---
+  String _playerSpritePath = 'assets/images/player/sprite_male_tourist.png';
   
   // --- State for Practice Assessment in Flashcard Dialog ---
   final ValueNotifier<PronunciationAssessmentResponse?> _practiceAssessmentResult = ValueNotifier<PronunciationAssessmentResponse?>(null);
@@ -157,11 +193,45 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   @override
   void initState() {
     super.initState();
-    _calculateSpriteSizes();
+    _loadPlayerSprite();
     _initializeAnimations();
     _apiService = ApiService();
     _echoAudioService = EchoAudioService();
     _initializeRecorder();
+
+    // Show boss fight tutorial if this is the first time in boss battle
+    // Wait for tutorial progress to load from database
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Small delay to ensure tutorial database service has loaded
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      if (!mounted) return;
+      
+      // Reset all boss fight providers if starting fresh (no existing save)
+      if (widget.existingSave == null) {
+        debugPrint('🔄 BossFightScreen: No existing save - resetting all boss fight providers');
+        BossFightScreen.resetAllBossFightProviders(ref, widget.bossData.maxHealth);
+      } else {
+        debugPrint('🔄 BossFightScreen: Existing save found - providers will be restored from save');
+      }
+      
+      final isCompleted = ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('boss_fight_intro');
+      
+      debugPrint('🎓 BossFightScreen: Tutorial check - boss_fight_intro completed: $isCompleted');
+      
+      if (!isCompleted) {
+        debugPrint('🎓 BossFightScreen: Starting boss fight tutorial');
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+        );
+        
+        // Show comprehensive boss fight tutorial (now includes battle mechanics as additional slides)
+        tutorialManager.startTutorial(TutorialTrigger.bossFight);
+      } else {
+        debugPrint('🎓 BossFightScreen: Boss fight tutorial already completed, skipping');
+      }
+    });
     
     // Track boss fight start
     PostHogService.trackBossFight(
@@ -174,10 +244,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       },
     );
     
-    // Initialize and start boss fight background music
+    // Initialize and start boss fight background music using screen-based system
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlameAudio.bgm.stop(); // Stop any previous music
-      FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
+      ref.read(gameStateProvider.notifier).switchScreen(ScreenType.bossFight);
 
       // Start tracking battle metrics
       ref.read(battleTrackingProvider.notifier).startBattle(
@@ -326,9 +395,49 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     super.dispose();
   }
 
+  Future<void> _loadPlayerSprite() async {
+    final spritePath = await _getPlayerSpritePath();
+    if (mounted) {
+      setState(() {
+        _playerSpritePath = spritePath;
+      });
+      // Calculate sprite sizes with the correct sprite
+      _calculateSpriteSizes();
+    }
+  }
+
+  Future<String> _getPlayerSpritePath() async {
+    try {
+      final isarService = IsarService();
+      final authService = AuthServiceFactory.getInstance();
+      final userId = authService.currentUserId;
+      
+      if (userId != null && userId != 'default_user') {
+        final profile = await isarService.getPlayerProfile(userId);
+        final selectedCharacter = profile?.selectedCharacter;
+        
+        // Debug: Log the retrieved character ID
+        debugPrint('👤 BossFightScreen: Retrieved character ID: $selectedCharacter');
+        
+        // Check for female character selection (ID is 'female', not 'female_tourist')
+        if (selectedCharacter == 'female') {
+          debugPrint('👤 BossFightScreen: Using female character sprite');
+          return 'assets/images/player/sprite_female_tourist.png';
+        }
+      }
+      
+      // Default to male sprite
+      debugPrint('👤 BossFightScreen: Using male character sprite (default)');
+      return 'assets/images/player/sprite_male_tourist.png';
+    } catch (e) {
+      debugPrint('❌ BossFightScreen: Error loading character sprite: $e');
+      return 'assets/images/player/sprite_male_tourist.png';
+    }
+  }
+
   Future<void> _calculateSpriteSizes() async {
     // Player - using same scale factor as PlayerComponent
-    final playerImageBytes = await rootBundle.load('assets/images/player/sprite_male_tourist.png');
+    final playerImageBytes = await rootBundle.load(_playerSpritePath);
     final decodedPlayerImage = await decodeImageFromList(playerImageBytes.buffer.asUint8List());
     const playerScaleFactor = 0.15; // Was 0.20
     final playerOriginalSize = Size(decodedPlayerImage.width.toDouble(), decodedPlayerImage.height.toDouble());
@@ -453,17 +562,22 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       i++;
     }
 
-    // Schedule the provider update to happen after the build phase
-    Future.microtask(() {
-      if (mounted) {
-        // Mark these indices as used
-        final newUsedIndices = Set<int>.from(usedIndices);
-        newUsedIndices.addAll(selectedIndices);
-        ref.read(usedVocabularyIndicesProvider.notifier).state = newUsedIndices;
-      }
-    });
 
     return selectedIndices.take(4).toList(); // Ensure we only return 4
+  }
+
+  // Helper method to map active flashcards to their indices in the vocabulary list
+  List<int> _mapFlashcardsToIndices(List<Vocabulary> activeFlashcards, List<Vocabulary> fullVocabulary) {
+    final indices = <int>[];
+    for (final flashcard in activeFlashcards) {
+      for (int i = 0; i < fullVocabulary.length; i++) {
+        if (fullVocabulary[i].thai == flashcard.thai) {
+          indices.add(i);
+          break;
+        }
+      }
+    }
+    return indices;
   }
 
   Future<void> _performAttack({double attackMultiplier = 20.0}) async {
@@ -647,6 +761,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     // Switch back to player turn.
     ref.read(turnProvider.notifier).state = Turn.player;
     
+    // Auto-save boss fight state after turn switch
+    _triggerBossFightSave();
+    
     // Announce player's turn to attack.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -696,6 +813,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
     ref.read(turnProvider.notifier).state = Turn.boss;
     ref.read(animationStateProvider.notifier).state = AnimationState.bossAttacking;
+    
+    // Auto-save boss fight state after turn switch to boss
+    _triggerBossFightSave();
     
     // Show boss attack message only if requested (for initial turn or specific cases)
     if (showSnackbar && mounted) {
@@ -821,16 +941,38 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       
     } catch (e) {
       print("Error during pronunciation assessment: $e");
-      _practiceRecordingState.value = RecordingState.reviewing;
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Assessment failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      if (e is AudioNotRecognizedException) {
+        // Handle audio recognition failure with custom dialog
+        _practiceRecordingState.value = RecordingState.idle;
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AudioRecognitionErrorDialog(
+              message: e.userMessage,
+              onTryAgain: () {
+                Navigator.of(context).pop();
+                // Reset to recording state to allow retry
+                _practiceRecordingState.value = RecordingState.idle;
+              },
+            ),
+          );
+        }
+      } else {
+        // Handle other errors with snackbar (keep existing behavior)
+        _practiceRecordingState.value = RecordingState.reviewing;
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Assessment failed: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
   }
@@ -881,9 +1023,19 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
   }
 
   void _replaceFlashcard(Vocabulary cardToReplace, List<Vocabulary> fullVocabulary) {
+    // Mark the OLD card as used (this is the card that completed pronunciation assessment)
+    final oldCardIndex = fullVocabulary.indexWhere((v) => v.thai == cardToReplace.thai);
+    if (oldCardIndex != -1) {
+      final currentUsed = ref.read(usedVocabularyIndicesProvider);
+      ref.read(usedVocabularyIndicesProvider.notifier).state = {...currentUsed, oldCardIndex};
+      debugPrint('⚔️ BossFightScreen: Marked old card at index $oldCardIndex as used (${cardToReplace.thai})');
+    }
+    
+    // Get new card (this already marks the new index as used internally)
     final newIndex = _getNewSingleVocabularyIndex(fullVocabulary);
     final newCard = fullVocabulary[newIndex];
     
+    // Replace in active cards
     final currentCards = ref.read(activeFlashcardsProvider);
     final indexToReplace = currentCards.indexOf(cardToReplace);
 
@@ -891,6 +1043,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       final newCards = List<Vocabulary>.from(currentCards);
       newCards[indexToReplace] = newCard;
       ref.read(activeFlashcardsProvider.notifier).state = newCards;
+      debugPrint('⚔️ BossFightScreen: Replaced card with new one at index $newIndex (${newCard.thai})');
     }
   }
 
@@ -931,40 +1084,30 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     showDialog(
       context: context,
       builder: (context) => _BossFightMenuDialog(
-        onExit: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).pushAndRemoveUntil(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const MainMenuScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return AnimatedBuilder(
-                  animation: animation,
-                  builder: (context, child) {
-                    if (animation.value < 0.5) {
-                      return Container(
-                        color: Colors.black.withOpacity(animation.value * 2),
-                        child: Opacity(
-                          opacity: 1 - (animation.value * 2),
-                          child: const SizedBox.expand(),
-                        ),
-                      );
-                    } else {
-                      return Container(
-                        color: Colors.black.withOpacity(2 - (animation.value * 2)),
-                        child: Opacity(
-                          opacity: (animation.value - 0.5) * 2,
-                          child: child,
-                        ),
-                      );
-                    }
-                  },
-                  child: child,
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 1000),
-            ),
-            (route) => false,
-          );
+        onExit: () async {
+          // Show exit confirmation dialog (same pattern as GameScreen)
+          final shouldExit = await _showExitConfirmation(context, ref);
+          
+          if (shouldExit == true) {
+            // Save boss fight state before exiting
+            await _triggerBossFightSave();
+            
+            // Reset game singleton to prevent black screen on re-entry
+            BabblelonGame.resetInstance();
+            
+            // Reset StaticGameLoader to ensure clean state
+            final staticLoader = StaticGameLoader();
+            staticLoader.reset();
+            
+            // Don't clear inventory when exiting via menu - preserve for resume
+            // Inventory is only cleared after victory or defeat
+            
+            // Use same navigation pattern as victory/defeat to prevent stack duplication
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+              (Route<dynamic> route) => false,
+            );
+          }
         },
         onClose: () {
           Navigator.of(context).pop();
@@ -1076,12 +1219,25 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
   @override
   Widget build(BuildContext context) {
-    final playerHealth = ref.watch(playerHealthProvider);
-    final bossHealth = ref.watch(bossHealthProvider(widget.bossData.maxHealth));
-    final currentTurn = ref.watch(turnProvider);
-    final animationState = ref.watch(animationStateProvider);
-    final vocabularyAsyncValue = ref.watch(bossVocabularyProvider(widget.bossData.vocabularyPath));
-    final screenWidth = MediaQuery.of(context).size.width;
+    return Consumer(
+      builder: (context, ref, _) {
+        _ref = ref;
+        
+        // Restore boss fight state after build completes (same pattern as GameScreen)
+        if (!_hasRestoredBossFight && widget.existingSave != null) {
+          _hasRestoredBossFight = true; // Set flag immediately to prevent duplicates
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('⚔️ BossFightScreen: Restoring boss fight state after build completes');
+            _restoreBossFightFromSave();
+          });
+        }
+        
+        final playerHealth = ref.watch(playerHealthProvider);
+        final bossHealth = ref.watch(bossHealthProvider(widget.bossData.maxHealth));
+        final currentTurn = ref.watch(turnProvider);
+        final animationState = ref.watch(animationStateProvider);
+        final vocabularyAsyncValue = ref.watch(bossVocabularyProvider(widget.bossData.vocabularyPath));
+        final screenWidth = MediaQuery.of(context).size.width;
 
     return FloatingDamageOverlay(
       key: damageOverlayKey,
@@ -1154,7 +1310,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                             alignment: Alignment.center,
                                             transform: Matrix4.rotationY(math.pi),
                                             child: Image.asset(
-                                              'assets/images/player/sprite_male_tourist.png',
+                                              _playerSpritePath,
                                               width: _playerSize!.width,
                                               height: _playerSize!.height,
                                               fit: BoxFit.contain,
@@ -1224,8 +1380,19 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                 data: (vocabulary) {
                   if (ref.read(activeFlashcardsProvider).isEmpty) {
                     Future.microtask(() {
-                      final randomIndices = _getRandomVocabularyIndices(vocabulary);
-                      final initialCards = randomIndices.map((index) => vocabulary[index]).toList();
+                      List<int> indicesToUse;
+                      
+                      // Check if we have saved flashcard indices to restore
+                      if (_savedActiveFlashcardIndices != null && _savedActiveFlashcardIndices!.isNotEmpty) {
+                        indicesToUse = _savedActiveFlashcardIndices!;
+                        _savedActiveFlashcardIndices = null; // Clear after use
+                        debugPrint('⚔️ BossFightScreen: Restoring saved active flashcard indices: $indicesToUse');
+                      } else {
+                        indicesToUse = _getRandomVocabularyIndices(vocabulary);
+                        debugPrint('⚔️ BossFightScreen: Generated new random flashcard indices: $indicesToUse');
+                      }
+                      
+                      final initialCards = indicesToUse.map((index) => vocabulary[index]).toList();
                       ref.read(activeFlashcardsProvider.notifier).state = initialCards;
                     });
                   }
@@ -1262,9 +1429,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                               padding: EdgeInsets.zero,
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 2.2,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
+                                childAspectRatio: 2.4,
+                                mainAxisSpacing: 4,
+                                crossAxisSpacing: 4,
                               ),
                               itemCount: cards.length,
                               shrinkWrap: true,
@@ -1279,6 +1446,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                   isRevealed: isRevealed,
                                   isFlippable: false, // Prevent revealing from grid
                                   showAudioButton: false,
+                                  isBossFightContext: true, // Enable boss fight styling
                                   onTap: () {
                                     ref.playButtonSound();
                                     ref.read(tappedCardProvider.notifier).state = card;
@@ -1389,6 +1557,124 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
         ],
       ),
     ),
+    );
+      },
+    );
+  }
+
+  /// Restore boss fight state from existing save data if available
+  void _restoreBossFightFromSave() {
+    debugPrint('⚔️ BossFightScreen: _restoreBossFightFromSave called');
+    if (widget.existingSave != null) {
+      debugPrint('⚔️ BossFightScreen: Processing save data for restoration');
+      final saveData = widget.existingSave!;
+      final saveService = GameSaveService();
+      
+      // Restore player health
+      if (saveData.playerHealth != null) {
+        _ref.read(playerHealthProvider.notifier).state = saveData.playerHealth!;
+        debugPrint('⚔️ BossFightScreen: Restored player health: ${saveData.playerHealth}');
+      }
+      
+      // Restore boss health
+      if (saveData.bossHealth != null) {
+        _ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier).state = saveData.bossHealth!;
+        debugPrint('⚔️ BossFightScreen: Restored boss health: ${saveData.bossHealth}');
+      }
+      
+      // Restore turn state
+      if (saveData.currentTurn != null) {
+        _ref.read(turnProvider.notifier).state = 
+          saveData.currentTurn == 'player' ? Turn.player : Turn.boss;
+        debugPrint('⚔️ BossFightScreen: Restored turn: ${saveData.currentTurn}');
+      }
+      
+      // Restore used flashcards
+      final usedCards = saveService.getUsedFlashcards(saveData);
+      if (usedCards != null && usedCards.isNotEmpty) {
+        _ref.read(usedVocabularyIndicesProvider.notifier).state = usedCards.toSet();
+        debugPrint('⚔️ BossFightScreen: Restored used flashcards: $usedCards');
+      }
+      
+      // Restore active flashcards and revealed cards state
+      final activeCardIndices = saveService.getActiveFlashcards(saveData);
+      final revealedCards = saveService.getRevealedCards(saveData);
+      
+      if (activeCardIndices != null && activeCardIndices.isNotEmpty) {
+        // We need to restore the active flashcards after vocabulary is loaded
+        // This will be handled in the vocabulary loading callback with a flag
+        _savedActiveFlashcardIndices = activeCardIndices;
+        debugPrint('⚔️ BossFightScreen: Prepared to restore active flashcards: $activeCardIndices');
+      }
+      
+      if (revealedCards != null && revealedCards.isNotEmpty) {
+        _ref.read(revealedCardsProvider.notifier).state = revealedCards;
+        debugPrint('⚔️ BossFightScreen: Restored revealed cards: $revealedCards');
+      }
+      
+      // Restore battle metrics if available
+      final metrics = saveService.getBattleMetrics(saveData);
+      if (metrics != null) {
+        _ref.read(battleTrackingProvider.notifier).startBattle(
+          playerStartingHealth: 100,
+          bossMaxHealth: widget.bossData.maxHealth,
+        );
+        debugPrint('⚔️ BossFightScreen: Restored battle metrics');
+      }
+    } else {
+      debugPrint('⚔️ BossFightScreen: No save data provided for restoration');
+    }
+  }
+
+  /// Show exit confirmation dialog following GameScreen pattern
+  Future<bool?> _showExitConfirmation(BuildContext context, WidgetRef ref) async {
+    return await BasePopup.showPopup<bool>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Exit Boss Fight?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Are you sure you want to exit the boss fight? Your progress will be saved automatically so you can continue from where you left off next time!',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    ref.playButtonSound();
+                    Navigator.of(context).pop(false);
+                  },
+                  style: BasePopup.secondaryButtonStyle,
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref.playButtonSound();
+                    Navigator.of(context).pop(true);
+                  },
+                  style: BasePopup.primaryButtonStyle,
+                  child: const Text('Exit Boss Fight'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1530,6 +1816,41 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     }
   }
 
+  /// Reset boss fight providers for defeat retry or new battle
+  void _resetBossFightProviders({bool keepInventory = false}) {
+    debugPrint('🔄 BossFightScreen: Resetting boss fight providers (keepInventory: $keepInventory)');
+    
+    // Reset health to full
+    ref.read(playerHealthProvider.notifier).state = 100;
+    ref.read(bossHealthProvider(widget.bossData.maxHealth).notifier).state = widget.bossData.maxHealth;
+    
+    // Clear flashcard state for fresh battle
+    ref.read(usedVocabularyIndicesProvider.notifier).state = {};
+    ref.read(activeFlashcardsProvider.notifier).state = [];
+    ref.read(revealedCardsProvider.notifier).state = {};
+    ref.read(cardsRevealedBeforeAssessmentProvider.notifier).state = {};
+    ref.read(tappedCardProvider.notifier).state = null;
+    
+    // Randomize turn for fairness (coin flip)
+    final randomTurn = Random().nextBool() ? Turn.player : Turn.boss;
+    ref.read(turnProvider.notifier).state = randomTurn;
+    debugPrint('🔄 BossFightScreen: Randomized turn to: $randomTurn');
+    
+    // Reset animation state
+    ref.read(animationStateProvider.notifier).state = AnimationState.idle;
+    
+    // Clear battle metrics for fresh tracking
+    ref.read(battleTrackingProvider.notifier).resetBattle();
+    
+    // Clear inventory only if requested (victory/new game scenarios)
+    if (!keepInventory) {
+      ref.clearInventory();
+      debugPrint('🔄 BossFightScreen: Cleared inventory');
+    }
+    
+    debugPrint('🔄 BossFightScreen: Boss fight provider reset complete');
+  }
+
   Future<void> _showVictoryPopup() async {
     // Finalize metrics
     final playerHealth = ref.read(playerHealthProvider);
@@ -1555,10 +1876,23 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
 
     // --- Save Progress with Isar ---
     final isarService = IsarService();
-    // This is a placeholder for a real user ID from your auth system
-    const userId = 'default_user'; 
     
-    // Get or create player profile
+    // Get the actual authenticated user ID
+    final authService = AuthServiceFactory.getInstance();
+    final userId = authService.currentUserId;
+
+    if (userId == null) {
+      debugPrint('⚠️ Boss Fight: No authenticated user, skipping profile save');
+      return;
+    }
+
+    // Add validation to prevent saving with wrong user ID
+    if (userId == 'default_user') {
+      debugPrint('❌ Boss Fight: Attempted to save with default_user, aborting');
+      return;
+    }
+    
+    // Get or create player profile with correct user ID
     isar_models.PlayerProfile? profile = await isarService.getPlayerProfile(userId);
     profile ??= isar_models.PlayerProfile()..userId = userId;
 
@@ -1599,9 +1933,16 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       },
     );
 
-    // After dialog is closed, navigate back to main menu
+    // After dialog is closed, complete victory reset and navigate back to map
+    BabblelonGame.resetInstance(); // Reset game singleton for fresh start
+    ref.resetForNewGame(); // Full provider reset including inventory and NPC states
+    
+    // Delete all saves for this level since it's completed
+    final saveService = GameSaveService();
+    await saveService.deleteAllLevelSaves('yaowarat_level'); // Delete both exploration and boss saves
+    
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
       (Route<dynamic> route) => false,
     );
   }
@@ -1633,8 +1974,8 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
     FlameAudio.bgm.stop();
     _playSoundEffect('soundeffects/soundeffect_defeat.mp3'); // Defeat sound
 
-    // Show the dialog
-    await showDialog(
+    // Show the dialog and get user choice
+    final shouldRetry = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
@@ -1642,11 +1983,98 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
       },
     );
 
-    // After dialog is closed, navigate back to main menu
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainMenuScreen()),
-      (Route<dynamic> route) => false,
-    );
+    final saveService = GameSaveService();
+    final bossLevelId = 'boss_${widget.bossData.name.toLowerCase()}';
+
+    if (shouldRetry == true) {
+      // RETRY: Reset providers and restart battle immediately
+      _resetBossFightProviders(keepInventory: true); // Keep items, reset battle state
+      
+      // Reset save with fresh state but keep inventory
+      await saveService.resetBossFightForRetry(
+        bossLevelId,
+        100, // Standard player max health
+        widget.bossData.maxHealth,
+        randomizeTurn: true,
+        clearFlashcards: true,
+      );
+      
+      debugPrint('🔄 BossFightScreen: Player chose retry - battle restarted with fresh state');
+      // Don't navigate away - battle continues with reset state
+      return;
+    } else {
+      // EXIT: Save reset state for later retry but don't clear inventory
+      ref.resetForDefeat(); // Partial reset - keeps inventory
+      
+      // Reset save state for later retry
+      await saveService.resetBossFightForRetry(
+        bossLevelId,
+        100, // Standard player max health
+        widget.bossData.maxHealth,
+        randomizeTurn: true,
+        clearFlashcards: true,
+      );
+      
+      // Navigate back to map
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+
+  /// Auto-save boss fight state for resume functionality
+  Future<void> _triggerBossFightSave() async {
+    try {
+      final saveService = GameSaveService();
+      final currentTurn = ref.read(turnProvider);
+      final playerHealth = ref.read(playerHealthProvider);
+      final bossHealth = ref.read(bossHealthProvider(widget.bossData.maxHealth));
+      final usedFlashcards = ref.read(usedVocabularyIndicesProvider);
+      final battleMetrics = ref.read(battleTrackingProvider);
+      
+      // Include current inventory in boss fight save
+      final currentInventory = ref.read(inventoryProvider);
+      
+      // Get active flashcards and revealed cards state
+      final activeFlashcards = ref.read(activeFlashcardsProvider);
+      final revealedCards = ref.read(revealedCardsProvider);
+      
+      // Get vocabulary to map active flashcards to their indices
+      final vocabularyAsyncValue = ref.read(bossVocabularyProvider(widget.bossData.vocabularyPath));
+      List<int>? activeFlashcardIndices;
+      
+      vocabularyAsyncValue.whenData((vocabulary) {
+        if (activeFlashcards.isNotEmpty) {
+          activeFlashcardIndices = _mapFlashcardsToIndices(activeFlashcards, vocabulary);
+        }
+      });
+      
+      await saveService.saveGameState(
+        levelId: 'boss_${widget.bossData.name.toLowerCase()}',
+        gameType: 'boss_fight',
+        inventory: currentInventory, // Save inventory for resume
+        bossId: widget.bossData.name,
+        currentTurn: currentTurn == Turn.player ? 'player' : 'boss',
+        playerHealth: playerHealth,
+        bossHealth: bossHealth,
+        usedFlashcards: usedFlashcards.toList(),
+        activeFlashcards: activeFlashcardIndices, // New: save active flashcard indices
+        revealedCards: revealedCards, // New: save revealed cards state
+        battleMetrics: battleMetrics != null ? {
+          'turns': battleMetrics.turns.length,
+          'expGained': battleMetrics.expGained,
+          'goldEarned': battleMetrics.goldEarned,
+        } : null,
+        progressPercentage: ((widget.bossData.maxHealth - bossHealth) / widget.bossData.maxHealth) * 100,
+        npcsVisited: 0, // Boss fights don't track NPCs
+        itemsCollected: usedFlashcards.length,
+      );
+      
+      debugPrint('💾 BossFightScreen: Auto-saved boss fight state (Turn: ${currentTurn.name}, Player HP: $playerHealth, Boss HP: $bossHealth)');
+    } catch (e) {
+      debugPrint('❌ BossFightScreen: Failed to auto-save boss fight: $e');
+    }
   }
 }
 
@@ -1685,12 +2113,6 @@ class _BossFightMenuDialog extends ConsumerWidget {
               onChanged: (val) {
                 final notifier = ref.read(gameStateProvider.notifier);
                 notifier.setMusicEnabled(val);
-
-                if (val) {
-                  FlameAudio.bgm.play('bg/background_tuktukbossfight.wav', volume: 0.5);
-                } else {
-                  FlameAudio.bgm.stop();
-                }
               },
             ),
             const SizedBox(height: 12),
@@ -2034,6 +2456,7 @@ class _InteractiveFlashcardDialogState
                                     isRevealed: _isRevealed,
                                     isFlippable: true, // Allow flipping in the dialog
                                     showAudioButton: true, // <-- Ensure audio icon appears in dialog
+                                    isDialog: true, // Use larger font for dialog context
                                     onReveal: () {
                                       if (!_isRevealed) {
                                         setState(() => _isRevealed = true);
@@ -2149,7 +2572,11 @@ class _InteractiveFlashcardDialogState
   Widget _buildPanel({required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+                color: ModernDesignSystem.primarySurface,
+                borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                border: Border.all(color: ModernDesignSystem.borderPrimary),
+              ),
       child: child,
     );
   }
@@ -2159,9 +2586,11 @@ class _InteractiveFlashcardDialogState
       children: [
         const Text("Ready to record?", style: TextStyle(color: Colors.white70)),
         const SizedBox(height: 16),
-        _RecordButton(
+        RecordingAnimationButton(
           isRecording: false,
-          onTap: widget.onPracticeRecord,
+          onStartRecording: widget.onPracticeRecord,
+          onStopRecording: () {}, // Not used in this state
+          size: 60.0,
         ),
       ],
     );
@@ -2172,9 +2601,11 @@ class _InteractiveFlashcardDialogState
       children: [
         const Text("Recording...", style: TextStyle(color: Colors.redAccent)),
          const SizedBox(height: 16),
-        _RecordButton(
+        RecordingAnimationButton(
           isRecording: true,
-          onTap: widget.onPracticeStop,
+          onStartRecording: () {}, // Not used in this state
+          onStopRecording: widget.onPracticeStop,
+          size: 60.0,
         ),
       ],
     );
@@ -2189,7 +2620,7 @@ class _InteractiveFlashcardDialogState
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
-              icon: const Icon(Icons.replay, color: AppStyles.textColor, size: 30),
+              icon: const Icon(Icons.replay, color: ModernDesignSystem.textPrimary, size: 30),
               onPressed: widget.onPracticeReset,
               tooltip: 'Record Again',
             ),
@@ -2198,7 +2629,7 @@ class _InteractiveFlashcardDialogState
               onTap: _playRecording,
             ),
             IconButton(
-              icon: const Icon(Icons.send_rounded, color: AppStyles.accentColor, size: 30),
+              icon: const Icon(Icons.send_rounded, color: ModernDesignSystem.primaryAccent, size: 30),
               onPressed: widget.onSend,
               tooltip: 'Send for Assessment',
             ),
@@ -2214,7 +2645,7 @@ class _InteractiveFlashcardDialogState
         SizedBox(
             width: 30, height: 30, child: CircularProgressIndicator()),
         SizedBox(height: 16),
-        Text("Assessing...", style: TextStyle(color: AppStyles.subtitleTextColor)),
+        Text("Assessing...", style: TextStyle(color: ModernDesignSystem.textSecondary)),
       ],
     );
   }
@@ -2233,7 +2664,7 @@ class _InteractiveFlashcardDialogState
             const Text(
               "Pronunciation Assessment",
               style: TextStyle(
-                color: AppStyles.textColor,
+                color: ModernDesignSystem.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -2351,7 +2782,7 @@ class _InteractiveFlashcardDialogState
                     onPressed: () {
                       widget.practiceRecordingStateNotifier.value = RecordingState.results;
                     },
-                    icon: const Icon(Icons.arrow_back, color: AppStyles.subtitleTextColor),
+                    icon: const Icon(Icons.arrow_back, color: ModernDesignSystem.textSecondary),
                     tooltip: 'Back to Assessment',
                   ),
                   const Spacer(),
@@ -2370,7 +2801,7 @@ class _InteractiveFlashcardDialogState
               Text(
                 isAttackTurn ? "Attack Bonus" : "Defense Bonus",
                 style: const TextStyle(
-                  color: AppStyles.textColor,
+                  color: ModernDesignSystem.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -2398,7 +2829,7 @@ class _InteractiveFlashcardDialogState
                   const Text(
                     "%",
                     style: TextStyle(
-                      color: AppStyles.subtitleTextColor,
+                      color: ModernDesignSystem.textSecondary,
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                     ),
@@ -2426,7 +2857,7 @@ class _InteractiveFlashcardDialogState
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: actionColor,
-                  foregroundColor: AppStyles.textColor,
+                  foregroundColor: ModernDesignSystem.textPrimary,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -2648,13 +3079,13 @@ class _WordAnalysisRow extends StatelessWidget {
               children: [
                 Text(mapping.thai,
                     style: const TextStyle(
-                        color: AppStyles.textColor,
+                        color: ModernDesignSystem.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (mapping.transliteration.isNotEmpty)
                   Text(mapping.transliteration,
                       style: TextStyle(
-                          color: AppStyles.subtitleTextColor, fontSize: 10)),
+                          color: ModernDesignSystem.textSecondary, fontSize: 10)),
                 if (mapping.translation.isNotEmpty)
                   Text('"${mapping.translation}"',
                       style: TextStyle(
@@ -2699,13 +3130,13 @@ class _BackendWordAnalysisRow extends StatelessWidget {
               children: [
                 Text(feedback.word,
                     style: const TextStyle(
-                        color: AppStyles.textColor,
+                        color: ModernDesignSystem.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (feedback.transliteration.isNotEmpty)
                   Text(feedback.transliteration,
                       style: TextStyle(
-                          color: AppStyles.subtitleTextColor, fontSize: 10)),
+                          color: ModernDesignSystem.textSecondary, fontSize: 10)),
                 if (feedback.errorType != 'None')
                   Text(feedback.errorType,
                       style: TextStyle(
@@ -2970,35 +3401,6 @@ class _RevealedCardDetails extends StatelessWidget {
   }
 }
 
-class _RecordButton extends StatelessWidget {
-  final bool isRecording;
-  final VoidCallback onTap;
-
-  const _RecordButton({required this.isRecording, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: isRecording ? Colors.redAccent.withOpacity(0.8) : Colors.red,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-        ),
-        child: Center(
-          child: Icon(
-            isRecording ? Icons.stop_rounded : Icons.mic_none,
-            color: Colors.white,
-            size: 30,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // Custom widget for the playback button with progress animation
 class _PlaybackButton extends StatelessWidget {
@@ -3052,7 +3454,7 @@ class _AnimatedNumberDisplay extends StatelessWidget {
         return Text(
           '${isPercentage ? value.toStringAsFixed(0) : value.toStringAsFixed(2)}$unit',
           style: const TextStyle(
-            color: AppStyles.textColor,
+            color: ModernDesignSystem.textPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 28,
             shadows: [
@@ -3221,7 +3623,7 @@ class _DetailedPronunciationScores extends StatelessWidget {
           const Text(
             'Detailed Breakdown',
             style: TextStyle(
-              color: AppStyles.textColor,
+              color: ModernDesignSystem.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -3309,7 +3711,7 @@ class _AzurePronunciationTips extends StatelessWidget {
               Text(
                 'Pronunciation Tips',
                 style: TextStyle(
-                  color: AppStyles.textColor,
+                  color: ModernDesignSystem.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3337,7 +3739,7 @@ class _AzurePronunciationTips extends StatelessWidget {
                     child: Text(
                       tip,
                       style: TextStyle(
-                        color: AppStyles.textColor.withOpacity(0.9),
+                        color: ModernDesignSystem.textPrimary.withOpacity(0.9),
                         fontSize: 14,
                       ),
                     ),

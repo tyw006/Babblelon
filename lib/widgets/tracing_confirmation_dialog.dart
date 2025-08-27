@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 
 /// Dialog that shows which canvases have strokes and confirms assessment
 /// Styled to match the app's dark theme like pronunciation assessments
@@ -33,55 +34,43 @@ class TracingConfirmationDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.all(isSmallScreen ? 10.0 : 20.0),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-          maxWidth: MediaQuery.of(context).size.width * 0.95,
-        ),
+      child: GlassmorphicCard(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F1F1F),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.15),
-            width: 1,
+        blur: 20,
+        opacity: 0.15,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxWidth: MediaQuery.of(context).size.width * 0.95,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4ECCA3).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF4ECCA3),
-                      width: 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4ECCA3).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF4ECCA3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.assignment_turned_in,
+                      color: Color(0xFF4ECCA3),
+                      size: 28,
                     ),
                   ),
-                  child: const Icon(
-                    Icons.assignment_turned_in,
-                    color: Color(0xFF4ECCA3),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
                         'Ready for Assessment?',
                         style: TextStyle(
                           fontSize: 20,
@@ -277,7 +266,7 @@ class TracingConfirmationDialog extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildProgressIndicator(String label, int count, Color color, IconData icon) {

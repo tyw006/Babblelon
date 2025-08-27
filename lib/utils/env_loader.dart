@@ -22,11 +22,12 @@ class EnvLoader {
       // Fallback to defaults or handle error as appropriate
       // For example, you might want to ensure essential variables have defaults:
       _env = {
-        'SUPABASE_URL': _env['SUPABASE_URL'] ?? '',
-        'SUPABASE_ANON_KEY': _env['SUPABASE_ANON_KEY'] ?? '',
-        'ENABLE_ANALYTICS': _env['ENABLE_ANALYTICS'] ?? 'false',
-        'DEBUG_MODE': _env['DEBUG_MODE'] ?? 'false',
+        'SUPABASE_URL': dotenv.env['SUPABASE_URL'] ?? '',
+        'SUPABASE_ANON_KEY': dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+        'ENABLE_ANALYTICS': dotenv.env['ENABLE_ANALYTICS'] ?? 'false',
+        'DEBUG_MODE': dotenv.env['DEBUG_MODE'] ?? 'false',
       };
+      debugPrint('Environment fallback applied. Supabase URL present: ${_env['SUPABASE_URL']?.isNotEmpty == true}');
     }
   }
   

@@ -1,18 +1,22 @@
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
-import 'package:babblelon/screens/loading_screen.dart';
 import 'package:babblelon/screens/game_screen.dart';
+import 'package:babblelon/screens/enhanced_onboarding_screen.dart';
+import 'package:babblelon/screens/character_selection_screen.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:flutter/material.dart';
-import 'package:flame_audio/flame_audio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/providers/profile_providers.dart';
+import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
 import 'package:babblelon/widgets/character_tracing_test_widget.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/services/posthog_service.dart';
-import 'package:babblelon/widgets/stt_translation_test_widget.dart';
+import 'package:babblelon/services/isar_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainMenuScreen extends ConsumerWidget {
   const MainMenuScreen({super.key});
@@ -39,211 +43,178 @@ class MainMenuScreen extends ConsumerWidget {
           ),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'BabbleOn',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 10.0,
-                      color: Colors.black,
-                      offset: Offset(5.0, 5.0),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 50),
-              ElevatedButton(
-                onPressed: () {
-                  ref.playButtonSound();
-                  
-                  // Track screen navigation
-                  PostHogService.trackGameEvent(
-                    event: 'screen_navigation',
-                    screen: 'game_screen',
-                    additionalProperties: {
-                      'from_screen': 'main_menu',
-                      'navigation_type': 'start_game',
-                    },
-                  );
-                  
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        return AnimatedBuilder(
-                          animation: animation,
-                          builder: (context, child) {
-                            // First half: fade to black
-                            if (animation.value < 0.5) {
-                              return Container(
-                                color: Colors.black.withOpacity(animation.value * 2),
-                                child: Opacity(
-                                  opacity: 1 - (animation.value * 2),
-                                  child: const SizedBox.expand(),
-                                ),
-                              );
-                            }
-                            // Second half: fade in new screen
-                            else {
-                              return Container(
-                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
-                                child: Opacity(
-                                  opacity: (animation.value - 0.5) * 2,
-                                  child: child,
-                                ),
-                              );
-                            }
-                          },
-                          child: child,
-                        );
-                      },
-                      transitionDuration: const Duration(milliseconds: 1200),
-                    ),
-                  );
-                },
-                child: const Text('Start Game'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  // Define the test boss data here
-                  const tuktukBoss = BossData(
-                    name: "Tuk-Tuk Monster",
-                    spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
-                    maxHealth: 500,
-                    vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
-                    backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
-                  );
-
-                  // Create test items for the boss fight
-                  const testAttackItem = BattleItem(
-                    name: 'Test Attack Item',
-                    assetPath: 'assets/images/items/steambun_regular.png',
-                  );
-                  const testDefenseItem = BattleItem(
-                    name: 'Test Defense Item', 
-                    assetPath: 'assets/images/items/porkbelly_regular.png',
-                  );
-                  
-                  ref.playButtonSound();
-                  
-                  // Track boss fight navigation
-                  PostHogService.trackGameEvent(
-                    event: 'screen_navigation',
-                    screen: 'boss_fight',
-                    additionalProperties: {
-                      'from_screen': 'main_menu',
-                      'navigation_type': 'test_boss_fight',
-                      'boss_name': tuktukBoss.name,
-                    },
-                  );
-                  
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => BossFightScreen(
-                        bossData: tuktukBoss,
-                        attackItem: testAttackItem,
-                        defenseItem: testDefenseItem,
-                        game: BabblelonGame(),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'BabbleOn',
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 10.0,
+                        color: Colors.black,
+                        offset: Offset(5.0, 5.0),
                       ),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        return AnimatedBuilder(
-                          animation: animation,
-                          builder: (context, child) {
-                            // First half: fade to black
-                            if (animation.value < 0.5) {
-                              return Container(
-                                color: Colors.black.withOpacity(animation.value * 2),
-                                child: Opacity(
-                                  opacity: 1 - (animation.value * 2),
-                                  child: const SizedBox.expand(),
-                                ),
-                              );
-                            }
-                            // Second half: fade in new screen
-                            else {
-                              return Container(
-                                color: Colors.black.withOpacity(2 - (animation.value * 2)),
-                                child: Opacity(
-                                  opacity: (animation.value - 0.5) * 2,
-                                  child: child,
-                                ),
-                              );
-                            }
-                          },
-                          child: child,
-                        );
-                      },
-                      transitionDuration: const Duration(milliseconds: 1200),
-                    ),
-                  );
-                },
-                child: const Text('Go to Boss Fight (Test)'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => _showVictoryDialog(context),
-                child: const Text('Test Victory Dialog'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () => _showDefeatDialog(context),
-                child: const Text('Test Defeat Dialog'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  ref.playButtonSound();
-                  showDialog(
-                    context: context,
-                    builder: (context) => const CharacterTracingTestWidget(),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4ECCA3),
-                  foregroundColor: Colors.black,
+                    ],
+                  ),
                 ),
-                child: const Text('Test Character Tracing'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () {
-                  ref.playButtonSound();
-                  
-                  // Track navigation
-                  PostHogService.trackGameEvent(
-                    event: 'screen_navigation',
-                    screen: 'stt_translation_test',
-                    additionalProperties: {
-                      'from_screen': 'main_menu',
-                      'navigation_type': 'test_stt_translation',
-                    },
-                  );
-                  
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const STTTranslationTestWidget(),
+                const SizedBox(height: 50),
+                
+                // Debug Section (only visible in debug mode)
+                if (kDebugMode) 
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade300, width: 2),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.bug_report, color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'DEBUG TOOLS',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.orange.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => _resetOnboarding(context, ref),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Reset Onboarding'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => _navigateToEnhancedOnboarding(context, ref),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Enhanced Onboarding'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => _navigateToCharacterSelection(context, ref),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Character Selection'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 20),
+                
+                ElevatedButton(
+                  onPressed: () {
+                    ref.playButtonSound();
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => GameScreen(),
+                        transitionDuration: const Duration(milliseconds: 1200),
+                      ),
+                    );
+                  },
+                  child: const Text('Start Game'),
                 ),
-                child: const Text('Test STT/Translation Services'),
-              ),
-            ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => _showVictoryDialog(context),
+                  child: const Text('Test Victory Dialog'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () => _showDefeatDialog(context),
+                  child: const Text('Test Defeat Dialog'),
+                ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _resetOnboarding(BuildContext context, WidgetRef ref) async {
+    try {
+      // Clear SharedPreferences (but keep this for app preferences like sound settings)
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clear only onboarding-related keys, not all preferences
+      await prefs.remove('onboarding_completed');
+      
+      // Clear local profile data from Isar
+      final isarService = IsarService();
+      final authService = AuthServiceFactory.getInstance();
+      final userId = authService.currentUserId;
+      
+      if (userId != null) {
+        final profile = await isarService.getPlayerProfile(userId);
+        if (profile != null) {
+          // Reset onboarding completion in local profile
+          profile.onboardingCompleted = false;
+          await isarService.savePlayerProfile(profile);
+        }
+      }
+      
+      // Refresh the profile completion provider to reflect changes
+      final refreshProfile = ref.read(profileRefreshProvider);
+      refreshProfile();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Onboarding reset successfully!'))
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to reset onboarding: $e'))
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToEnhancedOnboarding(BuildContext context, WidgetRef ref) async {
+    ref.playButtonSound();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EnhancedOnboardingScreen(),
+      ),
+    );
+  }
+
+  Future<void> _navigateToCharacterSelection(BuildContext context, WidgetRef ref) async {
+    ref.playButtonSound();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CharacterSelectionScreen(),
       ),
     );
   }
@@ -312,4 +283,4 @@ class MainMenuScreen extends ConsumerWidget {
       builder: (context) => DefeatDialog(metrics: mockDefeatMetrics),
     );
   }
-} 
+}

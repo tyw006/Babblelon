@@ -14,26 +14,30 @@ import '../models/npc_data.dart';
 import '../services/api_service.dart';
 import '../overlays/dialogue_overlay/dialogue_models.dart';
 import '../providers/game_providers.dart';
+import '../providers/tutorial_cache_provider.dart';
+import '../services/tutorial_service.dart';
+import '../theme/unified_dark_theme.dart';
+import 'recording_animation_button.dart';
 
 // POS Color Mapping (same as dialogue_overlay.dart)
 final Map<String, Color> posColorMapping = {
-  'ADJ': Colors.orange.shade700, // Adjective
-  'ADP': Colors.purple.shade700, // Adposition (e.g., prepositions, postpositions)
-  'ADV': Colors.green.shade700, // Adverb
-  'AUX': Colors.blue.shade700, // Auxiliary verb
-  'CCONJ': Colors.cyan.shade700, // Coordinating conjunction
-  'DET': Colors.lime.shade700, // Determiner
-  'INTJ': Colors.pink.shade700, // Interjection
-  'NOUN': Colors.red.shade700, // Noun
-  'NUM': Colors.indigo.shade700, // Numeral
-  'PART': Colors.brown.shade700, // Particle
-  'PRON': Colors.amber.shade700, // Pronoun
-  'PROPN': Colors.deepOrange.shade700, // Proper noun
-  'PUNCT': Colors.grey.shade600, // Punctuation
-  'SCONJ': Colors.lightBlue.shade700, // Subordinating conjunction
-  'SYM': Colors.teal.shade700, // Symbol
-  'VERB': Colors.lightGreen.shade700, // Verb
-  'OTHER': Colors.black54, // Other
+  'ADJ': Colors.white.withOpacity(0.7), // Adjective
+  'ADP': Colors.white.withOpacity(0.7), // Adposition (e.g., prepositions, postpositions)
+  'ADV': Colors.white.withOpacity(0.7), // Adverb
+  'AUX': Colors.white.withOpacity(0.7), // Auxiliary verb
+  'CCONJ': Colors.white.withOpacity(0.7), // Coordinating conjunction
+  'DET': Colors.white.withOpacity(0.7), // Determiner
+  'INTJ': Colors.white.withOpacity(0.7), // Interjection
+  'NOUN': Colors.white.withOpacity(0.7), // Noun
+  'NUM': Colors.white.withOpacity(0.7), // Numeral
+  'PART': Colors.white.withOpacity(0.7), // Particle
+  'PRON': Colors.white.withOpacity(0.7), // Pronoun
+  'PROPN': Colors.white.withOpacity(0.7), // Proper noun
+  'PUNCT': Colors.white.withOpacity(0.5), // Punctuation
+  'SCONJ': Colors.white.withOpacity(0.7), // Subordinating conjunction
+  'SYM': Colors.white.withOpacity(0.7), // Symbol
+  'VERB': Colors.white.withOpacity(0.7), // Verb
+  'OTHER': Colors.white.withOpacity(0.4), // Other
 };
 
 // Enhanced modal states for comprehensive learning flow
@@ -106,10 +110,10 @@ class WordConfidence {
 
   // Color coding based on confidence levels
   Color get confidenceColor {
-    if (confidence >= 0.9) return Colors.green;
-    if (confidence >= 0.7) return Colors.yellow.shade700;
-    if (confidence >= 0.5) return Colors.orange;
-    return Colors.red;
+    if (confidence >= 0.9) return Colors.white.withOpacity(0.8);
+    if (confidence >= 0.7) return Colors.white.withOpacity(0.7);
+    if (confidence >= 0.5) return Colors.white.withOpacity(0.8);
+    return Colors.white.withOpacity(0.8);
   }
 
   // Confidence category for UI feedback
@@ -165,8 +169,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   
   // Animation controllers
   late AnimationController _waveformController;
-  late AnimationController _pulseController;
-  late AnimationController _scaleController;
   
   // Audio waveform simulation
   List<double> _waveformData = [];
@@ -223,6 +225,23 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     
     // Force complete state reset for fresh session - ensures total isolation from previous modal instances
     _forceCompleteReset();
+    
+    // Show first NPC response tutorial if this is the first time seeing response modal
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Check and request microphone permission when modal opens
+      _checkAndRequestMicrophonePermission();
+      
+      if (!ref.read(tutorialCacheProvider).isTutorialCompleted('first_npc_response_tutorial')) {
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+          npcId: widget.npcData.name.toLowerCase(),
+        );
+        
+        // Show first NPC response tutorial
+        tutorialManager.startTutorial(TutorialTrigger.firstNpcResponse);
+      }
+    });
     
     // DEBUG: Log modal initialization
     print('DEBUG: NPCResponseModal initialized with aggressive state reset');
@@ -324,23 +343,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-    
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
   }
 
   @override
   void dispose() {
     _waveformController.dispose();
-    _pulseController.dispose();
-    _scaleController.dispose();
     _waveformTimer?.cancel();
     _audioPlayer?.dispose();
     _audioRecorder.dispose();
@@ -359,6 +366,29 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           curve: Curves.easeOut,
         );
       });
+    }
+  }
+
+  Future<void> _checkAndRequestMicrophonePermission() async {
+    try {
+      // Check current permission status
+      final status = await Permission.microphone.status;
+      
+      // If not granted, request permission
+      if (status != PermissionStatus.granted) {
+        final requestedStatus = await Permission.microphone.request();
+        
+        if (requestedStatus != PermissionStatus.granted && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Microphone permission is needed for voice recording'),
+              backgroundColor: UnifiedDarkTheme.warning,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error checking microphone permission: $e');
     }
   }
 
@@ -405,7 +435,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         
         // Start waveform animation
         _startWaveformAnimation();
-        _scaleController.forward();
         
         // Auto-scroll to bottom to expose stop button
         _scrollToBottom();
@@ -439,7 +468,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         
         // Stop waveform animation
         _stopWaveformAnimation();
-        _scaleController.reverse();
         
         // Process the audio
         if (path != null) {
@@ -604,7 +632,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: e.toString().toLowerCase().contains('unavailable') ? Colors.orange : Colors.red,
+            backgroundColor: e.toString().toLowerCase().contains('unavailable') ? Colors.white.withOpacity(0.8) : Colors.white.withOpacity(0.8),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -923,25 +951,36 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           maxWidth: MediaQuery.of(context).size.width * 0.9,
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        child: Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: Scrollbar(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.black.withOpacity(0.7),
+              Colors.black.withOpacity(0.5),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
                   controller: _scrollController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: _buildUnifiedInterface(),
-                  ),
+                  child: _buildUnifiedInterface(),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -951,19 +990,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 20, 16, 20), // Increased vertical padding
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
-        // Enhanced visual hierarchy with subtle shadow
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -1011,11 +1042,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 // Enhanced typography with better mobile readability
                 Text(
                   widget.npcData.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 22, // Slightly larger for mobile
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -1036,10 +1067,10 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isElevenLabs ? Colors.orange[100] : Colors.blue[100],
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isElevenLabs ? Colors.orange[400]! : Colors.blue[400]!,
+          color: Colors.white.withOpacity(0.3),
           width: 1.5,
         ),
       ),
@@ -1051,7 +1082,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.bold,
-              color: isElevenLabs ? Colors.orange[800] : Colors.blue[800],
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
           const SizedBox(height: 2),
@@ -1064,7 +1095,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               width: 36,
               height: 18,
               decoration: BoxDecoration(
-                color: isElevenLabs ? Colors.orange[400] : Colors.blue[400],
+                color: Colors.white.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(9),
               ),
               child: AnimatedAlign(
@@ -1074,8 +1105,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   margin: const EdgeInsets.all(2),
                   width: 14,
                   height: 14,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1088,7 +1119,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             style: TextStyle(
               fontSize: 8,
               fontWeight: FontWeight.w500,
-              color: isElevenLabs ? Colors.orange[700] : Colors.blue[700],
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
         ],
@@ -1182,15 +1213,15 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               // Use attention-grabbing gradient
               gradient: LinearGradient(
                 colors: [
-                  Colors.amber[100]!,
-                  Colors.amber[50]!,
+                  Colors.white.withOpacity(0.15),
+                  Colors.white.withOpacity(0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.amber[400]!,
+                color: Colors.white.withOpacity(0.4),
                 width: 2,
               ),
               boxShadow: [
@@ -1212,12 +1243,12 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     return Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.amber[200]?.withOpacity(0.7 + (0.3 * pulseValue)),
+                        color: Colors.white.withOpacity(0.2 + (0.2 * pulseValue)),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.translate,
-                        color: Colors.amber[800],
+                        color: Colors.white.withOpacity(0.9),
                         size: 24,
                       ),
                     );
@@ -1233,7 +1264,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.amber[900],
+                          color: Colors.black.withOpacity(0.3),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1241,7 +1272,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         'Having trouble? Try the Translation Helper on your next turn',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.amber[800],
+                          color: Colors.white.withOpacity(0.8),
                           height: 1.3,
                         ),
                       ),
@@ -1263,7 +1294,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       padding: const EdgeInsets.all(4),
                       child: Icon(
                         Icons.close,
-                        color: Colors.amber[600],
+                        color: Colors.white.withOpacity(0.7),
                         size: 16,
                       ),
                     ),
@@ -1287,9 +1318,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1303,7 +1334,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
+                  color: Colors.white.withOpacity(0.9),
                 ),
               ),
               Row(
@@ -1323,7 +1354,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                           padding: const EdgeInsets.all(6),
                           child: Icon(
                             Icons.play_circle_fill,
-                            color: Colors.blue[600],
+                            color: Colors.white.withOpacity(0.8),
                             size: 24,
                           ),
                         ),
@@ -1342,9 +1373,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.blue[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.4)),
             ),
             child: Text(
               _transcriptionResult!.transcription.isNotEmpty 
@@ -1354,8 +1385,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 fontSize: 22, // Larger text for full width
                 fontWeight: FontWeight.bold,
                 color: _transcriptionResult!.transcription.isNotEmpty 
-                    ? Colors.black87
-                    : Colors.grey[600],
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.6),
                 fontStyle: _transcriptionResult!.transcription.isNotEmpty 
                     ? FontStyle.normal 
                     : FontStyle.italic,
@@ -1372,7 +1403,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue[700],
+                color: Colors.white.withOpacity(0.7),
               ),
             ),
             const SizedBox(height: 8),
@@ -1397,9 +1428,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1410,7 +1441,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
           const SizedBox(height: 12),
@@ -1420,16 +1451,16 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.3)!),
             ),
             child: Text(
               _translatedText,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Colors.white,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1467,9 +1498,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1483,7 +1514,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
+                  color: Colors.white.withOpacity(0.9),
                 ),
               ),
               Row(
@@ -1503,7 +1534,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                           padding: const EdgeInsets.all(8),
                           child: Icon(
                             Icons.volume_up,
-                            color: Colors.blue[700],
+                            color: Colors.white.withOpacity(0.9),
                             size: 20,
                           ),
                         ),
@@ -1522,9 +1553,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.blue[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.4)),
             ),
             child: Text(
               responseText.isNotEmpty 
@@ -1535,7 +1566,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 fontWeight: FontWeight.bold,
                 color: responseText.isNotEmpty 
                     ? Colors.black87
-                    : Colors.grey[600],
+                    : Colors.white.withOpacity(0.6),
                 fontStyle: responseText.isNotEmpty 
                     ? FontStyle.normal 
                     : FontStyle.italic,
@@ -1587,13 +1618,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isCompleted 
-                ? Colors.green[600]
+                ? Colors.white.withOpacity(0.6)
                 : (isActive 
-                    ? Colors.amber[400]?.withOpacity(0.3 + (animationValue * 0.7))
-                    : Colors.grey[300]),
+                    ? Colors.white.withOpacity(0.4)?.withOpacity(0.3 + (animationValue * 0.7))
+                    : Colors.white.withOpacity(0.3)),
             boxShadow: isActive || isCompleted ? [
               BoxShadow(
-                color: (isCompleted ? Colors.green[400]! : Colors.amber[400]!)
+                color: (isCompleted ? Colors.white.withOpacity(0.4)! : Colors.white.withOpacity(0.4)!)
                     .withOpacity(0.4 * animationValue),
                 blurRadius: 8 * animationValue,
                 spreadRadius: 2 * animationValue,
@@ -1603,14 +1634,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           child: isCompleted 
               ? Icon(
                   Icons.check,
-                  color: Colors.white,
+                  color: Colors.black.withOpacity(0.3),
                   size: size * 0.6,
                 )
               : (isActive 
                   ? Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.amber[600]?.withOpacity(animationValue),
+                        color: Colors.white.withOpacity(0.6)?.withOpacity(animationValue),
                       ),
                     )
                   : null),
@@ -1629,7 +1660,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.teal[700],
+            color: Colors.white.withOpacity(0.7),
           ),
         ),
         const SizedBox(height: 8),
@@ -1640,9 +1671,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.teal[50],
+                color: Colors.white.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.teal[200]!),
+                border: Border.all(color: Colors.white.withOpacity(0.2)!),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1653,7 +1684,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal[800],
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
                   // Romanization
@@ -1662,7 +1693,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       mapping['romanized']!,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.teal[600],
+                        color: Colors.white.withOpacity(0.6),
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -1671,7 +1702,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     mapping['english'] ?? '',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.teal[700],
+                      color: Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -1687,9 +1718,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   Widget _buildResponseToggleButton() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)!),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1715,13 +1746,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? Colors.blue[600] : Colors.transparent,
+          color: isActive ? Colors.white.withOpacity(0.6) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.grey[700],
+            color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
             fontWeight: FontWeight.w500,
             fontSize: 12,
           ),
@@ -1740,16 +1771,16 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: Colors.white.withOpacity(0.3)!),
           ),
           child: Text(
             _translatedText,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.white,
             ),
             textAlign: TextAlign.center,
           ),
@@ -1777,9 +1808,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.black.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[300]!),
+                  border: Border.all(color: Colors.white.withOpacity(0.4)),
                 ),
                 child: Text(
                   _transcriptionResult!.transcription.isNotEmpty 
@@ -1789,8 +1820,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: _transcriptionResult!.transcription.isNotEmpty 
-                        ? Colors.black87
-                        : Colors.grey[600],
+                        ? UnifiedDarkTheme.textPrimary
+                        : UnifiedDarkTheme.textSecondary,
                     fontStyle: _transcriptionResult!.transcription.isNotEmpty 
                         ? FontStyle.normal 
                         : FontStyle.italic,
@@ -1818,7 +1849,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       spacing: 8.0,
       runSpacing: 8.0,
       children: mappings.map((mapping) {
-        Color borderColor = isExpected ? Colors.teal[300]! : Colors.blue[300]!;
+        Color borderColor = isExpected ? Colors.white.withOpacity(0.3)! : Colors.white.withOpacity(0.3)!;
         
         // Apply quality color for transcription results
         if (!isExpected && mapping.containsKey('confidence')) {
@@ -1829,7 +1860,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: borderColor, width: 2),
           ),
@@ -1843,7 +1874,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: UnifiedDarkTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -1856,7 +1887,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['romanized'] ?? mapping['romanization'] ?? '',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.white.withOpacity(0.8),
                     fontStyle: FontStyle.italic,
                   ),
                   textAlign: TextAlign.center,
@@ -1870,7 +1901,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['english'] ?? mapping['translation'] ?? '',
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey[500],
+                    color: Colors.white.withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -1894,7 +1925,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         
         if (isReference) {
           // Reference cards use neutral gray
-          borderColor = Colors.grey[400]!;
+          borderColor = Colors.white.withOpacity(0.4)!;
         } else {
           // STT confidence color coding
           final confidence = double.tryParse(mapping['confidence'] ?? '0') ?? 0.0;
@@ -1905,7 +1936,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: borderColor, width: 3), // Thicker border for confidence
           ),
@@ -1956,7 +1987,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: UnifiedDarkTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -1970,7 +2001,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['romanized'] ?? mapping['romanization'] ?? '',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.white.withOpacity(0.8),
                     fontStyle: FontStyle.italic,
                   ),
                   textAlign: TextAlign.center,
@@ -1985,7 +2016,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['english'] ?? mapping['translation'] ?? '',
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey[500],
+                    color: Colors.white.withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -2000,16 +2031,16 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   // Get STT confidence color based on percentage
   Color _getSTTConfidenceColor(double confidence) {
-    if (confidence >= 0.85) return Colors.green[600]!;  // High confidence: Green (85-100%)
-    if (confidence >= 0.60) return Colors.orange[600]!; // Medium confidence: Yellow/Orange (60-84%)
-    return Colors.red[600]!;                            // Low confidence: Red (0-59%)
+    if (confidence >= 0.85) return Colors.white.withOpacity(0.6)!;  // High confidence: Green (85-100%)
+    if (confidence >= 0.60) return Colors.white.withOpacity(0.6)!; // Medium confidence: Yellow/Orange (60-84%)
+    return Colors.white.withOpacity(0.6)!;                            // Low confidence: Red (0-59%)
   }
 
   // Get confidence icon based on level
   Widget _getConfidenceIcon(double confidence) {
-    if (confidence >= 0.85) return Icon(Icons.check_circle, color: Colors.green[600], size: 12);
-    if (confidence >= 0.60) return Icon(Icons.warning, color: Colors.orange[600], size: 12);
-    return Icon(Icons.error, color: Colors.red[600], size: 12);
+    if (confidence >= 0.85) return Icon(Icons.check_circle, color: Colors.white.withOpacity(0.6), size: 12);
+    if (confidence >= 0.60) return Icon(Icons.warning, color: Colors.white.withOpacity(0.6), size: 12);
+    return Icon(Icons.error, color: Colors.white.withOpacity(0.6), size: 12);
   }
 
   // STT confidence badge for overall score
@@ -2030,8 +2061,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             message: 'Overall Audio Confidence',
             child: Text(
               'OAC',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -2042,8 +2073,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           const SizedBox(width: 4),
           Text(
             '$percentage%',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -2066,7 +2097,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: isReference ? Colors.grey[600] : Colors.blue[600],
+            color: isReference ? Colors.white.withOpacity(0.6) : Colors.white.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 4),
@@ -2074,7 +2105,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           translation,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[700],
+            color: Colors.white.withOpacity(0.7),
           ),
         ),
       ],
@@ -2094,14 +2125,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.orange[300]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)!),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning, color: Colors.orange[600], size: 16),
+          Icon(Icons.warning, color: Colors.white.withOpacity(0.6), size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -2112,7 +2143,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange[700],
+                    color: Colors.white.withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -2120,7 +2151,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   lowConfidenceWords.map((w) => w.word).join(', '),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.orange[700],
+                    color: Colors.white.withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -2129,7 +2160,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   style: TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
-                    color: Colors.orange[600],
+                    color: Colors.white.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -2168,14 +2199,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         children: [
           Icon(
             Icons.bar_chart,
-            color: Colors.white,
+            color: Colors.black.withOpacity(0.3),
             size: 12,
           ),
           const SizedBox(width: 4),
           Text(
             '$percentage%',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
               fontWeight: FontWeight.bold,
               fontSize: 11,
             ),
@@ -2235,11 +2266,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Try Again', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.orange[700],
-                  side: BorderSide(color: Colors.orange[400]!, width: 2),
+                  foregroundColor: UnifiedDarkTheme.secondaryAccent,
+                  side: BorderSide(color: UnifiedDarkTheme.secondaryAccent, width: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: Colors.orange[50],
+                  backgroundColor: UnifiedDarkTheme.secondaryAccent.withValues(alpha: 0.1),
                   minimumSize: const Size(0, 48), // Ensure consistent height with Send Message button
                 ),
               ),
@@ -2257,13 +2288,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 } : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _transcriptionResult != null 
-                      ? Colors.green[600] // Green when ready to send
-                      : Colors.grey[400], // Grey when disabled
-                  foregroundColor: Colors.white,
+                      ? UnifiedDarkTheme.primaryAccent
+                      : UnifiedDarkTheme.primaryAccent.withValues(alpha: 0.4), // Dimmed when disabled
+                  foregroundColor: UnifiedDarkTheme.textOnColor,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
-                  shadowColor: (_sttAttemptCount >= _maxAttemptsBeforeFallback ? Colors.teal : Colors.green).withOpacity(0.3),
+                  shadowColor: (_sttAttemptCount >= _maxAttemptsBeforeFallback ? Colors.white.withOpacity(0.8) : Colors.white.withOpacity(0.8)).withOpacity(0.3),
                   minimumSize: const Size(0, 48), // Ensure consistent height with Try Again button
                 ),
                 child: Text(
@@ -2291,13 +2322,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: shouldHighlight 
-                ? Colors.blue[50]?.withOpacity(0.7 + (0.3 * pulseValue))
-                : Theme.of(context).colorScheme.secondaryContainer,
+                ? Colors.white.withOpacity(0.05)?.withOpacity(0.7 + (0.3 * pulseValue))
+                : Colors.black.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: shouldHighlight 
-                  ? Colors.blue[400]!.withOpacity(0.6 + (0.4 * pulseValue))
-                  : Theme.of(context).colorScheme.outline,
+                  ? Colors.white.withOpacity(0.4)!.withOpacity(0.6 + (0.4 * pulseValue))
+                  : Colors.white.withOpacity(0.3),
               width: shouldHighlight ? 2.0 + (pulseValue * 1.0) : 1.0,
             ),
             boxShadow: shouldHighlight ? [
@@ -2314,12 +2345,12 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               // Header
           Row(
             children: [
-              Icon(Icons.translate, color: Colors.blue[700], size: 18),
+              Icon(Icons.translate, color: Colors.white.withOpacity(0.7), size: 18),
               const SizedBox(width: 8),
               Text(
                 'Translation Helper',
                 style: TextStyle(
-                  color: Colors.blue[800],
+                  color: Colors.white.withOpacity(0.8),
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -2339,13 +2370,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                     hintStyle: const TextStyle(fontSize: 14),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.borderSecondary),
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
+                    fillColor: UnifiedDarkTheme.primarySurfaceVariant,
                   ),
-                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+                  style: TextStyle(fontSize: 14, color: UnifiedDarkTheme.textPrimary),
                   onChanged: (_) {
                     // Clear previous translation when typing
                     if (_translatedText.isNotEmpty) {
@@ -2362,8 +2393,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               ElevatedButton(
                 onPressed: _isTranslating ? null : _translateText,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[600],
-                  foregroundColor: Colors.white,
+                  backgroundColor: UnifiedDarkTheme.tertiaryAccent,
+                  foregroundColor: UnifiedDarkTheme.textOnColor,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 ),
@@ -2395,13 +2426,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(16), // Larger padding for mobile
       decoration: BoxDecoration(
-        color: Colors.teal[50],
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12), // Larger border radius
-        border: Border.all(color: Colors.teal[300]!, width: 2), // More prominent border
+        border: Border.all(color: Colors.white.withOpacity(0.3)!, width: 2), // More prominent border
         // Add subtle shadow for depth
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withOpacity(0.1),
+            color: Colors.white.withOpacity(0.8).withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2413,12 +2444,12 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           // Enhanced preview header with better mobile interaction
           Row(
             children: [
-              Icon(Icons.preview, color: Colors.teal[700], size: 20), // Larger icon
+              Icon(Icons.preview, color: Colors.white.withOpacity(0.7), size: 20), // Larger icon
               const SizedBox(width: 8), // Increased spacing
               Text(
                 'Translation',
                 style: TextStyle(
-                  color: Colors.teal[800],
+                  color: Colors.white.withOpacity(0.8),
                   fontWeight: FontWeight.bold,
                   fontSize: 15, // Larger text for mobile readability
                   letterSpacing: 0.3,
@@ -2438,7 +2469,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       padding: const EdgeInsets.all(8), // Larger touch target
                       child: Icon(
                         Icons.volume_up, 
-                        color: Colors.teal[700], 
+                        color: Colors.white.withOpacity(0.7), 
                         size: 22, // Larger icon
                       ),
                     ),
@@ -2453,16 +2484,16 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.teal[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.3)!),
             ),
             child: Text(
               _translatedText,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.teal[900],
+                color: Colors.white.withOpacity(0.9),
               ),
               textAlign: TextAlign.center,
             ),
@@ -2478,9 +2509,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.teal[50],
+                    color: Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.teal[200]!),
+                    border: Border.all(color: Colors.white.withOpacity(0.2)!),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -2492,7 +2523,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Colors.teal[900],
+                          color: Colors.white.withOpacity(0.9),
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 1,
@@ -2505,7 +2536,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                           mapping['romanized'] ?? '',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.teal[700],
+                            color: Colors.white.withOpacity(0.7),
                             fontStyle: FontStyle.italic,
                           ),
                           textAlign: TextAlign.center,
@@ -2521,14 +2552,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                           Icon(
                             Icons.analytics_outlined,
                             size: 8,
-                            color: Colors.grey[500],
+                            color: Colors.white.withOpacity(0.7),
                           ),
                           const SizedBox(width: 2),
                           Text(
                             mapping['english'] ?? '',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.grey[600],
+                              color: Colors.white.withOpacity(0.8),
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 1,
@@ -2574,18 +2605,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   } : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _sttAttemptCount >= _maxAttemptsBeforeFallback 
-                        ? Colors.green[600] // Green when ready to send translation (same as Send Message)
-                        : Colors.grey[700], // Solid grey for better visibility
-                    disabledBackgroundColor: Colors.grey[700], // Force grey when disabled
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
+                        ? UnifiedDarkTheme.success
+                        : UnifiedDarkTheme.success.withValues(alpha: 0.4), // Dimmed when disabled
+                    disabledBackgroundColor: UnifiedDarkTheme.success.withValues(alpha: 0.4),
+                    foregroundColor: UnifiedDarkTheme.textOnColor,
+                    disabledForegroundColor: UnifiedDarkTheme.textOnColor.withValues(alpha: 0.7),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                       side: BorderSide(
                         color: _sttAttemptCount >= _maxAttemptsBeforeFallback 
-                            ? Colors.green[700]! 
-                            : Colors.grey[600]!, 
+                            ? UnifiedDarkTheme.success
+                            : UnifiedDarkTheme.success.withValues(alpha: 0.4), 
                         width: 1,
                       ),
                     ),
@@ -2628,9 +2659,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       ),
       padding: const EdgeInsets.all(12), // Reduced from 16
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -2639,9 +2670,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           // Title on its own row
           Text(
             '🗣️ ${widget.npcData.name}\'s Message:',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: TextStyle(fontSize: 16).copyWith(
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
@@ -2662,14 +2693,14 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 child: Container(
                   padding: const EdgeInsets.all(10), // Reduced from 12
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: Colors.black.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
                   ),
                   child: Text(
                     widget.npcMessageEnglish,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    style: TextStyle(fontSize: 16).copyWith(
+                      color: Colors.white,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -2688,18 +2719,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green[50],
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green[300]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '🎯 Your Target Response:',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: TextStyle(fontSize: 16).copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.green[800],
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 12),
@@ -2713,9 +2744,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
   Widget _buildTranslationHelperSection() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[400]!, width: 1.5),
+        border: Border.all(color: Colors.white.withOpacity(0.4)!, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -2730,13 +2761,13 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            color: Colors.blue[800],
+            color: Colors.white.withOpacity(0.8),
           ),
         ),
-        backgroundColor: Colors.white,
-        collapsedBackgroundColor: Colors.blue[50],
-        iconColor: Colors.blue[700],
-        collapsedIconColor: Colors.blue[700],
+        backgroundColor: Colors.black.withOpacity(0.3),
+        collapsedBackgroundColor: Colors.black.withOpacity(0.2).withOpacity(0.05),
+        iconColor: Colors.white.withOpacity(0.7),
+        collapsedIconColor: Colors.white.withOpacity(0.7),
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -2747,25 +2778,25 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   controller: _translationController,
                   decoration: InputDecoration(
                     hintText: 'Type in English...',
-                    hintStyle: TextStyle(color: Colors.grey[500]),
+                    hintStyle: TextStyle(color: UnifiedDarkTheme.textSecondary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                      borderSide: BorderSide(color: UnifiedDarkTheme.primaryAccent, width: 2),
                     ),
                     filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
+                    fillColor: UnifiedDarkTheme.primarySurfaceVariant,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: UnifiedDarkTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2786,8 +2817,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         : const Icon(Icons.translate, size: 16),
                     label: Text(_isTranslating ? 'Translating...' : 'Translate'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      foregroundColor: Colors.white,
+                      backgroundColor: UnifiedDarkTheme.tertiaryAccent,
+                      foregroundColor: UnifiedDarkTheme.textOnColor,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -2825,12 +2856,12 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.teal[800],
+                color: Colors.white.withOpacity(0.8),
               ),
             ),
             if (_translationAudioBase64.isNotEmpty)
               IconButton(
-                icon: Icon(Icons.volume_up, color: Colors.teal[700]),
+                icon: Icon(Icons.volume_up, color: Colors.white.withOpacity(0.7)),
                 onPressed: _playTranslationAudio,
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
@@ -2851,7 +2882,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.8),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.teal.shade300),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2863,7 +2894,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: Colors.teal[900],
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -2873,7 +2904,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                         mapping['romanized'] ?? '',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.teal[700],
+                          color: Colors.white.withOpacity(0.7),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -2883,7 +2914,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       mapping['english'] ?? '',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.blueGrey[700],
+                        color: Colors.white.withOpacity(0.7),
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -2896,8 +2927,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
           // Fallback to simple text display
           Text(
             _translatedText,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.teal[900],
+            style: TextStyle(fontSize: 18).copyWith(
+              color: Colors.white.withOpacity(0.9),
               fontWeight: FontWeight.w600,
               fontSize: 17,
             ),
@@ -2906,8 +2937,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             const SizedBox(height: 8),
             Text(
               'Romanization: $_romanizedText',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.teal[700],
+              style: TextStyle(fontSize: 16).copyWith(
+                color: Colors.white.withOpacity(0.7),
                 fontStyle: FontStyle.italic,
                 fontWeight: FontWeight.w500,
               ),
@@ -2964,9 +2995,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             ),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!, width: 1.5),
+              border: Border.all(color: Colors.white.withOpacity(0.3)!, width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.08),
@@ -2981,8 +3012,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               children: [
                 Text(
                   '${widget.npcData.name}\'s Last Message',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[800],
+                  style: TextStyle(fontSize: 16).copyWith(
+                    color: UnifiedDarkTheme.textSecondary,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
@@ -2997,25 +3028,25 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
+                          color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue[200]!),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'English Translation:',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.blue[700],
+                              style: TextStyle(fontSize: 14).copyWith(
+                                color: Colors.white.withOpacity(0.9),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               widget.npcMessageEnglish,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.blue[800],
+                              style: TextStyle(fontSize: 16).copyWith(
+                                color: Colors.white.withOpacity(0.8),
                                 fontStyle: FontStyle.italic,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -3038,8 +3069,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 : _showTranslationHelper 
                     ? 'Translate your response above, then record'
                     : 'Ready to respond? Tap the microphone',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: _translatedText.isNotEmpty ? Colors.green[700] : Colors.grey[800],
+            style: TextStyle(fontSize: 16).copyWith(
+              color: _translatedText.isNotEmpty ? Colors.white.withOpacity(0.7) : Colors.white.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -3054,43 +3085,11 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
 
   Widget _buildMicrophoneButton() {
-    return GestureDetector(
-      onTap: _isRecording ? _stopRecording : _startRecording,
-      child: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          return ScaleTransition(
-            scale: _scaleController.drive(
-              Tween(begin: 1.0, end: 1.1).chain(
-                CurveTween(curve: Curves.elasticOut),
-              ),
-            ),
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isRecording 
-                    ? Colors.red.withOpacity(0.8 + 0.2 * _pulseController.value)
-                    : Theme.of(context).primaryColor.withOpacity(0.8),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isRecording ? Colors.red : Theme.of(context).primaryColor)
-                        .withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: _isRecording ? 5 + 10 * _pulseController.value : 5,
-                  ),
-                ],
-              ),
-              child: Icon(
-                _isRecording ? Icons.stop : Icons.mic,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-          );
-        },
-      ),
+    return RecordingAnimationButton(
+      isRecording: _isRecording,
+      onStartRecording: _startRecording,
+      onStopRecording: _stopRecording,
+      size: 80.0,
     );
   }
 
@@ -3107,18 +3106,18 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               Container(
                 width: 12,
                 height: 12,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.red,
+                  color: Colors.white.withOpacity(0.8),
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Recording...',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.red,
+                  color: Colors.white.withOpacity(0.8),
                 ),
               ),
             ],
@@ -3133,7 +3132,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               borderRadius: BorderRadius.circular(50),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.red.withOpacity(0.3),
+                  color: Colors.white.withOpacity(0.8).withOpacity(0.3),
                   blurRadius: 10,
                   spreadRadius: 2,
                 ),
@@ -3159,7 +3158,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             height: math.max(4, amplitude * 50),
             margin: const EdgeInsets.symmetric(horizontal: 1),
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: Colors.white.withOpacity(0.6),
               borderRadius: BorderRadius.circular(2),
             ),
           );
@@ -3208,9 +3207,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3221,7 +3220,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 16),
@@ -3231,16 +3230,16 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.3)!),
             ),
             child: Text(
               _translatedText,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Colors.white,
               ),
               textAlign: TextAlign.center,
             ),
@@ -3265,9 +3264,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3280,7 +3279,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue[800],
+                  color: Colors.white.withOpacity(0.8),
                 ),
               ),
               const Spacer(),
@@ -3290,7 +3289,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
               ElevatedButton(
                 onPressed: _transcriptionResult != null ? _confirmAndSendToNPC : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
+                  backgroundColor: Colors.white.withOpacity(0.6),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3306,9 +3305,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.4)),
             ),
             child: Text(
               _transcriptionResult!.transcription.isNotEmpty 
@@ -3319,7 +3318,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 fontWeight: FontWeight.bold,
                 color: _transcriptionResult!.transcription.isNotEmpty 
                     ? Colors.black87
-                    : Colors.grey[600],
+                    : Colors.white.withOpacity(0.6),
                 fontStyle: _transcriptionResult!.transcription.isNotEmpty 
                     ? FontStyle.normal 
                     : FontStyle.italic,
@@ -3339,7 +3338,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             'Note: Colors show audio transcription quality',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.blue[700],
+              color: Colors.white.withOpacity(0.7),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -3399,8 +3398,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       ),
       child: Text(
         'Audio Quality: $percentage%',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.8),
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
@@ -3410,9 +3409,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
   // Get color for audio quality (not pronunciation)
   Color _getAudioQualityColor(double quality) {
-    if (quality >= 0.8) return Colors.green;
-    if (quality >= 0.6) return Colors.orange;
-    return Colors.red;
+    if (quality >= 0.8) return Colors.white.withOpacity(0.8);
+    if (quality >= 0.6) return Colors.white.withOpacity(0.8);
+    return Colors.white.withOpacity(0.8);
   }
 
   // Word mini-cards component for both expected and actual messages
@@ -3422,7 +3421,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       runSpacing: 8.0,
       children: mappings.map((mapping) {
         Color cardColor = isExpected ? Colors.white : Colors.white;
-        Color borderColor = isExpected ? Colors.grey[300]! : Colors.blue[300]!;
+        Color borderColor = isExpected ? Colors.white.withOpacity(0.3)! : Colors.white.withOpacity(0.3)!;
         
         // For transcription results, apply quality color
         if (!isExpected && mapping.containsKey('confidence')) {
@@ -3447,7 +3446,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: Colors.black.withOpacity(0.3),
                 ),
               ),
               const SizedBox(height: 4),
@@ -3457,7 +3456,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['romanized'] ?? mapping['romanization'] ?? '',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.white.withOpacity(0.8),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -3468,7 +3467,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                   mapping['english'] ?? mapping['translation'] ?? '',
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey[500],
+                    color: Colors.white.withOpacity(0.7),
                   ),
                 ),
             ],
@@ -3516,9 +3515,9 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
     return Container(
       height: 45,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[400]!, width: 1.5),
+        border: Border.all(color: Colors.white.withOpacity(0.4)!, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -3565,21 +3564,21 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         height: 36,
         decoration: BoxDecoration(
           color: enabled 
-            ? Colors.grey.shade200
-            : Colors.grey.shade100,
+            ? Colors.white.withOpacity(0.2)
+            : Colors.white.withOpacity(0.1),
           shape: BoxShape.circle,
           border: Border.all(
             color: enabled 
-              ? Colors.grey.shade400 
-              : Colors.grey.shade300,
+              ? Colors.white.withOpacity(0.4) 
+              : Colors.white.withOpacity(0.3),
             width: 1,
           ),
         ),
         child: Icon(
           icon,
           color: enabled 
-            ? Colors.grey.shade700 
-            : Colors.grey.shade400,
+            ? Colors.white.withOpacity(0.7) 
+            : Colors.white.withOpacity(0.4),
           size: 18,
         ),
       ),
@@ -3600,12 +3599,12 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isActive 
-            ? Colors.teal.shade600
-            : Colors.grey.shade200,
+            ? Colors.white.withOpacity(0.6)
+            : Colors.white.withOpacity(0.2),
           border: Border.all(
             color: isActive 
-              ? Colors.teal.shade700 
-              : Colors.grey.shade400,
+              ? Colors.white.withOpacity(0.7) 
+              : Colors.white.withOpacity(0.4),
             width: 1,
           ),
         ),
@@ -3615,7 +3614,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             style: TextStyle(
               color: isActive 
                 ? Colors.white 
-                : Colors.grey.shade700,
+                : Colors.white.withOpacity(0.7),
               fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
@@ -3664,7 +3663,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             mapping.wordEng, 
             style: TextStyle(
               fontSize: 12, 
-              color: posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600, 
+              color: posColorMapping[mapping.pos] ?? Colors.white.withOpacity(0.6), 
               fontStyle: FontStyle.italic
             )
           ));
@@ -3700,8 +3699,8 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
             children: [
               Text(
                 widget.npcMessage,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
+                style: TextStyle(fontSize: 18).copyWith(
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                   fontSize: 18,
                 ),
@@ -3712,19 +3711,19 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.amber[50],
+                    color: Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.amber[300]!),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)!),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: Colors.amber[700]),
+                      Icon(Icons.info_outline, size: 16, color: Colors.white.withOpacity(0.7)),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           'Word analysis not available for this message',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.amber[700],
+                          style: TextStyle(fontSize: 14).copyWith(
+                            color: Colors.white.withOpacity(0.7),
                             fontSize: 12,
                           ),
                         ),

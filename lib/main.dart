@@ -1,14 +1,17 @@
-import 'package:babblelon/screens/main_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'utils/env_loader.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';
+import 'package:babblelon/theme/unified_dark_theme.dart';
+import 'package:babblelon/app_controller.dart';
+import 'package:babblelon/providers/motion_preferences_provider.dart';
+import 'package:babblelon/providers/tutorial_cache_provider.dart';
+import 'package:provider/provider.dart' as provider;
 import 'dart:io';
 
 void main() async {
@@ -19,9 +22,9 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // Set full screen mode
+  // Set system UI mode for games without interfering with device scaling
   await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
+    SystemUiMode.immersive,
   );
   
   // Load environment variables
@@ -31,12 +34,22 @@ void main() async {
   final supabaseUrl = EnvLoader.getString('SUPABASE_URL');
   final supabaseAnonKey = EnvLoader.getString('SUPABASE_ANON_KEY');
   
+  debugPrint('🔐 Supabase URL: ${supabaseUrl.isNotEmpty ? '✅ Present' : '❌ Missing'}');
+  debugPrint('🔐 Supabase Anon Key: ${supabaseAnonKey.isNotEmpty ? '✅ Present' : '❌ Missing'}');
+  
   // Only initialize Supabase if credentials are provided
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
-    await SupabaseService.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
+    try {
+      await SupabaseService.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+      debugPrint('✅ Supabase initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Supabase initialization failed: $e');
+    }
+  } else {
+    debugPrint('❌ Supabase initialization skipped - missing credentials');
   }
 
   // Initialize Isar DB
@@ -63,9 +76,9 @@ void main() async {
       preferredLanguage: 'th', // Thai is the primary language for the game
     );
     
-    print('✅ PostHog initialized successfully with user session and device properties');
+    print('✅ PostHog initialized successfully with user session and device properties (PRODUCTION VERSION)');
   } else {
-    print('⚠️ PostHog API key not found, skipping initialization');
+    print('⚠️ PostHog API key not found, skipping initialization (PRODUCTION VERSION)');
   }
 
   await SentryFlutter.init(
@@ -84,22 +97,31 @@ void main() async {
       options.replay.sessionSampleRate = 0.1;
       options.replay.onErrorSampleRate = 1.0;
     },
-    appRunner: () => runApp(SentryWidget(child: const ProviderScope(child: MyApp()))),
+    appRunner: () => runApp(SentryWidget(
+      child: provider.MultiProvider(
+        providers: [
+          provider.ChangeNotifierProvider(create: (context) => MotionPreferences()..init()),
+        ],
+        child: const ProviderScope(child: MyApp()),
+      ),
+    )),
   );
   // TODO: Remove this line after sending the first sample event to sentry.
-  await Sentry.captureException(StateError('This is a sample exception.'));
+  await Sentry.captureException(StateError('This is a sample exception from production version.'));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize tutorial cache listening to auth state changes
+    ref.watch(tutorialCacheInitializerProvider);
+    
     return MaterialApp(
       title: 'Babblelon',
-      theme: AppStyles.mainTheme,
-      home: const MainMenuScreen(),
-      // home: const DebugDialogTest(), // Temporarily set to debug screen
+      theme: UnifiedDarkTheme.darkTheme, // Use unified dark theme
+      home: const AppController(), // Production app controller with onboarding flow
     );
   }
 } 

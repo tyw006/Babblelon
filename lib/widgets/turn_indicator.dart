@@ -140,14 +140,14 @@ class _TurnIndicatorState extends State<TurnIndicator>
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                color: turnColor.withOpacity(0.2),
+                color: turnColor.withValues(alpha: 0.2),
                 border: Border.all(
-                  color: turnColor.withOpacity(_glowAnimation.value),
+                  color: turnColor.withValues(alpha: _glowAnimation.value),
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: turnColor.withOpacity(_glowAnimation.value * 0.5),
+                    color: turnColor.withValues(alpha: _glowAnimation.value * 0.5),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -171,7 +171,7 @@ class _TurnIndicatorState extends State<TurnIndicator>
                       letterSpacing: 1.2,
                       shadows: [
                         Shadow(
-                          color: turnColor.withOpacity(0.5),
+                          color: turnColor.withValues(alpha: 0.5),
                           blurRadius: 4,
                         ),
                       ],

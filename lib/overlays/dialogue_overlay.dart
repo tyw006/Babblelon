@@ -18,12 +18,18 @@ import '../game/babblelon_game.dart';
 import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
+import '../providers/tutorial_cache_provider.dart';
+import '../services/vocabulary_detection_service.dart'; // For custom word detection
+import '../widgets/popups/base_popup_widget.dart';
 import '../services/isar_service.dart'; // For database operations
 import '../widgets/dialogue_ui.dart';
 import '../widgets/character_tracing_widget.dart';
 import '../widgets/npc_response_modal.dart';
 import 'dialogue_overlay/dialogue_models.dart';
 import '../services/posthog_service.dart';
+import '../services/tutorial_service.dart';
+import '../theme/modern_design_system.dart' as modern;
+import '../services/api_auth_service.dart';
 
 // --- Sanitization Helper ---
 String _sanitizeString(String text) {
@@ -318,6 +324,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // Initialize conversation tracking
     _conversationStartTime = DateTime.now();
 
+    // Show first dialogue session tutorial only on the very first NPC dialogue encounter
+    // The greeting will be loaded separately by the existing addPostFrameCallback below
+
     // Track conversation start
     PostHogService.trackNPCConversation(
       npcName: widget.npcId,
@@ -345,6 +354,25 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     // --- End Animation Initialization ---
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Check if we should show the first dialogue tutorial
+      final hasEncounteredNpc = ref.read(firstNpcDialogueEncounteredProvider);
+      
+      // Only show tutorial if this is the first NPC ever and tutorial hasn't been completed
+      if (!hasEncounteredNpc && !ref.read(tutorialCacheProvider).isTutorialCompleted('first_dialogue_session')) {
+        // Mark that we've now encountered our first NPC
+        ref.read(firstNpcDialogueEncounteredProvider.notifier).state = true;
+        
+        final tutorialManager = TutorialManager(
+          context: context,
+          ref: ref,
+          npcId: widget.npcId,
+        );
+        
+        // Show first dialogue session tutorial and wait for it to complete
+        await tutorialManager.startTutorial(TutorialTrigger.firstDialogueSession);
+      }
+      
+      // Now load the initial greeting data (after tutorial if shown)
       await _loadInitialGreetingData();
 
       final history = ref.read(fullConversationHistoryProvider(widget.npcId));
@@ -457,6 +485,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       },
     );
 
+    // Trigger save for NPC interaction to mark level as visited
+    // Note: This will be handled by the game screen's provider system
+
     _replayPlayer.stop(); // Stop any playing audio on exit
     _audioRecorder.dispose();
     _animationController?.dispose();
@@ -505,6 +536,19 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       print("Microphone permission denied");
       // Optionally, show a dialog to the user explaining why you need the permission.
       return;
+    }
+
+    // Check if this is the first time using voice interaction and show tutorial
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('voice_setup_guide')) {
+      // Show voice setup tutorial for first-time users
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Start voice setup tutorial
+      await tutorialManager.startTutorial(TutorialTrigger.firstVoiceInteraction);
     }
 
     // Track recording start
@@ -679,6 +723,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path))
         ..fields['source_language'] = 'th'
         ..fields['target_language'] = 'en';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -797,6 +844,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
       
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
+      
       print("Sending audio and data to /generate-npc-response/...");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -863,8 +913,42 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             final oldCharm = charmNotifier.state;
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
+            // Show tutorials for charm milestones
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorialCacheProvider).isTutorialCompleted('charm_thresholds_explained')) {
+              // First time reaching 60 charm - show milestone tutorial
+              final tutorialManager = TutorialManager(
+                context: context,
+                ref: ref,
+                npcId: widget.npcId,
+              );
+              
+              tutorialManager.startTutorial(TutorialTrigger.firstCharmMilestone);
+            }
+
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorialCacheProvider).isTutorialCompleted('item_giving_tutorial')) {
+              // First time eligible for an item - show item eligibility tutorial
+              final tutorialManager = TutorialManager(
+                context: context,
+                ref: ref,
+                npcId: widget.npcId,
+              );
+              
+              tutorialManager.startTutorial(TutorialTrigger.firstItemEligibility);
+            }
+
             if (newCharm == 100 && oldCharm < 100) {
               justReachedMaxCharm = true;
+              
+              // Show special item tutorial if they haven't seen it
+              if (!ref.read(tutorialCacheProvider).isTutorialCompleted('special_item_celebration')) {
+                final tutorialManager = TutorialManager(
+                  context: context,
+                  ref: ref,
+                  npcId: widget.npcId,
+                );
+                
+                tutorialManager.startTutorial(TutorialTrigger.firstSpecialItem);
+              }
             }
             
             charmNotifier.state = newCharm;
@@ -1035,22 +1119,54 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   
   void _showErrorDialog(String message) {
     if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
+    BasePopup.showPopup(
+      context,
+      blur: 20.0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 24,
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Error',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
+              style: BasePopup.primaryButtonStyle,
+              child: const Text('OK'),
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1114,6 +1230,45 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     } catch (e) {
       print("Error playing vocabulary audio: $e");
     }
+  }
+
+  // Tutorial-aware toggle handlers
+  void _handleTransliterationToggle() {
+    final dialogueSettings = ref.read(dialogueSettingsProvider);
+    
+    // If turning ON transliteration for the first time, show tutorial
+    if (!dialogueSettings.showTransliteration && !ref.read(tutorialCacheProvider).isTutorialCompleted('transliteration_system')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show transliteration tutorial
+      tutorialManager.startTutorial(TutorialTrigger.firstDialogueAnalysis);
+    }
+    
+    // Perform the actual toggle
+    ref.read(dialogueSettingsProvider.notifier).toggleShowTransliteration();
+  }
+  
+  void _handleWordAnalysisToggle() {
+    final dialogueSettings = ref.read(dialogueSettingsProvider);
+    
+    // If turning ON word analysis for the first time, show tutorial
+    if (!dialogueSettings.showWordByWordAnalysis && !ref.read(tutorialCacheProvider).isTutorialCompleted('pos_color_system')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show POS color system tutorial
+      tutorialManager.startTutorial(TutorialTrigger.firstDialogueAnalysis);
+    }
+    
+    // Perform the actual toggle
+    ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis();
   }
 
   @override
@@ -1213,7 +1368,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         widget.game.overlays.remove('dialogue');
         widget.game.resumeGame(ref);
       },
-      onShowTranslation: () => _showEnglishToTargetLanguageTranslationDialog(context),
+      onShowTranslation: () => _showLanguageToolsWithTutorial(context),
       micControls: _buildMicOrReviewControls(),
       isProcessingBackend: _isProcessingBackend,
       mainDialogueScrollController: _mainDialogueScrollController,
@@ -1222,8 +1377,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       showTransliteration: dialogueSettings.showTransliteration,
       showWordAnalysis: dialogueSettings.showWordByWordAnalysis,
       onToggleEnglish: () => ref.read(dialogueSettingsProvider.notifier).toggleShowEnglishTranslation(),
-      onToggleTransliteration: () => ref.read(dialogueSettingsProvider.notifier).toggleShowTransliteration(),
-      onToggleWordAnalysis: () => ref.read(dialogueSettingsProvider.notifier).toggleWordByWordAnalysis(),
+      onToggleTransliteration: () => _handleTransliterationToggle(),
+      onToggleWordAnalysis: () => _handleWordAnalysisToggle(),
       onReplayAudio: (currentNpcDisplayEntry?.isNpc ?? false) && (currentNpcDisplayEntry?.audioPath != null || currentNpcDisplayEntry?.audioBytes != null)
         ? () => _playDialogueAudio(currentNpcDisplayEntry!)
         : null,
@@ -1426,6 +1581,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['custom_message'] = transcription // Send transcription as custom message
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       print('Sending request to backend: ${uri.toString()}');
       var response = await request.send();
@@ -1565,74 +1723,149 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         dialogContent = "Your charm is high enough to request an item. Request the regular item now, or wait until your charm is 100 to receive a special item? Requesting an item will end the conversation.";
     }
 
-    return showDialog<void>(
-        context: context,
+    return BasePopup.showPopup<void>(
+        context,
         barrierDismissible: false, // User must make a choice
-        builder: (BuildContext dialogContext) {
-            return AlertDialog(
-                title: Text(dialogTitle),
-                content: Text(dialogContent),
-                actions: <Widget>[
-                    TextButton(
-                        child: const Text('Wait'),
-                        onPressed: () {
-                            Navigator.of(dialogContext).pop();
-                        },
+        blur: 20.0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.card_giftcard,
+                  color: Colors.orange,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    dialogTitle,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    ElevatedButton(
-                        child: Text(currentCharm >= 100 ? 'Receive Special Item' : 'Request Regular Item'),
-                        onPressed: () {
-                            Navigator.of(dialogContext).pop(); // Close this dialog
-                            final isSpecial = currentCharm >= 100;
-                            String receivedItem = isSpecial ? itemData.specialItemName : itemData.regularItemName;
-                            String receivedItemAsset = isSpecial ? itemData.specialItemAsset : itemData.regularItemAsset;
-                            String receivedItemType = isSpecial ? itemData.specialItemType : itemData.regularItemType;
-                            _showItemReceivedDialog(context, receivedItem, receivedItemAsset, receivedItemType, isSpecial);
-                        },
-                    ),
-                ],
-            );
-        },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              dialogContent,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: BasePopup.secondaryButtonStyle,
+                    child: const Text('Wait'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close this dialog
+                      final isSpecial = currentCharm >= 100;
+                      String receivedItem = isSpecial ? itemData.specialItemName : itemData.regularItemName;
+                      String receivedItemAsset = isSpecial ? itemData.specialItemAsset : itemData.regularItemAsset;
+                      String receivedItemType = isSpecial ? itemData.specialItemType : itemData.regularItemType;
+                      _showItemReceivedDialog(context, receivedItem, receivedItemAsset, receivedItemType, isSpecial);
+                    },
+                    style: BasePopup.primaryButtonStyle,
+                    child: Text(currentCharm >= 100 ? 'Receive Special Item' : 'Request Regular Item'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
     );
   }
 
   Future<void> _showItemReceivedDialog(BuildContext context, String itemName, String itemAsset, String itemType, bool isSpecial) {
-    return showDialog<void>(
-        context: context,
-        builder: (BuildContext dialogContext) {
-            return AlertDialog(
-                title: Text("Item Received!"),
-                content: Text("You have received: $itemName"),
-                actions: <Widget>[
-                    TextButton(
-                        child: const Text('OK'),
-                        onPressed: () {
-                            // Update inventory state
-                            ref.read(inventoryProvider.notifier).update((state) {
-                              final newState = Map<String, String?>.from(state);
-                              newState[itemType] = itemAsset; // Use itemType as the key
-                              return newState;
-                            });
-
-                            // If it's a special item, mark it as received AND hide the speech bubble immediately.
-                            if (isSpecial) {
-                              ref.read(specialItemReceivedProvider(widget.npcId).notifier).state = true;
-                              widget.game.hideSpeechBubbleFor(widget.npcId);
-                            }
-                            
-                            // Set providers for new item notification
-                            ref.read(gameStateProvider.notifier).setNewItem();
-
-                            Navigator.of(dialogContext).pop(); // Close this dialog first
-
-                            // Then close the main dialogue overlay and resume game
-                            widget.game.overlays.remove('dialogue');
-                            widget.game.resumeGame(ref);
-                        },
+    return BasePopup.showPopup<void>(
+        context,
+        blur: 20.0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.star,
+                  color: Colors.orange,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "Item Received!",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                ],
-            );
-        },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "You have received: $itemName",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Update inventory state
+                  ref.read(inventoryProvider.notifier).update((state) {
+                    final newState = Map<String, String?>.from(state);
+                    newState[itemType] = itemAsset; // Use itemType as the key
+                    return newState;
+                  });
+
+                  // Auto-save inventory change for resume functionality
+                  ref.triggerInventorySave();
+
+                  // If it's a special item, mark it as received AND hide the speech bubble immediately.
+                  if (isSpecial) {
+                    ref.read(specialItemReceivedProvider(widget.npcId).notifier).state = true;
+                    widget.game.hideSpeechBubbleFor(widget.npcId);
+                  }
+                  
+                  // Set providers for new item notification
+                  ref.read(gameStateProvider.notifier).setNewItem();
+
+                  Navigator.of(context).pop(); // Close this dialog first
+
+                  // Then close the main dialogue overlay and resume game
+                  widget.game.overlays.remove('dialogue');
+                  widget.game.resumeGame(ref);
+                },
+                style: BasePopup.primaryButtonStyle,
+                child: const Text('OK'),
+              ),
+            ),
+          ],
+        ),
     );
   }
 
@@ -1641,17 +1874,93 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text("Max Charm Reached!"),
-          content: Text("You have reached the maximum charm level with ${_npcData.name}! You can now request a special item."),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      color: modern.ModernDesignSystem.primaryAccent,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Max Charm Reached!",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content
+                Text(
+                  "You have reached the maximum charm level with ${_npcData.name}! You can now request a special item.",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: modern.ModernDesignSystem.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: modern.ModernDesignSystem.primaryAccent,
+                      foregroundColor: modern.ModernDesignSystem.textOnColor,
+                      elevation: 8,
+                      shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: modern.ModernDesignSystem.textOnColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -1662,20 +1971,89 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text("Charm Changed!"),
-          content: _CharmChangeDialogContent(
-            charmDelta: charmDelta,
-            charmReason: charmReason,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      charmDelta > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: charmDelta > 0 ? Colors.green : Colors.red,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Charm Changed!",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content
+                _CharmChangeDialogContent(
+                  charmDelta: charmDelta,
+                  charmReason: charmReason,
+                ),
+                const SizedBox(height: 24),
+                
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: modern.ModernDesignSystem.primaryAccent,
+                      foregroundColor: modern.ModernDesignSystem.textOnColor,
+                      elevation: 8,
+                      shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: modern.ModernDesignSystem.textOnColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -1696,155 +2074,179 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         }
     });
 
-    return showDialog<void>(
-      context: context,
+    return BasePopup.showPopup<void>(
+      context,
       barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[100], // Lighter background for better text readability
-          title: const Text('Full Conversation History'),
-          contentPadding: EdgeInsets.all(10), // Adjust padding
-          content: Container(
-            width: MediaQuery.of(dialogContext).size.width * 0.8, // 80% of screen width
-            height: MediaQuery.of(dialogContext).size.height * 0.6, // 60% of screen height
-            child: Scrollbar(
-              thumbVisibility: true,
-              controller: _historyDialogScrollController,
-              child: ListView.builder(
+      maxWidth: MediaQuery.of(context).size.width * 0.9,
+      maxHeight: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Title header
+          Row(
+            children: [
+              Icon(Icons.history, color: Colors.white, size: 24),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Full Conversation History',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          // Content
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              child: Scrollbar(
+                thumbVisibility: true,
                 controller: _historyDialogScrollController,
-                itemCount: historyEntries.length,
-                itemBuilder: (context, index) {
-                  final entry = historyEntries[index];
-                  Widget mainContentWidget;
-                  Widget? englishTranslationWidget;
+                child: ListView.builder(
+                  controller: _historyDialogScrollController,
+                  itemCount: historyEntries.length,
+                  itemBuilder: (context, index) {
+                    final entry = historyEntries[index];
+                    Widget mainContentWidget;
+                    Widget? englishTranslationWidget;
 
-                  // Conditionally create the English translation widget to be added later
-                  if (showEnglishTranslationInHistory && entry.englishText.isNotEmpty) {
-                    englishTranslationWidget = Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        entry.englishText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: entry.isNpc ? Colors.black54 : Colors.deepPurple.shade300,
+                    // Conditionally create the English translation widget to be added later
+                    if (showEnglishTranslationInHistory && entry.englishText.isNotEmpty) {
+                      englishTranslationWidget = Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          entry.englishText,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            color: entry.isNpc ? Colors.white70 : Colors.cyan.shade300,
+                          ),
                         ),
+                      );
+                    }
+
+                    // Build the main content (Thai or Word Analysis)
+                    if (entry.isNpc) {
+                      if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
+                        // NPC with word analysis
+                        List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
+                          List<Widget> wordParts = [
+                            Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.white, fontSize: 18, fontWeight: FontWeight.w500)),
+                          ];
+                          if (mapping.wordTranslit.isNotEmpty) {
+                            wordParts.add(SizedBox(height: 1));
+                            wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.white70)));
+                          }
+                          if (mapping.wordEng.isNotEmpty) {
+                            wordParts.add(SizedBox(height: 1));
+                            wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.cyan.shade300, fontStyle: FontStyle.italic)));
+                          }
+                          return WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+                            ),
+                          );
+                        }).toList();
+                        mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                      } else {
+                        // Plain NPC text
+                        mainContentWidget = Text(entry.text, style: TextStyle(fontSize: 18, color: Colors.white));
+                      }
+                    } else {
+                      // Player's transcribed text
+                      bool isItemGivingAction = entry.text.startsWith('User gives ') && entry.text.contains(' to ');
+                      if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory && !isItemGivingAction) {
+                        // Player with word analysis
+                        List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
+                          List<Widget> wordParts = [
+                            Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.cyan.shade200, fontSize: 18, fontWeight: FontWeight.w500)),
+                          ];
+                          if (mapping.wordTranslit.isNotEmpty) {
+                            wordParts.add(SizedBox(height: 1));
+                            wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.cyan.shade300)));
+                          }
+                          if (mapping.wordEng.isNotEmpty) {
+                            wordParts.add(SizedBox(height: 1));
+                            wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.cyan.shade400, fontStyle: FontStyle.italic)));
+                          }
+                          return WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
+                            ),
+                          );
+                        }).toList();
+                        mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
+                      } else {
+                        // Plain player text
+                        mainContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 18, color: Colors.cyan.shade200));
+                      }
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.speaker,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: entry.isNpc ? Colors.orange.shade300 : Colors.blue.shade300,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    mainContentWidget, // Always show main content
+                                    if (englishTranslationWidget != null) englishTranslationWidget, // Conditionally show English translation
+                                  ],
+                                ),
+                              ),
+                              if (entry.audioPath != null || entry.audioBytes != null)
+                                IconButton(
+                                  icon: Icon(Icons.volume_up, color: Colors.white54),
+                                  iconSize: 18,
+                                  padding: EdgeInsets.only(left: 6, top: 0, bottom: 0, right: 0),
+                                  constraints: BoxConstraints(),
+                                  onPressed: () => _playDialogueAudio(entry),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     );
-                  }
-
-                  // Build the main content (Thai or Word Analysis)
-                  if (entry.isNpc) {
-                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory) {
-                      // NPC with word analysis
-                      List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
-                        List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.black87, fontSize: 18, fontWeight: FontWeight.w500)),
-                        ];
-                        if (mapping.wordTranslit.isNotEmpty) {
-                          wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.black54)));
-                        }
-                        if (mapping.wordEng.isNotEmpty) {
-                          wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.blueGrey.shade600, fontStyle: FontStyle.italic)));
-                        }
-                        return WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
-                          ),
-                        );
-                      }).toList();
-                      mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
-                    } else {
-                      // Plain NPC text
-                      mainContentWidget = Text(entry.text, style: TextStyle(fontSize: 18, color: Colors.black87));
-                    }
-                  } else {
-                    // Player's transcribed text
-                    bool isItemGivingAction = entry.text.startsWith('User gives ') && entry.text.contains(' to ');
-                    if (entry.posMappings != null && entry.posMappings!.isNotEmpty && showWordByWordAnalysisInHistory && !isItemGivingAction) {
-                      // Player with word analysis
-                      List<InlineSpan> wordSpans = entry.posMappings!.map((mapping) {
-                        List<Widget> wordParts = [
-                          Text(mapping.wordTarget, style: TextStyle(color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade700, fontSize: 18, fontWeight: FontWeight.w500)),
-                        ];
-                        if (mapping.wordTranslit.isNotEmpty) {
-                          wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordTranslit, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade400)));
-                        }
-                        if (mapping.wordEng.isNotEmpty) {
-                          wordParts.add(SizedBox(height: 1));
-                          wordParts.add(Text(mapping.wordEng, style: TextStyle(fontSize: 12, color: posColorMapping[mapping.pos] ?? Colors.deepPurple.shade300, fontStyle: FontStyle.italic)));
-                        }
-                        return WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 3.0, bottom: 2.0),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: wordParts),
-                          ),
-                        );
-                      }).toList();
-                      mainContentWidget = RichText(textAlign: TextAlign.left, text: TextSpan(children: wordSpans));
-                    } else {
-                      // Plain player text
-                      mainContentWidget = Text(entry.playerTranscriptionForHistory ?? entry.text, style: TextStyle(fontSize: 18, color: Colors.deepPurple.shade700));
-                    }
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.speaker,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: entry.isNpc ? Colors.teal.shade600 : Colors.indigo.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  mainContentWidget, // Always show main content
-                                  if (englishTranslationWidget != null) englishTranslationWidget, // Conditionally show English translation
-                                ],
-                              ),
-                            ),
-                            if (entry.audioPath != null || entry.audioBytes != null)
-                              IconButton(
-                                icon: Icon(Icons.volume_up, color: Colors.black45),
-                                iconSize: 18,
-                                 padding: EdgeInsets.only(left: 6, top: 0, bottom: 0, right: 0),
-                                constraints: BoxConstraints(),
-                                onPressed: () => _playDialogueAudio(entry),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                  },
+                ),
               ),
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
+          SizedBox(height: 20),
+          // Close button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: BasePopup.primaryButtonStyle,
+              child: Text('Close'),
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
   
@@ -1864,24 +2266,106 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       context: context,
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Give Item'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 500,
-            child: _buildItemGivingTab(dialogContext, targetLanguage),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      Icons.card_giftcard,
+                      color: modern.ModernDesignSystem.primaryAccent,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Give Item',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content area
+                Expanded(
+                  child: SizedBox(
+                    width: double.maxFinite,
+                    child: _buildItemGivingTab(dialogContext, targetLanguage),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Cancel button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: modern.ModernDesignSystem.textPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: const BorderSide(
+                        color: modern.ModernDesignSystem.borderPrimary,
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
+  }
+
+  // Language tools with tutorial support
+  Future<void> _showLanguageToolsWithTutorial(BuildContext context) async {
+    // Show language tools tutorial if this is the first time accessing it
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('first_language_tools_tutorial')) {
+      final tutorialManager = TutorialManager(context: context, ref: ref, npcId: widget.npcId);
+      await tutorialManager.startTutorial(TutorialTrigger.firstLanguageTools);
+    }
+    
+    // Then show the language tools dialog
+    _showEnglishToTargetLanguageTranslationDialog(context);
   }
 
   // --- New Dialog for English to Target Language Translation Input ---
@@ -1927,45 +2411,111 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.1),
       builder: (BuildContext dialogContext) {
         return DefaultTabController(
           length: 2,
           initialIndex: initialTabIndex,
-          child: AlertDialog(
-            title: ValueListenableBuilder<String>(
-              valueListenable: _translationDialogTitleNotifier,
-              builder: (context, title, child) => Text(title),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 500,
+          child: Dialog(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(24),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.5),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24.0),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TabBar(
-                    tabs: [
-                      Tab(text: 'Translate'),
-                      Tab(text: 'Give Item'),
-                    ],
+                  // Title
+                  ValueListenableBuilder<String>(
+                    valueListenable: _translationDialogTitleNotifier,
+                    builder: (context, title, child) => Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 20),
+                  
+                  // Tab content
                   Expanded(
-                    child: TabBarView(
+                    child: Column(
                       children: [
-                        _buildTranslationTab(playTranslatedAudio, targetLanguage),
-                        _buildItemGivingTab(dialogContext, targetLanguage),
+                        Theme(
+                          data: Theme.of(context).copyWith(
+                            tabBarTheme: TabBarThemeData(
+                              labelColor: Colors.white,
+                              unselectedLabelColor: Colors.white.withOpacity(0.6),
+                              indicator: UnderlineTabIndicator(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ),
+                          child: TabBar(
+                            tabs: [
+                              Tab(text: 'Translate'),
+                              Tab(text: 'Give Item'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _buildTranslationTab(playTranslatedAudio, targetLanguage),
+                              _buildItemGivingTab(dialogContext, targetLanguage),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
+                  ),
+                  
+                  // Actions
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-            ],
           ),
         );
       },
@@ -2602,139 +3152,113 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final transliteration = character['transliteration'] ?? character['romanized'] ?? '';
     final translation = character['translation'] ?? character['english'] ?? '';
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: const Color(0xFF1F1F1F),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    BasePopup.showPopup(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Character display
+          Row(
+            children: [
+              Text(
+                thaiChar,
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (transliteration.isNotEmpty)
+                      Text(
+                        transliteration,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    if (translation.isNotEmpty)
+                      Text(
+                        translation,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
+          const SizedBox(height: 20),
+          // Pronunciation tips
+          Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFF4ECCA3).withOpacity(0.3),
+                color: Colors.white.withOpacity(0.2),
                 width: 1,
               ),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Character display
                 Row(
                   children: [
-                    Text(
-                      thaiChar,
-                      style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4ECCA3),
-                      ),
+                    const Icon(
+                      Icons.record_voice_over,
+                      color: Colors.orange,
+                      size: 20,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (transliteration.isNotEmpty)
-                            Text(
-                              transliteration,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          if (translation.isNotEmpty)
-                            Text(
-                              translation,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
-                        ],
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Pronunciation Tips',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                // Pronunciation tips
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D2D2D),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.record_voice_over,
-                            color: Color(0xFF4ECCA3),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Pronunciation Tips',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF4ECCA3),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _getCharacterSpecificPronunciationTips(thaiChar, transliteration),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Close button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4ECCA3),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Got it!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                const SizedBox(height: 12),
+                Text(
+                  _getCharacterSpecificPronunciationTips(thaiChar, transliteration),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          // Close button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: BasePopup.primaryButtonStyle,
+              child: const Text(
+                'Got it!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
   
@@ -3163,9 +3687,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         wordMapping: wordMapping,
         originalVocabularyItem: itemData, // Pass original item for audio_path
         onBack: () {
-          Navigator.of(context).pop(); // Close character tracing
-          // Return to language tools dialog with Trace Chars tab selected
-          _showEnglishToTargetLanguageTranslationDialog(context, targetLanguage: targetLanguage, initialTabIndex: 2);
+          Navigator.of(context).pop(); // Close character tracing and return to main screen
         },
         onComplete: () {
           Navigator.of(context).pop(); // Close character tracing
@@ -3185,6 +3707,18 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   Future<void> _startCharacterTracing(Map<String, dynamic> itemData, BuildContext dialogContext, String targetLanguage) async {
     Navigator.of(dialogContext).pop(); // Close translation dialog
+    
+    // Show tutorial for first-time character tracing users
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('character_tracing_tutorial')) {
+      final tutorialManager = TutorialManager(
+        context: context,
+        ref: ref,
+        npcId: widget.npcId,
+      );
+      
+      // Show character tracing tutorial
+      await tutorialManager.startTutorial(TutorialTrigger.firstCharacterTracing);
+    }
     
     // Clear any previous ink strokes
     _ink.strokes.clear();
@@ -3275,9 +3809,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         wordMapping: wordMapping,
         originalVocabularyItem: mappedItemData, // Pass mapped item for audio_path
         onBack: () {
-          Navigator.of(context).pop(); // Close character tracing
-          // Show language tools dialog with Give Item tab selected
-          _showEnglishToTargetLanguageTranslationDialog(context, targetLanguage: 'th', initialTabIndex: 1);
+          Navigator.of(context).pop(); // Close character tracing and return to main screen
         },
         onComplete: () => _submitTracing(itemData, targetLanguage),
         showBackButton: true,
@@ -3648,175 +4180,149 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final transliteration = _getCurrentCharacter()['transliteration'] ?? '';
     final english = _getCurrentCharacter()['english'] ?? '';
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: const Color(0xFF1F1F1F),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF4ECCA3).withOpacity(0.3),
-                width: 1,
+    BasePopup.showPopup(
+      context,
+      maxHeight: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Character display
+          Row(
+            children: [
+              Text(
+                character,
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Character display
-                Row(
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      character,
+                      transliteration,
                       style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4ECCA3),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            transliteration,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            english,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      english,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                // Writing tips
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D2D2D),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                      width: 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Writing tips
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Writing Tips',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: SizedBox(
-                    height: 300, // Set max height for scrollable area
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.lightbulb_outline,
-                                color: const Color(0xFF4ECCA3),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Writing Tips',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF4ECCA3),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          FutureBuilder<String>(
-                            future: _getCharacterSpecificTips(character),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Text(
-                                  'Loading character analysis...',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white70,
-                                    height: 1.4,
-                                  ),
-                                );
-                              }
-                              return Text(
-                                snapshot.data ?? 'General tip: Start with circles, write vowels after consonants, keep strokes smooth and flowing.',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                  height: 1.4,
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'General Thai Writing Principles:',
+                    const SizedBox(height: 12),
+                    FutureBuilder<String>(
+                      future: _getCharacterSpecificTips(character),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Text(
+                            'Loading character analysis...',
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                               color: Colors.white70,
+                              height: 1.4,
                             ),
+                          );
+                        }
+                        return Text(
+                          snapshot.data ?? 'General tip: Start with circles, write vowels after consonants, keep strokes smooth and flowing.',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            height: 1.4,
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '• Write from top to bottom, left to right\n• Complete circles and curves first\n• Keep strokes smooth and flowing\n• Practice consistent character size',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white60,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Close button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4ECCA3),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Got it!',
+                    const SizedBox(height: 12),
+                    const Text(
+                      'General Thai Writing Principles:',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
+                        color: Colors.white70,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '• Write from top to bottom, left to right\n• Complete circles and curves first\n• Keep strokes smooth and flowing\n• Practice consistent character size',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white60,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          // Close button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: BasePopup.primaryButtonStyle,
+              child: const Text(
+                'Got it!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3902,6 +4408,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
         ..fields['quest_state_json'] = '{}' // TODO: Implement quest state tracking
         ..fields['user_id'] = PostHogService.userId ?? 'unknown_user'
         ..fields['session_id'] = PostHogService.sessionId ?? 'unknown_session';
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       print('Sending GIVE_ITEM request to backend for item: $thaiName ($itemName)');
       var response = await request.send();
@@ -5088,6 +5597,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       var uri = Uri.parse('http://127.0.0.1:8000/gcloud-transcribe/');
       var request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path));
+      
+      // Add authentication headers
+      apiAuthService.addAuthToRequest(request);
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -5335,6 +5847,24 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             }
         });
     });
+  }
+
+  // Custom word detection and processing method
+  Future<void> _detectAndProcessCustomWords(List<dynamic> inputMappings, String npcId) async {
+    try {
+      final vocabularyService = VocabularyDetectionService();
+      final customWords = await vocabularyService.detectCustomWords(inputMappings, npcId);
+      
+      if (customWords.isNotEmpty) {
+        print('Found ${customWords.length} new custom words: ${customWords.map((w) => w.wordThai).join(', ')}');
+        
+        // Optionally show UI feedback for discovered words
+        // This could be a subtle notification or added to conversation history
+        // For now, just log the discovery
+      }
+    } catch (e) {
+      print('Error detecting custom words: $e');
+    }
   }
 }
 

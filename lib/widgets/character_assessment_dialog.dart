@@ -4,7 +4,8 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:async';
 import '../models/character_assessment_model.dart';
 import '../providers/game_providers.dart';
-import 'shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
+import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 
 /// Dialog that displays writing assessment results with prominent score and sound effects
 class CharacterAssessmentDialog extends ConsumerStatefulWidget {
@@ -197,30 +198,25 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         scale: _scaleAnimation,
         child: SlideTransition(
           position: _slideAnimation,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: screenSize.height * 0.85,
-              maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E), // Modern charcoal background
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: _buildSinglePageContent(),
-                ),
-                _buildNavigationControls(),
-              ],
+          child: GlassmorphicCard(
+            padding: EdgeInsets.zero,
+            blur: 20,
+            opacity: 0.15,
+            margin: EdgeInsets.zero,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: screenSize.height * 0.85,
+                maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Expanded(
+                    child: _buildSinglePageContent(),
+                  ),
+                  _buildNavigationControls(),
+                ],
+              ),
             ),
           ),
         ),
@@ -231,7 +227,15 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.15),
+            Colors.white.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Row(
         children: [
           Container(
@@ -251,7 +255,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
             child: Center(
               child: Text(
                 widget.assessmentResult.overallGrade,
-                style: AppStyles.titleTextStyle.copyWith(
+                style: ModernDesignSystem.displayMedium.copyWith(
                   fontSize: 24,
                   color: Colors.white,
                 ),
@@ -265,11 +269,11 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
               children: [
                 Text(
                   'Character Assessment Results',
-                  style: AppStyles.subtitleTextStyle,
+                  style: ModernDesignSystem.headlineMedium,
                 ),
                 Text(
                   '${widget.assessmentResult.getTracedCount()} of ${widget.assessmentResult.totalCount} characters traced',
-                  style: AppStyles.smallTextStyle,
+                  style: ModernDesignSystem.bodySmall,
                 ),
               ],
             ),
@@ -278,7 +282,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
             onPressed: widget.onDismiss,
             icon: const Icon(
               Icons.close,
-              color: AppStyles.textColor,
+              color: ModernDesignSystem.textPrimary,
               size: 28,
             ),
           ),
@@ -389,7 +393,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         children: [
           Text(
             'Word:',
-            style: AppStyles.bodyTextStyle.copyWith(
+            style: ModernDesignSystem.bodyMedium.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.white,
@@ -405,7 +409,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                     children: [
                       TextSpan(
                         text: wordText,
-                        style: AppStyles.titleTextStyle.copyWith(
+                        style: ModernDesignSystem.displayMedium.copyWith(
                           fontSize: 20,
                           color: const Color(0xFF6366F1), // Ethereal blue
                           fontWeight: FontWeight.bold,
@@ -413,7 +417,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                       ),
                       TextSpan(
                         text: ' ($transliteration) → $translation',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.8),
                           fontStyle: FontStyle.italic,
@@ -486,7 +490,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                   child: Center(
                     child: Text(
                       widget.assessmentResult.overallGrade,
-                      style: AppStyles.titleTextStyle.copyWith(
+                      style: ModernDesignSystem.displayMedium.copyWith(
                         fontSize: 32,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -502,7 +506,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
           
           Text(
             'Writing Assessment',
-            style: AppStyles.titleTextStyle.copyWith(
+            style: ModernDesignSystem.displayMedium.copyWith(
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -517,9 +521,9 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
               final animatedAccuracy = widget.assessmentResult.overallAccuracy * _numberAnimation.value;
               return Text(
                 '${animatedAccuracy.toStringAsFixed(0)} / 100',
-                style: AppStyles.titleTextStyle.copyWith(
+                style: ModernDesignSystem.displayMedium.copyWith(
                   fontSize: 56,
-                  color: AppStyles.accentColor,
+                  color: ModernDesignSystem.primaryAccent,
                   fontWeight: FontWeight.bold,
                 ),
               );
@@ -530,7 +534,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
           
           Text(
             _getAccuracyLabel(widget.assessmentResult.overallAccuracy),
-            style: AppStyles.bodyTextStyle.copyWith(
+            style: ModernDesignSystem.bodyMedium.copyWith(
               fontSize: 20,
               color: _getAccuracyColor(widget.assessmentResult.overallAccuracy),
               fontWeight: FontWeight.w600,
@@ -564,7 +568,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         children: [
           Text(
             'Writing Analysis',
-            style: AppStyles.bodyTextStyle.copyWith(
+            style: ModernDesignSystem.bodyMedium.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.white,
@@ -596,7 +600,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
           flex: 2,
           child: Text(
             label,
-            style: AppStyles.bodyTextStyle.copyWith(fontSize: 13),
+            style: ModernDesignSystem.bodyMedium.copyWith(fontSize: 13),
           ),
         ),
         const SizedBox(width: 8),
@@ -663,7 +667,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
               final animatedValue = value * _numberAnimation.value;
               return Text(
                 '${animatedValue.toStringAsFixed(0)}',
-                style: AppStyles.bodyTextStyle.copyWith(
+                style: ModernDesignSystem.bodyMedium.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               );
@@ -697,7 +701,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         children: [
           Text(
             'Recognition Rate',
-            style: AppStyles.bodyTextStyle.copyWith(
+            style: ModernDesignSystem.bodyMedium.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF6366F1), // Ethereal blue
@@ -760,7 +764,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                             children: [
                               Text(
                                 characterName,
-                                style: AppStyles.titleTextStyle.copyWith(
+                                style: ModernDesignSystem.displayMedium.copyWith(
                                   fontSize: 24,
                                   color: const Color(0xFF6366F1),
                                   fontWeight: FontWeight.bold,
@@ -771,7 +775,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                                 Expanded(
                                   child: Text(
                                     '${characterTranslit.isNotEmpty ? '($characterTranslit)' : ''} ${characterTranslation.isNotEmpty ? '→ $characterTranslation' : ''}',
-                                    style: AppStyles.bodyTextStyle.copyWith(
+                                    style: ModernDesignSystem.bodyMedium.copyWith(
                                       fontSize: 14,
                                       color: Colors.white.withOpacity(0.8),
                                       fontStyle: FontStyle.italic,
@@ -809,7 +813,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                       children: [
                         Text(
                           'Legend:',
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -984,7 +988,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                         children: [
                           Text(
                             expectedChar,
-                            style: AppStyles.bodyTextStyle.copyWith(
+                            style: ModernDesignSystem.bodyMedium.copyWith(
                               color: textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 20,
@@ -1089,7 +1093,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                     children: [
                       Text(
                         'Recognition Rate',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1146,7 +1150,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                     ),
                     child: Text(
                       '${accuracy.round()}%',
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         color: accuracy >= 80 ? Colors.green[400]! : 
@@ -1184,7 +1188,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
               const SizedBox(height: 4),
               Text(
                 '$correctCount of $totalCount characters recognized successfully',
-                style: AppStyles.smallTextStyle.copyWith(
+                style: ModernDesignSystem.bodySmall.copyWith(
                   fontSize: 12,
                   color: Colors.white60,
                 ),
@@ -1196,7 +1200,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         // Character breakdown section
         Text(
           'Character Breakdown',
-          style: AppStyles.bodyTextStyle.copyWith(
+          style: ModernDesignSystem.bodyMedium.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -1273,7 +1277,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         const SizedBox(width: 4),
         Text(
           label,
-          style: AppStyles.smallTextStyle.copyWith(
+          style: ModernDesignSystem.bodySmall.copyWith(
             fontSize: 10,
             color: Colors.white.withOpacity(0.8),
             fontWeight: FontWeight.w500,
@@ -1491,7 +1495,15 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
           // Progress Bar
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: AppStyles.flashcardDecoration,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Column(
               children: [
                 Row(
@@ -1499,7 +1511,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                   children: [
                     Text(
                       'Overall Progress',
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1509,7 +1521,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                         final animatedAccuracy = widget.assessmentResult.overallAccuracy * _numberAnimation.value;
                         return Text(
                           '${animatedAccuracy.toStringAsFixed(0)}%',
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         );
@@ -1547,7 +1559,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
         children: [
           Text(
             'Character-by-Character Results',
-            style: AppStyles.subtitleTextStyle.copyWith(
+            style: ModernDesignSystem.headlineMedium.copyWith(
               fontSize: 20,
             ),
           ),
@@ -1856,8 +1868,8 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: _currentPage == index 
-                  ? AppStyles.accentColor 
-                  : AppStyles.indicatorColor,
+                  ? ModernDesignSystem.primaryAccent 
+                  : ModernDesignSystem.textTertiary,
             ),
           );
         }),
@@ -1952,7 +1964,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                       },
                       child: Text(
                         'Give $itemName to ${widget.npcName}',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -1992,7 +2004,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                       onPressed: widget.onDismiss,
                       child: Text(
                         'CONTINUE',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -2033,7 +2045,7 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
                   onPressed: widget.onDismiss,
                   child: Text(
                     'CONTINUE',
-                    style: AppStyles.bodyTextStyle.copyWith(
+                    style: ModernDesignSystem.bodyMedium.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -2054,75 +2066,67 @@ class _CharacterAssessmentDialogState extends ConsumerState<CharacterAssessmentD
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 280),
+          child: GlassmorphicCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.5), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.info_outline,
-                        color: color,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppStyles.bodyTextStyle.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+            blur: 20,
+            opacity: 0.15,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
                           color: color,
+                          size: 16,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  description,
-                  style: AppStyles.bodyTextStyle.copyWith(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: ModernDesignSystem.bodyMedium.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: const Text('Got it'),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    description,
+                    style: ModernDesignSystem.bodyMedium.copyWith(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Got it'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

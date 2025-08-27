@@ -76,7 +76,7 @@
   },
   "somchai": {
     "response_target": "อ้าวไอ้หนู ดูแข็งแรงดีนี่ ช่วยลุงเสิร์ฟลูกค้าหน่อยได้ไหมครับ?",
-    "response_audio_path": "assets/audio/npc/somchai_initial_greeting.wav",
+    "response_audio_path": "assets/audio/npc/somchai_initial_greeting_v2.wav",
     "response_english": "Hey kid, you look strong. Can you help me serve customers?",
     "response_translit": "ao ai nu, doo khaeng raeng dee ni, chuay lung soep luk kha noi dai mai khrap?",
     "tone": "Gruff",

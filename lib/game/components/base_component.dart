@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../babblelon_game.dart';
 
 // Base class for all game components
-abstract class BaseComponent extends PositionComponent with HasGameRef<BabblelonGame> {
+abstract class BaseComponent extends PositionComponent with HasGameReference<BabblelonGame> {
   BaseComponent({
     super.position,
     super.size,

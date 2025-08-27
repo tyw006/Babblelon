@@ -13,3 +13,9 @@ azure-cognitiveservices-speech
 pydub
 pythainlp
 tqdm
+# Security dependencies
+PyJWT[crypto]
+httpx
+slowapi
+python-multipart
+python-magic
