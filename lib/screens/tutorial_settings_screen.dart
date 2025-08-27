@@ -33,12 +33,6 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       Icons.games,
       TutorialCategory.gameplay,
     ),
-    'cultural_intro': TutorialInfo(
-      'Cultural Level Introduction',
-      'Introduction to exploring cultural environments',
-      Icons.explore,
-      TutorialCategory.gameplay,
-    ),
     
     // Dialogue & NPCs
     'first_npc_interaction': TutorialInfo(
@@ -101,12 +95,6 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       'Boss Battle Basics',
       'Introduction to boss battles and combat',
       Icons.sports_martial_arts,
-      TutorialCategory.combat,
-    ),
-    'battle_mechanics_deep_dive': TutorialInfo(
-      'Advanced Combat',
-      'Detailed battle mechanics and strategies',
-      Icons.calculate,
       TutorialCategory.combat,
     ),
     'portal_approach': TutorialInfo(
@@ -200,7 +188,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
     final tutorialStats = ref.watch(tutorialStatsProvider);
 
     return Scaffold(
-      backgroundColor: modern.ModernDesignSystem.creamWhite,
+      backgroundColor: modern.ModernDesignSystem.primaryBackground,
       appBar: AppBar(
         title: const Text(
           'Tutorial Settings',
@@ -209,7 +197,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: modern.ModernDesignSystem.creamWhite,
+        backgroundColor: modern.ModernDesignSystem.primaryBackground,
         elevation: 0,
         iconTheme: const IconThemeData(
           color: modern.ModernDesignSystem.textPrimary,
@@ -250,7 +238,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
   Widget _buildStatsCard(AsyncValue<Map<String, dynamic>> tutorialStats) {
     return Card(
       elevation: 4,
-      color: Colors.white,
+      color: modern.ModernDesignSystem.primarySurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
         side: BorderSide(color: modern.ModernDesignSystem.skyBlue, width: 2),
@@ -293,7 +281,9 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                       children: [
                         Text(
                           'Completed Tutorials',
-                          style: modern.ModernDesignSystem.bodyMedium,
+                          style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                            color: modern.ModernDesignSystem.textSecondary,
+                          ),
                         ),
                         Text(
                           '$totalCompleted / $totalAvailable',
@@ -316,7 +306,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                     Text(
                       '$progressPercentage% Complete',
                       style: modern.ModernDesignSystem.bodySmall.copyWith(
-                        color: modern.ModernDesignSystem.textSecondary,
+                        color: modern.ModernDesignSystem.textTertiary,
                       ),
                     ),
                   ],
@@ -337,7 +327,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
   Widget _buildQuickActionsCard() {
     return Card(
       elevation: 4,
-      color: Colors.white,
+      color: modern.ModernDesignSystem.primarySurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
         side: BorderSide(color: modern.ModernDesignSystem.warmOrange, width: 2),
@@ -435,9 +425,9 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: _getCategoryColor(category).withValues(alpha: 0.1),
+            color: modern.ModernDesignSystem.primarySurface,
             borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
-            border: Border.all(color: _getCategoryColor(category), width: 1),
+            border: Border.all(color: _getCategoryColor(category).withValues(alpha: 0.3), width: 1),
           ),
           child: Row(
             children: [
@@ -465,7 +455,7 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
                 child: Text(
                   '$completedCount/${categoryTutorials.length}',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: modern.ModernDesignSystem.primarySurface,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -487,14 +477,14 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
   Widget _buildTutorialItem(String tutorialId, TutorialInfo info, bool isCompleted) {
     return Card(
       elevation: 2,
-      color: Colors.white,
+      color: modern.ModernDesignSystem.primarySurface,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
         side: BorderSide(
           color: isCompleted 
               ? modern.ModernDesignSystem.forestGreen 
-              : modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3),
+              : modern.ModernDesignSystem.borderPrimary.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -602,7 +592,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('All navigation tutorial steps marked as completed'),
+              content: const Text(
+                'All navigation tutorial steps marked as completed',
+                style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+              ),
               backgroundColor: modern.ModernDesignSystem.forestGreen,
             ),
           );
@@ -615,7 +608,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('All navigation tutorial steps reset'),
+              content: const Text(
+                'All navigation tutorial steps reset',
+                style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+              ),
               backgroundColor: modern.ModernDesignSystem.warmOrange,
             ),
           );
@@ -628,7 +624,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" marked as completed'),
+              content: Text(
+                'Tutorial "${_availableTutorials[tutorialId]?.name}" marked as completed',
+                style: const TextStyle(color: modern.ModernDesignSystem.textPrimary),
+              ),
               backgroundColor: modern.ModernDesignSystem.forestGreen,
             ),
           );
@@ -638,7 +637,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Tutorial "${_availableTutorials[tutorialId]?.name}" reset'),
+              content: Text(
+                'Tutorial "${_availableTutorials[tutorialId]?.name}" reset',
+                style: const TextStyle(color: modern.ModernDesignSystem.textPrimary),
+              ),
               backgroundColor: modern.ModernDesignSystem.warmOrange,
             ),
           );
@@ -675,7 +677,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       await ref.read(tutorialCompletionProvider.notifier).resetAllTutorials();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('All tutorials have been reset'),
+          content: const Text(
+            'All tutorials have been reset',
+            style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+          ),
           backgroundColor: modern.ModernDesignSystem.cherryRed,
         ),
       );
@@ -715,7 +720,10 @@ class _TutorialSettingsScreenState extends ConsumerState<TutorialSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('All tutorials marked as completed'),
+            content: const Text(
+              'All tutorials marked as completed',
+              style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+            ),
             backgroundColor: modern.ModernDesignSystem.forestGreen,
           ),
         );

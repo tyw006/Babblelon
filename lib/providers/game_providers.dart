@@ -13,7 +13,7 @@ import 'package:flame_audio/flame_audio.dart';
 import '../services/background_audio_service.dart';
 import '../models/popup_models.dart';
 import 'package:babblelon/services/posthog_service.dart';
-import '../services/tutorial_database_service.dart';
+import '../services/game_save_service.dart';
 
 part 'game_providers.g.dart';
 
@@ -295,6 +295,72 @@ final inventoryProvider = StateProvider<Map<String, String?>>((ref) => {
   'defense': null,
 });
 
+// Extension to provide inventory and game reset utility methods
+extension InventoryProviderExtension on WidgetRef {
+  void clearInventory() {
+    read(inventoryProvider.notifier).state = {
+      'attack': null,
+      'defense': null,
+    };
+    debugPrint('🎒 GameProviders: Inventory cleared');
+  }
+  
+  /// Full reset for new game or victory - clears everything
+  void resetForNewGame() {
+    // Clear inventory
+    clearInventory();
+    
+    // Reset game state providers
+    read(activeNpcIdProvider.notifier).state = null;
+    read(turnCounterProvider.notifier).state = 1;
+    read(scoreProvider.notifier).state = 0;
+    read(dialogueOverlayVisibilityProvider.notifier).state = false;
+    read(tutorialActiveProvider.notifier).state = false;
+    read(currentTutorialStepProvider.notifier).state = null;
+    read(gameLoadingCompletedProvider.notifier).state = false;
+    read(firstNpcDialogueEncounteredProvider.notifier).state = false;
+    
+    // Boss fight providers are reset separately when entering a new boss fight
+    // or when BabblelonGame.resetInstance() is called
+    
+    // Note: Family providers (charm levels, special items, conversation history) 
+    // cannot be directly cleared but will be reset to defaults when accessed
+    // after BabblelonGame.resetInstance() is called
+    
+    debugPrint('🔄 GameProviders: Full reset for new game completed - cleared inventory and game state');
+  }
+  
+  /// Partial reset for defeat - keeps inventory but resets battle state
+  void resetForDefeat() {
+    // Don't clear inventory - players keep their hard-earned items
+    // Boss fight specific providers are reset separately in BossFightScreen
+    
+    debugPrint('🔄 GameProviders: Defeat reset completed (inventory preserved)');
+  }
+  
+  /// Trigger auto-save when inventory changes (for resume functionality)
+  Future<void> triggerInventorySave() async {
+    try {
+      final inventory = read(inventoryProvider);
+      final itemCount = inventory.values.where((item) => item != null).length;
+      
+      if (itemCount > 0) {
+        final saveService = GameSaveService();
+        await saveService.saveGameState(
+          levelId: 'yaowarat_level', // Default level ID
+          gameType: 'babblelon_game',
+          inventory: inventory,
+          itemsCollected: itemCount,
+          progressPercentage: (itemCount / 2) * 50, // 50% progress for full inventory
+        );
+        debugPrint('💾 GameProviders: Auto-saved inventory changes (${itemCount} items)');
+      }
+    } catch (e) {
+      debugPrint('❌ GameProviders: Failed to auto-save inventory: $e');
+    }
+  }
+}
+
 // Provider for the current charm level, now specific to each NPC
 final currentCharmLevelProvider = StateProvider.family<int, String>((ref, npcId) => 50);
 
@@ -466,151 +532,10 @@ class DeveloperSettings extends _$DeveloperSettings {
   String get currentSTTService => state.useElevenLabsSTT ? 'ElevenLabs' : 'Google Cloud';
 }
 
-// --- Tutorial System Providers ---
+// --- Legacy Tutorial System Removed ---
+// Tutorial tracking is now handled by tutorial_database_providers.dart
 
-// Provider to track if the main tutorial has been completed (database-backed)
-@Riverpod(keepAlive: true)
-class TutorialCompleted extends _$TutorialCompleted {
-  @override
-  bool build() {
-    // Load status asynchronously and update state when ready
-    Future.microtask(() => _loadTutorialStatus());
-    // Check cache first for immediate response
-    final tutorialProgress = ref.read(tutorialProgressProvider);
-    final isCached = tutorialProgress.contains('startAdventure');
-    debugPrint('TutorialCompleted: Checking cache for startAdventure: $isCached');
-    return isCached;
-  }
-
-  void markCompleted() {
-    state = true;
-    _saveTutorialStatus();
-  }
-
-  void reset() {
-    state = false;
-    _saveTutorialStatus();
-  }
-
-  Future<void> _loadTutorialStatus() async {
-    try {
-      // Use database service instead of SharedPreferences
-      final tutorialService = TutorialDatabaseService();
-      final completed = await tutorialService.isTutorialCompleted('startAdventure');
-      // Update state after loading from database
-      state = completed;
-      debugPrint('TutorialCompleted: Loaded status from database: $completed');
-    } catch (e) {
-      debugPrint('TutorialCompleted: Error loading tutorial status: $e');
-      state = false; // Default to not completed
-    }
-  }
-
-  Future<void> _saveTutorialStatus() async {
-    try {
-      final tutorialService = TutorialDatabaseService();
-      if (state) {
-        await tutorialService.markTutorialCompleted('startAdventure');
-      } else {
-        await tutorialService.resetTutorial('startAdventure');
-      }
-    } catch (e) {
-      debugPrint('TutorialCompleted: Error saving tutorial status: $e');
-    }
-  }
-}
-
-// Provider to track tutorial progress through steps
-@Riverpod(keepAlive: true)
-class TutorialProgress extends _$TutorialProgress {
-  @override
-  Set<String> build() {
-    // Load tutorial progress asynchronously after initialization
-    // Using Future.microtask to avoid blocking but load quickly
-    Future.microtask(() => _loadTutorialProgress());
-    return <String>{};
-  }
-
-  void markStepCompleted(String stepId) {
-    debugPrint('🎓 TutorialProgress: Marking step completed: $stepId');
-    state = {...state, stepId};
-    debugPrint('🎓 TutorialProgress: Step marked as completed. Total completed steps: ${state.length}');
-    
-    // Save to database service for persistence
-    _saveStepToDatabase(stepId);
-  }
-
-  void resetProgress() {
-    state = <String>{};
-    _resetDatabaseTutorials();
-  }
-
-  bool isStepCompleted(String stepId) {
-    return state.contains(stepId);
-  }
-
-  Future<void> _loadTutorialProgress() async {
-    try {
-      debugPrint('🎓 TutorialProgress: Starting to load tutorial progress from database');
-      final tutorialService = TutorialDatabaseService();
-      final completedTutorials = await tutorialService.getCompletedTutorials();
-      
-      // Convert completed tutorials map to set of step IDs (the keys where value is true)
-      final completedSteps = completedTutorials.entries
-          .where((entry) => entry.value == true)
-          .map((entry) => entry.key)
-          .toSet();
-      
-      state = completedSteps;
-      debugPrint('🎓 TutorialProgress: Loaded tutorial progress - completed steps: ${completedSteps.length}');
-      debugPrint('🎓 TutorialProgress: Completed steps: $completedSteps');
-    } catch (e) {
-      debugPrint('🎓 TutorialProgress: Failed to load tutorial progress: $e');
-      // If loading fails, continue with empty progress
-      state = <String>{};
-    }
-  }
-  
-  // Debug method to reset dialogue tutorials for testing
-  void resetDialogueTutorials() {
-    state = state.difference({'charm_explanation', 'item_types', 'regular_vs_special'});
-    // Reset these specific tutorials in database
-    _resetSpecificTutorials(['charm_explanation', 'item_types', 'regular_vs_special']);
-    // Dialogue tutorials reset for testing
-  }
-
-  Future<void> _resetSpecificTutorials(List<String> tutorialIds) async {
-    try {
-      final tutorialService = TutorialDatabaseService();
-      for (final tutorialId in tutorialIds) {
-        await tutorialService.resetTutorial(tutorialId);
-      }
-      debugPrint('🎓 TutorialProgress: Reset specific tutorials in database: $tutorialIds');
-    } catch (e) {
-      debugPrint('🎓 TutorialProgress: Error resetting specific tutorials in database: $e');
-    }
-  }
-  
-  Future<void> _saveStepToDatabase(String stepId) async {
-    try {
-      final tutorialService = TutorialDatabaseService();
-      await tutorialService.markTutorialCompleted(stepId);
-      debugPrint('🎓 TutorialProgress: Step $stepId saved to database');
-    } catch (e) {
-      debugPrint('🎓 TutorialProgress: Error saving step to database: $e');
-    }
-  }
-  
-  Future<void> _resetDatabaseTutorials() async {
-    try {
-      final tutorialService = TutorialDatabaseService();
-      await tutorialService.resetAllTutorials();
-      debugPrint('🎓 TutorialProgress: All tutorials reset in database');
-    } catch (e) {
-      debugPrint('🎓 TutorialProgress: Error resetting tutorials in database: $e');
-    }
-  }
-}
+// Legacy tutorial providers removed - now using tutorial_database_providers.dart
 
 // Provider to track if tutorial is currently active
 final tutorialActiveProvider = StateProvider<bool>((ref) => false);

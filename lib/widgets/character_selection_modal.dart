@@ -58,6 +58,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: modern.ModernDesignSystem.primarySurface,
       title: Row(
         children: [
           Icon(
@@ -66,7 +67,10 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
             size: 24,
           ),
           const SizedBox(width: 8),
-          const Text('Choose Character'),
+          const Text(
+            'Choose Character',
+            style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+          ),
         ],
       ),
       content: SizedBox(
@@ -76,7 +80,10 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
           children: [
             const Text(
               'Select your character to represent you in Thai adventures:',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                color: modern.ModernDesignSystem.textSecondary,
+              ),
             ),
             const SizedBox(height: 20),
             
@@ -95,7 +102,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
                     decoration: BoxDecoration(
                       color: isSelected 
                         ? modern.ModernDesignSystem.lavenderPurple.withValues(alpha: 0.1)
-                        : Colors.grey[50],
+                        : modern.ModernDesignSystem.primarySurface,
                       borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusLarge),
                       border: Border.all(
                         color: isSelected 
@@ -160,7 +167,7 @@ class _CharacterSelectionModalState extends State<CharacterSelectionModal> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
             'Cancel',
-            style: TextStyle(color: modern.ModernDesignSystem.textSecondary),
+            style: const TextStyle(color: modern.ModernDesignSystem.textSecondary),
           ),
         ),
         ElevatedButton(

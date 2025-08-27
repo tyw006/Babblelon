@@ -62,6 +62,8 @@ class ModernDesignSystem {
   static const LinearGradient secondaryGradient = UnifiedDarkTheme.secondaryGradient;
   static const LinearGradient successGradient = UnifiedDarkTheme.successGradient;
   static const LinearGradient surfaceGradient = UnifiedDarkTheme.surfaceGradient;
+  static const LinearGradient deepSpaceGradient = UnifiedDarkTheme.deepSpaceGradient;
+  static const LinearGradient deepRedGradient = UnifiedDarkTheme.deepRedGradient;
   static const RadialGradient accentGlow = UnifiedDarkTheme.accentGlow;
 
   // Gradient aliases
@@ -428,7 +430,7 @@ class ModernButton extends ConsumerStatefulWidget {
   ConsumerState<ModernButton> createState() => _ModernButtonState();
 }
 
-enum ModernButtonStyle { primary, secondary, accent, outline, ghost }
+enum ModernButtonStyle { primary, secondary, accent, outline, ghost, ctaRed }
 
 class _ModernButtonState extends ConsumerState<ModernButton>
     with TickerProviderStateMixin {
@@ -548,6 +550,8 @@ class _ModernButtonState extends ConsumerState<ModernButton>
         return ModernDesignSystem.primaryGradient;
       case ModernButtonStyle.accent:
         return ModernDesignSystem.secondaryGradient;
+      case ModernButtonStyle.ctaRed:
+        return ModernDesignSystem.deepRedGradient;
       default:
         return null;
     }
@@ -590,6 +594,7 @@ class _ModernButtonState extends ConsumerState<ModernButton>
     switch (widget.style) {
       case ModernButtonStyle.primary:
       case ModernButtonStyle.accent:
+      case ModernButtonStyle.ctaRed:
         return ModernDesignSystem.textOnColor;
       case ModernButtonStyle.outline:
         return ModernDesignSystem.primaryAccent;

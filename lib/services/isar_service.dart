@@ -22,7 +22,8 @@ class IsarService {
           MasteredPhraseSchema, 
           CustomVocabularyEntrySchema,
           CurrentSessionSchema,
-          NpcInteractionStateSchema
+          NpcInteractionStateSchema,
+          GameSaveStateSchema
         ],
         directory: dir.path,
         inspector: true,
@@ -111,6 +112,70 @@ class IsarService {
       await isar.customVocabularyEntrys.clear();
       await isar.currentSessions.clear();
       await isar.npcInteractionStates.clear();
+      await isar.gameSaveStates.clear();
+    });
+  }
+
+  // Game Save State methods (single-slot per level)
+  Future<void> saveGameState(GameSaveState saveState) async {
+    // Set expiry for automatic cleanup
+    saveState.setExpiry();
+    
+    await isar.writeTxn(() async {
+      // This will automatically replace any existing save for this levelId
+      // due to the @Index(unique: true, replace: true) annotation
+      await isar.gameSaveStates.put(saveState);
+    });
+  }
+
+  Future<GameSaveState?> getGameSave(String levelId) async {
+    final save = await isar.gameSaveStates.where().levelIdEqualTo(levelId).findFirst();
+    
+    // Check if save is expired and clean it up
+    if (save != null && save.isExpired) {
+      await clearGameSave(levelId);
+      return null;
+    }
+    
+    return save;
+  }
+
+  Future<void> clearGameSave(String levelId) async {
+    await isar.writeTxn(() async {
+      await isar.gameSaveStates.where().levelIdEqualTo(levelId).deleteAll();
+    });
+  }
+
+  Future<List<GameSaveState>> getAllGameSaves() async {
+    final saves = await isar.gameSaveStates.where().findAll();
+    
+    // Filter out expired saves and clean them up
+    final validSaves = <GameSaveState>[];
+    final expiredIds = <String>[];
+    
+    for (final save in saves) {
+      if (save.isExpired) {
+        expiredIds.add(save.levelId);
+      } else {
+        validSaves.add(save);
+      }
+    }
+    
+    // Clean up expired saves
+    if (expiredIds.isNotEmpty) {
+      await isar.writeTxn(() async {
+        for (final levelId in expiredIds) {
+          await isar.gameSaveStates.where().levelIdEqualTo(levelId).deleteAll();
+        }
+      });
+    }
+    
+    return validSaves;
+  }
+
+  Future<void> clearAllGameSaves() async {
+    await isar.writeTxn(() async {
+      await isar.gameSaveStates.clear();
     });
   }
 } 

@@ -5,15 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/services/static_game_loader.dart';
 import 'package:babblelon/screens/game_screen.dart';
+import 'package:babblelon/models/local_storage_models.dart';
 
 /// Game loading screen with Thai cultural theme
 /// Shows between Thailand map selection and actual game
 class GameLoadingScreen extends ConsumerStatefulWidget {
   final String selectedCharacter; // 'male' or 'female'
+  final GameSaveState? existingSave; // Save data to pass to GameScreen
   
   const GameLoadingScreen({
     super.key,
     required this.selectedCharacter,
+    this.existingSave,
   });
 
   @override
@@ -179,8 +182,22 @@ class _GameLoadingScreenState extends ConsumerState<GameLoadingScreen>
     
     // Check if game is already loaded
     if (_staticGameLoader.isLoaded) {
-      debugPrint('✅ GameLoadingScreen: Game already loaded, navigating immediately');
-      _navigateToGame();
+      debugPrint('✅ GameLoadingScreen: Game already loaded, deferring navigation to next frame');
+      debugPrint('🎮 GameLoadingScreen: StaticGameLoader state - isLoaded=${_staticGameLoader.isLoaded}, isLoading=${_staticGameLoader.isLoading}');
+      debugPrint('🎮 GameLoadingScreen: existingSave data: ${widget.existingSave?.levelId ?? 'null'}');
+      _isComplete = true; // Set completion flag before navigation
+      // Defer navigation to after build completes to avoid navigation during build cycle
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint('📍 GameLoadingScreen: Post-frame callback executing');
+        debugPrint('📍 GameLoadingScreen: Widget mounted: $mounted');
+        debugPrint('📍 GameLoadingScreen: _isComplete: $_isComplete');
+        if (mounted) {
+          debugPrint('✅ GameLoadingScreen: Post-frame callback - navigating to game');
+          _navigateToGame();
+        } else {
+          debugPrint('⚠️ GameLoadingScreen: Widget no longer mounted during post-frame callback');
+        }
+      });
       return;
     }
     
@@ -249,15 +266,23 @@ class _GameLoadingScreenState extends ConsumerState<GameLoadingScreen>
     _lastProgress = progress;
   }
 
-  void _navigateToGame() {
-    if (!mounted || _isComplete == false) return;
+  void _navigateToGame() async {
+    debugPrint('🎮 GameLoadingScreen: _navigateToGame() called');
+    debugPrint('🎮 GameLoadingScreen: mounted=$mounted, _isComplete=$_isComplete');
+    debugPrint('🎮 GameLoadingScreen: existingSave=${widget.existingSave?.levelId ?? 'null'}');
     
-    debugPrint('🎮 GameLoadingScreen: Navigating to GameScreen');
+    if (!mounted || _isComplete == false) {
+      debugPrint('⚠️ GameLoadingScreen: Early return - mounted=$mounted, _isComplete=$_isComplete');
+      return;
+    }
     
+    debugPrint('🎮 GameLoadingScreen: All checks passed, navigating to GameScreen');
+    
+    // Pass existingSave (already handled by ThailandMapScreen) directly to GameScreen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => const GameScreen(),
+        builder: (context) => GameScreen(existingSave: widget.existingSave),
       ),
     );
   }

@@ -72,6 +72,12 @@ class TutorialDatabaseService {
     await initialize(); // Ensure initialized
     
     try {
+      // Check if tutorial is already completed to avoid unnecessary updates
+      if (await isTutorialCompleted(tutorialId)) {
+        debugPrint('TutorialDatabaseService: Tutorial $tutorialId already completed, skipping update');
+        return;
+      }
+      
       debugPrint('TutorialDatabaseService: Marking tutorial $tutorialId as completed');
       
       // Get or create user profile
@@ -295,6 +301,97 @@ class TutorialDatabaseService {
       ..tutorialsCompleted = {};
   }
 
+  // --- Tutorial Group Progress Methods ---
 
+  /// Get tutorial group progress from database
+  Future<Map<String, Map<String, dynamic>>> getGroupProgress() async {
+    try {
+      final profile = await _isarService.getPlayerProfile(_currentUserId);
+      if (profile == null) {
+        return {};
+      }
+      
+      // Get group progress from profile data
+      final groupProgressData = profile.tutorialGroupsProgress;
+      
+      // Convert dynamic map to proper typed map
+      final Map<String, Map<String, dynamic>> result = {};
+      for (final entry in groupProgressData.entries) {
+        if (entry.value is Map) {
+          result[entry.key] = Map<String, dynamic>.from(entry.value);
+        }
+      }
+      
+      debugPrint('TutorialDatabaseService: Retrieved group progress for ${result.length} categories');
+      return result;
+    } catch (e) {
+      debugPrint('TutorialDatabaseService: Error getting group progress: $e');
+      return {};
+    }
+  }
+
+  /// Save tutorial group progress to database
+  Future<void> saveGroupProgress(Map<String, Map<String, dynamic>> progressData) async {
+    try {
+      // Get or create user profile
+      PlayerProfile? profile = await _isarService.getPlayerProfile(_currentUserId);
+      profile ??= _createDefaultProfile();
+      
+      // Update group progress
+      profile.tutorialGroupsProgress = Map<String, dynamic>.from(progressData);
+      profile.lastActiveAt = DateTime.now();
+      
+      // Save to local database
+      await _isarService.savePlayerProfile(profile);
+      debugPrint('TutorialDatabaseService: Saved group progress to ISAR');
+      
+      // Sync to Supabase in background
+      _syncToSupabaseBackground(profile);
+      
+    } catch (e) {
+      debugPrint('TutorialDatabaseService: Error saving group progress: $e');
+    }
+  }
+
+  /// Get tutorial completion method (how it was completed)
+  Future<String> getTutorialCompletionMethod(String tutorialId) async {
+    try {
+      final profile = await _isarService.getPlayerProfile(_currentUserId);
+      if (profile == null) {
+        return 'viewed'; // Default method
+      }
+      
+      final completionMethods = profile.tutorialCompletionMethod;
+      return completionMethods[tutorialId] ?? 'viewed';
+    } catch (e) {
+      debugPrint('TutorialDatabaseService: Error getting completion method: $e');
+      return 'viewed';
+    }
+  }
+
+  /// Set tutorial completion method
+  Future<void> setTutorialCompletionMethod(String tutorialId, String method) async {
+    try {
+      // Get or create user profile
+      PlayerProfile? profile = await _isarService.getPlayerProfile(_currentUserId);
+      profile ??= _createDefaultProfile();
+      
+      // Update completion methods
+      final updatedMethods = Map<String, dynamic>.from(profile.tutorialCompletionMethod);
+      updatedMethods[tutorialId] = method;
+      profile.tutorialCompletionMethod = updatedMethods;
+      profile.lastActiveAt = DateTime.now();
+      
+      // Save to local database
+      await _isarService.savePlayerProfile(profile);
+      debugPrint('TutorialDatabaseService: Set completion method for $tutorialId: $method');
+      
+      // Sync to Supabase in background
+      _syncToSupabaseBackground(profile);
+      
+    } catch (e) {
+      debugPrint('TutorialDatabaseService: Error setting completion method: $e');
+    }
+  }
 
 }

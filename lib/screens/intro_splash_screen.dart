@@ -124,8 +124,60 @@ class _IntroSplashScreenState extends ConsumerState<IntroSplashScreen>
       
       Widget destination;
       if (!authService.isAuthenticated) {
-        // User not authenticated - show authentication screen
-        destination = const AuthenticationScreen();
+        // User not authenticated - show authentication screen with callback
+        destination = AuthenticationScreen(
+          onAuthSuccess: (authResult) async {
+            if (mounted) {
+              // Handle successful authentication - check profile completion
+              try {
+                final profileState = await ref.read(profileCompletionProvider.future);
+                Widget nextDestination;
+                if (profileState.isCompleted) {
+                  // Returning user - preload tutorial data for faster navigation screen loading
+                  _preloadTutorialData();
+                  nextDestination = const MainNavigationScreen();
+                } else {
+                  // First-time user - show enhanced onboarding
+                  nextDestination = const EnhancedOnboardingScreen();
+                }
+                
+                // Navigate to the appropriate destination
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => nextDestination,
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                }
+              } catch (e) {
+                // On error, show onboarding to be safe
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => const EnhancedOnboardingScreen(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                }
+              }
+            }
+          },
+        );
       } else {
         // Check profile completion asynchronously
         try {
@@ -167,7 +219,7 @@ class _IntroSplashScreenState extends ConsumerState<IntroSplashScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: ModernDesignSystem.backgroundGradient,
+          gradient: ModernDesignSystem.deepSpaceGradient,
         ),
         child: SafeArea(
           child: Stack(
@@ -278,7 +330,7 @@ class _IntroSplashScreenState extends ConsumerState<IntroSplashScreen>
                                       child: ModernButton(
                                         text: 'Start Your Journey!',
                                         onPressed: _onStartJourney,
-                                        style: ModernButtonStyle.accent,
+                                        style: ModernButtonStyle.ctaRed,
                                         width: double.infinity,
                                         icon: Icons.explore,
                                       ),

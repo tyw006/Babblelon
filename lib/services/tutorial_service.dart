@@ -175,14 +175,6 @@ class TutorialManager {
       targetTab: AppTab.learn,
       delay: Duration(milliseconds: 500),
     ),
-    // Cultural level specific tutorials (triggers when game loads)
-    TutorialStep(
-      id: 'cultural_intro',
-      title: "Welcome to Your Cultural Adventure!",
-      content: "Now we're in an exciting cultural level! This vibrant environment is where you'll practice your target language with friendly locals.\n\nTap the left side of your screen to move left, right side to move right. Look for those glowing speech bubbles - that's where we'll meet the locals and practice your language skills!",
-      trigger: TutorialTrigger.npcInteraction,
-      isStandalone: true,
-    ),
     // Dialogue system tutorials (split into slides)
     TutorialStep(
       id: 'charm_explanation',
@@ -310,6 +302,16 @@ class TutorialManager {
             TutorialVisual.icon(Icons.visibility, 'Read Thai'),
             TutorialVisual.icon(Icons.mic, 'Speak Clearly'),
             TutorialVisual.icon(Icons.timer, 'Take Your Time'),
+          ],
+        ),
+        TutorialSlide(
+          title: "Battle Mathematics Revealed!",
+          content: "Here's exactly how boss battles work:\n\n• Your pronunciation accuracy (0-100%) directly affects damage/defense\n• Attack items multiply your damage potential\n• Defense items reduce incoming boss damage\n• Better items = bigger multipliers\n• Consistent pronunciation > perfect pronunciation\n\nStrategy tip: Focus on clear, steady pronunciation rather than rushing through words!",
+          headerIcon: Icons.calculate,
+          visualElements: [
+            TutorialVisual.icon(Icons.functions, 'Damage Formula'),
+            TutorialVisual.icon(Icons.shield, 'Defense Math'),
+            TutorialVisual.icon(Icons.speed, 'Consistency Wins'),
           ],
         ),
       ],
@@ -444,20 +446,6 @@ class TutorialManager {
       isStandalone: true,
     ),
     
-    TutorialStep(
-      id: 'battle_mechanics_deep_dive',
-      title: "Battle Mathematics Revealed!",
-      content: "Here's exactly how boss battles work:\n\n• Your pronunciation accuracy (0-100%) directly affects damage/defense\n• Attack items multiply your damage potential\n• Defense items reduce incoming boss damage\n• Better items = bigger multipliers\n• Consistent pronunciation > perfect pronunciation\n\nStrategy tip: Focus on clear, steady pronunciation rather than rushing through words!",
-      trigger: TutorialTrigger.firstBossBattle,
-      headerIcon: Icons.calculate,
-      visualElements: [
-        TutorialVisual.icon(Icons.functions, 'Damage Formula'),
-        TutorialVisual.icon(Icons.shield, 'Defense Math'),
-        TutorialVisual.icon(Icons.speed, 'Consistency Wins'),
-      ],
-      isStandalone: true,
-    ),
-    
     // Item system tutorials
     TutorialStep(
       id: 'charm_thresholds_explained',
@@ -574,11 +562,10 @@ class TutorialManager {
     debugPrint('Tutorial: Found ${steps.length} steps for this trigger');
     
     // Check if any steps for this trigger are already completed (using fast cache lookup)
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
     final completedSteps = <String>[];
     
     for (final step in steps) {
-      final isCompleted = tutorialProgressNotifier.isStepCompleted(step.id);
+      final isCompleted = ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted(step.id);
       if (isCompleted) {
         completedSteps.add(step.id);
       }

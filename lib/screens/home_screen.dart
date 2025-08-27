@@ -208,8 +208,11 @@ class _WelcomeSection extends ConsumerWidget {
               const SizedBox(width: 8),
               playerProfileAsync.when(
                 data: (profile) {
+                  // Debug logging to verify profile data
+                  debugPrint('🔍 HomeScreen: Profile loaded - firstName: ${profile?.firstName}, lastName: ${profile?.lastName}, id: ${profile?.id}');
                   final firstName = profile?.firstName;
                   final displayName = firstName?.isNotEmpty == true ? firstName! : 'Learner';
+                  debugPrint('🔍 HomeScreen: Display name resolved to: $displayName');
                   return Text(
                     'Welcome back, $displayName!',
                     style: AppTheme.textTheme.headlineSmall?.copyWith(

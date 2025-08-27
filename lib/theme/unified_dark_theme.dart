@@ -69,6 +69,26 @@ class UnifiedDarkTheme {
     colors: [primaryAccent, Colors.transparent],
   );
 
+  // Deep space gradient for crisp backgrounds without gray overlay
+  static const LinearGradient deepSpaceGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF0A0D12), // Very dark blue-black
+      Color(0xFF000000), // Pure black
+    ],
+  );
+
+  // Deep red gradient for prominent CTA buttons
+  static const LinearGradient deepRedGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFD32F2F), // Material deep red
+      Color(0xFFB71C1C), // Material darker red
+    ],
+  );
+
   // ===== TYPOGRAPHY SYSTEM =====
   
   // Font Families
@@ -407,6 +427,17 @@ class UnifiedDarkTheme {
       ),
       hintStyle: GoogleFonts.nunito(
         color: textTertiary,
+      ),
+    ),
+    
+    // SnackBar Theme
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: primarySurface,
+      contentTextStyle: TextStyle(color: textPrimary),
+      actionTextColor: primaryAccent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
       ),
     ),
   );

@@ -83,15 +83,21 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: modern.ModernDesignSystem.primarySurface,
       title: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.language_outlined,
             color: modern.ModernDesignSystem.forestGreen,
             size: 24,
           ),
           const SizedBox(width: 8),
-          const Text('Choose Learning Language'),
+          Expanded(
+            child: const Text(
+              'Choose Learning Language',
+              style: TextStyle(color: modern.ModernDesignSystem.textPrimary),
+            ),
+          ),
         ],
       ),
       content: SizedBox(
@@ -101,7 +107,10 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
           children: [
             const Text(
               'Select the language you want to learn:',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                color: modern.ModernDesignSystem.textSecondary,
+              ),
             ),
             const SizedBox(height: 20),
             
@@ -120,17 +129,17 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isSelected 
-                          ? modern.ModernDesignSystem.forestGreen.withValues(alpha: 0.1)
+                          ? modern.ModernDesignSystem.forestGreen.withValues(alpha: 0.15)
                           : language.isAvailable
-                            ? Colors.grey[50]
-                            : Colors.grey[100],
+                            ? modern.ModernDesignSystem.primarySurface
+                            : modern.ModernDesignSystem.primarySurfaceVariant.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(modern.ModernDesignSystem.radiusMedium),
                         border: Border.all(
                           color: isSelected 
                             ? modern.ModernDesignSystem.forestGreen
                             : language.isAvailable
-                              ? modern.ModernDesignSystem.textMuted.withValues(alpha: 0.3)
-                              : Colors.grey.shade300,
+                              ? modern.ModernDesignSystem.borderPrimary.withValues(alpha: 0.3)
+                              : modern.ModernDesignSystem.borderPrimary.withValues(alpha: 0.2),
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -154,7 +163,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                     color: language.isAvailable
                                       ? (isSelected ? modern.ModernDesignSystem.forestGreen : modern.ModernDesignSystem.textPrimary)
-                                      : Colors.grey.shade500,
+                                      : modern.ModernDesignSystem.textTertiary,
                                   ),
                                 ),
                                 Text(
@@ -162,7 +171,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                                   style: modern.ModernDesignSystem.bodySmall.copyWith(
                                     color: language.isAvailable
                                       ? modern.ModernDesignSystem.textSecondary
-                                      : Colors.grey.shade400,
+                                      : modern.ModernDesignSystem.textTertiary,
                                   ),
                                 ),
                               ],
@@ -185,7 +194,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
                               ),
                             )
                           else if (isSelected)
-                            Icon(
+                            const Icon(
                               Icons.check_circle,
                               color: modern.ModernDesignSystem.forestGreen,
                               size: 20,
@@ -203,7 +212,7 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(
+          child: const Text(
             'Cancel',
             style: TextStyle(color: modern.ModernDesignSystem.textSecondary),
           ),
@@ -228,8 +237,16 @@ class _LanguageSelectionModalState extends State<LanguageSelectionModal> {
   void _showComingSoonMessage(String languageName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$languageName learning is coming soon!'),
-        backgroundColor: modern.ModernDesignSystem.warmOrange,
+        content: Text(
+          '$languageName learning is coming soon!',
+          style: const TextStyle(color: modern.ModernDesignSystem.textPrimary),
+        ),
+        backgroundColor: modern.ModernDesignSystem.primarySurface,
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: modern.ModernDesignSystem.warmOrange,
+          onPressed: () {},
+        ),
       ),
     );
   }

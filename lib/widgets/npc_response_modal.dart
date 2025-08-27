@@ -231,8 +231,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       // Check and request microphone permission when modal opens
       _checkAndRequestMicrophonePermission();
       
-      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
-      if (!tutorialProgressNotifier.isStepCompleted('first_npc_response_tutorial')) {
+      if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_npc_response_tutorial')) {
         final tutorialManager = TutorialManager(
           context: context,
           ref: ref,
@@ -615,8 +614,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
         // Show pronunciation confidence guide tutorial if this is the first time seeing confidence scores
         WidgetsBinding.instance.addPostFrameCallback((_) async {
-          final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
-          if (!tutorialProgressNotifier.isStepCompleted('pronunciation_confidence_guide')) {
+          if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pronunciation_confidence_guide')) {
             final tutorialManager = TutorialManager(
               context: context,
               ref: ref,

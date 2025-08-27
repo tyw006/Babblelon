@@ -7,6 +7,17 @@ import 'package:babblelon/theme/modern_design_system.dart' as modern;
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/services/supabase_service.dart';
+import 'package:babblelon/services/game_save_service.dart';
+import 'package:babblelon/widgets/resume_game_dialog.dart';
+import 'package:babblelon/models/local_storage_models.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui';
+import 'package:babblelon/services/static_game_loader.dart';
+import 'package:babblelon/models/boss_data.dart';
+import 'package:babblelon/screens/boss_fight_screen.dart';
+import 'package:babblelon/game/babblelon_game.dart';
+import 'package:babblelon/models/battle_item.dart';
+import 'package:babblelon/models/npc_data.dart';
 
 class ThailandMapScreen extends ConsumerStatefulWidget {
   const ThailandMapScreen({super.key});
@@ -26,6 +37,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     const LocationData(
       name: 'Cultural District',
       id: 'cultural_district',
+      levelId: 'yaowarat_level', // Currently the only available level
       position: Offset(0.50, 0.55), // Central position for main adventure
       isAvailable: true,
       description: 'Explore vibrant cultural environments',
@@ -33,6 +45,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     const LocationData(
       name: 'Chiang Mai',
       id: 'chiang_mai',
+      levelId: 'chiang_mai_level', // Future level
       position: Offset(0.35, 0.35), // Keep northern Thailand positioning
       isAvailable: false,
       description: 'Northern cultural capital',
@@ -40,6 +53,7 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     const LocationData(
       name: 'Phuket',
       id: 'phuket',
+      levelId: 'phuket_level', // Future level
       position: Offset(0.30, 0.72), // Moved up from 0.85 to 0.78, and left from 0.32 to 0.28
       isAvailable: false,
       description: 'Beautiful island paradise',
@@ -80,11 +94,8 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       return;
     }
     
-    // Show confirmation dialog before traveling
-    final confirmed = await _showTravelConfirmationDialog(location);
-    if (confirmed) {
-      _navigateToGame(location);
-    }
+    // Navigate to game directly - save checking happens in _navigateToGame
+    await _navigateToGame(location);
   }
 
   Future<void> _navigateToGame(LocationData location) async {
@@ -92,8 +103,98 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     debugPrint('📍 Navigation stack trace:');
     debugPrint(StackTrace.current.toString());
     
+    // Store context early before any async operations
+    final navigatorContext = context;
+    final isInitiallyMounted = mounted;
+    debugPrint('🗺️ ThailandMapScreen: Initial mounted state: $isInitiallyMounted');
+    
     // Stop background music before transitioning to game
     _audioService.stopBackgroundMusic();
+    
+    // Check for existing save data for this level
+    final saveService = GameSaveService();
+    final explorationSave = await saveService.loadGameState(location.levelId);
+    final bossSave = await saveService.loadGameState('boss_tuk-tuk monster');
+    
+    // Prioritize boss save if it exists (player was in boss fight when exiting)
+    final existingSave = bossSave ?? explorationSave;
+    GameSaveState? finalSave = existingSave;
+    
+    // Show appropriate dialog based on save state
+    if (existingSave != null) {
+      debugPrint('🗺️ ThailandMapScreen: Found existing save, checking mounted state');
+      debugPrint('🗺️ ThailandMapScreen: Mounted state before dialog: $mounted');
+      if (!mounted) {
+        debugPrint('⚠️ ThailandMapScreen: Widget not mounted after save loading, returning early');
+        return;
+      }
+      
+      debugPrint('🗺️ ThailandMapScreen: About to show resume dialog');
+      // Show resume dialog for existing saves using stored context
+      final shouldResume = await showDialog<bool>(
+        context: navigatorContext,
+        barrierDismissible: false,
+        builder: (dialogContext) => ResumeGameDialog(
+          levelId: location.levelId,
+          saveData: existingSave,
+          onResume: () => Navigator.of(dialogContext).pop(true),
+          onStartNew: () => Navigator.of(dialogContext).pop(false),
+        ),
+      );
+      
+      debugPrint('🗺️ ThailandMapScreen: Dialog returned with value: $shouldResume');
+      debugPrint('🗺️ ThailandMapScreen: Mounted state after dialog: $mounted');
+      
+      if (shouldResume == null) {
+        debugPrint('⚠️ ThailandMapScreen: Dialog was dismissed, returning');
+        return; // Dialog was dismissed
+      }
+      
+      if (shouldResume == false) {
+        debugPrint('🗺️ ThailandMapScreen: User chose start over, deleting saves');
+        // Delete ALL saves related to this level (exploration + all boss fights)
+        await saveService.deleteAllLevelSaves(location.levelId);
+        finalSave = null;
+        
+        // Reset game singleton and all providers for completely fresh start
+        BabblelonGame.resetInstance();
+        if (mounted) {
+          // Use WidgetRef to access reset methods - we need a provider context
+          // The reset will be handled in GameScreen when existingSave is null
+        }
+        
+        // Reset StaticGameLoader to ensure fresh game start
+        final staticLoader = StaticGameLoader();
+        staticLoader.reset();
+        debugPrint('🔄 ThailandMapScreen: Reset game instance, StaticGameLoader and deleted all saves for fresh start');
+      }
+      
+      debugPrint('🗺️ ThailandMapScreen: Mounted state after save operations: $mounted');
+      if (!mounted) {
+        debugPrint('⚠️ ThailandMapScreen: Widget not mounted after save operations, returning early');
+        return;
+      }
+    } else {
+      // First time playing this level - show welcome dialog
+      debugPrint('🗺️ ThailandMapScreen: No existing save, showing welcome dialog');
+      if (!mounted) {
+        debugPrint('⚠️ ThailandMapScreen: Widget not mounted for welcome dialog, returning early');
+        return;
+      }
+      
+      final shouldStart = await _showWelcomeDialog(location, navigatorContext);
+      debugPrint('🗺️ ThailandMapScreen: Welcome dialog returned: $shouldStart');
+      if (!shouldStart) {
+        debugPrint('🗺️ ThailandMapScreen: User cancelled welcome dialog');
+        return; // User cancelled
+      }
+      
+      debugPrint('🗺️ ThailandMapScreen: Mounted state after welcome dialog: $mounted');
+      if (!mounted) {
+        debugPrint('⚠️ ThailandMapScreen: Widget not mounted after welcome dialog, returning early');
+        return;
+      }
+    }
     
     // Get selected character from user profile  
     final isarService = IsarService();
@@ -105,19 +206,116 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       selectedCharacter = profile?.selectedCharacter ?? 'male';
     }
     
+    // Check if context is still valid after async operation
+    debugPrint('🗺️ ThailandMapScreen: Final mounted state check: $mounted');
     debugPrint('🗺️ ThailandMapScreen: About to navigate to GameLoadingScreen with character: $selectedCharacter');
-    debugPrint('🗺️ ThailandMapScreen: Widget mounted: $mounted');
+    debugPrint('🗺️ ThailandMapScreen: Using stored navigator context for reliable navigation');
     
-    if (mounted) {
+    // Use try-catch to handle any navigation errors gracefully
+    try {
       debugPrint('🗺️ ThailandMapScreen: Calling Navigator.push with MaterialPageRoute...');
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GameLoadingScreen(
-            selectedCharacter: selectedCharacter,
+      
+      // Check if we're resuming a boss fight (only if user chose resume)
+      if (finalSave != null && finalSave.gameType == 'boss_fight') {
+        debugPrint('🗺️ ThailandMapScreen: Resuming boss fight directly');
+        
+        // Get saved inventory to create proper battle items
+        final savedInventory = finalSave.inventoryData;
+        BattleItem attackItem;
+        BattleItem defenseItem;
+        
+        if (savedInventory.isNotEmpty && savedInventory['attack'] != null && savedInventory['defense'] != null) {
+          // Create battle items from saved inventory
+          attackItem = _createBattleItemFromPath(savedInventory['attack']!);
+          defenseItem = _createBattleItemFromPath(savedInventory['defense']!);
+        } else {
+          // Fallback to default items if inventory not found (shouldn't happen)
+          attackItem = const BattleItem(name: 'Golden Steamed Bun', assetPath: 'assets/images/items/steambun_special.png', isSpecial: true);
+          defenseItem = const BattleItem(name: 'Golden Pork Belly', assetPath: 'assets/images/items/porkbelly_special.png', isSpecial: true);
+        }
+        
+        // Import BossData and navigate to BossFightScreen
+        const tuktukBoss = BossData(
+          name: "Tuk-Tuk Monster",
+          spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
+          maxHealth: 500,
+          vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
+          backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
+          languageName: 'Thai',
+          languageFlag: '🇹🇭',
+        );
+        
+        await Navigator.push(
+          navigatorContext,
+          MaterialPageRoute(
+            builder: (context) => BossFightScreen(
+              bossData: tuktukBoss,
+              attackItem: attackItem,
+              defenseItem: defenseItem,
+              game: BabblelonGame.instance,
+              existingSave: finalSave, // Pass the final save state
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Resume exploration or start new game
+        await Navigator.push(
+          navigatorContext, // Use stored context instead of current context
+          MaterialPageRoute(
+            builder: (context) => GameLoadingScreen(
+              selectedCharacter: selectedCharacter,
+              existingSave: finalSave,
+            ),
+          ),
+        );
+      }
+      debugPrint('✅ ThailandMapScreen: Navigation completed successfully');
+    } catch (error) {
+      debugPrint('❌ ThailandMapScreen: Navigation failed with error: $error');
+      // If navigation fails with stored context, try with current context as fallback
+      if (mounted) {
+        debugPrint('🔄 ThailandMapScreen: Retrying with current context as fallback');
+        try {
+          if (bossSave != null && finalSave?.gameType == 'boss_fight') {
+            // Fallback boss fight navigation
+            const tuktukBoss = BossData(
+              name: "Tuk-Tuk Monster",
+              spritePath: 'assets/images/bosses/tuktuk/sprite_tuktukmonster.png',
+              maxHealth: 500,
+              vocabularyPath: 'assets/data/beginner_food_vocabulary.json',
+              backgroundPath: 'assets/images/background/bossfight_tuktuk_bg.png',
+              languageName: 'Thai',
+              languageFlag: '🇹🇭',
+            );
+            
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BossFightScreen(
+                  bossData: tuktukBoss,
+                  attackItem: const BattleItem(name: 'Golden Steamed Bun', assetPath: 'assets/images/items/steambun_special.png', isSpecial: true),
+                  defenseItem: const BattleItem(name: 'Golden Pork Belly', assetPath: 'assets/images/items/porkbelly_special.png', isSpecial: true),
+                  game: BabblelonGame.instance,
+                  existingSave: bossSave,
+                ),
+              ),
+            );
+          } else {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GameLoadingScreen(
+                  selectedCharacter: selectedCharacter,
+                  existingSave: finalSave,
+                ),
+              ),
+            );
+          }
+          debugPrint('✅ ThailandMapScreen: Fallback navigation completed successfully');
+        } catch (fallbackError) {
+          debugPrint('❌ ThailandMapScreen: Fallback navigation also failed: $fallbackError');
+        }
+      }
     }
   }
 
@@ -179,79 +377,149 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
     );
   }
 
-  Future<bool> _showTravelConfirmationDialog(LocationData location) async {
-    return await BasePopup.showPopup<bool>(
-      context,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.flight_takeoff,
-                color: Colors.orange,
-                size: 24,
+  Future<bool> _showWelcomeDialog(LocationData location, BuildContext navigatorContext) async {
+    return await showDialog<bool>(
+      context: navigatorContext,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+            child: Container(
+              constraints: const BoxConstraints(
+                maxWidth: 400,
+                maxHeight: 600,
               ),
-              SizedBox(width: 12),
-              Text(
-                'Travel Confirmation',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1a1a2e),
+                    Color(0xFF16213e),
+                    Color(0xFF0f3460),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Travel to ${location.name}?',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            location.description,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Are you ready to begin your Thai language adventure?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  style: BasePopup.secondaryButtonStyle,
-                  child: const Text('Cancel'),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: Colors.deepPurple,
+                  width: 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: BasePopup.primaryButtonStyle,
-                  child: const Text('Let\'s Go!'),
-                ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.explore,
+                        color: Colors.deepPurple[300],
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Welcome to ${location.name}!',
+                          style: GoogleFonts.orbitron(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Description
+                  Text(
+                    location.description,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Adventure message
+                  Text(
+                    'Are you ready to begin your Thai language adventure?',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(
+                                color: Colors.white38,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'Not Yet',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 8,
+                          ),
+                          child: Text(
+                            "Let's Go!",
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ],
+        ),
       ),
     ) ?? false;
   }
@@ -417,11 +685,33 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       ),
     );
   }
+  
+  // Helper function to create BattleItem from asset path
+  BattleItem _createBattleItemFromPath(String assetPath) {
+    // Extract item name from asset path by checking against known items
+    for (var npcData in npcDataMap.values) {
+      if (npcData.regularItemAsset == assetPath) {
+        return BattleItem(name: npcData.regularItemName, assetPath: assetPath, isSpecial: false);
+      }
+      if (npcData.specialItemAsset == assetPath) {
+        return BattleItem(name: npcData.specialItemName, assetPath: assetPath, isSpecial: true);
+      }
+    }
+    
+    // Fallback: extract name from path
+    final fileName = assetPath.split('/').last.split('.').first;
+    final itemName = fileName.replaceAll('_', ' ').split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+    
+    return BattleItem(name: itemName, assetPath: assetPath);
+  }
 }
 
 class LocationData {
   final String name;
   final String id;
+  final String levelId; // Save game level ID for this location
   final Offset position; // Relative position on the map (0.0 to 1.0)
   final bool isAvailable;
   final String description;
@@ -429,6 +719,7 @@ class LocationData {
   const LocationData({
     required this.name,
     required this.id,
+    required this.levelId,
     required this.position,
     required this.isAvailable,
     required this.description,

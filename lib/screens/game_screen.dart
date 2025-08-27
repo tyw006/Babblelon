@@ -10,14 +10,19 @@ import 'dart:io';
 import 'main_navigation_screen.dart';
 import '../services/game_initialization_service.dart';
 import '../services/posthog_service.dart';
+import '../services/game_save_service.dart';
 import '../models/popup_models.dart';
 import '../widgets/popups/base_popup_widget.dart';
+import '../models/npc_data.dart';
 import '../services/static_game_loader.dart';
+import '../models/local_storage_models.dart';
 
 final GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>> gameWidgetKey = GlobalKey<RiverpodAwareGameWidgetState<BabblelonGame>>();
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  final GameSaveState? existingSave;
+  
+  const GameScreen({super.key, this.existingSave});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -26,10 +31,20 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late WidgetRef _ref;
   late final AppLifecycleListener _listener;
+  bool _hasRestoredInventory = false;
 
   @override
   void initState() {
     super.initState();
+    
+    debugPrint('🎮 GameScreen: initState() called');
+    debugPrint('🎮 GameScreen: existingSave provided: ${widget.existingSave != null}');
+    if (widget.existingSave != null) {
+      debugPrint('🎮 GameScreen: save data level: ${widget.existingSave!.levelId}');
+      debugPrint('🎮 GameScreen: save data timestamp: ${widget.existingSave!.timestamp}');
+      debugPrint('🎮 GameScreen: save data game type: ${widget.existingSave!.gameType}');
+    }
+    
     _listener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
@@ -44,7 +59,10 @@ class _GameScreenState extends State<GameScreen> {
     );
     
     // Start background initialization (non-blocking)
+    debugPrint('🎮 GameScreen: About to initialize game assets in background');
     _initializeGameAssetsInBackground();
+    
+    debugPrint('🎮 GameScreen: initState() completed');
   }
   
   /// Initialize game assets in the background without blocking the game
@@ -80,25 +98,89 @@ class _GameScreenState extends State<GameScreen> {
     _ref.read(tempFilePathsProvider.notifier).state = [];
     return AppExitResponse.exit;
   }
+  
+  /// Restore inventory from existing save data if available
+  void _restoreInventoryFromSave() {
+    debugPrint('🎒 GameScreen: _restoreInventoryFromSave called');
+    if (widget.existingSave != null) {
+      debugPrint('🎒 GameScreen: Processing save data for restoration');
+      final saveData = widget.existingSave!;
+      final saveService = GameSaveService();
+      final restoredInventory = saveService.getInventory(saveData);
+      
+      if (restoredInventory != null && restoredInventory.isNotEmpty) {
+        // Restore inventory from save data
+        _ref.read(inventoryProvider.notifier).state = restoredInventory;
+        debugPrint('🎒 GameScreen: Restored inventory from save: $restoredInventory');
+        
+        // Check for special items and update specialItemReceivedProvider accordingly
+        _updateSpecialItemProvidersFromInventory(restoredInventory);
+      } else {
+        debugPrint('🎒 GameScreen: No inventory data found in save');
+      }
+    } else {
+      debugPrint('🎒 GameScreen: No save data provided for restoration');
+    }
+  }
+
+  void _updateSpecialItemProvidersFromInventory(Map<String, String?> inventory) {
+    debugPrint('🔄 GameScreen: Checking inventory for special items to update NPC providers');
+    
+    // Check each item in the inventory against all NPCs' special items
+    for (final item in inventory.values) {
+      if (item == null) continue; // Skip null values
+      
+      // Find which NPC this special item belongs to
+      for (final npcData in npcDataMap.values) {
+        if (npcData.specialItemAsset == item) {
+          // This is a special item from this NPC - mark as received
+          _ref.read(specialItemReceivedProvider(npcData.id).notifier).state = true;
+          debugPrint('🔄 GameScreen: Marked special item received for NPC ${npcData.id} (item: ${npcData.specialItemName})');
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🏗️ GameScreen: build() called');
     return Consumer(
       builder: (context, ref, _) {
         _ref = ref;
         
+        // Handle game state based on save data after build completes (when _ref is available)
+        if (!_hasRestoredInventory) {
+          _hasRestoredInventory = true; // Set flag immediately to prevent duplicates
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (widget.existingSave != null) {
+              debugPrint('🎒 GameScreen: Restoring inventory after build completes');
+              _restoreInventoryFromSave();
+            } else {
+              debugPrint('🔄 GameScreen: No save data - ensuring fresh start');
+              ref.resetForNewGame(); // Full reset for fresh start
+            }
+          });
+        }
+        
         // Game loading completion tutorial is now handled by main_navigation_screen.dart
         // with consolidated multi-slide tutorial - no separate tutorial needed here
+        
+        debugPrint('🏗️ GameScreen: About to access BabblelonGame.instance');
+        final gameInstance = BabblelonGame.instance;
+        debugPrint('🏗️ GameScreen: BabblelonGame.instance obtained: ${gameInstance.runtimeType}');
         
         return Scaffold(
           body: Stack(
             children: [
               RiverpodAwareGameWidget(
                 key: gameWidgetKey,
-                game: BabblelonGame.instance,
-                loadingBuilder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                game: gameInstance,
+                loadingBuilder: (context) {
+                  debugPrint('🏗️ GameScreen: loadingBuilder called - showing CircularProgressIndicator');
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                },
                 errorBuilder: (context, error) => Center(
                   child: Text(
                     'Error loading game: $error',
@@ -370,7 +452,7 @@ class MainMenu extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Are you sure you want to exit the level? You will lose all progress and return to the main menu.',
+            'Are you sure you want to exit the level? Your progress will be saved automatically so you can continue from where you left off next time!',
             style: TextStyle(color: Colors.white, fontSize: 16),
             textAlign: TextAlign.center,
           ),
@@ -417,6 +499,13 @@ class MainMenu extends ConsumerWidget {
         // Clear any new item notifications and reset overlay visibility
         ref.read(gameStateProvider.notifier).clearNewItem();
         ref.read(dialogueOverlayVisibilityProvider.notifier).state = false;
+        
+        // Save game state before clearing inventory (for resume functionality)
+        await ref.triggerInventorySave();
+        
+        // Clear inventory to prevent state mismatch with new game instance
+        ref.clearInventory();
+        
         debugPrint('🔄 GameScreen: Reset UI state on exit');
       } catch (e) {
         debugPrint('⚠️ GameScreen: Error resetting UI state: $e');
@@ -460,7 +549,7 @@ class _InventoryCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade800.withOpacity(0.9),
+        color: Colors.grey.shade800.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasNewItem ? Colors.amber.shade700 : Colors.black, 
@@ -522,7 +611,7 @@ class _InventorySlot extends StatelessWidget {
             boxShadow: isHighlighted
                 ? [
                     BoxShadow(
-                      color: Colors.yellowAccent.withOpacity(0.7),
+                      color: Colors.yellowAccent.withValues(alpha: 0.7),
                       blurRadius: 10,
                       spreadRadius: 2,
                     )

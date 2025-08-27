@@ -117,6 +117,13 @@ class SupabaseAuthService implements AuthServiceInterface {
   final supabase.SupabaseClient _supabase = supabase.Supabase.instance.client;
 
   SupabaseAuthService() {
+    // Emit initial state based on current auth status
+    if (_supabase.auth.currentUser != null) {
+      _authStateController.add(AuthState.authenticated);
+    } else {
+      _authStateController.add(AuthState.unauthenticated);
+    }
+
     // Listen to Supabase auth changes and convert to our AuthState enum
     _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
       final supabase.AuthChangeEvent event = data.event;
@@ -131,7 +138,12 @@ class SupabaseAuthService implements AuthServiceInterface {
           _authStateController.add(AuthState.authenticated);
           break;
         default:
-          _authStateController.add(AuthState.unauthenticated);
+          // Don't assume unauthenticated - check actual auth status
+          if (_supabase.auth.currentUser != null) {
+            _authStateController.add(AuthState.authenticated);
+          } else {
+            _authStateController.add(AuthState.unauthenticated);
+          }
       }
     });
   }

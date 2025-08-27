@@ -18,6 +18,7 @@ import '../game/babblelon_game.dart';
 import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
+import '../providers/tutorial_database_providers.dart' as tutorial_db;
 import '../services/vocabulary_detection_service.dart'; // For custom word detection
 import '../widgets/popups/base_popup_widget.dart';
 import '../services/isar_service.dart'; // For database operations
@@ -353,11 +354,10 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Check if we should show the first dialogue tutorial
-      final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
       final hasEncounteredNpc = ref.read(firstNpcDialogueEncounteredProvider);
       
       // Only show tutorial if this is the first NPC ever and tutorial hasn't been completed
-      if (!hasEncounteredNpc && !tutorialProgressNotifier.isStepCompleted('first_dialogue_session')) {
+      if (!hasEncounteredNpc && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_dialogue_session')) {
         // Mark that we've now encountered our first NPC
         ref.read(firstNpcDialogueEncounteredProvider.notifier).state = true;
         
@@ -535,9 +535,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
 
     // Check if this is the first time using voice interaction and show tutorial
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
-    if (!tutorialProgressNotifier.isStepCompleted('voice_setup_guide') && 
-        !tutorialProgressNotifier.isStepCompleted('pronunciation_confidence_guide')) {
+    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('voice_setup_guide') && 
+        !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pronunciation_confidence_guide')) {
       // Show voice interaction tutorials for first-time users
       final tutorialManager = TutorialManager(
         context: context,
@@ -912,8 +911,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
             // Show tutorials for charm milestones
-            final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
-            if (newCharm >= 60 && oldCharm < 60 && !tutorialProgressNotifier.isStepCompleted('charm_thresholds_explained')) {
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('charm_thresholds_explained')) {
               // First time reaching 60 charm - show milestone tutorial
               final tutorialManager = TutorialManager(
                 context: context,
@@ -924,7 +922,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               tutorialManager.startTutorial(TutorialTrigger.firstCharmMilestone);
             }
 
-            if (newCharm >= 60 && oldCharm < 60 && !tutorialProgressNotifier.isStepCompleted('item_giving_tutorial')) {
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('item_giving_tutorial')) {
               // First time eligible for an item - show item eligibility tutorial
               final tutorialManager = TutorialManager(
                 context: context,
@@ -939,7 +937,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               justReachedMaxCharm = true;
               
               // Show special item tutorial if they haven't seen it
-              if (!tutorialProgressNotifier.isStepCompleted('special_item_celebration')) {
+              if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('special_item_celebration')) {
                 final tutorialManager = TutorialManager(
                   context: context,
                   ref: ref,
@@ -1234,10 +1232,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   // Tutorial-aware toggle handlers
   void _handleTransliterationToggle() {
     final dialogueSettings = ref.read(dialogueSettingsProvider);
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
     
     // If turning ON transliteration for the first time, show tutorial
-    if (!dialogueSettings.showTransliteration && !tutorialProgressNotifier.isStepCompleted('transliteration_system')) {
+    if (!dialogueSettings.showTransliteration && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('transliteration_system')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,
@@ -1254,10 +1251,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   
   void _handleWordAnalysisToggle() {
     final dialogueSettings = ref.read(dialogueSettingsProvider);
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
     
     // If turning ON word analysis for the first time, show tutorial
-    if (!dialogueSettings.showWordByWordAnalysis && !tutorialProgressNotifier.isStepCompleted('pos_color_system')) {
+    if (!dialogueSettings.showWordByWordAnalysis && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pos_color_system')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,
@@ -1843,6 +1839,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
                     return newState;
                   });
 
+                  // Auto-save inventory change for resume functionality
+                  ref.triggerInventorySave();
+
                   // If it's a special item, mark it as received AND hide the speech bubble immediately.
                   if (isSpecial) {
                     ref.read(specialItemReceivedProvider(widget.npcId).notifier).state = true;
@@ -2141,10 +2140,8 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
 
   // Language tools with tutorial support
   Future<void> _showLanguageToolsWithTutorial(BuildContext context) async {
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
-    
     // Show language tools tutorial if this is the first time accessing it
-    if (!tutorialProgressNotifier.isStepCompleted('first_language_tools_tutorial')) {
+    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_language_tools_tutorial')) {
       final tutorialManager = TutorialManager(context: context, ref: ref, npcId: widget.npcId);
       await tutorialManager.startTutorial(TutorialTrigger.firstLanguageTools);
     }
@@ -3494,8 +3491,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     Navigator.of(dialogContext).pop(); // Close translation dialog
     
     // Show tutorial for first-time character tracing users
-    final tutorialProgressNotifier = ref.read(tutorialProgressProvider.notifier);
-    if (!tutorialProgressNotifier.isStepCompleted('character_tracing_tutorial')) {
+    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('character_tracing_tutorial')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,

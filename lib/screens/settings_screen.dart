@@ -25,14 +25,19 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: ModernDesignSystem.creamWhite,
+      backgroundColor: ModernDesignSystem.primaryBackground,
       appBar: AppBar(
         title: Text(
           'Settings',
-          style: AppTheme.textTheme.headlineMedium,
+          style: AppTheme.textTheme.headlineMedium?.copyWith(
+            color: ModernDesignSystem.textPrimary,
+          ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: ModernDesignSystem.primaryBackground,
         elevation: 0,
+        iconTheme: const IconThemeData(
+          color: ModernDesignSystem.textPrimary,
+        ),
       ),
       body: const SafeArea(
         child: SingleChildScrollView(

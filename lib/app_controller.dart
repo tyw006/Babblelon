@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:babblelon/screens/intro_splash_screen.dart';
+import 'package:babblelon/screens/intro_loading_screen.dart';
 import 'package:babblelon/services/auth_service_interface.dart';
 import 'package:babblelon/services/authentication_service.dart';
 import 'package:babblelon/providers/profile_providers.dart';
 import 'package:babblelon/providers/sync_providers.dart' as sync;
 import 'package:babblelon/services/app_lifecycle_service.dart';
+import 'package:babblelon/providers/player_data_providers.dart' as player_providers;
 
 /// App controller that manages the main app flow  
 /// Intro-first approach: Intro Screen → Auth Gate → Email Verification → Profile Setup → Game
@@ -57,10 +58,10 @@ class AppController extends ConsumerWidget {
           );
         }
 
-        // STEP 1: Always show Intro Screen first
-        // IntroSplashScreen will handle navigation to authentication when user clicks "Start Your Journey"
-        debugPrint('🌟 AppController: Showing intro splash screen as entry point');
-        return const IntroSplashScreen();
+        // STEP 1: Always show Loading Screen first
+        // IntroLoadingScreen will preload assets then navigate to IntroSplashScreen
+        debugPrint('🌟 AppController: Showing intro loading screen to preload assets');
+        return const IntroLoadingScreen();
       },
     );
   }
@@ -71,6 +72,10 @@ class AppController extends ConsumerWidget {
     
     // Only sync when user becomes authenticated
     if (authState == AuthState.authenticated) {
+      // Invalidate profile provider to force fresh fetch with new auth state
+      ref.invalidate(player_providers.currentPlayerProfileProvider);
+      debugPrint('🔄 AppController: Profile provider invalidated for fresh data');
+      
       // Use async execution to avoid blocking the UI
       Future.microtask(() async {
         try {

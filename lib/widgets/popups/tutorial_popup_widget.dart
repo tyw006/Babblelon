@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../services/tutorial_service.dart';
+import '../../services/tutorial_sequence_service.dart';
+import '../../theme/modern_design_system.dart' as modern;
 
 class TutorialPopup extends StatefulWidget {
   final TutorialStep step;
   final bool isLastStep;
   final VoidCallback? onSkipEntireTutorial;
   final VoidCallback onNext;
+  final String? tutorialId; // New: ID for completion tracking
+  final VoidCallback? onSkipSingle; // New: Skip just this tutorial
 
   const TutorialPopup({
     super.key,
@@ -13,6 +17,8 @@ class TutorialPopup extends StatefulWidget {
     required this.isLastStep,
     this.onSkipEntireTutorial,
     required this.onNext,
+    this.tutorialId,
+    this.onSkipSingle,
   });
 
   @override
@@ -82,17 +88,10 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.black.withOpacity(0.7),
-            Colors.black.withOpacity(0.5),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: modern.ModernDesignSystem.surfaceGradient,
         borderRadius: BorderRadius.circular(24.0),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -153,7 +152,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
                 slide.content,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(1.0),
+                  color: modern.ModernDesignSystem.textPrimary,
                   fontSize: 15, // Slightly smaller font to save space
                   height: 1.4, // Reduced line height to save space
                 ),
@@ -178,7 +177,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
             slide.content,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(1.0),
+              color: modern.ModernDesignSystem.textPrimary,
               fontSize: 16,
               height: 1.5,
             ),
@@ -204,7 +203,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
             if (element.type == 'icon')
               Icon(
                 element.data as IconData,
-                color: Colors.white.withOpacity(0.9),
+                color: modern.ModernDesignSystem.textSecondary,
                 size: element.size ?? 28,
               ),
             if (element.label != null) ...[
@@ -212,7 +211,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
               Text(
                 element.label!,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: modern.ModernDesignSystem.textTertiary,
                   fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
@@ -256,7 +255,7 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
               image: AssetImage('assets/images/player/capybara_face.png'),
               fit: BoxFit.cover,
             ),
-             border: Border.all(color: Colors.white.withOpacity(0.5), width: 2)
+             border: Border.all(color: modern.ModernDesignSystem.borderPrimary, width: 2)
           ),
         ),
         const SizedBox(height: 12),
@@ -281,53 +280,145 @@ class _TutorialPopupState extends State<TutorialPopup> with SingleTickerProvider
   }
 
   Widget _buildNavigationButtons() {
-    return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-        if (widget.onSkipEntireTutorial != null)
-            TextButton(
-              onPressed: () {
-                widget.onSkipEntireTutorial!();
-                Navigator.of(context).pop();
-            },
-            child: Text(
-              'Skip Tutorial',
-              style: TextStyle(color: Colors.white.withOpacity(0.7)),
-            ),
-            )
-          else
-          const SizedBox(width: 88),
-        ElevatedButton(
-          onPressed: () {
-            if (_isMultiSlide && !_isLastSlide) {
-              // Navigate to next slide
-              _pageController.nextPage(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOutCubic,
-              );
-            } else {
-              // Complete tutorial
-              widget.onNext();
-              Navigator.of(context).pop();
-            }
-          },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Main action buttons row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Skip options (show based on availability)
+            if (widget.onSkipSingle != null || widget.onSkipEntireTutorial != null)
+              _buildSkipButton()
+            else
+              const SizedBox(width: 88),
+            
+            // Main action button
+            ElevatedButton(
+              onPressed: () async {
+                if (_isMultiSlide && !_isLastSlide) {
+                  // Navigate to next slide
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                  );
+                } else {
+                  // Complete tutorial and track completion
+                  if (widget.tutorialId != null) {
+                    final sequenceService = TutorialSequenceService();
+                    await sequenceService.completeTutorial(widget.tutorialId!, 'viewed');
+                  }
+                  
+                  widget.onNext();
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
+                }
+              },
               style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-          ),
-          child: Text(
-            _isMultiSlide && _isLastSlide 
-                ? 'Got it!' 
-                : (!_isMultiSlide && widget.isLastStep) 
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              ),
+              child: Text(
+                _isMultiSlide && _isLastSlide 
                     ? 'Got it!' 
-                    : 'Continue'
+                    : (!_isMultiSlide && widget.isLastStep) 
+                        ? 'Got it!' 
+                        : 'Continue'
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkipButton() {
+    // If both skip options are available, show a dropdown/menu
+    if (widget.onSkipSingle != null && widget.onSkipEntireTutorial != null) {
+      return PopupMenuButton<String>(
+        onSelected: (value) async {
+          if (value == 'skip_single' && widget.tutorialId != null) {
+            final sequenceService = TutorialSequenceService();
+            await sequenceService.skipTutorial(widget.tutorialId!);
+            widget.onSkipSingle!();
+          } else if (value == 'skip_all') {
+            widget.onSkipEntireTutorial!();
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: 'skip_single',
+            child: Text(
+              'Skip this step',
+              style: TextStyle(color: Colors.black.withValues(alpha: 0.8)),
+            ),
           ),
+          PopupMenuItem(
+            value: 'skip_all',
+            child: Text(
+              'Skip all tutorials',
+              style: TextStyle(color: Colors.black.withValues(alpha: 0.8)),
+            ),
           ),
         ],
-    );
+        child: TextButton(
+          onPressed: null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Skip',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+              Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white.withValues(alpha: 0.7),
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      );
+    } 
+    // If only single skip is available
+    else if (widget.onSkipSingle != null) {
+      return TextButton(
+        onPressed: () async {
+          if (widget.tutorialId != null) {
+            final sequenceService = TutorialSequenceService();
+            await sequenceService.skipTutorial(widget.tutorialId!);
+          }
+          widget.onSkipSingle!();
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: Text(
+          'Skip',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+      );
+    }
+    // If only entire tutorial skip is available
+    else {
+      return TextButton(
+        onPressed: () {
+          widget.onSkipEntireTutorial!();
+          Navigator.of(context).pop();
+        },
+        child: Text(
+          'Skip Tutorial',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+      );
+    }
   }
 }

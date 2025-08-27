@@ -175,7 +175,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                     children: [
                       Expanded(
                         child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () => Navigator.of(context).pop(false), // false = exit
                           style: BasePopup.secondaryButtonStyle,
                           child: const Text(
                             'LEAVE BATTLE',
@@ -190,8 +190,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pop();
-                            // TODO: Implement retry battle functionality
+                            Navigator.of(context).pop(true); // true = retry
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,

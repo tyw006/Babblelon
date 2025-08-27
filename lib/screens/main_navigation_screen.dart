@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/navigation_provider.dart';
-import 'package:babblelon/providers/game_providers.dart';
+import 'package:babblelon/providers/tutorial_database_providers.dart';
+import 'package:babblelon/services/tutorial_sequence_service.dart';
 import 'package:babblelon/screens/home_screen.dart';
 import 'package:babblelon/screens/learn_screen.dart';
 import 'package:babblelon/screens/settings_screen.dart';
@@ -38,51 +39,58 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Future<void> _checkAndShowMainTutorial() async {
     if (!mounted) return;
     
-    // Check if tutorial data is already loaded (from preloading in splash screen)
-    final tutorialProgress = ref.read(tutorialProgressProvider);
-    if (tutorialProgress.isNotEmpty) {
-      debugPrint('Tutorial: Tutorial progress already loaded, checking completion status');
-    } else {
-      // Fallback: Brief wait for tutorial sync if preloading didn't complete
-      // Reduced from 3 seconds to 500ms for better UX
-      int attempts = 0;
-      const maxAttempts = 5; // 5 * 100ms = 500ms max wait
+    try {
+      final sequenceService = TutorialSequenceService();
       
-      while (attempts < maxAttempts && mounted) {
-        final currentProgress = ref.read(tutorialProgressProvider);
-        if (currentProgress.isNotEmpty) {
-          debugPrint('Tutorial: Tutorial progress loaded during fallback wait');
-          break;
-        }
+      // Check if navigation tutorials need to be shown
+      final hasIncompleteNavigation = await sequenceService.hasIncompleteTutorials(TutorialCategory.navigation);
+      
+      if (hasIncompleteNavigation && mounted) {
+        debugPrint('MainNavigation: Starting navigation tutorial sequence');
         
-        await Future.delayed(const Duration(milliseconds: 100));
-        attempts++;
-      }
-    }
-    
-    if (!mounted) return;
-    
-    // Now check if main tutorial has been completed using the race-condition-safe provider
-    final tutorialCompleted = ref.read(tutorialCompletedProvider);
-    
-    debugPrint('Tutorial: Tutorial completion status: $tutorialCompleted');
-    
-    if (!tutorialCompleted && mounted) {
-      // Start tutorial immediately
-      final tutorialManager = TutorialManager(context: context, ref: ref);
-      ref.read(tutorialActiveProvider.notifier).state = true;
-      
-      try {
-        await tutorialManager.startTutorial(TutorialTrigger.startAdventure);
-        // Mark tutorial as completed
-        if (mounted) {
-          ref.read(tutorialCompletedProvider.notifier).markCompleted();
+        // Get the next tutorial to show
+        final nextTutorialId = await sequenceService.getNextTutorialInCategory(TutorialCategory.navigation);
+        
+        if (nextTutorialId != null && mounted) {
+          // Start tutorial using the existing TutorialManager system
+          final tutorialManager = TutorialManager(context: context, ref: ref);
+          
+          try {
+            // Map tutorial IDs to TutorialTrigger enum values
+            TutorialTrigger? trigger;
+            switch (nextTutorialId) {
+              case 'blabbybara_intro':
+              case 'home_tour':
+              case 'learn_return':
+                trigger = TutorialTrigger.mainMenu;
+                break;
+              default:
+                trigger = TutorialTrigger.mainMenu;
+            }
+            
+            // Start the tutorial - this will return early if no steps to show
+            debugPrint('MainNavigation: Starting tutorial $nextTutorialId with trigger $trigger');
+            await tutorialManager.startTutorial(trigger);
+            
+            // Only mark as completed if this tutorial sequence actually ran
+            // The tutorial system returns early if no steps, so we'll just mark as completed
+            // Our earlier fix in tutorial_database_service prevents duplicate marking
+            debugPrint('MainNavigation: Marking tutorial $nextTutorialId as completed');
+            await sequenceService.completeTutorial(nextTutorialId, 'viewed');
+            
+            // Update group progress
+            await sequenceService.updateGroupProgress();
+            
+            debugPrint('MainNavigation: Completed tutorial $nextTutorialId');
+          } catch (e) {
+            debugPrint('MainNavigation: Error showing tutorial: $e');
+          }
         }
-      } finally {
-        if (mounted) {
-          ref.read(tutorialActiveProvider.notifier).state = false;
-        }
+      } else {
+        debugPrint('MainNavigation: Navigation tutorials already completed');
       }
+    } catch (e) {
+      debugPrint('MainNavigation: Error checking tutorial status: $e');
     }
   }
 
@@ -134,7 +142,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         elevation: 0,
         currentIndex: currentTab.index,
         onTap: (index) {
-          ref.playButtonSound();
           final tab = AppTab.values[index];
           ref.read(navigationControllerProvider).switchToTab(tab);
         },

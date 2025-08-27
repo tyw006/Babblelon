@@ -87,6 +87,10 @@ class PlayerProfile {
   bool speechTutorialCompleted = false; // Legacy - kept for backwards compatibility
   bool tracingTutorialCompleted = false; // Legacy - kept for backwards compatibility
   
+  // Tutorial group progress tracking
+  String? tutorialGroupsProgressJson; // JSON string: {"navigation": {"progress": 3, "total": 6, "completed": false}}
+  String? tutorialCompletionMethodJson; // JSON string: {"tutorial_id": "viewed|skipped|auto_skipped"}
+  
   // Helper methods for JSON fields
   @ignore
   Map<String, dynamic> get characterCustomization {
@@ -128,6 +132,34 @@ class PlayerProfile {
   
   set tutorialsCompleted(Map<String, dynamic> value) {
     tutorialsCompletedJson = json.encode(value);
+  }
+  
+  @ignore
+  Map<String, dynamic> get tutorialGroupsProgress {
+    if (tutorialGroupsProgressJson?.isEmpty ?? true) return {};
+    try {
+      return json.decode(tutorialGroupsProgressJson!) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+  
+  set tutorialGroupsProgress(Map<String, dynamic> value) {
+    tutorialGroupsProgressJson = json.encode(value);
+  }
+  
+  @ignore
+  Map<String, dynamic> get tutorialCompletionMethod {
+    if (tutorialCompletionMethodJson?.isEmpty ?? true) return {};
+    try {
+      return json.decode(tutorialCompletionMethodJson!) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+  
+  set tutorialCompletionMethod(Map<String, dynamic> value) {
+    tutorialCompletionMethodJson = json.encode(value);
   }
 }
 
@@ -232,4 +264,60 @@ class NpcInteractionState {
   // Sync metadata  
   DateTime? lastSyncedAt;
   bool needsSync = true;
+}
+
+@collection
+class GameSaveState {
+  Id id = Isar.autoIncrement;
+  
+  @Index(unique: true, replace: true)  // Only ONE save per level - auto-replaces old saves
+  late String levelId;
+  
+  String gameType = 'babblelon_game'; // 'babblelon_game' or 'boss_fight'
+  DateTime timestamp = DateTime.now();
+  
+  // BabblelonGame specific state
+  String? playerPositionJson; // JSON: {"x": 100.0, "y": 200.0}
+  String? inventoryJson; // JSON: {"attack": "path1", "defense": "path2"}
+  String? conversationHistoryJson; // JSON: ["message1", "message2", ...] (last 10 only)
+  List<String> cachedAudioPaths = []; // Asset paths for cleanup
+  String? npcStatesJson; // JSON: compressed NPC interaction states
+  
+  // Boss Fight specific state  
+  String? bossId;
+  String? currentTurn; // 'player' or 'boss'
+  int? playerHealth;
+  int? bossHealth;
+  String? usedFlashcardsJson; // JSON: [1, 3, 5] - indices of used flashcards
+  String? activeFlashcardsJson; // JSON: [0, 2, 4, 7] - indices of the 4 cards currently on screen
+  String? revealedCardsJson; // JSON: ["card_0", "card_2"] - IDs of cards that have been revealed/tapped
+  String? battleMetricsJson; // JSON: serialized battle metrics
+  
+  // Resume metadata
+  double progressPercentage = 0.0; // 0.0 to 100.0 for UI display
+  int npcsVisited = 0;
+  int itemsCollected = 0;
+  
+  // Automatic cleanup
+  DateTime? expiresAt; // Auto-expire old saves after 7 days
+  
+  // Helper method to check if save is expired
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  
+  // Helper method to set expiry (7 days from now)
+  void setExpiry() {
+    expiresAt = DateTime.now().add(const Duration(days: 7));
+  }
+  
+  // Inventory data getter
+  @ignore
+  Map<String, String?> get inventoryData {
+    if (inventoryJson?.isEmpty ?? true) return {};
+    try {
+      final decoded = json.decode(inventoryJson!) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value?.toString()));
+    } catch (e) {
+      return {};
+    }
+  }
 } 

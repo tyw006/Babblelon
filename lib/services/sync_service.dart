@@ -343,6 +343,16 @@ class SyncService {
       local.currentStreak = remote['current_streak'] ?? local.currentStreak;
       local.maxStreak = remote['max_streak'] ?? local.maxStreak;
       local.experiencePoints = remote['experience_points'] ?? local.experiencePoints;
+      
+      // ADD MISSING ONBOARDING FIELDS
+      local.onboardingCompleted = remote['onboarding_completed'] ?? local.onboardingCompleted;
+      local.onboardingCompletedAt = remote['onboarding_completed_at'] != null 
+          ? DateTime.parse(remote['onboarding_completed_at']) 
+          : local.onboardingCompletedAt;
+      local.targetLanguage = remote['target_language'] ?? local.targetLanguage;
+      local.selectedCharacter = remote['selected_character'] ?? local.selectedCharacter;
+      local.age = remote['age'] ?? local.age;
+      
       local.supabaseId = remote['id'];
       local.lastSyncedAt = remoteUpdatedAt;
       local.needsSync = false;

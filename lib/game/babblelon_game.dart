@@ -37,19 +37,39 @@ class BabblelonGame extends FlameGame with
   // Singleton implementation
   static BabblelonGame? _instance;
   static BabblelonGame get instance {
-    return _instance ??= BabblelonGame._internal();
+    debugPrint('🎯 BabblelonGame: instance getter called');
+    if (_instance == null) {
+      debugPrint('🎯 BabblelonGame: Creating new instance');
+      _instance = BabblelonGame._internal();
+      debugPrint('🎯 BabblelonGame: New instance created: ${_instance.runtimeType}');
+    } else {
+      debugPrint('🎯 BabblelonGame: Returning existing instance: ${_instance.runtimeType}');
+    }
+    return _instance!;
   }
   
   // Private constructor for singleton
-  BabblelonGame._internal();
+  BabblelonGame._internal() {
+    debugPrint('🎯 BabblelonGame: _internal() constructor called');
+  }
   
   // Factory constructor that returns the singleton instance
-  factory BabblelonGame() => instance;
+  factory BabblelonGame() {
+    debugPrint('🎯 BabblelonGame: factory constructor called');
+    return instance;
+  }
   
   // Reset singleton for testing or cleanup
   static void resetInstance() {
-    _instance?.onRemove();
-    _instance = null;
+    debugPrint('🎯 BabblelonGame: resetInstance() called');
+    if (_instance != null) {
+      debugPrint('🎯 BabblelonGame: Removing existing instance');
+      _instance!.onRemove();
+      _instance = null;
+      debugPrint('🎯 BabblelonGame: Instance reset complete');
+    } else {
+      debugPrint('🎯 BabblelonGame: No instance to reset');
+    }
   }
   
   // UI Components
@@ -99,27 +119,36 @@ class BabblelonGame extends FlameGame with
 
   @override
   Future<void> onLoad() async {
+    debugPrint('🎯 BabblelonGame: onLoad() called');
     await super.onLoad(); // Call super.onLoad first
+    debugPrint('🎯 BabblelonGame: super.onLoad() completed');
     
     // Initialize app lifecycle manager
+    debugPrint('🎯 BabblelonGame: Initializing app lifecycle manager');
     ref.read(appLifecycleManagerProvider);
     
     // Add app lifecycle observer
+    debugPrint('🎯 BabblelonGame: Adding app lifecycle observer');
     WidgetsBinding.instance.addObserver(this);
     
     // Set gameResolution for iPhone Plus portrait
+    debugPrint('🎯 BabblelonGame: Setting game resolution');
     gameResolution = Vector2(414, 896); 
     // camera.viewport = FixedResolutionViewport(resolution: gameResolution); // Remove this line
     
     // Initialize World and CameraComponent
+    debugPrint('🎯 BabblelonGame: Creating world and camera components');
     gameWorld = World();
     cameraComponent = CameraComponent(world: gameWorld);
     cameraComponent.viewport = FixedResolutionViewport(resolution: gameResolution); // Set viewport on custom camera
     cameraComponent.viewfinder.anchor = Anchor.topLeft;
     addAll([cameraComponent, gameWorld]);
+    debugPrint('🎯 BabblelonGame: World and camera added successfully');
 
+    debugPrint('🎯 BabblelonGame: Loading background image');
     final backgroundImageAsset = await images.load('background/yaowarat_bg2.png');
     final backgroundSprite = Sprite(backgroundImageAsset);
+    debugPrint('🎯 BabblelonGame: Background image loaded successfully');
     
     final double imgAspectRatio = backgroundSprite.srcSize.x / backgroundSprite.srcSize.y;
     final double bgHeight = gameResolution.y; // Fill the screen vertically
@@ -136,6 +165,7 @@ class BabblelonGame extends FlameGame with
     gameWorld.add(background..priority = -2); // Add background to the world
     
     // Get selected character from Isar database or default to 'male'
+    debugPrint('🎯 BabblelonGame: Loading player character data');
     final isarService = IsarService();
     final userId = SupabaseService.client.auth.currentUser?.id;
     String selectedCharacter = 'male'; // Default character
@@ -144,18 +174,25 @@ class BabblelonGame extends FlameGame with
       final profile = await isarService.getPlayerProfile(userId);
       selectedCharacter = profile?.selectedCharacter ?? 'male';
     }
+    debugPrint('🎯 BabblelonGame: Selected character: $selectedCharacter');
     
+    debugPrint('🎯 BabblelonGame: Creating player component');
     player = PlayerComponent(character: selectedCharacter);
     player.backgroundWidth = backgroundWidth; // Pass background width to player
     gameWorld.add(player); // Add player to the world
+    debugPrint('🎯 BabblelonGame: Player component added to world');
 
     // Add capybara companion after player is created
+    debugPrint('🎯 BabblelonGame: Creating capybara companion');
     capybara = CapybaraCompanion(player: player);
     capybara.backgroundWidth = backgroundWidth;
     gameWorld.add(capybara);
+    debugPrint('🎯 BabblelonGame: Capybara companion added to world');
 
     // --- Add all NPCs from the data map ---
+    debugPrint('🎯 BabblelonGame: Adding NPCs to the world');
     await _addNpcs();
+    debugPrint('🎯 BabblelonGame: NPCs added successfully');
     // --- End NPC addition ---
 
     // Define the boss for this level
@@ -221,7 +258,6 @@ class BabblelonGame extends FlameGame with
     
     // Show game loading tutorial if this is the first time entering a game
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
       final context = buildContext;
       if (context != null) {
         final tutorialManager = TutorialManager(
@@ -229,17 +265,19 @@ class BabblelonGame extends FlameGame with
           ref: ref,
         );
         
-        if (!tutorialProgressNotifier.isStepCompleted('game_loading_intro')) {
+        if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('game_loading_intro')) {
           // Show the game loading/navigation tutorial
           await tutorialManager.startTutorial(TutorialTrigger.firstGameEntry);
         }
         
         // Show cultural intro tutorial if this is the first time in a cultural level
-        if (!tutorialProgressNotifier.isStepCompleted('cultural_intro')) {
+        if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('cultural_intro')) {
           await tutorialManager.startTutorial(TutorialTrigger.npcInteraction);
         }
       }
     });
+    
+    debugPrint('🎯 BabblelonGame: onLoad() completed successfully');
   }
   
   Future<void> _addNpcs() async {
@@ -389,8 +427,7 @@ class BabblelonGame extends FlameGame with
       // Only show if game has finished loading to prevent blocking asset loading
       final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
       if (gameLoadingCompleted) {
-        final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
-        if (!tutorialProgressNotifier.isStepCompleted('first_npc_interaction')) {
+        if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_npc_interaction')) {
           final context = buildContext;
           if (context != null) {
             final tutorialManager = TutorialManager(
@@ -444,9 +481,8 @@ class BabblelonGame extends FlameGame with
     if (distance < tutorialDistance && _lastPortalDistance >= tutorialDistance) {
       final gameLoadingCompleted = ref.read(gameLoadingCompletedProvider);
       if (gameLoadingCompleted) {
-        final tutorialProgressNotifier = ref.read(tutorial_db.tutorialProgressProvider.notifier);
         // Show portal approach tutorial if never shown
-        if (!tutorialProgressNotifier.isStepCompleted('portal_approach')) {
+        if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('portal_approach')) {
           shouldTriggerTutorial = true;
         }
       }
