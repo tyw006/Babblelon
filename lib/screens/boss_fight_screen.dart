@@ -1429,9 +1429,9 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                               padding: EdgeInsets.zero,
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 2.2,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
+                                childAspectRatio: 2.4,
+                                mainAxisSpacing: 4,
+                                crossAxisSpacing: 4,
                               ),
                               itemCount: cards.length,
                               shrinkWrap: true,
@@ -1446,6 +1446,7 @@ class _BossFightScreenState extends ConsumerState<BossFightScreen> with TickerPr
                                   isRevealed: isRevealed,
                                   isFlippable: false, // Prevent revealing from grid
                                   showAudioButton: false,
+                                  isBossFightContext: true, // Enable boss fight styling
                                   onTap: () {
                                     ref.playButtonSound();
                                     ref.read(tappedCardProvider.notifier).state = card;
@@ -2455,6 +2456,7 @@ class _InteractiveFlashcardDialogState
                                     isRevealed: _isRevealed,
                                     isFlippable: true, // Allow flipping in the dialog
                                     showAudioButton: true, // <-- Ensure audio icon appears in dialog
+                                    isDialog: true, // Use larger font for dialog context
                                     onReveal: () {
                                       if (!_isRevealed) {
                                         setState(() => _isRevealed = true);
