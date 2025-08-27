@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:lottie/lottie.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
@@ -430,7 +430,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Core Performance Metrics
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               children: [
                 Row(
@@ -497,7 +501,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         children: [
           Text(
             'LANGUAGE REPORT',
-            style: AppStyles.subtitleTextStyle.copyWith(
+            style: ModernDesignSystem.headlineMedium.copyWith(
               fontSize: 18,
               color: Colors.green,
             ),
@@ -508,7 +512,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Average Pronunciation
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -518,7 +526,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     Expanded(
                       child: Text(
                         'Average Pronunciation:',
-                        style: AppStyles.bodyTextStyle,
+                        style: ModernDesignSystem.bodyMedium,
                       ),
                     ),
                     Expanded(
@@ -535,7 +543,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                           return Text(
                             scoreText,
                             textAlign: TextAlign.end,
-                            style: AppStyles.bodyTextStyle.copyWith(
+                            style: ModernDesignSystem.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               color: _getScoreColor(avgPronScore),
                             ),
@@ -565,7 +573,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Vocabulary Mastery
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -574,7 +586,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   children: [
                     Text(
                       'Level Vocabulary Mastered:',
-                      style: AppStyles.bodyTextStyle,
+                      style: ModernDesignSystem.bodyMedium,
                     ),
                     AnimatedBuilder(
                       animation: _numberAnimation,
@@ -583,7 +595,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                         final percentage = ((masteredWords / totalLevelWords) * 100).toInt();
                         return Text(
                           '$animatedMastered/$totalLevelWords ($percentage%)',
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
@@ -608,7 +620,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   const SizedBox(height: 12),
                   Text(
                     'New Words Acquired:',
-                    style: AppStyles.smallTextStyle.copyWith(
+                    style: ModernDesignSystem.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.green.shade300,
                     ),
@@ -627,7 +639,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                         ),
                         child: Text(
                           word,
-                          style: AppStyles.smallTextStyle.copyWith(
+                          style: ModernDesignSystem.bodySmall.copyWith(
                             color: Colors.green.shade300,
                             fontSize: 12,
                           ),
@@ -645,13 +657,17 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Words to Practice (Expandable)
           if (wordsToePractice.isNotEmpty)
             Container(
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   title: Text(
                     'Words to Practice:',
-                    style: AppStyles.bodyTextStyle.copyWith(
+                    style: ModernDesignSystem.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -669,13 +685,13 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                               children: [
                                 Text(
                                   wordData['word'] as String,
-                                  style: AppStyles.bodyTextStyle.copyWith(
+                                  style: ModernDesignSystem.bodyMedium.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
                                   'Avg: ${wordData['score']}%',
-                                  style: AppStyles.smallTextStyle.copyWith(
+                                  style: ModernDesignSystem.bodySmall.copyWith(
                                     color: _getScoreColor(wordData['score'] as double),
                                   ),
                                 ),
@@ -736,7 +752,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
         children: [
           Text(
             'PROGRESS & REWARDS',
-            style: AppStyles.subtitleTextStyle.copyWith(
+            style: ModernDesignSystem.headlineMedium.copyWith(
               fontSize: 18,
               color: Colors.purple,
             ),
@@ -747,13 +763,17 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           // Rewards Section
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Rewards:',
-                  style: AppStyles.bodyTextStyle.copyWith(fontWeight: FontWeight.bold),
+                  style: ModernDesignSystem.bodyMedium.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -787,7 +807,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                     const SizedBox(width: 8),
                     Text(
                       'Daily Streak: Day ${dailyStreak['current']} of ${dailyStreak['target']}',
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -799,7 +819,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                 // Weekly Goal Progress
                 Text(
                   'Weekly Goal: ${weeklyProgress['description']}',
-                  style: AppStyles.bodyTextStyle,
+                  style: ModernDesignSystem.bodyMedium,
                 ),
                 const SizedBox(height: 8),
                 AnimatedBuilder(
@@ -819,11 +839,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                           children: [
                             Text(
                               '${weeklyProgress['current']}/${weeklyProgress['target']}',
-                              style: AppStyles.smallTextStyle,
+                              style: ModernDesignSystem.bodySmall,
                             ),
                             Text(
                               '${(progress * 100).toInt()}%',
-                              style: AppStyles.smallTextStyle.copyWith(
+                              style: ModernDesignSystem.bodySmall.copyWith(
                                 color: Colors.purple,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -844,7 +864,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           if (socialBenchmark != null)
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Row(
                 children: [
                   const Icon(Icons.trending_up, color: Colors.cyan, size: 24),
@@ -852,7 +876,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   Expanded(
                     child: Text(
                       socialBenchmark,
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         color: Colors.cyan.shade200,
                         fontStyle: FontStyle.italic,
                       ),
@@ -868,7 +892,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
           if (nextTip != null)
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -878,7 +906,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                       const SizedBox(width: 8),
                       Text(
                         'Next Time, Try This!',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.green,
                         ),
@@ -888,7 +916,7 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   const SizedBox(height: 8),
                   Text(
                     nextTip,
-                    style: AppStyles.bodyTextStyle.copyWith(
+                    style: ModernDesignSystem.bodyMedium.copyWith(
                       color: Colors.green.shade200,
                     ),
                   ),
@@ -1000,14 +1028,14 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
                   children: [
                     Text(
                       value,
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         color: color,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       label,
-                      style: AppStyles.smallTextStyle.copyWith(fontSize: 11),
+                      style: ModernDesignSystem.bodySmall.copyWith(fontSize: 11),
                     ),
                   ],
                 ),
@@ -1022,7 +1050,11 @@ class _VictoryReportDialogState extends ConsumerState<VictoryReportDialog>
   Widget _buildPageIndicator() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+            color: ModernDesignSystem.primarySurface,
+            borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+            border: Border.all(color: ModernDesignSystem.borderPrimary),
+          ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(3, (index) {

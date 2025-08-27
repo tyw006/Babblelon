@@ -365,6 +365,7 @@ class GameSaveService {
           currentTurn: turn,
           playerHealth: maxPlayerHP, // Reset to full HP
           bossHealth: maxBossHP, // Reset to full HP
+          inventory: getInventory(existingSave), // Preserve inventory from existing save
           usedFlashcards: clearFlashcards ? [] : getUsedFlashcards(existingSave),
           activeFlashcards: [], // Clear active flashcards for fresh battle
           revealedCards: <String>{}, // Clear revealed cards

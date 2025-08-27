@@ -18,7 +18,7 @@ import '../game/babblelon_game.dart';
 import '../models/npc_data.dart'; // Using the new unified NPC data model
 import '../models/local_storage_models.dart'; // For MasteredPhrase
 import '../providers/game_providers.dart'; // Ensure this import is present
-import '../providers/tutorial_database_providers.dart' as tutorial_db;
+import '../providers/tutorial_cache_provider.dart';
 import '../services/vocabulary_detection_service.dart'; // For custom word detection
 import '../widgets/popups/base_popup_widget.dart';
 import '../services/isar_service.dart'; // For database operations
@@ -28,6 +28,7 @@ import '../widgets/npc_response_modal.dart';
 import 'dialogue_overlay/dialogue_models.dart';
 import '../services/posthog_service.dart';
 import '../services/tutorial_service.dart';
+import '../theme/modern_design_system.dart' as modern;
 import '../services/api_auth_service.dart';
 
 // --- Sanitization Helper ---
@@ -357,7 +358,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       final hasEncounteredNpc = ref.read(firstNpcDialogueEncounteredProvider);
       
       // Only show tutorial if this is the first NPC ever and tutorial hasn't been completed
-      if (!hasEncounteredNpc && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_dialogue_session')) {
+      if (!hasEncounteredNpc && !ref.read(tutorialCacheProvider).isTutorialCompleted('first_dialogue_session')) {
         // Mark that we've now encountered our first NPC
         ref.read(firstNpcDialogueEncounteredProvider.notifier).state = true;
         
@@ -484,6 +485,9 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       },
     );
 
+    // Trigger save for NPC interaction to mark level as visited
+    // Note: This will be handled by the game screen's provider system
+
     _replayPlayer.stop(); // Stop any playing audio on exit
     _audioRecorder.dispose();
     _animationController?.dispose();
@@ -535,16 +539,15 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     }
 
     // Check if this is the first time using voice interaction and show tutorial
-    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('voice_setup_guide') && 
-        !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pronunciation_confidence_guide')) {
-      // Show voice interaction tutorials for first-time users
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('voice_setup_guide')) {
+      // Show voice setup tutorial for first-time users
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,
         npcId: widget.npcId,
       );
       
-      // Start both voice-related tutorials
+      // Start voice setup tutorial
       await tutorialManager.startTutorial(TutorialTrigger.firstVoiceInteraction);
     }
 
@@ -911,7 +914,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
             int newCharm = (oldCharm + charmDelta).clamp(0, 100);
 
             // Show tutorials for charm milestones
-            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('charm_thresholds_explained')) {
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorialCacheProvider).isTutorialCompleted('charm_thresholds_explained')) {
               // First time reaching 60 charm - show milestone tutorial
               final tutorialManager = TutorialManager(
                 context: context,
@@ -922,7 +925,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               tutorialManager.startTutorial(TutorialTrigger.firstCharmMilestone);
             }
 
-            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('item_giving_tutorial')) {
+            if (newCharm >= 60 && oldCharm < 60 && !ref.read(tutorialCacheProvider).isTutorialCompleted('item_giving_tutorial')) {
               // First time eligible for an item - show item eligibility tutorial
               final tutorialManager = TutorialManager(
                 context: context,
@@ -937,7 +940,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
               justReachedMaxCharm = true;
               
               // Show special item tutorial if they haven't seen it
-              if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('special_item_celebration')) {
+              if (!ref.read(tutorialCacheProvider).isTutorialCompleted('special_item_celebration')) {
                 final tutorialManager = TutorialManager(
                   context: context,
                   ref: ref,
@@ -1234,7 +1237,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final dialogueSettings = ref.read(dialogueSettingsProvider);
     
     // If turning ON transliteration for the first time, show tutorial
-    if (!dialogueSettings.showTransliteration && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('transliteration_system')) {
+    if (!dialogueSettings.showTransliteration && !ref.read(tutorialCacheProvider).isTutorialCompleted('transliteration_system')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,
@@ -1253,7 +1256,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     final dialogueSettings = ref.read(dialogueSettingsProvider);
     
     // If turning ON word analysis for the first time, show tutorial
-    if (!dialogueSettings.showWordByWordAnalysis && !ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pos_color_system')) {
+    if (!dialogueSettings.showWordByWordAnalysis && !ref.read(tutorialCacheProvider).isTutorialCompleted('pos_color_system')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,
@@ -1871,17 +1874,93 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text("Max Charm Reached!"),
-          content: Text("You have reached the maximum charm level with ${_npcData.name}! You can now request a special item."),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      color: modern.ModernDesignSystem.primaryAccent,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Max Charm Reached!",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content
+                Text(
+                  "You have reached the maximum charm level with ${_npcData.name}! You can now request a special item.",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: modern.ModernDesignSystem.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: modern.ModernDesignSystem.primaryAccent,
+                      foregroundColor: modern.ModernDesignSystem.textOnColor,
+                      elevation: 8,
+                      shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: modern.ModernDesignSystem.textOnColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -1892,20 +1971,89 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text("Charm Changed!"),
-          content: _CharmChangeDialogContent(
-            charmDelta: charmDelta,
-            charmReason: charmReason,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      charmDelta > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: charmDelta > 0 ? Colors.green : Colors.red,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Charm Changed!",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content
+                _CharmChangeDialogContent(
+                  charmDelta: charmDelta,
+                  charmReason: charmReason,
+                ),
+                const SizedBox(height: 24),
+                
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: modern.ModernDesignSystem.primaryAccent,
+                      foregroundColor: modern.ModernDesignSystem.textOnColor,
+                      elevation: 8,
+                      shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: modern.ModernDesignSystem.textOnColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -2118,21 +2266,91 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
       context: context,
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Give Item'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 500,
-            child: _buildItemGivingTab(dialogContext, targetLanguage),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            decoration: BoxDecoration(
+              gradient: modern.ModernDesignSystem.surfaceGradient,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      Icons.card_giftcard,
+                      color: modern.ModernDesignSystem.primaryAccent,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Give Item',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: modern.ModernDesignSystem.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Content area
+                Expanded(
+                  child: SizedBox(
+                    width: double.maxFinite,
+                    child: _buildItemGivingTab(dialogContext, targetLanguage),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Cancel button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: modern.ModernDesignSystem.textPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: const BorderSide(
+                        color: modern.ModernDesignSystem.borderPrimary,
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -2141,7 +2359,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
   // Language tools with tutorial support
   Future<void> _showLanguageToolsWithTutorial(BuildContext context) async {
     // Show language tools tutorial if this is the first time accessing it
-    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_language_tools_tutorial')) {
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('first_language_tools_tutorial')) {
       final tutorialManager = TutorialManager(context: context, ref: ref, npcId: widget.npcId);
       await tutorialManager.startTutorial(TutorialTrigger.firstLanguageTools);
     }
@@ -3491,7 +3709,7 @@ class _DialogueOverlayState extends ConsumerState<DialogueOverlay> with TickerPr
     Navigator.of(dialogContext).pop(); // Close translation dialog
     
     // Show tutorial for first-time character tracing users
-    if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('character_tracing_tutorial')) {
+    if (!ref.read(tutorialCacheProvider).isTutorialCompleted('character_tracing_tutorial')) {
       final tutorialManager = TutorialManager(
         context: context,
         ref: ref,

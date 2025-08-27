@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:babblelon/models/supabase_models.dart';
 import 'package:babblelon/services/isar_service.dart';
@@ -14,6 +15,7 @@ import '../services/background_audio_service.dart';
 import '../models/popup_models.dart';
 import 'package:babblelon/services/posthog_service.dart';
 import '../services/game_save_service.dart';
+import '../models/npc_data.dart';
 
 part 'game_providers.g.dart';
 
@@ -276,6 +278,8 @@ class DialogueSettings extends _$DialogueSettings {
 // --- Dialogue Overlay Visibility ---
 final dialogueOverlayVisibilityProvider = StateProvider<bool>((ref) => false);
 
+// Dialogue close tracking is handled directly in GameScreen when dialogueOverlayVisibilityProvider changes
+
 // Provider to hold the active NPC ID for dialogue
 final activeNpcIdProvider = StateProvider<String?>((ref) => null);
 
@@ -344,19 +348,47 @@ extension InventoryProviderExtension on WidgetRef {
       final inventory = read(inventoryProvider);
       final itemCount = inventory.values.where((item) => item != null).length;
       
-      if (itemCount > 0) {
-        final saveService = GameSaveService();
-        await saveService.saveGameState(
-          levelId: 'yaowarat_level', // Default level ID
-          gameType: 'babblelon_game',
-          inventory: inventory,
-          itemsCollected: itemCount,
-          progressPercentage: (itemCount / 2) * 50, // 50% progress for full inventory
-        );
-        debugPrint('💾 GameProviders: Auto-saved inventory changes (${itemCount} items)');
-      }
+      // Save regardless of item count to track level entry
+      final saveService = GameSaveService();
+      await saveService.saveGameState(
+        levelId: 'yaowarat_level', // Default level ID
+        gameType: 'babblelon_game',
+        inventory: inventory,
+        itemsCollected: itemCount,
+        progressPercentage: itemCount > 0 ? (itemCount / 2) * 50 : 5.0, // Minimum 5% progress for level entry
+      );
+      debugPrint('💾 GameProviders: Auto-saved inventory state (${itemCount} items)');
     } catch (e) {
       debugPrint('❌ GameProviders: Failed to auto-save inventory: $e');
+    }
+  }
+
+  /// Trigger save when NPC interaction occurs (tracks progress without items)
+  Future<void> triggerNpcInteractionSave() async {
+    try {
+      final inventory = read(inventoryProvider);
+      final itemCount = inventory.values.where((item) => item != null).length;
+      
+      // Count how many NPCs have been visited by checking if they have any special items received
+      int npcsVisited = 0;
+      for (final npcId in npcDataMap.keys) {
+        if (read(specialItemReceivedProvider(npcId))) {
+          npcsVisited++;
+        }
+      }
+      
+      final saveService = GameSaveService();
+      await saveService.saveGameState(
+        levelId: 'yaowarat_level', // Default level ID
+        gameType: 'babblelon_game',
+        inventory: inventory,
+        itemsCollected: itemCount,
+        npcsVisited: npcsVisited,
+        progressPercentage: math.max(10.0, (itemCount / 2) * 50), // Minimum 10% for NPC interaction
+      );
+      debugPrint('💾 GameProviders: Auto-saved NPC interaction progress ($npcsVisited NPCs visited, $itemCount items)');
+    } catch (e) {
+      debugPrint('❌ GameProviders: Failed to auto-save NPC interaction: $e');
     }
   }
 }

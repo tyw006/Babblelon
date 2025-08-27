@@ -7,9 +7,10 @@ import 'package:babblelon/services/isar_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:babblelon/services/posthog_service.dart';
-import 'package:babblelon/theme/app_theme.dart';
+import 'package:babblelon/theme/unified_dark_theme.dart';
 import 'package:babblelon/app_controller.dart';
 import 'package:babblelon/providers/motion_preferences_provider.dart';
+import 'package:babblelon/providers/tutorial_cache_provider.dart';
 import 'package:provider/provider.dart' as provider;
 import 'dart:io';
 
@@ -109,14 +110,17 @@ void main() async {
   await Sentry.captureException(StateError('This is a sample exception from production version.'));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize tutorial cache listening to auth state changes
+    ref.watch(tutorialCacheInitializerProvider);
+    
     return MaterialApp(
       title: 'Babblelon',
-      theme: AppTheme.lightTheme, // Use cartoon unified theme
+      theme: UnifiedDarkTheme.darkTheme, // Use unified dark theme
       home: const AppController(), // Production app controller with onboarding flow
     );
   }

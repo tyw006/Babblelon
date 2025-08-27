@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/game_providers.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 
 class Flashcard extends ConsumerStatefulWidget {
   final Vocabulary vocabulary;
@@ -187,7 +187,11 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildFront() {
     return Container(
-      decoration: AppStyles.flashcardDecoration,
+      decoration: BoxDecoration(
+        color: ModernDesignSystem.primarySurface,
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        border: Border.all(color: ModernDesignSystem.borderPrimary),
+      ),
       child: Stack(
         children: [
           Center(
@@ -198,7 +202,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
-                style: AppStyles.subtitleTextStyle,
+                style: ModernDesignSystem.headlineMedium,
                 softWrap: true,
               ),
             ),
@@ -222,7 +226,11 @@ class _FlashcardState extends ConsumerState<Flashcard>
 
   Widget _buildBack() {
     return Container(
-      decoration: AppStyles.flashcardDecoration,
+      decoration: BoxDecoration(
+        color: ModernDesignSystem.primarySurface,
+        borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+        border: Border.all(color: ModernDesignSystem.borderPrimary),
+      ),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -243,14 +251,14 @@ class _FlashcardState extends ConsumerState<Flashcard>
                               child: Text(
                                 widget.vocabulary.thai,
                                 textAlign: TextAlign.center,
-                                style: AppStyles.flashcardThaiTextStyle,
+                                style: ModernDesignSystem.displayMedium,
                               ),
                             ),
                             if (widget.showAudioButton && widget.vocabulary.audioPath != null && widget.vocabulary.audioPath!.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8.0),
                                 child: IconButton(
-                                  icon: const Icon(Icons.volume_up, color: AppStyles.textColor),
+                                  icon: const Icon(Icons.volume_up, color: ModernDesignSystem.textPrimary),
                                   onPressed: () async {
                                     try {
                                       // Use the specific audio path from the vocabulary
@@ -282,7 +290,7 @@ class _FlashcardState extends ConsumerState<Flashcard>
                   offset: Offset(0, _bounceAnimation.value),
                   child: const Icon(
                     Icons.keyboard_arrow_down,
-                    color: AppStyles.indicatorColor,
+                    color: ModernDesignSystem.textTertiary,
                     size: 28,
                   ),
                 ),

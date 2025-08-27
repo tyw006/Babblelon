@@ -14,7 +14,7 @@ import '../models/npc_data.dart';
 import '../services/api_service.dart';
 import '../overlays/dialogue_overlay/dialogue_models.dart';
 import '../providers/game_providers.dart';
-import '../providers/tutorial_database_providers.dart' as tutorial_db;
+import '../providers/tutorial_cache_provider.dart';
 import '../services/tutorial_service.dart';
 import '../theme/unified_dark_theme.dart';
 import 'recording_animation_button.dart';
@@ -231,7 +231,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
       // Check and request microphone permission when modal opens
       _checkAndRequestMicrophonePermission();
       
-      if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('first_npc_response_tutorial')) {
+      if (!ref.read(tutorialCacheProvider).isTutorialCompleted('first_npc_response_tutorial')) {
         final tutorialManager = TutorialManager(
           context: context,
           ref: ref,
@@ -610,18 +610,6 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
 
         setState(() {
           _modalState = NPCResponseModalState.results;
-        });
-
-        // Show pronunciation confidence guide tutorial if this is the first time seeing confidence scores
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted('pronunciation_confidence_guide')) {
-            final tutorialManager = TutorialManager(
-              context: context,
-              ref: ref,
-              npcId: widget.npcData.name.toLowerCase(),
-            );
-            await tutorialManager.startTutorial(TutorialTrigger.firstVoiceInteraction);
-          }
         });
 
         // Auto-scroll to bottom to show results
@@ -1397,7 +1385,7 @@ class _NPCResponseModalState extends ConsumerState<NPCResponseModal>
                 fontSize: 22, // Larger text for full width
                 fontWeight: FontWeight.bold,
                 color: _transcriptionResult!.transcription.isNotEmpty 
-                    ? Colors.black87
+                    ? Colors.white
                     : Colors.white.withOpacity(0.6),
                 fontStyle: _transcriptionResult!.transcription.isNotEmpty 
                     ? FontStyle.normal 

@@ -5,7 +5,6 @@ import 'package:babblelon/providers/navigation_provider.dart';
 import 'package:babblelon/widgets/universal_stats_row.dart';
 import 'package:babblelon/models/local_storage_models.dart';
 import 'package:babblelon/services/isar_service.dart';
-import 'package:babblelon/theme/app_theme.dart';
 import 'package:babblelon/providers/player_data_providers.dart' as player_providers;
 import 'package:babblelon/utils/language_utils.dart';
 
@@ -215,7 +214,7 @@ class _WelcomeSection extends ConsumerWidget {
                   debugPrint('🔍 HomeScreen: Display name resolved to: $displayName');
                   return Text(
                     'Welcome back, $displayName!',
-                    style: AppTheme.textTheme.headlineSmall?.copyWith(
+                    style: modern.ModernDesignSystem.headlineMedium.copyWith(
                       color: modern.ModernDesignSystem.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
@@ -223,14 +222,14 @@ class _WelcomeSection extends ConsumerWidget {
                 },
                 loading: () => Text(
                   'Welcome back!',
-                  style: AppTheme.textTheme.headlineSmall?.copyWith(
+                  style: modern.ModernDesignSystem.headlineMedium.copyWith(
                     color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 error: (error, stack) => Text(
                   'Welcome back!',
-                  style: AppTheme.textTheme.headlineSmall?.copyWith(
+                  style: modern.ModernDesignSystem.headlineMedium.copyWith(
                     color: modern.ModernDesignSystem.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
@@ -285,7 +284,7 @@ class _DetailedMetrics extends ConsumerWidget {
       children: [
         Text(
           'Learning Progress',
-          style: AppTheme.textTheme.titleLarge?.copyWith(
+          style: modern.ModernDesignSystem.headlineMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: modern.ModernDesignSystem.textPrimary,
           ),
@@ -408,7 +407,7 @@ class _MetricCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 title,
-                style: AppTheme.textTheme.bodySmall?.copyWith(
+                style: modern.ModernDesignSystem.bodySmall?.copyWith(
                   color: modern.ModernDesignSystem.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -418,7 +417,7 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: AppTheme.textTheme.titleLarge?.copyWith(
+            style: modern.ModernDesignSystem.headlineMedium?.copyWith(
               color: color,
               fontWeight: FontWeight.w800,
               fontSize: 18,
@@ -426,7 +425,7 @@ class _MetricCard extends StatelessWidget {
           ),
           Text(
             subtitle,
-            style: AppTheme.textTheme.bodySmall?.copyWith(
+            style: modern.ModernDesignSystem.bodySmall?.copyWith(
               color: modern.ModernDesignSystem.textMuted,
               fontSize: 10,
             ),

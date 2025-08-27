@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/game_providers.dart';
-import '../providers/tutorial_database_providers.dart' as tutorial_db;
+import '../providers/tutorial_cache_provider.dart';
 import '../models/npc_data.dart';
 import '../widgets/popups/tutorial_popup_widget.dart';
 
@@ -125,7 +125,41 @@ class TutorialManager {
   bool _skipEntireTutorial = false;
   TutorialTrigger? _currentTutorialTrigger; // Track current tutorial trigger
   
+  // Session-based tutorial checking to prevent repeated checks
+  static final Set<String> _checkedThisSession = <String>{};
+  
   TutorialManager({required this.context, required this.ref, this.npcId});
+  
+  /// Check if tutorial should be shown, using session-based caching to prevent repeated checks
+  bool shouldShowTutorial(String tutorialId) {
+    // If we've already checked this tutorial in this session, don't check again
+    if (_checkedThisSession.contains(tutorialId)) {
+      return false;
+    }
+    
+    // Mark as checked for this session
+    _checkedThisSession.add(tutorialId);
+    
+    // Check actual completion status
+    final isCompleted = ref.read(tutorialCacheProvider).isTutorialCompleted(tutorialId);
+    return !isCompleted;
+  }
+  
+  /// Clear session cache (called on app restart or auth state change)
+  static void clearSessionCache() {
+    _checkedThisSession.clear();
+  }
+  
+  /// Convenience method to check and potentially show a tutorial
+  /// Returns true if tutorial was shown, false if skipped
+  Future<bool> checkAndShowTutorial(String tutorialId, TutorialTrigger trigger) async {
+    if (!shouldShowTutorial(tutorialId)) {
+      return false;
+    }
+    
+    await startTutorial(trigger);
+    return true;
+  }
 
   static final List<TutorialStep> tutorialSteps = [
     // Home navigation tutorial - kept as individual steps to preserve navigation functionality
@@ -175,68 +209,42 @@ class TutorialManager {
       targetTab: AppTab.learn,
       delay: Duration(milliseconds: 500),
     ),
-    // Dialogue system tutorials (split into slides)
-    TutorialStep(
-      id: 'charm_explanation',
-      title: "Let me explain Charm!",
-      content: "That colorful bar shows your charm with this vendor!",
+    // Charm and Items System - Complete Guide (consolidated tutorial)
+    const TutorialStep(
+      id: 'charm_and_items_complete_guide',
+      title: "The Charm & Items System!",
+      content: "Welcome to BabbleOn's charm and items system! This comprehensive guide will teach you everything about building relationships with NPCs and earning powerful battle items.",
       trigger: TutorialTrigger.firstDialogue,
+      headerIcon: Icons.favorite,
       slides: [
         TutorialSlide(
-          title: "How Charm Works",
-          content: "Better Thai pronunciation = Higher charm!\nClear speech and good word choice impress vendors.",
+          title: "What is Charm?",
+          content: "That colorful bar shows your charm with this vendor!\n\nBetter Thai pronunciation = Higher charm!\nClear speech and good word choice impress vendors. It's like making friends - they want to help you succeed!",
           headerIcon: Icons.favorite,
         ),
         TutorialSlide(
-          title: "Charm = Rewards!",
-          content: "Higher charm means better rewards!\nIt's like making friends - they want to help you succeed!",
-          headerIcon: Icons.card_giftcard,
-        ),
-      ],
-    ),
-    TutorialStep(
-      id: 'item_types',
-      title: "Battle Items Explained!",
-      content: "Vendors offer magical items for boss battles!",
-      trigger: TutorialTrigger.firstDialogue,
-      slides: [
-        TutorialSlide(
-          title: "Attack Items ⚔️",
-          content: "These deal damage to bosses!\nEquip one to boost your offensive power.",
-          headerIcon: Icons.flash_on,
+          title: "Battle Items Explained!",
+          content: "Vendors offer magical items for boss battles!\n\n⚔️ Attack Items: Deal damage to bosses\n🛡️ Defense Items: Protect you from boss attacks\n\nYou need BOTH types before facing bosses!",
+          headerIcon: Icons.inventory,
         ),
         TutorialSlide(
-          title: "Defense Items 🛡️",
-          content: "These protect you from boss attacks!\nEquip one to reduce incoming damage.",
-          headerIcon: Icons.shield,
-        ),
-        TutorialSlide(
-          title: "You Need Both!",
-          content: "Collect BOTH types before facing bosses.\nI'll be cheering you on!",
-          headerIcon: Icons.sports_martial_arts,
-        ),
-      ],
-      visualElements: [], // Will be populated dynamically with NPC items
-    ),
-    TutorialStep(
-      id: 'regular_vs_special',
-      title: "Item Tiers Revealed!",
-      content: "Each vendor has TWO item tiers!",
-      trigger: TutorialTrigger.firstDialogue,
-      slides: [
-        TutorialSlide(
-          title: "Regular Items",
-          content: "Available at 60+ charm.\nGood for starting boss battles!",
-          headerIcon: Icons.star_border,
-        ),
-        TutorialSlide(
-          title: "Special Items ✨",
-          content: "Unlocked at 100 charm!\nGolden effects = MUCH more powerful!",
+          title: "Two Item Tiers Available",
+          content: "Each vendor has TWO item tiers:\n\n⭐ Regular Items (60+ charm): Good for starting boss battles\n✨ Special Items (100 charm): Golden effects = MUCH more powerful!\n\nSpecial items pack a bigger punch - like finding treasure in BabbleOn!",
           headerIcon: Icons.star,
         ),
         TutorialSlide(
-          title: "Worth the Effort!",
-          content: "Special items pack a bigger punch!\nLike finding treasure in BabbleOn!",
+          title: "Charm Thresholds & Rewards",
+          content: "Here's how charm levels unlock rewards:\n\n• 60+ Charm: You can request the regular item\n• 100 Charm: You unlock the special (golden) item\n\nCharm represents how impressed the NPC is with your Thai skills. Higher pronunciation accuracy builds charm faster!",
+          headerIcon: Icons.trending_up,
+        ),
+        TutorialSlide(
+          title: "How to Get Items",
+          content: "Ready to receive your first item? Here's how:\n\n• Look for the gift icon in conversation\n• Tap it to make your request\n• The NPC will give you their item\n• Items equip automatically for boss battles\n\nDecision time: Take regular items now, or keep chatting for special items?",
+          headerIcon: Icons.card_giftcard,
+        ),
+        TutorialSlide(
+          title: "Special Item Achievement!",
+          content: "When you unlock special (golden) items, you've achieved elite status!\n\nSpecial items provide significantly stronger battle bonuses and show your dedication to learning Thai. This achievement demonstrates excellent language skills!\n\nKeep up this level of excellence as you continue your adventure!",
           headerIcon: Icons.emoji_events,
         ),
       ],
@@ -407,7 +415,7 @@ class TutorialManager {
       id: 'pronunciation_confidence_guide',
       title: "Your Pronunciation Score!",
       content: "After you speak, you'll see a confidence score showing how accurately you pronounced the Thai words. This isn't about perfection - it's about progress!\n\n• 0-50%: Keep practicing, you're learning!\n• 50-75%: Good progress, minor tweaks needed\n• 75-90%: Great pronunciation!\n• 90%+: Native-level accuracy!\n\nDon't worry about low scores at first - every Thai learner starts here!",
-      trigger: TutorialTrigger.firstVoiceInteraction,
+      trigger: TutorialTrigger.firstBossBattle,
       headerIcon: Icons.assessment,
       visualElements: [
         TutorialVisual.icon(Icons.trending_up, 'Progress Tracking'),
@@ -446,48 +454,6 @@ class TutorialManager {
       isStandalone: true,
     ),
     
-    // Item system tutorials
-    TutorialStep(
-      id: 'charm_thresholds_explained',
-      title: "Charm Milestone Reached!",
-      content: "Congratulations! You've reached an important charm milestone! Here's what charm levels mean:\n\n• 60+ Charm: You can request the regular item from this NPC\n• 100 Charm: You unlock the special (golden) item - much more powerful!\n\nCharm represents how impressed the NPC is with your Thai skills. Higher pronunciation accuracy and engaging conversation build charm faster!",
-      trigger: TutorialTrigger.firstCharmMilestone,
-      headerIcon: Icons.favorite,
-      visualElements: [
-        TutorialVisual.icon(Icons.star_border, '60+ Regular'),
-        TutorialVisual.icon(Icons.star, '100 Special'),
-        TutorialVisual.icon(Icons.trending_up, 'Skill Progress'),
-      ],
-      isStandalone: true,
-    ),
-    
-    TutorialStep(
-      id: 'item_giving_tutorial',
-      title: "Ready to Receive Your First Item!",
-      content: "Great job building charm! You can now request an item from this NPC. Here's how it works:\n\n• Look for the gift icon in the conversation interface\n• Tap it to make your request\n• The NPC will give you their item and end the conversation\n• Items equip automatically and help in boss battles\n\nDecision time: Take the regular item now, or keep chatting to reach 100 charm for the special item?",
-      trigger: TutorialTrigger.firstItemEligibility,
-      headerIcon: Icons.card_giftcard,
-      visualElements: [
-        TutorialVisual.icon(Icons.touch_app, 'Tap Gift Icon'),
-        TutorialVisual.icon(Icons.inventory, 'Auto-Equip'),
-        TutorialVisual.icon(Icons.psychology, 'Strategic Choice'),
-      ],
-      isStandalone: true,
-    ),
-    
-    TutorialStep(
-      id: 'special_item_celebration',
-      title: "Special Item Unlocked! 🌟",
-      content: "AMAZING! You've unlocked your first special (golden) item! These are the most powerful items in BabbleOn, reserved for players who demonstrate excellent Thai language skills.\n\nSpecial items provide significantly stronger battle bonuses than regular items. This achievement shows your dedication to learning Thai - you should be proud of reaching maximum charm!\n\nKeep up this level of excellence as you continue your adventure!",
-      trigger: TutorialTrigger.firstSpecialItem,
-      headerIcon: Icons.emoji_events,
-      visualElements: [
-        TutorialVisual.icon(Icons.star, 'Special Power'),
-        TutorialVisual.icon(Icons.trending_up, 'Elite Status'),
-        TutorialVisual.icon(Icons.celebration, 'Achievement'),
-      ],
-      isStandalone: true,
-    ),
 
     // === NEW MISSING TUTORIAL STEPS ===
     
@@ -565,7 +531,7 @@ class TutorialManager {
     final completedSteps = <String>[];
     
     for (final step in steps) {
-      final isCompleted = ref.read(tutorial_db.tutorialCompletionProvider.notifier).isTutorialCompleted(step.id);
+      final isCompleted = ref.read(tutorialCacheProvider).isTutorialCompleted(step.id);
       if (isCompleted) {
         completedSteps.add(step.id);
       }
@@ -635,7 +601,7 @@ class TutorialManager {
           
           // Mark step as completed
           if (context.mounted) {
-            ref.read(tutorial_db.tutorialProgressProvider.notifier).markStepCompleted(step.id);
+            ref.read(tutorialCacheProvider).markCompleted(step.id);
           }
         } catch (e) {
           // Context disposed during popup, exit tutorial
@@ -662,7 +628,7 @@ class TutorialManager {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.1),
+      barrierColor: Colors.black.withValues(alpha: 0.1),
       builder: (BuildContext context) {
         return TutorialPopup(
           step: step,
@@ -701,7 +667,7 @@ class TutorialManager {
         
         // Mark only the steps from the current tutorial as completed
         for (final step in currentTutorialSteps) {
-          ref.read(tutorial_db.tutorialProgressProvider.notifier).markStepCompleted(step.id);
+          ref.read(tutorialCacheProvider).markCompleted(step.id);
         }
         
         debugPrint('Tutorial: Marked ${currentTutorialSteps.length} steps for trigger $_currentTutorialTrigger as completed due to skip');
@@ -749,17 +715,11 @@ class TutorialManager {
     List<TutorialVisual>? enhancedVisuals;
     
     switch (step.id) {
-      case 'item_types':
-        // Show actual items from current NPC
+      case 'charm_and_items_complete_guide':
+        // Show both regular and special items from current NPC for consolidated tutorial
         enhancedVisuals = [
-          TutorialVisual.itemIcon(npcData.regularItemAsset, '${npcData.regularItemName} (${npcData.regularItemType.toUpperCase()})'),
-        ];
-        break;
-      case 'regular_vs_special':
-        // Show both regular and special items from current NPC
-        enhancedVisuals = [
-          TutorialVisual.itemIcon(npcData.regularItemAsset, 'Regular: ${npcData.regularItemName}'),
-          TutorialVisual.itemIcon(npcData.specialItemAsset, 'Special: ${npcData.specialItemName}'),
+          TutorialVisual.itemIcon(npcData.regularItemAsset, 'Regular: ${npcData.regularItemName} (${npcData.regularItemType.toUpperCase()})'),
+          TutorialVisual.itemIcon(npcData.specialItemAsset, 'Special: ${npcData.specialItemName} (${npcData.specialItemType.toUpperCase()})'),
         ];
         break;
       default:

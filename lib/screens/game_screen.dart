@@ -141,6 +141,7 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     debugPrint('🏗️ GameScreen: build() called');
@@ -158,6 +159,7 @@ class _GameScreenState extends State<GameScreen> {
             } else {
               debugPrint('🔄 GameScreen: No save data - ensuring fresh start');
               ref.resetForNewGame(); // Full reset for fresh start
+              // Note: No initial save created - save will be created when player actually interacts with the game
             }
           });
         }
@@ -499,6 +501,9 @@ class MainMenu extends ConsumerWidget {
         // Clear any new item notifications and reset overlay visibility
         ref.read(gameStateProvider.notifier).clearNewItem();
         ref.read(dialogueOverlayVisibilityProvider.notifier).state = false;
+        
+        // Save NPC interaction progress (marks level as visited even without items)
+        await ref.triggerNpcInteractionSave();
         
         // Save game state before clearing inventory (for resume functionality)
         await ref.triggerInventorySave();

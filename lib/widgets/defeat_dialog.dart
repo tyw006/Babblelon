@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:babblelon/providers/battle_providers.dart';
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:babblelon/screens/main_screen/widgets/glassmorphic_card.dart';
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
@@ -529,13 +529,17 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           // Battle Analysis Header
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+              color: ModernDesignSystem.primarySurface,
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              border: Border.all(color: ModernDesignSystem.borderPrimary),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'BATTLE ANALYSIS',
-                  style: AppStyles.subtitleTextStyle.copyWith(
+                  style: ModernDesignSystem.headlineMedium.copyWith(
                     fontSize: 18,
                     color: Colors.amber,
                   ),
@@ -543,7 +547,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                 const SizedBox(height: 4),
                 Text(
                   'Here\'s what to focus on:',
-                  style: AppStyles.bodyTextStyle.copyWith(
+                  style: ModernDesignSystem.bodyMedium.copyWith(
                     color: Colors.grey.shade300,
                   ),
                 ),
@@ -556,7 +560,11 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           // Primary Challenge Card
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration.copyWith(
+            decoration: BoxDecoration(
+              color: ModernDesignSystem.primarySurface,
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              border: Border.all(color: ModernDesignSystem.borderPrimary),
+            ).copyWith(
               border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
             ),
             child: Column(
@@ -573,7 +581,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                     Expanded(
                       child: Text(
                         'Primary Challenge: ${primaryChallenge['title']}',
-                        style: AppStyles.bodyTextStyle.copyWith(
+                        style: ModernDesignSystem.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade300,
                         ),
@@ -584,7 +592,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                 const SizedBox(height: 8),
                 Text(
                   primaryChallenge['description'] as String,
-                  style: AppStyles.smallTextStyle,
+                  style: ModernDesignSystem.bodySmall,
                 ),
                 const SizedBox(height: 12),
                 AnimatedBuilder(
@@ -593,7 +601,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                     final animatedValue = (primaryChallenge['value'] as double) * _numberAnimation.value;
                     return Text(
                       primaryChallenge['display'](animatedValue),
-                      style: AppStyles.bodyTextStyle.copyWith(
+                      style: ModernDesignSystem.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.red,
                         fontSize: 18,
@@ -611,7 +619,11 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           if (toughestWord != null)
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: AppStyles.cardDecoration.copyWith(
+              decoration: BoxDecoration(
+              color: ModernDesignSystem.primarySurface,
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              border: Border.all(color: ModernDesignSystem.borderPrimary),
+            ).copyWith(
                 border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Column(
@@ -628,7 +640,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                       Expanded(
                         child: Text(
                           'Your Toughest Phrase:',
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.orange.shade300,
                           ),
@@ -649,7 +661,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                       children: [
                         Text(
                           toughestWord['word'] as String,
-                          style: AppStyles.bodyTextStyle.copyWith(
+                          style: ModernDesignSystem.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 20,
                           ),
@@ -661,7 +673,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                             final animatedScore = ((toughestWord['score'] as double) * _numberAnimation.value).toInt();
                             return Text(
                               'Avg. Pronunciation Score: $animatedScore% (Needs Improvement)',
-                              style: AppStyles.smallTextStyle.copyWith(
+                              style: ModernDesignSystem.bodySmall.copyWith(
                                 color: Colors.orange.shade200,
                               ),
                             );
@@ -720,13 +732,17 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           // Strategy Tips Header
           Container(
             padding: const EdgeInsets.all(16.0),
-            decoration: AppStyles.cardDecoration,
+            decoration: BoxDecoration(
+              color: ModernDesignSystem.primarySurface,
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              border: Border.all(color: ModernDesignSystem.borderPrimary),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'STRATEGY TIPS',
-                  style: AppStyles.subtitleTextStyle.copyWith(
+                  style: ModernDesignSystem.headlineMedium.copyWith(
                     fontSize: 18,
                     color: Colors.green,
                   ),
@@ -734,7 +750,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
                 const SizedBox(height: 4),
                 Text(
                   'Here\'s how to improve:',
-                  style: AppStyles.bodyTextStyle.copyWith(
+                  style: ModernDesignSystem.bodyMedium.copyWith(
                     color: Colors.grey.shade300,
                   ),
                 ),
@@ -861,7 +877,7 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
           Expanded(
             child: Text(
               tip,
-              style: AppStyles.bodyTextStyle.copyWith(
+              style: ModernDesignSystem.bodyMedium.copyWith(
                 color: Colors.white,
               ),
             ),
@@ -874,7 +890,11 @@ class _DefeatDialogState extends ConsumerState<DefeatDialog>
   Widget _buildPageIndicator() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+              color: ModernDesignSystem.primarySurface,
+              borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+              border: Border.all(color: ModernDesignSystem.borderPrimary),
+            ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(3, (index) {

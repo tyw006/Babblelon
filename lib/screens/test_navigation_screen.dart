@@ -8,6 +8,7 @@ import 'package:babblelon/widgets/character_tracing_widget.dart';
 import 'package:babblelon/screens/game_screen.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
 import 'package:babblelon/models/boss_data.dart';
+import 'package:babblelon/models/battle_item.dart';
 import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
@@ -17,6 +18,8 @@ import 'package:babblelon/overlays/dialogue_overlay.dart';
 import 'package:babblelon/game/babblelon_game.dart';
 import 'package:babblelon/widgets/modern_calculation_display.dart';
 import 'package:babblelon/models/assessment_model.dart';
+import 'package:babblelon/widgets/resume_game_dialog.dart';
+import 'package:babblelon/models/local_storage_models.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'dart:math';
@@ -209,6 +212,18 @@ class _TestNavigationScreenState extends ConsumerState<TestNavigationScreen>
                   subtitle: 'Speech recognition results with modern calculation display',
                   icon: Icons.mic,
                   onTap: () => _showSampleDialog(_createPronunciationAssessmentDialog()),
+                ),
+                _buildTestCard(
+                  title: 'Resume Game Dialog',
+                  subtitle: 'Test save/resume functionality with mock data',
+                  icon: Icons.save_alt_rounded,
+                  onTap: () => _showSampleDialog(_createResumeGameDialog()),
+                ),
+                _buildTestCard(
+                  title: 'Save State Simulator',
+                  subtitle: 'Interactive save/load scenario testing',
+                  icon: Icons.cloud_sync,
+                  onTap: () => _showSampleDialog(_createSaveStateSimulator()),
                 ),
               ],
             ),
@@ -516,12 +531,26 @@ class _TestNavigationScreenState extends ConsumerState<TestNavigationScreen>
   }
 
   Widget _createVictoryDialog() {
+    debugPrint('🧪 TEST: Creating Victory Dialog with sample metrics');
+    debugPrint('   - This will show complete victory flow');
+    debugPrint('   - Victory should reset ALL game state and saves');
+    debugPrint('   - Inventory: CLEARED');
+    debugPrint('   - Boss fight save: DELETED');
+    debugPrint('   - Exploration save: DELETED');
+    debugPrint('   - Player returns to exploration mode');
+    
     return VictoryReportDialog(
       metrics: _createSampleBattleMetrics(),
     );
   }
 
   Widget _createDefeatDialog() {
+    debugPrint('🧪 TEST: Creating Defeat Dialog with sample metrics');
+    debugPrint('   - This will show defeat options: Retry vs Exit');
+    debugPrint('   - RETRY: HP reset, inventory preserved, randomized turn');
+    debugPrint('   - EXIT: Current state saved, can resume later');
+    debugPrint('   - Both options preserve inventory in save file');
+    
     return DefeatDialog(
       metrics: _createSampleBattleMetrics(),
     );
@@ -678,6 +707,438 @@ class _TestNavigationScreenState extends ConsumerState<TestNavigationScreen>
         itemMultiplier: 1.0,
         penalty: 0.0,
         explanation: 'Base Damage: 20\nPronunciation Bonus: +30%\nComplexity Bonus: +10%\nTotal Attack: 28.6',
+      ),
+    );
+  }
+
+  Widget _createResumeGameDialog() {
+    return ResumeGameDialog(
+      levelId: 'test_level_1',
+      saveData: _createSampleGameSaveState(),
+      onResume: () {
+        Navigator.of(context).pop();
+        debugPrint('🎮 TEST: Resume game selected - inventory preserved');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Resume Game - Inventory preserved in memory'),
+            backgroundColor: UnifiedDarkTheme.success,
+          ),
+        );
+      },
+      onStartNew: () {
+        Navigator.of(context).pop();
+        debugPrint('🎮 TEST: Start new game selected - all saves cleared');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Start New Game - All saves cleared'),
+            backgroundColor: UnifiedDarkTheme.warning,
+          ),
+        );
+      },
+    );
+  }
+
+  GameSaveState _createSampleGameSaveState() {
+    final saveState = GameSaveState()
+      ..levelId = 'test_level_1'
+      ..gameType = 'boss_fight'
+      ..timestamp = DateTime.now().subtract(const Duration(minutes: 15))
+      ..progressPercentage = 65.0
+      ..npcsVisited = 3
+      ..itemsCollected = 8
+      ..playerHealth = 75
+      ..bossHealth = 40
+      ..bossId = 'test_boss'
+      ..currentTurn = 'player'
+      ..inventoryJson = jsonEncode({
+        'healing_potion': 'Small Health Potion',
+        'magic_sword': 'Enchanted Blade',
+        'shield': 'Iron Shield',
+      })
+      ..usedFlashcardsJson = jsonEncode([1, 3, 7, 12])
+      ..activeFlashcardsJson = jsonEncode([2, 8, 15])
+      ..revealedCardsJson = jsonEncode(['card_5', 'card_9'])
+      ..battleMetricsJson = jsonEncode({
+        'totalDamageDealt': 60,
+        'currentStreak': 2,
+        'pronunciationScores': [78.5, 82.0, 76.3],
+      });
+
+    debugPrint('🧪 TEST: Created mock save state with:');
+    debugPrint('   - Game Type: ${saveState.gameType}');
+    debugPrint('   - Progress: ${saveState.progressPercentage}%');
+    debugPrint('   - Player HP: ${saveState.playerHealth}');
+    debugPrint('   - Boss HP: ${saveState.bossHealth}');
+    debugPrint('   - Inventory: healing_potion, magic_sword, shield');
+    debugPrint('   - Used Flashcards: [1, 3, 7, 12]');
+    debugPrint('   - Active Flashcards: [2, 8, 15]');
+    
+    return saveState;
+  }
+
+  Widget _createSaveStateSimulator() {
+    return const SaveStateSimulatorDialog();
+  }
+}
+
+/// Interactive dialog for testing save/load scenarios
+class SaveStateSimulatorDialog extends ConsumerStatefulWidget {
+  const SaveStateSimulatorDialog({super.key});
+
+  @override
+  ConsumerState<SaveStateSimulatorDialog> createState() => _SaveStateSimulatorDialogState();
+}
+
+class _SaveStateSimulatorDialogState extends ConsumerState<SaveStateSimulatorDialog> {
+  String _currentScenario = 'fresh_start';
+  Map<String, String> _inventory = {
+    'healing_potion': 'Small Health Potion',
+    'magic_sword': 'Enchanted Blade',
+  };
+  int _playerHP = 100;
+  int _bossHP = 100;
+  bool _hasSave = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        decoration: BoxDecoration(
+          gradient: UnifiedDarkTheme.surfaceGradient,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: UnifiedDarkTheme.primaryAccent.withValues(alpha: 0.3),
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Icon(
+                    Icons.cloud_sync,
+                    color: UnifiedDarkTheme.primaryAccent,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Save State Simulator',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: UnifiedDarkTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.close,
+                      color: UnifiedDarkTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Current State Display
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Current Game State',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: UnifiedDarkTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Player HP: $_playerHP/100',
+                                        style: const TextStyle(color: UnifiedDarkTheme.textSecondary),
+                                      ),
+                                      Text(
+                                        'Boss HP: $_bossHP/100',
+                                        style: const TextStyle(color: UnifiedDarkTheme.textSecondary),
+                                      ),
+                                      Text(
+                                        'Save File: ${_hasSave ? 'EXISTS' : 'NONE'}',
+                                        style: TextStyle(
+                                          color: _hasSave ? UnifiedDarkTheme.success : UnifiedDarkTheme.warning,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Inventory:',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: UnifiedDarkTheme.textSecondary,
+                                      ),
+                                    ),
+                                    ..._inventory.entries.map((entry) => Text(
+                                      '• ${entry.value}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: UnifiedDarkTheme.textTertiary,
+                                      ),
+                                    )),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Scenario Buttons
+                      const Text(
+                        'Test Scenarios',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: UnifiedDarkTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      _buildScenarioButton(
+                        'Boss Fight Victory',
+                        'Win boss fight → Complete reset',
+                        Icons.celebration,
+                        UnifiedDarkTheme.success,
+                        () => _simulateVictory(),
+                      ),
+                      _buildScenarioButton(
+                        'Boss Fight Defeat → Retry',
+                        'Lose → Retry (preserve inventory)',
+                        Icons.refresh,
+                        UnifiedDarkTheme.warning,
+                        () => _simulateDefeatRetry(),
+                      ),
+                      _buildScenarioButton(
+                        'Boss Fight Defeat → Exit',
+                        'Lose → Exit (save with inventory)',
+                        Icons.exit_to_app,
+                        UnifiedDarkTheme.info,
+                        () => _simulateDefeatExit(),
+                      ),
+                      _buildScenarioButton(
+                        'Resume Game',
+                        'Load from existing save',
+                        Icons.play_arrow,
+                        UnifiedDarkTheme.primaryAccent,
+                        () => _simulateResume(),
+                        enabled: _hasSave,
+                      ),
+                      _buildScenarioButton(
+                        'Reset Everything',
+                        'Clear all saves and state',
+                        Icons.delete_sweep,
+                        UnifiedDarkTheme.error,
+                        () => _resetEverything(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScenarioButton(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    bool enabled = true,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: enabled 
+                ? color.withValues(alpha: 0.1) 
+                : Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: enabled 
+                  ? color.withValues(alpha: 0.3) 
+                  : Colors.grey.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: enabled ? color : Colors.grey,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: enabled 
+                            ? UnifiedDarkTheme.textPrimary 
+                            : Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: enabled 
+                            ? UnifiedDarkTheme.textSecondary 
+                            : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _simulateVictory() {
+    setState(() {
+      _playerHP = 100;
+      _bossHP = 100;
+      _inventory.clear();
+      _hasSave = false;
+      _currentScenario = 'victory';
+    });
+    
+    debugPrint('🏆 TEST SCENARIO: Boss Fight Victory');
+    debugPrint('   - All saves cleared');
+    debugPrint('   - Inventory cleared');
+    debugPrint('   - HP reset to 100/100');
+    debugPrint('   - Player returns to exploration');
+    
+    _showResultSnackBar('Victory! Everything reset for new game', UnifiedDarkTheme.success);
+  }
+
+  void _simulateDefeatRetry() {
+    setState(() {
+      _playerHP = 100;
+      _bossHP = 100;
+      // Inventory preserved
+      _hasSave = true;
+      _currentScenario = 'defeat_retry';
+    });
+    
+    debugPrint('🔄 TEST SCENARIO: Boss Fight Defeat → Retry');
+    debugPrint('   - HP reset to 100/100');
+    debugPrint('   - Inventory preserved: $_inventory');
+    debugPrint('   - Boss fight save updated with retry state');
+    debugPrint('   - Turn randomized');
+    
+    _showResultSnackBar('Defeat Retry! HP reset, inventory preserved', UnifiedDarkTheme.warning);
+  }
+
+  void _simulateDefeatExit() {
+    setState(() {
+      // Current HP maintained
+      _hasSave = true;
+      _currentScenario = 'defeat_exit';
+    });
+    
+    debugPrint('🚪 TEST SCENARIO: Boss Fight Defeat → Exit');
+    debugPrint('   - HP preserved as-is: $_playerHP/$_bossHP');
+    debugPrint('   - Inventory preserved: $_inventory');
+    debugPrint('   - Boss fight save created for later resumption');
+    debugPrint('   - Can resume exactly where left off');
+    
+    _showResultSnackBar('Defeat Exit! Save created for resumption', UnifiedDarkTheme.info);
+  }
+
+  void _simulateResume() {
+    if (!_hasSave) return;
+    
+    debugPrint('▶️ TEST SCENARIO: Resume Game');
+    debugPrint('   - Loading from existing save');
+    debugPrint('   - HP: $_playerHP/$_bossHP');
+    debugPrint('   - Inventory: $_inventory');
+    debugPrint('   - All state restored exactly');
+    
+    _showResultSnackBar('Game resumed from save!', UnifiedDarkTheme.primaryAccent);
+  }
+
+  void _resetEverything() {
+    setState(() {
+      _playerHP = 100;
+      _bossHP = 100;
+      _inventory = {
+        'healing_potion': 'Small Health Potion',
+        'magic_sword': 'Enchanted Blade',
+      };
+      _hasSave = false;
+      _currentScenario = 'fresh_start';
+    });
+    
+    debugPrint('🗑️ TEST SCENARIO: Reset Everything');
+    debugPrint('   - All saves cleared');
+    debugPrint('   - Fresh game state');
+    debugPrint('   - Ready for new testing');
+    
+    _showResultSnackBar('Everything reset to fresh state', UnifiedDarkTheme.error);
+  }
+
+  void _showResultSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
       ),
     );
   }

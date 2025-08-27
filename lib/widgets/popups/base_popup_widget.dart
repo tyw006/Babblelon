@@ -1,55 +1,52 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:babblelon/theme/modern_design_system.dart' as modern;
 
 /// Base class for consistent popup styling and behavior
 abstract class BasePopup {
-  /// Standard glassmorphic popup styling configuration (tutorial-style)
+  /// Standard modern popup styling configuration using ModernDesignSystem
   static BoxDecoration get standardDecoration => BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Colors.black.withOpacity(0.7),
-        Colors.black.withOpacity(0.5),
-      ],
-    ),
+    gradient: modern.ModernDesignSystem.surfaceGradient,
     borderRadius: BorderRadius.circular(24),
     border: Border.all(
-      color: Colors.white.withOpacity(0.3),
-      width: 1.5,
+      color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+      width: 2,
     ),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.1),
-        blurRadius: 10,
-        offset: const Offset(0, 5),
+        color: Colors.black.withValues(alpha: 0.3),
+        blurRadius: 20,
+        spreadRadius: 5,
       ),
     ],
   );
 
-  /// Standard button style for popups (tutorial-style)
+  /// Standard primary button style for popups using ModernDesignSystem
   static ButtonStyle get primaryButtonStyle => ElevatedButton.styleFrom(
-    backgroundColor: Colors.white,
-    foregroundColor: Colors.black,
+    backgroundColor: modern.ModernDesignSystem.primaryAccent,
+    foregroundColor: modern.ModernDesignSystem.textOnColor,
+    elevation: 8,
+    shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
     padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
     ),
   );
 
-  /// Standard secondary button style for popups (tutorial-style)
-  static ButtonStyle get secondaryButtonStyle => TextButton.styleFrom(
-    foregroundColor: Colors.white.withOpacity(0.7),
+  /// Standard secondary button style for popups using ModernDesignSystem
+  static ButtonStyle get secondaryButtonStyle => OutlinedButton.styleFrom(
+    foregroundColor: modern.ModernDesignSystem.textPrimary,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-      side: BorderSide(
-        color: Colors.white.withOpacity(0.3),
-      ),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    side: const BorderSide(
+      color: modern.ModernDesignSystem.borderPrimary,
+      width: 2,
     ),
   );
 
-  /// Creates a standard glassmorphic popup dialog container
+  /// Creates a standard popup dialog container using ModernDesignSystem
   static Widget buildPopupContainer({
     required Widget child,
     EdgeInsets? padding,
@@ -77,7 +74,7 @@ abstract class BasePopup {
     );
   }
 
-  /// Shows a popup with consistent glassmorphic styling
+  /// Shows a popup with consistent ModernDesignSystem styling
   static Future<T?> showPopup<T>(
     BuildContext context, {
     required Widget child,

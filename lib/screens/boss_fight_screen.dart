@@ -35,7 +35,7 @@ import 'package:babblelon/providers/battle_providers.dart';
 import 'package:babblelon/widgets/victory_report_dialog.dart';
 import 'package:babblelon/services/isar_service.dart';
 import 'package:babblelon/models/local_storage_models.dart' as isar_models;
-import 'package:babblelon/widgets/shared/app_styles.dart';
+import 'package:babblelon/theme/modern_design_system.dart';
 import 'package:babblelon/widgets/popups/base_popup_widget.dart';
 import 'package:babblelon/models/battle_item.dart';
 import 'package:babblelon/widgets/defeat_dialog.dart';
@@ -2570,7 +2570,11 @@ class _InteractiveFlashcardDialogState
   Widget _buildPanel({required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: AppStyles.cardDecoration,
+      decoration: BoxDecoration(
+                color: ModernDesignSystem.primarySurface,
+                borderRadius: BorderRadius.circular(ModernDesignSystem.radiusMedium),
+                border: Border.all(color: ModernDesignSystem.borderPrimary),
+              ),
       child: child,
     );
   }
@@ -2614,7 +2618,7 @@ class _InteractiveFlashcardDialogState
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
-              icon: const Icon(Icons.replay, color: AppStyles.textColor, size: 30),
+              icon: const Icon(Icons.replay, color: ModernDesignSystem.textPrimary, size: 30),
               onPressed: widget.onPracticeReset,
               tooltip: 'Record Again',
             ),
@@ -2623,7 +2627,7 @@ class _InteractiveFlashcardDialogState
               onTap: _playRecording,
             ),
             IconButton(
-              icon: const Icon(Icons.send_rounded, color: AppStyles.accentColor, size: 30),
+              icon: const Icon(Icons.send_rounded, color: ModernDesignSystem.primaryAccent, size: 30),
               onPressed: widget.onSend,
               tooltip: 'Send for Assessment',
             ),
@@ -2639,7 +2643,7 @@ class _InteractiveFlashcardDialogState
         SizedBox(
             width: 30, height: 30, child: CircularProgressIndicator()),
         SizedBox(height: 16),
-        Text("Assessing...", style: TextStyle(color: AppStyles.subtitleTextColor)),
+        Text("Assessing...", style: TextStyle(color: ModernDesignSystem.textSecondary)),
       ],
     );
   }
@@ -2658,7 +2662,7 @@ class _InteractiveFlashcardDialogState
             const Text(
               "Pronunciation Assessment",
               style: TextStyle(
-                color: AppStyles.textColor,
+                color: ModernDesignSystem.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -2776,7 +2780,7 @@ class _InteractiveFlashcardDialogState
                     onPressed: () {
                       widget.practiceRecordingStateNotifier.value = RecordingState.results;
                     },
-                    icon: const Icon(Icons.arrow_back, color: AppStyles.subtitleTextColor),
+                    icon: const Icon(Icons.arrow_back, color: ModernDesignSystem.textSecondary),
                     tooltip: 'Back to Assessment',
                   ),
                   const Spacer(),
@@ -2795,7 +2799,7 @@ class _InteractiveFlashcardDialogState
               Text(
                 isAttackTurn ? "Attack Bonus" : "Defense Bonus",
                 style: const TextStyle(
-                  color: AppStyles.textColor,
+                  color: ModernDesignSystem.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -2823,7 +2827,7 @@ class _InteractiveFlashcardDialogState
                   const Text(
                     "%",
                     style: TextStyle(
-                      color: AppStyles.subtitleTextColor,
+                      color: ModernDesignSystem.textSecondary,
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                     ),
@@ -2851,7 +2855,7 @@ class _InteractiveFlashcardDialogState
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: actionColor,
-                  foregroundColor: AppStyles.textColor,
+                  foregroundColor: ModernDesignSystem.textPrimary,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -3073,13 +3077,13 @@ class _WordAnalysisRow extends StatelessWidget {
               children: [
                 Text(mapping.thai,
                     style: const TextStyle(
-                        color: AppStyles.textColor,
+                        color: ModernDesignSystem.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (mapping.transliteration.isNotEmpty)
                   Text(mapping.transliteration,
                       style: TextStyle(
-                          color: AppStyles.subtitleTextColor, fontSize: 10)),
+                          color: ModernDesignSystem.textSecondary, fontSize: 10)),
                 if (mapping.translation.isNotEmpty)
                   Text('"${mapping.translation}"',
                       style: TextStyle(
@@ -3124,13 +3128,13 @@ class _BackendWordAnalysisRow extends StatelessWidget {
               children: [
                 Text(feedback.word,
                     style: const TextStyle(
-                        color: AppStyles.textColor,
+                        color: ModernDesignSystem.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 if (feedback.transliteration.isNotEmpty)
                   Text(feedback.transliteration,
                       style: TextStyle(
-                          color: AppStyles.subtitleTextColor, fontSize: 10)),
+                          color: ModernDesignSystem.textSecondary, fontSize: 10)),
                 if (feedback.errorType != 'None')
                   Text(feedback.errorType,
                       style: TextStyle(
@@ -3448,7 +3452,7 @@ class _AnimatedNumberDisplay extends StatelessWidget {
         return Text(
           '${isPercentage ? value.toStringAsFixed(0) : value.toStringAsFixed(2)}$unit',
           style: const TextStyle(
-            color: AppStyles.textColor,
+            color: ModernDesignSystem.textPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 28,
             shadows: [
@@ -3617,7 +3621,7 @@ class _DetailedPronunciationScores extends StatelessWidget {
           const Text(
             'Detailed Breakdown',
             style: TextStyle(
-              color: AppStyles.textColor,
+              color: ModernDesignSystem.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -3705,7 +3709,7 @@ class _AzurePronunciationTips extends StatelessWidget {
               Text(
                 'Pronunciation Tips',
                 style: TextStyle(
-                  color: AppStyles.textColor,
+                  color: ModernDesignSystem.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3733,7 +3737,7 @@ class _AzurePronunciationTips extends StatelessWidget {
                     child: Text(
                       tip,
                       style: TextStyle(
-                        color: AppStyles.textColor.withOpacity(0.9),
+                        color: ModernDesignSystem.textPrimary.withOpacity(0.9),
                         fontSize: 14,
                       ),
                     ),

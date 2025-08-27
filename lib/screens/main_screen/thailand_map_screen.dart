@@ -10,8 +10,6 @@ import 'package:babblelon/services/supabase_service.dart';
 import 'package:babblelon/services/game_save_service.dart';
 import 'package:babblelon/widgets/resume_game_dialog.dart';
 import 'package:babblelon/models/local_storage_models.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui';
 import 'package:babblelon/services/static_game_loader.dart';
 import 'package:babblelon/models/boss_data.dart';
 import 'package:babblelon/screens/boss_fight_screen.dart';
@@ -383,141 +381,118 @@ class _ThailandMapScreenState extends ConsumerState<ThailandMapScreen>
       barrierDismissible: false,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-            child: Container(
-              constraints: const BoxConstraints(
-                maxWidth: 400,
-                maxHeight: 600,
-              ),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1a1a2e),
-                    Color(0xFF16213e),
-                    Color(0xFF0f3460),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: Colors.deepPurple,
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.explore,
-                        color: Colors.deepPurple[300],
-                        size: 32,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Welcome to ${location.name}!',
-                          style: GoogleFonts.orbitron(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description
-                  Text(
-                    location.description,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Adventure message
-                  Text(
-                    'Are you ready to begin your Thai language adventure?',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(
-                                color: Colors.white38,
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            'Not Yet',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white70,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 8,
-                          ),
-                          child: Text(
-                            "Let's Go!",
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          decoration: BoxDecoration(
+            gradient: modern.ModernDesignSystem.surfaceGradient,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.3),
+              width: 2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title Row
+              Row(
+                children: [
+                  const Icon(
+                    Icons.explore,
+                    color: modern.ModernDesignSystem.primaryAccent,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Welcome to ${location.name}!',
+                      style: modern.ModernDesignSystem.headlineMedium.copyWith(
+                        color: modern.ModernDesignSystem.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Description
+              Text(
+                location.description,
+                style: modern.ModernDesignSystem.bodyLarge.copyWith(
+                  color: modern.ModernDesignSystem.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              
+              // Adventure message
+              Text(
+                'Are you ready to begin your Thai language adventure?',
+                style: modern.ModernDesignSystem.bodyLarge.copyWith(
+                  color: modern.ModernDesignSystem.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              
+              // Action Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: modern.ModernDesignSystem.textPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: const BorderSide(
+                        color: modern.ModernDesignSystem.borderPrimary,
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      'Not Yet',
+                      style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: modern.ModernDesignSystem.primaryAccent,
+                      foregroundColor: modern.ModernDesignSystem.textOnColor,
+                      elevation: 8,
+                      shadowColor: modern.ModernDesignSystem.primaryAccent.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      "Let's Go!",
+                      style: modern.ModernDesignSystem.bodyMedium.copyWith(
+                        color: modern.ModernDesignSystem.textOnColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
